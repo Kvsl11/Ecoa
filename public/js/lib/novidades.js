@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 416, data: '2026-11-02', titulo: 'Tema claro sem bordas',
+    itens: [
+      { tipo: 'correcao', texto: 'No tema claro, sumiu a moldura cinza-clara em volta do app (bem à vista em volta do player escuro), e o degradê do topo das páginas, que virava uma faixa azul-acinzentada, ficou suave, na cor da tela.' },
+      { tipo: 'melhoria', texto: 'O “Tocando agora” na tela toda, no tablet, vai de ponta a ponta, sem margem em volta; no tema claro, o painel do player aberto ao lado também encosta na borda.' },
+      { tipo: 'correcao', texto: 'Com o painel do player aberto ao lado, os atalhos do Início e a grade da Biblioteca não ficam mais espremidos: as colunas seguem a largura da página (2 quando ela é estreita, até 4 quando é larga).' },
+    ],
+  },
+  {
     versao: 415, data: '2026-11-02', titulo: 'Busca das Músicas curtidas rola com a página',
     itens: [
       { tipo: 'correcao', texto: 'Nas Músicas curtidas, a busca não fica mais presa no topo (com a faixa azul por cima das músicas): ela fica no alto da página e some ao rolar, como no Spotify.' },
@@ -60,13 +68,6 @@ export const NOVIDADES = [
     versao: 407, data: '2026-11-01', titulo: 'Ícone novo para o desenho dos acordes',
     itens: [
       { tipo: 'melhoria', texto: 'O botão do desenho dos acordes (na cifra em tela cheia e nos Ajustes) ganhou um ícone que é o próprio desenho de um acorde: o braço do violão com as 6 cordas, as casas e os dedos (um Lá menor), no lugar dos quadradinhos.' },
-    ],
-  },
-  {
-    versao: 406, data: '2026-11-01', titulo: 'Acorde que soa na hora',
-    itens: [
-      { tipo: 'correcao', texto: 'O som do acorde sai na hora do toque: as notas do violão dos acordes da música já vão sendo preparadas quando a faixa dos desenhos aparece, e o silêncio do começo de cada gravação foi tirado.' },
-      { tipo: 'correcao', texto: 'Rolando a faixa dos desenhos até o fim, o último acorde aparece inteiro (antes ficava meio apagado na borda).' },
     ],
   },
 ];
