@@ -7527,7 +7527,7 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
       <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
       <button class="btn small danger solid" id="sel-excluir">${icon('trash', 15)} Excluir</button></div>
     <button class="fab" ${selecionando || ehArt ? 'hidden' : ''} aria-label="${ehPl ? 'Nova playlist' : 'Novo repertório'}">${icon('plus', 24)}<span>${ehPl ? 'Nova playlist' : 'Novo repertório'}</span></button>` : `
-    <div class="bib-fixo curtidas-busca">
+    <div class="curtidas-busca">
       <label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar nas músicas curtidas" value="${esc(busca)}" autocomplete="off"></label>
       <button class="btn small spot-ordenar" id="bib-ordenar-mus" title="Mudar a ordem">${ordemMus === 'az' ? 'A–Z' : 'Recentes'}</button>
     </div>
