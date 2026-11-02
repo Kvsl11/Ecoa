@@ -1307,8 +1307,8 @@ body.performance .convite-instalar { display: none; }
 #player.arrastando .pl-prog i { transition: none; }
 html.pp #player.arrastando .pl-prog i::after { transform: scale(1.35); }
 /* ampliado: o vídeo grande em cima da barra */
-#player.grande { grid-template-areas: "video video video video" "info info play lado" "tempo tempo tempo tempo"; }
-#player.grande .pl-video { width: auto; margin: 8px 8px 0; }
+html:not(.pp) #player.grande { grid-template-areas: "video video video video" "info info play lado" "tempo tempo tempo tempo"; }
+html:not(.pp) #player.grande .pl-video { width: auto; margin: 8px 8px 0; }
 /* computador e tablet deitado: uma barra no rodapé, de ponta a ponta, como no Spotify — a música à esquerda,
    tocar/pausar e o tempo no centro, ampliar e fechar à direita */
 @media (min-width: 900px) {
@@ -1333,10 +1333,10 @@ html.pp #player.arrastando .pl-prog i::after { transform: scale(1.35); }
   #player .pl-prog:hover i { background: var(--accent); }
   #player .pl-lado { grid-area: lado; justify-self: end; gap: 4px; }
   /* ampliado: o vídeo flutua grande acima da barra, no canto direito */
-  #player.grande { grid-template-areas: "esq play lado" "esq tempo lado"; }
-  #player.grande .pl-video { grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px); width: 420px; margin: 0; border-radius: 10px; box-shadow: var(--shadow-lg); }
+  html:not(.pp) #player.grande { grid-template-areas: "esq play lado" "esq tempo lado"; }
+  html:not(.pp) #player.grande .pl-video { grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px); width: 420px; margin: 0; border-radius: 10px; box-shadow: var(--shadow-lg); }
   #player .pl-tmini { display: none; }
-  #player.grande .pl-info { margin-left: 0; }
+  html:not(.pp) #player.grande .pl-info { margin-left: 0; }
 }
 body.performance #player { bottom: calc(env(safe-area-inset-bottom) + 70px); }
 
@@ -4629,13 +4629,13 @@ html.tablet body.painel-recolhido #player { touch-action: pan-x; }
 /* computador: o vídeo sai da barra e flutua acima dela, à direita; puxando, ele cresce ou diminui */
 @media (min-width: 900px) {
   html:not(.tablet):not(.pp) #player { touch-action: pan-x; }
-  html:not(.tablet) #player.mini-1:not(.sem-video) .pl-video, html:not(.tablet) #player.grande:not(.sem-video) .pl-video {
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video, html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video {
     grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px);
     margin: 0; border-radius: 12px; box-shadow: var(--shadow-lg);
   }
-  html:not(.tablet) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 340px); }
-  html:not(.tablet) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, clamp(420px, 42vw, 640px)); }
-  html:not(.tablet) #player.mini-1 .pl-info { margin-left: 0; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 340px); }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, clamp(420px, 42vw, 640px)); }
+  html:not(.tablet):not(.pp) #player.mini-1 .pl-info { margin-left: 0; }
   html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-meio, html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-video { cursor: grab; }
   #pl-tela:not(.no-palco):not(.na-telinha) { transition: border-radius 0.2s; }
 }

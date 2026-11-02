@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 436, data: '2026-11-02', titulo: 'O vídeo volta ao Tocando agora',
+    itens: [
+      { tipo: 'correcao', texto: 'Depois de aumentar o vídeo do mini player até o tamanho grande, o Tocando agora (no tablet, deitado ou em pé, e na tela toda) abria sem o vídeo: só o nome, a barra do tempo e os botões. O tamanho grande do mini player levava o vídeo para fora da tela. Agora os tamanhos valem só no mini player, e o Tocando agora mostra o vídeo como sempre.' },
+    ],
+  },
+  {
     versao: 435, data: '2026-11-02', titulo: 'Puxe o player para aumentar o vídeo',
     itens: [
       { tipo: 'novo', texto: 'Com um vídeo tocando, segure o mini player e puxe para cima: o vídeo cresce junto com o dedo, como no Spotify. São três tamanhos: o compacto, o médio (o vídeo maior, com o nome em cima e os botões embaixo) e o grande (o vídeo na largura toda). Puxe para baixo para diminuir. O tamanho escolhido fica guardado.' },
@@ -64,12 +70,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O “E” de explícita não aparecia em músicas cadastradas no nome do artista convidado, como “I Like You (A Happier Song)”, que o Cifra Club põe na Doja Cat e é do Post Malone com ela. Agora a música é reconhecida pelo “feat.” e por quem canta nela, e o selo (e a capa do álbum) aparece.' },
       { tipo: 'melhoria', texto: '“Trocar o vídeo” e “Trocar música” abrem numa folha que sobe do rodapé, como os menus dos três pontos, e não mais numa janela solta no meio da tela.' },
-    ],
-  },
-  {
-    versao: 426, data: '2026-11-02', titulo: 'Foto do artista certa no “ver mais”',
-    itens: [
-      { tipo: 'correcao', texto: 'Às vezes, ao tocar em “ver mais” no cartão do artista, a foto principal (a mesma do cartão) sumia e a segunda foto da sequência ficava no lugar dela. Acontecia quando a mesma foto chegava de dois lugares e a do cartão terminava de carregar por último. Agora a foto do cartão é sempre a primeira, no celular, no tablet e no computador.' },
     ],
   },
 ];
