@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 426, data: '2026-11-02', titulo: 'Foto do artista certa no “ver mais”',
+    itens: [
+      { tipo: 'correcao', texto: 'Às vezes, ao tocar em “ver mais” no cartão do artista, a foto principal (a mesma do cartão) sumia e a segunda foto da sequência ficava no lugar dela. Acontecia quando a mesma foto chegava de dois lugares e a do cartão terminava de carregar por último. Agora a foto do cartão é sempre a primeira, no celular, no tablet e no computador.' },
+    ],
+  },
+  {
     versao: 425, data: '2026-11-02', titulo: 'Mini player do tablet deitado só sobe',
     itens: [
       { tipo: 'correcao', texto: 'No tablet deitado, a barrinha do que está tocando era mais larga que o painel “Tocando agora”: ao tocar nela ou puxá-la para cima, ela encolhia para o lado antes de subir. Agora ela tem a mesma largura do painel e, ao abrir, só sobe.' },
@@ -60,14 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O fundo da música (a letra, o player, o Sobre o artista) não se repete mais tanto: o app guarda as cores fortes de cada capa ou vídeo (até 4) e cada música escolhe uma delas, com um toque só dela no tom, na intensidade e no brilho. Capas parecidas, como as dos clipes, davam sempre o mesmo roxo ou o mesmo laranja; agora são centenas de variações, sempre escuras o bastante para ler a letra em branco. A mesma música tem sempre a mesma cor.' },
       { tipo: 'melhoria', texto: 'Sem capa, a cor pelo nome da música também ganhou mais variações.' },
-    ],
-  },
-  {
-    versao: 416, data: '2026-11-02', titulo: 'Tema claro sem bordas',
-    itens: [
-      { tipo: 'correcao', texto: 'No tema claro, sumiu a moldura cinza-clara em volta do app (bem à vista em volta do player escuro), e o degradê do topo das páginas, que virava uma faixa azul-acinzentada, ficou suave, na cor da tela.' },
-      { tipo: 'melhoria', texto: 'O “Tocando agora” na tela toda, no tablet, vai de ponta a ponta, sem margem em volta; no tema claro, o painel do player aberto ao lado também encosta na borda.' },
-      { tipo: 'correcao', texto: 'Com o painel do player aberto ao lado, os atalhos do Início e a grade da Biblioteca não ficam mais espremidos: as colunas seguem a largura da página (2 quando ela é estreita, até 4 quando é larga).' },
     ],
   },
 ];
