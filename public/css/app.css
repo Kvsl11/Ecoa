@@ -1172,9 +1172,7 @@ body.performance .convite-instalar { display: none; }
 :root[data-theme="light"] .busca-hero { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06); }
 :root[data-theme="light"] .busca-hero-fontes span { background: rgb(0 0 0 / 0.05); }
 @media (min-width: 700px) { .busca-hero { padding: 22px 24px; gap: 18px; } .busca-hero h3 { font-size: 21px; } .busca-hero-ic { width: 52px; height: 52px; } }
-/* músicas da busca e as em alta: em duas colunas na tela larga (numa só, sobrava um vazio enorme entre o nome e os
-   botões); as em alta com o número da posição em cima da capa */
-@media (min-width: 900px) { .tracks-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; } .tracks-grade .track { margin: 0; } }
+/* músicas da busca: sempre numa coluna só, em qualquer largura de tela */
 .tracks-grade .track { border-radius: 10px; }
 .em-alta { counter-reset: alta; }
 .em-alta .track { counter-increment: alta; }
@@ -1572,10 +1570,6 @@ body.performance #song.lyrics-mode { background: var(--painel); padding-bottom: 
 @media (min-width: 900px) { .refs-area:has(#creditos:empty) { grid-template-columns: 1fr; } }
 /* textos da liturgia e das orações no computador: mais largos (ainda numa largura boa de ler) */
 @media (min-width: 900px) { .texto-liturgico { max-width: 1040px; } }
-/* busca no computador: as listas de músicas e vídeos em duas colunas lado a lado (mostra o dobro sem rolar) */
-@media (min-width: 1200px) {
-  #res .tracks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
-}
 /* celular, música de repertório: voltar/pular no lugar do ampliar (o vídeo amplia tocando na barra da música) */
 @media (max-width: 599px) { #player .pl-pulo { width: 30px; height: 30px; } #player .icon-btn { width: 34px; } }
 
