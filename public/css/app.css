@@ -3557,6 +3557,14 @@ html.tablet body.na-musica.com-player.painel-recolhido .main-col { margin-bottom
 @media (orientation: portrait) {
   html.tablet body.com-player.painel-recolhido .nav { padding: 0 4px; }
 }
+/* deitado o mini player tem a largura e a borda direita do painel "Tocando agora" aberto: abrir (tocando ou puxando)
+   só faz ele subir, sem encurtar para o lado antes (antes ele ocupava 40% da linha, mais largo que o painel); o menu
+   fica com o resto da linha */
+@media (orientation: landscape) {
+  html.tablet body.com-player.painel-recolhido { --mini-w: clamp(320px, 38vw, 460px); }
+  html.tablet body.com-player.painel-recolhido #player { right: 8px; width: var(--mini-w); }
+  html.tablet body.com-player.painel-recolhido .nav { width: calc(100vw - 16px - 10px - 8px - var(--mini-w)); }
+}
 
 /* ---------------------------------------------------------------- Conectar o YouTube (os cookies, uma vez só) */
 .conectar-yt { display: flex; flex-direction: column; gap: 16px; max-width: 640px; margin: 0 auto; padding: 8px 0 24px; }
