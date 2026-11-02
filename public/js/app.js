@@ -8506,33 +8506,30 @@ async function comecarPartitura(song, titulo) {
   let [fifths, modo] = tomC ? [tomC.fifths, tomC.modo] : [0, 'major'];
   const bpm = 80;
   const tipos = [
-    ['melodia', 'Melodia', 'Uma voz, para o canto da assembleia'],
-    ['duas', 'Duas vozes', 'Primeira e segunda voz, em pautas separadas'],
-    ['satb', 'Coral a 4 vozes', 'Soprano, contralto, tenor e baixo'],
-    ['piano', 'Piano ou órgão', 'Mão direita e mão esquerda'],
+    ['melodia', 'Melodia', 'Uma voz'],
+    ['duas', 'Duas vozes', '1ª e 2ª voz'],
+    ['satb', 'Coral', 'Soprano, contralto, tenor e baixo'],
+    ['piano', 'Piano ou órgão', 'Mão direita e esquerda'],
   ];
   // automática (a IA ouve o áudio da música: pelo servidor, sozinha; sem ele, um arquivo lido no aparelho) ou à mão
   const fonte = fonteDaPartitura(song);
   const pelaIA = Boolean(servidorIA().pc && servidorIA().url && fonte);
   view.innerHTML = `<div class="compor-inicio">
-    <h2 class="greet">Criar a partitura</h2>
+    <h2 class="cp-ini-tit">Criar a partitura</h2>
     <a class="cp-auto" href="#/musica/${song.id}/compor/ia">
-      <span class="cp-auto-ic">${icon('sparkles', 26)}</span>
-      <span class="cp-auto-txt"><small>Automática</small><b>Gerar com IA</b>
-        <span>${pelaIA ? `A IA do servidor ouve ${fonte.arquivo ? 'o seu áudio' : 'o áudio do vídeo'} da música e escreve a melodia ou as 4 vozes do coral, com a letra e a cifra. Você ouve, confere e salva.`
-          : 'Escolha o arquivo de áudio da música: a IA escreve a melodia ou as 4 vozes do coral, com a letra e a cifra.'}</span></span>
-      ${icon('next', 20)}</a>
-    ${mxl ? `<div class="cp-tipos"><button class="pptx-tipo" id="ini-desenhada" hidden><b>${icon('score', 16)} Da partitura pronta</b><span>Copia as notas da partitura que a música já tem, para corrigir e completar</span></button></div>` : ''}
-    <div class="section-title cp-manual-tit">${icon('edit', 18)} Ou escreva à mão, nota por nota</div>
-    <div class="settings-group cp-ini-ajustes">
-      <div class="setting"><span class="ico">${icon('music', 18)}</span><div class="grow"><div class="t">Tom</div><div class="s">${tomC ? 'Pela cifra da música' : 'A armadura de clave'}</div></div>
-        <button class="btn small" id="ini-tom">${nomeDoTom(fifths, modo)}</button></div>
-      <div class="setting wrap"><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Compasso</div></div>
-        <div class="chips" id="ini-compasso">${[[2, 4], [3, 4], [4, 4], [6, 8]].map(([a, b]) => `<button class="chip" data-c="${a}/${b}" aria-pressed="${a === 4 && b === 4}">${a}/${b}</button>`).join('')}</div></div>
+      <span class="cp-auto-ic">${icon('sparkles', 22)}</span>
+      <span class="cp-auto-txt"><b>Gerar com IA</b>
+        <span>${pelaIA ? `Pelo ${fonte.arquivo ? 'seu áudio' : 'áudio do vídeo'}: melodia ou coral, com letra e cifra` : 'Pelo áudio da música: melodia ou coral, com letra e cifra'}</span></span>
+      ${icon('next', 18)}</a>
+    ${mxl ? `<button class="cp-auto cp-desenhada" id="ini-desenhada" hidden><span class="cp-auto-ic">${icon('score', 20)}</span><span class="cp-auto-txt"><b>Da partitura pronta</b><span>Copia as notas para corrigir e completar</span></span>${icon('next', 18)}</button>` : ''}
+    <div class="cp-manual-tit"><span>Ou escreva nota por nota</span></div>
+    <div class="cp-ini-ajustes">
+      <div class="cp-ini-campo"><small>Tom</small><button class="btn small" id="ini-tom">${nomeDoTom(fifths, modo)}</button></div>
+      <div class="cp-ini-campo"><small>Compasso</small>
+        <div class="seg" id="ini-compasso">${[[2, 4], [3, 4], [4, 4], [6, 8]].map(([a, b]) => `<button data-c="${a}/${b}" aria-pressed="${a === 4 && b === 4}">${a}/${b}</button>`).join('')}</div></div>
     </div>
-    <div class="cp-tipos">${tipos.map(([k, n, d]) => `<button class="pptx-tipo" data-tipo="${k}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
-    <p class="muted cp-ini-dica">Andamento e outros ajustes ficam na engrenagem do editor.</p>
-    <button class="btn small ghost cp-ini-arquivo" id="ini-arquivo">${icon('upload', 15)} Abrir arquivo MusicXML (MuseScore, Finale…)</button>
+    <div class="cp-tipos">${tipos.map(([k, n, d]) => `<button class="cp-tipo" data-tipo="${k}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
+    <button class="btn small ghost cp-ini-arquivo" id="ini-arquivo">${icon('upload', 15)} Abrir MusicXML</button>
     </div>`;
   if (mxl) fetch(mxl, { method: 'HEAD' }).then((r) => { if (r.ok && $('#ini-desenhada')) $('#ini-desenhada').hidden = false; }).catch(() => {});
   const guardar = (modelo) => {
@@ -9290,17 +9287,17 @@ function viewPartituras() {
       <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${esc([s.artist, mxlDaPartitura(s.content) ? 'Pronta · dá para editar' : 'Em imagem'].filter(Boolean).join(' · '))}</div></div>
       <span class="acts"><a class="icon-btn pt-ensaiar" href="#/musica/${s.id}/partitura" aria-label="Abrir" title="Abrir">${icon('play', 18)}</a></span></li>`;
   view.innerHTML = `
-    <header class="pt-topo"><h2>Partituras</h2><p class="muted">Escreva do zero, ensaie ouvindo cada voz ou importe o áudio para o app escrever a melodia.</p></header>
+    <header class="pt-topo"><h2>Partituras</h2><p class="muted">Escreva, gere com IA e ensaie cada voz.</p></header>
     <div class="pt-atalhos">
-      <button class="pt-atalho" id="part-nova"><span class="pt-atalho-ic">${icon('edit', 20)}</span><span class="pt-atalho-txt"><b>Nova partitura</b><small>Nota por nota, com letra, cifras e até 4 vozes</small></span>${icon('next', 16)}</button>
-      <button class="pt-atalho" id="part-ia"><span class="pt-atalho-ic ia">${icon('sparkles', 20)}</span><span class="pt-atalho-txt"><b>Gerar com IA</b><small>A IA ouve a música e escreve a partitura</small></span>${icon('next', 16)}</button>
+      <button class="pt-atalho pt-ia" id="part-ia"><span class="pt-atalho-ic">${icon('sparkles', 20)}</span><span class="pt-atalho-txt"><b>Gerar com IA</b><small>A partir do áudio</small></span></button>
+      <button class="pt-atalho" id="part-nova"><span class="pt-atalho-ic">${icon('edit', 20)}</span><span class="pt-atalho-txt"><b>Nova partitura</b><small>Nota por nota</small></span></button>
     </div>
     <div class="shelf-head"><h2>Suas partituras</h2>${proprias.length ? `<span class="muted part-conta">${proprias.length}</span>` : ''}</div>
     ${proprias.length ? `<ul class="tracks pt-lista">${proprias.map(linha).join('')}</ul>`
-      : '<p class="muted pt-vazio">Nenhuma ainda. Comece uma nova partitura do zero ou importe o áudio de uma música da sua biblioteca.</p>'}
+      : `<div class="pt-vazio"><span class="pt-vazio-ic">${icon('score', 22)}</span><span><b>Nenhuma partitura ainda</b><small>As que você criar ou gerar aparecem aqui.</small></span></div>`}
     ${prontas.length ? `<div class="shelf-head"><h2>Prontas no app</h2><span class="muted part-conta">${prontas.length}</span></div>
       <ul class="tracks pt-lista">${prontas.map(linhaPronta).join('')}</ul>` : ''}
-    <a class="pt-atalho pt-acervo" href="#/acervo"><span class="pt-atalho-ic">${icon('book', 20)}</span><span class="pt-atalho-txt"><b>Acervo litúrgico</b><small>Hinários e subsídios da CNBB com partitura</small></span>${icon('next', 16)}</a>`;
+    <a class="pt-acervo" href="#/acervo">${icon('book', 18)}<span><b>Acervo litúrgico</b><small>Hinários e subsídios da CNBB com partitura</small></span>${icon('next', 16)}</a>`;
   $('#part-nova').onclick = async () => { const s = await escolherMusica('Partitura de qual música?'); if (s) location.hash = `#/musica/${s.id}/compor`; };
   $('#part-ia').onclick = async () => { const s = await escolherMusica('Gerar a partitura de qual música?'); if (s) location.hash = `#/musica/${s.id}/compor/ia`; };
   view.querySelectorAll('[data-abrir-part]').forEach((el) => el.addEventListener('click', async (e) => {
@@ -9494,9 +9491,10 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     }
   }
   const sozinha = temServidor && Boolean(fonte);
+  // visual limpo: a capa pequena, o selo, o nome e uma frase só (o resto a própria tela vai mostrando)
   view.innerHTML = `<div class="ia">
-    <section class="ia-topo">${capa(song)}<div><div class="kind ia-selo">${icon(sozinha ? 'sparkles' : 'upload', 14)} ${sozinha ? 'Gerar com IA' : 'Importar o áudio'}</div><h2>${esc(titulo)}</h2>
-      <p class="muted">${sozinha ? `A <b>IA do servidor</b> ouve ${fonte.arquivo ? 'o seu áudio' : 'o áudio do vídeo'} da música, separa a voz dos instrumentos` : noPc ? 'Escolha o arquivo de áudio da música: o <b>servidor do seu computador</b> separa a voz dos instrumentos' : 'Escolha o arquivo de áudio da música: o app ouve aqui mesmo, no aparelho (sem servidor),'} e escreve a <b>melodia</b> — ou as <b>4 vozes do coral</b> — no tom e no andamento. ${salvarSozinho ? 'Quando ficar pronta, ela já abre para você ver.' : 'No fim, ouça ali mesmo e salve se ficou bom.'}</p></div></section>
+    <header class="ia-cab">${capa(song)}<div class="ia-cab-txt"><span class="ia-selo">${icon(sozinha ? 'sparkles' : 'upload', 13)} ${sozinha ? 'Gerar com IA' : 'Importar o áudio'}</span><h2>${esc(titulo)}</h2>
+      <p>${sozinha ? `Melodia ou coral a 4 vozes, pelo ${fonte.arquivo ? 'seu áudio' : 'áudio do vídeo'}` : noPc ? 'Melodia ou coral a 4 vozes, no servidor do seu computador' : 'Melodia ou coral a 4 vozes, aqui no aparelho'}</p></div></header>
     <div id="ia-passo"></div></div>`;
   const passo = $('#ia-passo');
 
@@ -9504,16 +9502,21 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // o começo: escolher o arquivo de áudio da música (ou arrastar para cá, no computador)
   function telaFontes(motivo = '') {
     passo.onclick = null;
-    passo.innerHTML = `${motivo ? `<div class="aviso">${icon('info', 18)}<span>${esc(motivo)}</span>${sozinha ? `<button class="btn small primary" id="ia-auto">${icon('refresh', 15)} Tentar de novo</button>` : ''}</div>` : ''}
-      ${sozinha && !motivo ? `<button class="pptx-tipo ia-meu" id="ia-auto"><b>${icon('sparkles', 16)} Gerar pela IA do servidor</b><span>Ela ouve ${fonte.arquivo ? 'o seu áudio' : 'o áudio do vídeo'} da música de novo</span></button>` : ''}
-      ${!noPc && fonte?.arquivo ? `<button class="pptx-tipo ia-meu" id="ia-meu"><b>${icon('music', 16)} Usar o seu áudio desta música</b><span>O que você importou no ⋯ da música, lido aqui no aparelho</span></button>` : ''}
-      <button class="ia-solte" id="ia-arquivo"><span class="ia-solte-ic">${icon('upload', 28)}</span>
-        <b>Escolher o áudio da música</b><small>MP3, M4A, WAV, OGG… até 6 minutos. Fica melhor com voz e violão do que com banda completa.</small>
-        <span class="btn primary">${icon('upload', 16)} Escolher arquivo</span></button>
-      ${noPc ? '' : noGithub ? `<div class="aviso">${icon('info', 18)}<span>O <b>servidor no GitHub</b> está desligado (ele dorme quando ninguém usa). Ligue o Codespace e volte aqui: leva uns 2 minutos.</span>
-          <a class="btn small primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('next', 15)} Ligar no GitHub</a><button class="btn small" id="ia-religar">${icon('refresh', 15)} Já liguei</button></div>`
-        : `<p class="ia-dica-compartilhar">${icon('info', 16)}<span>Travou ou ficou fraco no celular? Ligue o <b>servidor no seu computador</b> (de graça, sem crédito): veja em Ajustes → Servidor no computador.</span></p>`}
-      <p class="ia-dica-compartilhar">${icon('info', 16)}<span>No Android, dá para baixar o áudio em outro app e tocar em <b>Compartilhar → Ecoa</b>: ele já chega aqui.</span></p>`;
+    // o começo, enxuto: o aviso (se houver), as opções em linhas e a área de soltar o arquivo; as dicas numa linha só
+    const opcao = (id, ic, nome, sub) => `<button class="ia-opcao" id="${id}"><span class="ia-opcao-ic">${icon(ic, 18)}</span><span class="ia-opcao-txt"><b>${nome}</b><small>${sub}</small></span>${icon('next', 16)}</button>`;
+    passo.innerHTML = `<div class="ia-fontes">
+      ${motivo ? `<div class="ia-aviso">${icon('info', 18)}<span>${esc(motivo)}</span>${sozinha ? `<button class="btn small primary" id="ia-auto">${icon('refresh', 15)} Tentar de novo</button>` : ''}</div>` : ''}
+      ${sozinha && !motivo ? opcao('ia-auto', 'sparkles', 'Gerar pela IA do servidor', fonte.arquivo ? 'Com o seu áudio desta música' : 'Com o áudio do vídeo da música') : ''}
+      ${!noPc && fonte?.arquivo ? opcao('ia-meu', 'music', 'Usar o seu áudio', 'O que você importou no ⋯ da música') : ''}
+      <button class="ia-solte" id="ia-arquivo"><span class="ia-solte-ic">${icon('upload', 22)}</span>
+        <b>Escolher o áudio da música</b><small>MP3, M4A, WAV ou OGG · até 6 minutos</small></button>
+      ${noGithub && !noPc ? `<div class="ia-aviso">${icon('info', 18)}<span>O servidor no GitHub está desligado. Ligue o Codespace e volte aqui (uns 2 minutos).</span>
+          <a class="btn small primary" href="https://github.com/codespaces" target="_blank" rel="noopener">Ligar no GitHub</a><button class="btn small" id="ia-religar">${icon('refresh', 15)} Já liguei</button></div>` : ''}
+      <ul class="ia-dicas">
+        <li>Voz e violão rendem mais que banda completa.</li>
+        ${noPc || noGithub ? '' : '<li>Ficou lento no celular? Use o servidor no computador (Ajustes).</li>'}
+        <li>No Android: Compartilhar → Ecoa traz o áudio direto para cá.</li>
+      </ul></div>`;
     $('#ia-auto')?.addEventListener('click', () => gerarSozinha());
     $('#ia-meu')?.addEventListener('click', async () => { const a = await arquivoDaMusica(song); if (a) lerNoAparelho(a); else telaFontes('O seu áudio desta música não está neste aparelho: escolha o arquivo.'); });
     $('#ia-religar')?.addEventListener('click', async (e) => {
@@ -9565,9 +9568,25 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   function telaEtapas(lista) {
     passo.onclick = null;
     passo.innerHTML = `<div class="ia-etapas">
-      <div class="ia-etapas-cab"><span class="ia-pulso"></span><div><b>Gerando a partitura</b><small id="ia-etapa-tempo">pode levar alguns minutos</small></div></div>
-      <ol>${lista.map(([id, nome, ic]) => `<li data-etapa="${id}"><span class="ia-etapa-ic">${icon(ic, 18)}</span><span class="ia-etapa-nome">${nome}<small class="ia-etapa-sub"></small><i class="ia-etapa-barra"><b></b></i></span><span class="ia-etapa-st"></span></li>`).join('')}</ol>
-      <div class="row ia-fim"><button class="btn ghost" id="ia-cancelar">${icon('x', 16)} Cancelar</button></div></div>`;
+      <div class="ia-etapas-cab"><span class="ia-orbita">${icon('sparkles', 20)}</span>
+        <div><b>Gerando a partitura</b><small id="ia-etapa-agora">Começando…</small></div><span class="ia-etapa-tempo" id="ia-etapa-tempo">0:00</span></div>
+      <div class="ia-geral" id="ia-geral" role="progressbar" aria-label="Andamento" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+      <ol>${lista.map(([id, nome]) => `<li data-etapa="${id}"><span class="ia-etapa-ponto">${icon('check', 12)}</span><span class="ia-etapa-nome">${nome}<small class="ia-etapa-sub"></small><i class="ia-etapa-barra"><b></b></i></span><span class="ia-etapa-st"></span></li>`).join('')}</ol>
+      <div class="ia-etapas-pe"><small id="ia-etapa-onde"></small><button class="btn small ghost" id="ia-cancelar">Cancelar</button></div></div>`;
+  }
+  // o topo do cartão: o nome da etapa em andamento e a barra geral (as etapas feitas e a porcentagem da atual)
+  function resumoEtapas() {
+    const itens = [...passo.querySelectorAll('.ia-etapas li')];
+    if (!itens.length) return;
+    const feitas = itens.filter((li) => li.classList.contains('feita')).length;
+    const agora = itens.find((li) => li.classList.contains('agora'));
+    const pct = agora?.classList.contains('com-pct') ? (parseInt(agora.querySelector('.ia-etapa-st').textContent, 10) || 0) / 100 : agora ? 0.4 : 0;
+    const total = Math.round(Math.min(1, (feitas + pct) / itens.length) * 100);
+    const geral = $('#ia-geral');
+    geral?.style.setProperty('--pct', `${total}%`);
+    geral?.setAttribute('aria-valuenow', String(total));
+    const txt = $('#ia-etapa-agora');
+    if (txt) txt.textContent = feitas === itens.length ? 'Pronto' : `${agora?.querySelector('.ia-etapa-nome')?.firstChild?.textContent || 'Começando'}…`;
   }
   // progresso (0 a 1): a porcentagem da etapa (o download do áudio), com a barrinha; ao chegar a 100% a tela já
   // passa para a etapa seguinte. "fila": o servidor termina outra música antes (a etapa seguinte diz que está na vez)
@@ -9579,7 +9598,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       const alvo = prox?.classList.contains('com-pct') ? itens[i + 1] : prox;
       if (!alvo) return;
       itens.forEach((li, j) => { li.classList.toggle('feita', j < itens.indexOf(alvo)); li.classList.toggle('agora', li === alvo); });
-      alvo.querySelector('.ia-etapa-sub').textContent = 'Esperando a vez: o servidor está terminando outra música';
+      alvo.querySelector('.ia-etapa-sub').textContent = 'Na fila: o servidor termina outra música antes';
+      resumoEtapas();
       return;
     }
     let k = itens.findIndex((li) => li.dataset.etapa === id);
@@ -9590,6 +9610,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       li.classList.toggle('feita', i < k);
       li.classList.toggle('agora', i === k);
       li.querySelector('.ia-etapa-sub').textContent = '';
+      if (i !== k) { li.classList.remove('com-pct'); li.querySelector('.ia-etapa-st').textContent = ''; }
     });
     const li = itens[k];
     li.classList.toggle('com-pct', progresso !== null);
@@ -9598,6 +9619,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       li.querySelector('.ia-etapa-st').textContent = `${pct}%`;
       li.querySelector('.ia-etapa-barra b').style.width = `${pct}%`;
     } else li.querySelector('.ia-etapa-st').textContent = '';
+    resumoEtapas();
   }
   // as etapas aparecem uma por uma: cada mudança de etapa fica pelo menos um instante na tela (mesmo as que o servidor
   // faz num piscar ou que chegam juntas), e no fim as que faltam (a afinação, que só existe com voz, por exemplo)
@@ -9609,6 +9631,9 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     let livreEm = 0;
     let rodando = null;
     const andar = async () => {
+      // sem esperar nada, a volta toda rodava na hora e o "rodando = null" do fim vinha antes do "rodando ||= andar()"
+      // guardar a promessa: rodando ficava preso e a tela parava na primeira etapa (0%)
+      await null;
       while (fila.length) {
         const [id, p] = fila.shift();
         if (id !== atual) {
@@ -9633,9 +9658,11 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
           itens.forEach((li, j) => { li.classList.toggle('feita', j < i); li.classList.toggle('agora', j === i); li.classList.remove('com-pct'); });
           itens[i].querySelector('.ia-etapa-st').textContent = '';
           itens[i].querySelector('.ia-etapa-sub').textContent = '';
+          resumoEtapas();
           await esperar(i === k ? Math.max(0, livreEm - Date.now()) + 200 : 450);
         }
         itens.forEach((li) => { li.classList.remove('agora'); li.classList.add('feita'); });
+        resumoEtapas();
         await esperar(600);
       },
     };
@@ -9648,7 +9675,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     const ctrl = new AbortController();
     $('#ia-cancelar').onclick = () => { ctrl.abort(); telaFontes(); };
     const t0 = Date.now();
-    const relogio = setInterval(() => { const t = $('#ia-etapa-tempo'); if (t) t.textContent = `${fmtSeg((Date.now() - t0) / 1000)} · ${noPc ? 'no servidor do seu computador' : 'no servidor da IA'}`; }, 1000);
+    $('#ia-etapa-onde').textContent = noPc ? 'No servidor do seu computador' : 'No servidor da IA';
+    const relogio = setInterval(() => { const t = $('#ia-etapa-tempo'); if (t) t.textContent = fmtSeg((Date.now() - t0) / 1000); }, 1000);
     try {
       const form = arquivo ? new FormData() : null;
       if (form) { form.append('arquivo', arquivo, arquivo.name || 'audio'); form.append('separar', 'true'); }
@@ -9669,7 +9697,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       // e a tela diz por quê. Se o servidor caiu no meio, mostra o erro e o "tente de novo"
       if (arquivo && e.conexao) { lerNoAparelho(arquivo, 'O servidor do seu computador não respondeu (desligado, ou o endereço mudou: leia o QR code de novo), então a partitura está sendo feita aqui no próprio aparelho.'); return; }
       telaFontes(erroExplicado(e));
-      if (e.status === 403) passo.querySelector('.aviso')?.insertAdjacentHTML('beforeend', `<a class="btn small primary" href="#/youtube">${icon('youtube', 15)} Conectar o YouTube</a>`);
+      if (e.status === 403) passo.querySelector('.ia-aviso')?.insertAdjacentHTML('beforeend', `<a class="btn small primary" href="#/youtube">${icon('youtube', 15)} Conectar o YouTube</a>`);
     }
   }
   // no aparelho, abrir o áudio e carregar a IA (a primeira vez baixa o modelo, uns 20 MB) não pode ficar parado para
@@ -9678,13 +9706,14 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   const SEM_RESPOSTA = 'O aparelho não conseguiu abrir este áudio ou carregar a IA (parou em “Abrindo o áudio”). Tente com a internet melhor, com um arquivo menor em MP3, ou ligue o servidor no seu computador (Ajustes → Servidor no computador).';
   async function lerNoAparelho(arquivo, motivo = '') {
     telaEtapas(ETAPAS_APARELHO);
-    if (motivo) passo.querySelector('.ia-etapas').insertAdjacentHTML('afterbegin', `<div class="aviso">${icon('info', 16)}<span>${esc(motivo)}</span></div>`);
+    if (motivo) passo.querySelector('.ia-etapas').insertAdjacentHTML('afterbegin', `<div class="ia-aviso">${icon('info', 16)}<span>${esc(motivo)}</span></div>`);
     const etapas = etapasEmSequencia();
     etapas.avisar('abrindo');
     let cancelado = false;
     $('#ia-cancelar').onclick = () => { cancelado = true; telaFontes(); };
     const t0 = Date.now();
-    const relogio = setInterval(() => { const t = $('#ia-etapa-tempo'); if (t) t.textContent = `${fmtSeg((Date.now() - t0) / 1000)} · no próprio aparelho, sem servidor`; }, 1000);
+    $('#ia-etapa-onde').textContent = 'Aqui no aparelho';
+    const relogio = setInterval(() => { const t = $('#ia-etapa-tempo'); if (t) t.textContent = fmtSeg((Date.now() - t0) / 1000); }, 1000);
     let vigia;
     let parou;
     const parado = new Promise((_, falha) => { parou = falha; });
@@ -9698,7 +9727,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       if (!audio.lado) passo.querySelector('[data-etapa="separando"]')?.remove();
       // o áudio abriu: agora é a IA que carrega (na primeira vez, baixa o modelo)
       const sub = passo.querySelector('[data-etapa="abrindo"] .ia-etapa-sub');
-      if (sub) sub.textContent = 'Carregando a IA no aparelho (a primeira vez baixa uns 20 MB)';
+      if (sub) sub.textContent = 'Carregando a IA (na primeira vez, uns 20 MB)';
       vigiar();
       const r = await Promise.race([notasNoAparelho(audio, (nome, p) => { vigiar(); if (!cancelado) etapas.avisar(nome, p); }), parado]);
       clearTimeout(vigia);
@@ -9787,30 +9816,29 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     }
     // pronto: a partitura com o player logo abaixo (ouvir ali mesmo), os ajustes recolhidos e salvar ou descartar
     passo.innerHTML = `<div class="ia-pronto">
-      <section class="ia-pronto-cab"><span class="ia-pronto-ic">${icon('check', 22)}</span>
-        <div><b>Partitura pronta</b><small>Ouça, confira e salve. Não ficou boa? Descarte e tente com outro áudio.</small></div></section>
+      <section class="ia-pronto-cab"><span class="ia-pronto-ic">${icon('check', 16)}</span><b>Partitura pronta</b><small>Ouça, confira e salve</small></section>
       <div class="ia-resumo" id="ia-resumo"></div>
       <div class="osmd-box ia-previa" id="ia-previa"><div class="loading-note"><span class="spin"></span>Desenhando…</div></div>
       <div class="ensaio" id="ia-ensaio" hidden></div>
-      <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar o rascunho</b><small>Vozes, andamento, tom, compasso, letra e oitava</small></span>${icon('down', 18)}</summary>
+      <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar</b><small>Vozes, andamento, tom, compasso</small></span>${icon('down', 18)}</summary>
       <div class="settings-group ia-ajustes">
-        <div class="setting wrap"><span class="ico">${icon('score', 18)}</span><div class="grow"><div class="t">Vozes</div><div class="s">Coral: a IA separa as notas que soam juntas em soprano, contralto, tenor e baixo, cada voz na sua pauta</div></div>
-          <div class="chips" id="ia-vozes"><button class="chip" data-vozes="4" aria-pressed="true">Coral a 4 vozes</button><button class="chip" data-vozes="1" aria-pressed="false">Só a melodia</button></div></div>
-        <div class="setting wrap"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Andamento</div><div class="s">Se as notas ficaram picadas ou longas demais, ajuste aqui. Música lenta escrita rápida demais (tudo em colcheias e semicolcheias)? Use a metade</div></div>
+        <div class="setting wrap"><span class="ico">${icon('score', 18)}</span><div class="grow"><div class="t">Vozes</div><div class="s">Coral: soprano, contralto, tenor e baixo</div></div>
+          <div class="chips" id="ia-vozes"><button class="chip" data-vozes="4" aria-pressed="true">Coral</button><button class="chip" data-vozes="1" aria-pressed="false">Melodia</button></div></div>
+        <div class="setting wrap"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Andamento</div><div class="s">Notas picadas demais? Use a metade</div></div>
           <div class="seg"><button data-bpm="-4" aria-label="Mais devagar">${icon('minus', 15)}</button><span class="val" id="ia-bpm">${Math.round(bpm)}</span><button data-bpm="4" aria-label="Mais rápido">${icon('plus', 15)}</button></div>
           <div class="chips"><button class="chip" data-bpmx="0.5">Metade</button><button class="chip" data-bpmx="2">Dobro</button></div></div>
         <div class="setting"><span class="ico">${icon('music', 18)}</span><div class="grow"><div class="t">Tom</div><div class="s">${tomCifra ? 'Pela cifra da música' : 'Pelo que a IA ouviu'}</div></div><button class="btn small" id="ia-tom">${nomeDoTom(fifths, modo)}</button></div>
         <div class="setting wrap"><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Compasso</div><div class="s" id="ia-compasso-s"></div></div>
           <div class="chips" id="ia-compasso"><button class="chip" data-c="auto">Automático</button>${[[2, 4], [3, 4], [4, 4], [6, 8]].map(([a, b]) => `<button class="chip" data-c="${a}/${b}">${a}/${b}</button>`).join('')}</div></div>
-        ${textoLetra ? `<label class="setting"><span class="ico">${icon('text', 18)}</span><div class="grow"><div class="t">Letra da música</div><div class="s">Uma sílaba em cada nota; confira e corrija na aba Letra do editor</div></div><input type="checkbox" class="switch" id="ia-letra" checked></label>` : ''}
-        ${temCifraMusica ? `<label class="setting"><span class="ico">${icon('chord', 18)}</span><div class="grow"><div class="t">Cifra da música</div><div class="s">Cada acorde na nota da sílaba onde ele cai; corrija na aba Cifra do editor</div></div><input type="checkbox" class="switch" id="ia-cifra" checked></label>` : ''}
-        <label class="setting"><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Começa no contratempo</div><div class="s">Se as notas ficaram deslocadas meio tempo (comum com a voz sozinha), ligue</div></div><input type="checkbox" class="switch" id="ia-meio"></label>
+        ${textoLetra ? `<label class="setting"><span class="ico">${icon('text', 18)}</span><div class="grow"><div class="t">Letra</div><div class="s">Uma sílaba em cada nota</div></div><input type="checkbox" class="switch" id="ia-letra" checked></label>` : ''}
+        ${temCifraMusica ? `<label class="setting"><span class="ico">${icon('chord', 18)}</span><div class="grow"><div class="t">Cifra</div><div class="s">Os acordes da música</div></div><input type="checkbox" class="switch" id="ia-cifra" checked></label>` : ''}
+        <label class="setting"><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Começa no contratempo</div><div class="s">Notas deslocadas meio tempo? Ligue</div></div><input type="checkbox" class="switch" id="ia-meio"></label>
         <div class="setting"><span class="ico">${icon('up', 18)}</span><div class="grow"><div class="t">Oitava</div></div>
           <div class="seg"><button data-oit="-1">8ª↓</button><span class="val" id="ia-oit">0</span><button data-oit="1">8ª↑</button></div></div>
       </div></details>
       <div class="ia-acoes">
-        <button class="btn ghost" id="ia-denovo">${icon('refresh', 16)} Descartar e gerar de novo</button>
-        <div class="ia-acoes-dir"><button class="btn" id="ia-abrir">${icon('edit', 16)} Editar</button><button class="btn primary" id="ia-salvar">${icon('save', 16)} Salvar partitura</button></div>
+        <button class="btn ghost" id="ia-denovo">${icon('refresh', 16)} Gerar de novo</button>
+        <div class="ia-acoes-dir"><button class="btn" id="ia-abrir">${icon('edit', 16)} Editar</button><button class="btn primary" id="ia-salvar">${icon('save', 16)} Salvar</button></div>
       </div></div>`;
     let ensaio = null;
     aoSair(() => ensaio?.parar());
@@ -9821,10 +9849,10 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       $('#ia-tom').textContent = nomeDoTom(fifths, modo);
       acertarCompasso();
       $('#ia-compasso').querySelectorAll('[data-c]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.c === (compassoAuto ? 'auto' : compasso.join('/')))));
-      $('#ia-compasso-s').textContent = `${compassoAuto ? `Pelo que a IA ouviu: ${compasso.join('/')}` : 'Escolhido por você'}${anacruse ? ` · começa com anacruse de ${anacruse % 8 || compasso[1] === 8 ? `${anacruse / 4} colcheia${anacruse > 4 ? 's' : ''}` : `${anacruse / 8} tempo${anacruse > 8 ? 's' : ''}`}` : ''}`;
+      $('#ia-compasso-s').textContent = `${compassoAuto ? `Pelo áudio: ${compasso.join('/')}` : 'Escolhido por você'}${anacruse ? ` · começa com anacruse de ${anacruse % 8 || compasso[1] === 8 ? `${anacruse / 4} colcheia${anacruse > 4 ? 's' : ''}` : `${anacruse / 8} tempo${anacruse > 8 ? 's' : ''}`}` : ''}`;
       $('#ia-resumo').innerHTML = [
         [icon('music', 15), nomeDoTom(fifths, modo)], [icon('gauge', 15), `♩ ${Math.round(bpm)}`], [icon('clock', 15), compasso.join('/')],
-        [icon('score', 15), coral ? '4 vozes' : 'Melodia'], [icon('sparkles', 15), `${notas.length} notas`],
+        [icon('score', 15), coral ? '4 vozes' : 'Melodia'],
       ].map(([ic, t]) => `<span>${ic}${esc(String(t))}</span>`).join('');
       pararEnsaio(); // mudou o rascunho: o player recomeça com as notas novas
       try {

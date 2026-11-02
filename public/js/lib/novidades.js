@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 432, data: '2026-11-02', titulo: 'Partituras com cara nova',
+    itens: [
+      { tipo: 'melhoria', texto: 'As telas de partitura ficaram mais limpas: Partituras, Criar a partitura e Gerar com IA têm menos texto, cartões leves e as escolhas mais à mão (tom e compasso lado a lado, os tipos de partitura em grade).' },
+      { tipo: 'melhoria', texto: 'Gerar com IA: enquanto a IA trabalha, um cartão só mostra a etapa da vez, o tempo e uma barra com o andamento geral; as etapas aparecem numa lista enxuta, marcadas conforme terminam. No fim, “Partitura pronta” vem numa linha, com o resumo e os ajustes recolhidos.' },
+      { tipo: 'correcao', texto: 'O andamento da IA às vezes parava na primeira etapa (“Baixando o áudio”, em 0%) até a partitura ficar pronta. Agora cada etapa acende na hora.' },
+      { tipo: 'correcao', texto: 'No ensaio, a voz em destaque aparecia cortada (“S…”, “C…”) com o volume espremido do lado. Agora o nome aparece inteiro e o volume fica embaixo, como nas outras vozes.' },
+    ],
+  },
+  {
     versao: 431, data: '2026-11-02', titulo: 'A música anterior para na hora',
     itens: [
       { tipo: 'correcao', texto: 'Ao abrir outra música, às vezes a anterior continuava tocando por alguns instantes. Acontecia com a música que ainda não tinha vídeo (enquanto o app procurava um) e com as músicas baixadas (enquanto a nova abria do aparelho). Agora a anterior para assim que você toca na outra.' },
@@ -57,12 +66,6 @@ export const NOVIDADES = [
     versao: 423, data: '2026-11-02', titulo: 'Partes da música sempre em inglês',
     itens: [
       { tipo: 'correcao', texto: 'Na letra e na cifra, nomes como “Primeiro Refrão”, “Segundo Refrão”, “Segundo Verso” ou “2º Refrão” voltavam a aparecer em português. Agora viram Chorus 1, Chorus 2, Verse 2… e “Último Refrão” vira Final Chorus, também nas músicas que você já tinha salvo.' },
-    ],
-  },
-  {
-    versao: 422, data: '2026-11-02', titulo: 'Fila inteira na folha esticada',
-    itens: [
-      { tipo: 'correcao', texto: 'Na Fila, ao puxar a folha para cima (deixando-a quase da tela toda), as músicas de baixo ficavam cortadas e sobrava um espaço vazio no pé da folha. Agora a lista ocupa a folha inteira, no celular e no tablet.' },
     ],
   },
 ];
