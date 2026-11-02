@@ -1485,7 +1485,8 @@ function escolherVideo(song, tipo = 'video') {
     link.addEventListener('keydown', (e) => e.key === 'Enter' && confirmar());
     $('[data-no]', dlg).onclick = () => done(null);
     $('[data-rm]', dlg)?.addEventListener('click', () => done(''));
-  });
+    // (a folha que sobe do rodapé, como as dos ⋮; antes era uma janela solta no meio da tela)
+  }, { folha: true });
 }
 
 // ---------------------------------------------------------------- player (mini player fixo, como no Spotify)
@@ -6049,14 +6050,31 @@ function capaOficial(titulo, artista) {
   if (!t || !a) return Promise.resolve('');
   const k = chaveDaCapa(titulo, artista);
   const titulo0 = (x) => normalizar(tituloLimpo(x || ''));
-  const mesmaMusica = (tit, art) => mesmoNome(art || '', a) && (titulo0(tit) === t || ` ${titulo0(tit)} `.startsWith(` ${t} `));
+  // (o título sem o "(feat. …)": "I Like You (A Happier Song) [feat. Doja Cat]" é "I Like You A Happier Song", como
+  // o Cifra Club escreve, sem os parênteses)
+  const semFeat = (x) => normalizar(String(x || '').replace(/\s*[([](?:feat|ft|with|part|com)\b[^)\]]*[)\]]/gi, ' '));
+  const mesmoTitulo = (tit) => titulo0(tit) === t || ` ${titulo0(tit)} `.startsWith(` ${t} `) || semFeat(tit) === t;
+  // (o artista daqui pode ser o convidado: o Cifra Club põe "I Like You" na Doja Cat, e no Deezer e no iTunes ela é do
+  // Post Malone "feat. Doja Cat". Vale o nome no "feat." do título)
+  // (só no "feat.": no karaokê, "Originally Performed by …" também tem o nome dele, e não é a música dele)
+  const convidados = (x) => [...String(x || '').matchAll(/[([](?:feat|ft|with|part|com)\b\.?([^)\]]*)[)\]]/gi)].map((m) => normalizar(m[1])).join(' ');
+  const mesmoArtista = (tit, art) => mesmoNome(art || '', a) || ` ${convidados(tit)} `.includes(` ${normalizar(a)} `);
+  const mesmaMusica = (tit, art) => mesmoArtista(tit, art) && mesmoTitulo(tit);
   if (!capasOficiais.has(k)) {
     const busca = (async () => {
       // (a busca simples: a com artist:"" track:"" às vezes volta vazia para a música que existe)
       const dz = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`${a} ${tituloLimpo(titulo)}`)}&limit=15`);
       // (de preferência o título igual, sem "(Remix)", "(Live)"…: a capa do single ou do álbum, não a do remix)
-      const exata = (tit) => normalizar(tit || '') === t;
-      const ds = (dz?.data || []).filter((x) => mesmaMusica(x.title, x.artist?.name) && x.album?.cover_xl);
+      const exata = (tit) => normalizar(tit || '') === t || semFeat(tit) === t;
+      let ds = (dz?.data || []).filter((x) => mesmaMusica(x.title, x.artist?.name) && x.album?.cover_xl);
+      // o artista daqui só como convidado (o Deezer não põe o "feat." no título): as músicas com o mesmo título, vendo
+      // quem canta nelas (as 3 primeiras)
+      if (!ds.length) {
+        for (const x of (dz?.data || []).filter((y) => mesmoTitulo(y.title) && y.album?.cover_xl).slice(0, 3)) {
+          const faixa = await jsonp(`https://api.deezer.com/track/${x.id}`);
+          if ((faixa?.contributors || []).some((c) => mesmoNome(c.name || '', a))) { ds = [x]; break; }
+        }
+      }
       const d = ds.find((x) => exata(x.title)) || ds[0];
       if (d) { marcarExplicita(k, Boolean(d.explicit_lyrics)); return d.album.cover_xl; }
       const it = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(`${a} ${tituloLimpo(titulo)}`)}&entity=song&limit=15`);
