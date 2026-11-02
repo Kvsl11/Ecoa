@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 431, data: '2026-11-02', titulo: 'A música anterior para na hora',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao abrir outra música, às vezes a anterior continuava tocando por alguns instantes. Acontecia com a música que ainda não tinha vídeo (enquanto o app procurava um) e com as músicas baixadas (enquanto a nova abria do aparelho). Agora a anterior para assim que você toca na outra.' },
+    ],
+  },
+  {
     versao: 430, data: '2026-11-02', titulo: 'Trocar de música sem sair da lista',
     itens: [
       { tipo: 'melhoria', texto: 'Com uma música no player (embaixo, ou no painel do tablet), tocar em outra música de uma lista só troca a música no player: ela continua tocando ali e você fica onde estava. Para abrir a tela da música, toque no player. Sem nada tocando, a música abre direto na tela dela, como antes. Vale na Biblioteca, nas playlists, no Início e na Busca, no celular, no tablet e no computador.' },
@@ -57,12 +63,6 @@ export const NOVIDADES = [
     versao: 422, data: '2026-11-02', titulo: 'Fila inteira na folha esticada',
     itens: [
       { tipo: 'correcao', texto: 'Na Fila, ao puxar a folha para cima (deixando-a quase da tela toda), as músicas de baixo ficavam cortadas e sobrava um espaço vazio no pé da folha. Agora a lista ocupa a folha inteira, no celular e no tablet.' },
-    ],
-  },
-  {
-    versao: 421, data: '2026-11-02', titulo: 'Músicas da busca numa coluna só',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na Busca, as músicas e os vídeos aparecem sempre numa coluna só, um embaixo do outro, também no tablet e no computador (antes, na tela larga, ficavam em duas colunas).' },
     ],
   },
 ];

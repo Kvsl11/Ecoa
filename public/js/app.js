@@ -2645,6 +2645,11 @@ const semLinhasDeAcordes = (sinc) => {
     const l = localDe(atual.youtube);
     if (l) {
       comandoYt('pauseVideo');
+      // outra música: a de antes para na hora (o tocarLocal deixa a anterior tocando até a nova começar, para a troca
+      // entre o áudio e o clipe da mesma música; entre músicas, a anterior seguia tocando enquanto a baixada abria),
+      // e a outra versão dela que esperava por baixo sai
+      [som, somAudio, somVideo].forEach((m) => { if (m && !m.paused) m.pause(); });
+      reservaDe()?.remove();
       tocarLocal(l, 0, autoplay);
       mostrarBarra();
       if (!quadro) seguir();
@@ -3245,9 +3250,13 @@ const semLinhasDeAcordes = (sinc) => {
     // sobrePagina: aberto por cima da página da música (fechando, sai dela também)
     expandir: ({ sobrePagina: sobre = false } = {}) => painelCheio(true, { sobre }),
     // uma música sem vídeo no Tocando agora: a capa, o nome, a letra e o botão de escolher um vídeo. A que estava
-    // tocando continua (por trás) e volta ao fechar
+    // tocando para (antes ela continuava por trás: abrindo uma música cujo vídeo ainda estava sendo procurado, a
+    // anterior seguia tocando até o vídeo novo chegar) e volta, pausada, ao fechar
     mostrarSemVideo(item) {
-      if (atual && !atual.semVideo) guardado = { atual, tempo, duracao, estado };
+      if (atual && !atual.semVideo) {
+        if (estado === 'tocando') comando('pauseVideo');
+        guardado = { atual, tempo, duracao, estado: estado === 'tocando' ? 'pausado' : estado };
+      }
       atual = { ...item, semVideo: true };
       el.classList.add('sem-video');
       mostrarBarra();
