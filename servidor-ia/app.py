@@ -31,11 +31,12 @@ import uuid
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
 import duvidas
+import falar
 import letra
 import pc
 import transcricao
@@ -256,7 +257,9 @@ def saude():
         "cookies": youtube.arquivo_de_cookies() is not None,
         "cookiesInfo": youtube.info_dos_cookies(),
         "letra": letra.tem_whisper(),
-        "duvidas": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "duvidas": duvidas.provedor() is not None,
+        "ia": duvidas.provedor(),
+        "voz": falar.tem_voz(),
         "chave": bool(os.environ.get("IA_CHAVE")),
         "maxSegundos": transcricao.MAX_SEGUNDOS,
     }
@@ -553,17 +556,28 @@ class PedidoDuvida(BaseModel):
     historico: list[dict] = []
     # o que está no app de quem pergunta (data, liturgia do dia, biblioteca, repertórios), em texto
     contexto: str = ""
+    # a conversa ao vivo: a resposta vai ser falada (curta, sem listas nem citações)
+    voz: bool = False
 
 
 @app.post("/duvida", dependencies=[Depends(conferir_chave)])
 def tirar_duvida(pedido: PedidoDuvida):
     """Resposta pelos arquivos do acervo e, se eles não bastam, pela web (com as fontes)."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(501, "este servidor não tem a chave da IA (ANTHROPIC_API_KEY)")
+    qual = duvidas.provedor()
+    if not qual:
+        raise HTTPException(501, "este servidor não tem a chave da IA (ANTHROPIC_API_KEY ou GEMINI_API_KEY)")
+    if qual == "gemini":
+        try:
+            return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        except duvidas.ErroGemini as e:
+            log.warning("Gemini respondeu %s: %s", e.status, e)
+            raise HTTPException(503 if e.status == 429 else 502, "a IA não respondeu agora, tente de novo")
     import anthropic
 
     try:
-        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto)
+        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except anthropic.RateLimitError:
@@ -573,6 +587,26 @@ def tirar_duvida(pedido: PedidoDuvida):
         raise HTTPException(502, "a IA não respondeu agora, tente de novo")
     except anthropic.APIConnectionError:
         raise HTTPException(502, "sem conexão com a IA, tente de novo")
+
+
+class PedidoFala(BaseModel):
+    texto: str
+    voz: str = "feminina"
+
+
+@app.post("/falar", dependencies=[Depends(conferir_chave)])
+async def falar_texto(pedido: PedidoFala):
+    """A resposta do Lumen em voz neural realista (MP3), para a conversa ao vivo."""
+    if not falar.tem_voz():
+        raise HTTPException(501, "este servidor não tem a voz (pip install edge-tts)")
+    try:
+        audio = await falar.falar(pedido.texto, pedido.voz)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:  # sem internet no servidor, serviço de voz fora do ar
+        log.warning("voz falhou: %s", e)
+        raise HTTPException(502, "a voz não respondeu agora")
+    return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
 
 class PedidoConectar(BaseModel):

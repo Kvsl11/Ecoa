@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 433, data: '2026-11-02', titulo: 'Lumen mais inteligente e com voz de verdade',
+    itens: [
+      { tipo: 'novo', texto: 'Lumen ao vivo com voz realista: a resposta é falada por uma voz neural (feminina ou masculina, troque no alto da tela), no lugar da voz robótica do celular. As respostas faladas vêm curtas, como numa conversa.' },
+      { tipo: 'melhoria', texto: 'O brilho da conversa ao vivo, como o do Gemini: sobe de baixo da tela e cresce e clareia junto com a voz, no ritmo de verdade da fala. A pílula do meio também acompanha o volume, sem os pulos de antes.' },
+      { tipo: 'melhoria', texto: 'O Lumen responde com IA (Claude ou Gemini) dúvidas sobre a missa e a liturgia, os cantos do acervo para cada celebração (casamento, batismo, exéquias…) e a liturgia de qualquer data, como “qual o salmo de 30 de janeiro de 2027?”.' },
+      { tipo: 'correcao', texto: 'O Lumen às vezes respondia só com a busca simples, sem a IA, porque a tela dele não conferia o endereço do servidor. Agora confere antes de cada pergunta.' },
+    ],
+  },
+  {
     versao: 432, data: '2026-11-02', titulo: 'Partituras com cara nova',
     itens: [
       { tipo: 'melhoria', texto: 'As telas de partitura ficaram mais limpas: Partituras, Criar a partitura e Gerar com IA têm menos texto, cartões leves e as escolhas mais à mão (tom e compasso lado a lado, os tipos de partitura em grade).' },
@@ -60,12 +69,6 @@ export const NOVIDADES = [
     versao: 424, data: '2026-11-02', titulo: 'Sem tela preta ao sair da música',
     itens: [
       { tipo: 'correcao', texto: 'Às vezes, ao sair da música, a tela ficava toda preta, só com a seta de voltar no topo. Acontecia quando o celular fechava o app em segundo plano e, ao voltar, ele abria de novo direto na música: não havia página antes dela para onde voltar. Agora o app vai para a lista de onde a música veio (a Biblioteca, por exemplo).' },
-    ],
-  },
-  {
-    versao: 423, data: '2026-11-02', titulo: 'Partes da música sempre em inglês',
-    itens: [
-      { tipo: 'correcao', texto: 'Na letra e na cifra, nomes como “Primeiro Refrão”, “Segundo Refrão”, “Segundo Verso” ou “2º Refrão” voltavam a aparecer em português. Agora viram Chorus 1, Chorus 2, Verse 2… e “Último Refrão” vira Final Chorus, também nas músicas que você já tinha salvo.' },
     ],
   },
 ];

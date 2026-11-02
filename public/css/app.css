@@ -2770,7 +2770,6 @@ dialog.creditos-dlg::backdrop { background: #121212; }
   background: radial-gradient(90% 120% at 50% 130%, #6aa1ff 0%, #2f5be0 35%, rgb(30 60 180 / 0.35) 65%, transparent 85%); transition: opacity 0.4s; }
 .dv-vivo[data-estado="ouvindo"] .dv-orbe-brilho { animation: dv-respira 2.2s ease-in-out infinite; }
 .dv-vivo[data-estado="pensando"] .dv-orbe-brilho { background: linear-gradient(90deg, transparent, #4f7dff, #9b72ff, transparent); background-size: 200% 100%; animation: dv-corre 1.3s linear infinite; }
-.dv-vivo[data-estado="falando"] .dv-orbe-brilho { animation: dv-fala 0.6s ease-in-out infinite alternate; }
 .dv-vivo[data-estado="parado"] .dv-orbe-brilho { opacity: 0.35; }
 @keyframes dv-pisca { 50% { opacity: 0.35; } }
 @keyframes dv-fala { from { transform: scaleY(0.85); opacity: 0.8; } to { transform: scaleY(1.15); opacity: 1; } }
@@ -4549,3 +4548,35 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
    flex, padding largo) — o nome da voz virava "S…" e o volume subia para a mesma linha. Aqui ela volta a ser a grade */
 .ens-voz.destaque { display: grid; gap: 2px 4px; align-items: center; padding: 6px 6px 8px 10px; border-radius: 12px; }
 @media (max-width: 600px) { .ens-voz.destaque { padding: 2px 4px 4px 10px; border-radius: 10px; } }
+
+/* ============================================================ Lumen ao vivo: o brilho que acompanha a voz (como no Gemini)
+   --nivel (0 a 1) vem do volume de verdade da voz que está saindo: o brilho de baixo cresce e clareia e a pílula
+   enche com ele. Ouvindo, o brilho respira devagar; pensando, ele corre pela pílula; parado, apaga */
+.dv-vivo { --nivel: 0; isolation: isolate; overflow: hidden; }
+.dv-vivo > :not(.dv-vivo-aura) { position: relative; z-index: 1; }
+.dv-vivo-aura { position: absolute; z-index: 0; left: -20%; right: -20%; bottom: -12%; height: 52%; pointer-events: none;
+  opacity: calc(0.45 + var(--nivel) * 0.55); transform-origin: 50% 100%; transform: scaleY(calc(0.75 + var(--nivel) * 0.55));
+  transition: opacity 0.5s ease; filter: blur(48px); }
+.dv-vivo-aura i { position: absolute; bottom: 0; width: 55%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
+.dv-vivo-aura i:nth-child(1) { left: 0; background: radial-gradient(closest-side, #4f8cff, transparent); animation: dv-aura-a 7s ease-in-out infinite alternate; }
+.dv-vivo-aura i:nth-child(2) { left: 22%; background: radial-gradient(closest-side, #9b72ff, transparent); animation: dv-aura-b 9s ease-in-out infinite alternate; }
+.dv-vivo-aura i:nth-child(3) { right: 0; background: radial-gradient(closest-side, #ff6fa8, transparent); opacity: 0.75; animation: dv-aura-a 8s ease-in-out infinite alternate-reverse; }
+@keyframes dv-aura-a { to { transform: translateX(12%) scale(1.08); } }
+@keyframes dv-aura-b { to { transform: translateX(-10%) scale(0.92); } }
+.dv-vivo[data-estado="ouvindo"] .dv-vivo-aura { opacity: 0.6; animation: dv-aura-respira 2.6s ease-in-out infinite; }
+.dv-vivo[data-estado="pensando"] .dv-vivo-aura { opacity: 0.4; }
+.dv-vivo[data-estado="parado"] .dv-vivo-aura { opacity: 0.15; }
+@keyframes dv-aura-respira { 50% { transform: scaleY(0.9); opacity: 0.8; } }
+/* a pílula do meio: falando, o brilho sobe e clareia com a voz (sem a animação fixa de antes, que pulava fora do ritmo) */
+.dv-vivo[data-estado="falando"] .dv-orbe-brilho { transform-origin: 50% 100%; transform: scaleY(calc(0.7 + var(--nivel) * 0.7));
+  filter: brightness(calc(0.9 + var(--nivel) * 0.6)); }
+.dv-vivo[data-estado="falando"] .dv-orbe { box-shadow: 0 0 calc(var(--nivel) * 28px) rgb(124 140 255 / calc(var(--nivel) * 0.7)); }
+.dv-vivo-topo { justify-content: space-between; gap: 10px; }
+.dv-vivo-voz { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 999px; cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 700; color: #e6e1ff; background: rgb(255 255 255 / 0.08); }
+.dv-vivo-voz:hover { background: rgb(255 255 255 / 0.14); }
+.dv-vivo-voz[hidden] { display: none; }
+.dv-vivo-estado { hyphens: manual; -webkit-hyphens: manual; text-wrap: pretty; }
+@media (prefers-reduced-motion: reduce) {
+  .dv-vivo-aura, .dv-vivo-aura i { animation: none !important; }
+}

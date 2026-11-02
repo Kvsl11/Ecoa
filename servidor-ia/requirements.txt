@@ -24,6 +24,8 @@ demucs==4.0.1
 torchcrepe>=0.0.23
 faster-whisper>=1.0
 
-# Tirar dúvidas: a IA (Claude) responde pelos arquivos do acervo e pela web (precisa de ANTHROPIC_API_KEY)
+# Tirar dúvidas: a IA (Claude) responde pelos arquivos do acervo e pela web (precisa de ANTHROPIC_API_KEY; ou o
+# Gemini, com GEMINI_API_KEY, que vai pela API REST e não precisa de pacote)
 anthropic>=2.1
+edge-tts>=6.1           # a voz realista do Lumen ao vivo (vozes neurais da Microsoft, sem chave)
 pypdf>=4.0              # indexar_acervo.py: o texto dos PDFs do acervo

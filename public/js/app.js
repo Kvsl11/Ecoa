@@ -13532,6 +13532,38 @@ const textoDasSugestoes = (S) => [S.titulo + (S.celebracao ? ` — ${S.celebraca
 // fala, os cantos que o app sugere para ele, as músicas da biblioteca e os repertórios. Sem o servidor, ou sem a chave
 // da IA nele (501), o Lumen continua com a busca gratuita no aparelho.
 let lumenSemIA = false;
+// a voz neural do servidor (rota /falar): sem ela no servidor (501), a conversa ao vivo usa a voz do navegador
+let vozNeuralSem = false;
+const servidorVoz = () => (SERVIDOR_IA.url && !vozNeuralSem ? { url: SERVIDOR_IA.lumen || SERVIDOR_IA.url, chave: SERVIDOR_IA.chave } : null);
+// a fala em pedaços de até ~240 letras, nas frases: o primeiro pedaço volta rápido do servidor e já começa a tocar
+// enquanto o seguinte é preparado
+function pedacosDaFala(texto) {
+  const frases = String(texto || '').replace(/\s+/g, ' ').trim().match(/[^.!?…;]+[.!?…;]*\s*/g) || [];
+  const out = [];
+  for (const f of frases) {
+    const ultimo = out[out.length - 1];
+    // o primeiro pedaço é curto (uma frase), para a voz começar logo
+    if (ultimo && out.length > 1 && (ultimo + f).length <= 240) out[out.length - 1] = ultimo + f;
+    else out.push(f);
+  }
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+async function audioDaVoz(cfg, texto) {
+  const base = baseDoServidor(cfg.url);
+  const r = await fetch(`${base}/falar`, {
+    method: 'POST', headers: { ...cabecalhos(base, cfg.chave), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texto, voz: db.prefs().vozLumen === 'masculina' ? 'masculina' : 'feminina' }), signal: AbortSignal.timeout(25000),
+  });
+  if (!r.ok) throw Object.assign(new Error('a voz não respondeu'), { status: r.status });
+  return r.blob();
+}
+// a voz mais natural que o aparelho tem em português (as "naturais"/neurais do Edge e do Android, as do Google)
+function vozDoNavegador() {
+  const vozes = speechSynthesis.getVoices().filter((v) => /^pt/i.test(v.lang));
+  const nota = (v) => (/^pt[-_]BR/i.test(v.lang) ? 4 : 0) + (/natural|neural|online|premium|enhanced|aprimorad/i.test(v.name) ? 3 : 0)
+    + (/google/i.test(v.name) ? 2 : 0) + (/francisca|thalita|luciana|antonio/i.test(v.name) ? 1 : 0);
+  return vozes.sort((a, b) => nota(b) - nota(a))[0] || null;
+}
 const servidorLumen = () => (SERVIDOR_IA.url && !lumenSemIA ? { url: SERVIDOR_IA.lumen || SERVIDOR_IA.url, chave: SERVIDOR_IA.chave } : null);
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
 async function contextoDoApp(pergunta) {
@@ -13756,7 +13788,7 @@ function viewDuvidas() {
     });
   };
   desenhar();
-  const perguntar = async (q) => {
+  const perguntar = async (q, { voz = false } = {}) => {
     q = q.trim();
     if (!q || conversaDuvidas.some((m) => m.carregando)) return null;
     conversaDuvidas.push({ role: 'user', content: q, t: Date.now() });
@@ -13789,7 +13821,9 @@ function viewDuvidas() {
         return resp;
       }
     }
-    // o Lumen com IA (servidor), quando está disponível; se falhar, segue a busca gratuita logo abaixo
+    // o Lumen com IA (servidor), quando está disponível; se falhar, segue a busca gratuita logo abaixo. O endereço do
+    // servidor é conferido aqui (antes, sem outra tela ter carregado o servidor, o Lumen ia direto para a busca simples)
+    await comPrazo(carregarServidor().catch(() => {}), 12000);
     const cfgIA = servidorLumen();
     if (cfgIA) {
       resp.etapa = 'Lumen está pensando…';
@@ -13798,7 +13832,7 @@ function viewDuvidas() {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q) }, tempo: 150e3 });
+        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz }, tempo: 150e3 });
         if (ia?.resposta) {
           Object.assign(resp, { ia, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
           guardarConversa();
@@ -13922,9 +13956,9 @@ function viewDuvidas() {
     tocarResposta(e);
   });
 
-  // Conversa ao vivo (como o DJ do Spotify): a pessoa fala, a resposta vem em voz alta e nos cartões (trechos do
-  // acervo, links da internet) e ele volta a ouvir sozinho. Tudo no aparelho: o ditado e a voz do próprio navegador
-  // e a busca de sempre (acervo + internet), sem gastar o servidor da IA
+  // Conversa ao vivo (como a do Gemini): a pessoa fala, a IA responde (curto, para ser falado) numa voz neural
+  // realista do servidor e ele volta a ouvir sozinho. O brilho de baixo e a pílula se mexem com o volume de verdade da
+  // voz (antes era uma animação fixa, fora do ritmo da fala). Sem o servidor: a voz mais natural do aparelho
   function abrirVivo() {
     if (document.querySelector('.dv-vivo')) return;
     const r0 = vozDuvidas; vozDuvidas = null; r0?.abort();
@@ -13936,7 +13970,9 @@ function viewDuvidas() {
     el.setAttribute('aria-label', 'Conversa ao vivo com o Lumen');
     // como a conversa ao vivo do Gemini: a resposta em letra grande no alto (as fontes num cartão, pelo botão), o que
     // a pessoa falou embaixo, "Toque para interromper" e a barra: fontes · a pílula que brilha · microfone · encerrar
-    el.innerHTML = `<div class="dv-vivo-topo"><span class="dv-vivo-selo">${logoLumen(20)}Lumen ao vivo<i></i></span></div>
+    const vozNome = () => (db.prefs().vozLumen === 'masculina' ? 'Voz masculina' : 'Voz feminina');
+    el.innerHTML = `<div class="dv-vivo-aura" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="dv-vivo-topo"><span class="dv-vivo-selo">${logoLumen(20)}Lumen ao vivo<i></i></span><button type="button" class="dv-vivo-voz" hidden>${icon('som', 15)}<span>${vozNome()}</span></button></div>
       <div class="dv-vivo-meio">
         <p class="dv-vivo-estado" aria-live="polite"></p>
         <div class="dv-vivo-resposta chat-bolha" hidden></div>
@@ -13970,27 +14006,120 @@ function viewDuvidas() {
       micBtn.classList.toggle('desligado', qual === 'parado');
       micBtn.setAttribute('aria-label', qual === 'ouvindo' ? 'Desligar o microfone' : 'Ligar o microfone');
     };
-    // a voz: em frases curtas (o Chrome corta a fala comprida no meio); termina quando a última frase acaba
-    const falar = (texto) => new Promise((pronto) => {
+    // ---- a voz e o nível dela (0 a 1, em --nivel: o brilho e a pílula crescem com ele)
+    // o AudioContext nasce aqui, no toque que abriu a conversa (fora de um toque o navegador o deixa mudo)
+    // o servidor (a voz neural e a IA): conferido ao abrir; a escolha da voz aparece quando ele responde
+    const servidorPronto = carregarServidor().catch(() => {}).then(() => { if (servidorVoz()) { const b = el.querySelector('.dv-vivo-voz'); if (b) b.hidden = false; } });
+    const ctxAudio = (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } })();
+    ctxAudio?.resume().catch(() => {});
+    const tocador = new Audio();
+    let analisador = null;
+    // o medidor só entra com o AudioContext rodando: ligado a ele com o contexto parado, o áudio sairia mudo
+    const ligarMedidor = () => {
+      if (analisador || !ctxAudio || ctxAudio.state !== 'running') return;
+      try {
+        const fonte = ctxAudio.createMediaElementSource(tocador);
+        analisador = ctxAudio.createAnalyser();
+        analisador.fftSize = 512;
+        fonte.connect(analisador);
+        analisador.connect(ctxAudio.destination);
+      } catch { analisador = null; }
+    };
+    let falandoNavegador = false;
+    let pulso = 0; // a voz do navegador não dá o volume: cada palavra dita é um pulso
+    let suave = 0;
+    let raf = 0;
+    const amostras = new Uint8Array(512);
+    const animar = (t) => {
+      if (!aberto) return;
+      let v = 0;
+      if (analisador && !tocador.paused) {
+        analisador.getByteTimeDomainData(amostras);
+        let soma = 0;
+        for (const b of amostras) soma += ((b - 128) / 128) ** 2;
+        v = Math.min(1, Math.sqrt(soma / amostras.length) * 4.5);
+      } else if (!tocador.paused || falandoNavegador) {
+        // sem o medidor: um balanço parecido com a fala (sílabas em ~5 por segundo) e os pulsos das palavras
+        pulso *= 0.9;
+        v = Math.min(1, 0.25 + 0.25 * Math.abs(Math.sin(t / 95)) * Math.abs(Math.sin(t / 233)) + pulso * 0.5);
+      }
+      // sobe rápido, desce devagar (como um medidor de volume): sem tremer a cada quadro
+      suave += (v - suave) * (v > suave ? 0.45 : 0.12);
+      el.style.setProperty('--nivel', suave.toFixed(3));
+      raf = requestAnimationFrame(animar);
+    };
+    raf = requestAnimationFrame(animar);
+    let fimFala = null;
+    const pararVoz = () => {
+      tocador.pause();
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      falandoNavegador = false;
+      const f = fimFala; fimFala = null; f?.();
+    };
+    // um pedaço do áudio do servidor; devolve false se o navegador não deixou tocar
+    const tocarAudio = (blob) => new Promise((ok) => {
+      const url = URL.createObjectURL(blob);
+      const fim = (tocou) => { tocador.onended = tocador.onerror = tocador.onpause = null; URL.revokeObjectURL(url); ok(tocou); };
+      tocador.onended = () => fim(true);
+      tocador.onerror = () => fim(false);
+      tocador.onpause = () => { if (!tocador.ended) fim(true); };
+      tocador.src = url;
+      ligarMedidor();
+      tocador.play().catch(() => fim(false));
+    });
+    // a voz do navegador: em frases curtas (o Chrome corta a fala comprida no meio)
+    const falarNoNavegador = (texto) => new Promise((pronto) => {
       if (!('speechSynthesis' in window)) { pronto(); return; }
       speechSynthesis.cancel();
-      const vozes = speechSynthesis.getVoices();
-      const voz = vozes.find((v) => /^pt[-_]BR/i.test(v.lang)) || vozes.find((v) => /^pt/i.test(v.lang));
+      const voz = vozDoNavegador();
       const frases = texto.match(/[^.!?…]+[.!?…]*/g) || [texto];
       // reserva: há aparelhos em que o fim da fala não avisa
-      const reserva = setTimeout(pronto, 4000 + texto.length * 90);
+      const reserva = setTimeout(() => { falandoNavegador = false; pronto(); }, 4000 + texto.length * 90);
+      falandoNavegador = true;
       frases.forEach((f, n) => {
         const u = new SpeechSynthesisUtterance(f.trim());
         u.lang = 'pt-BR';
         if (voz) u.voice = voz;
-        u.rate = 1.05;
-        if (n === frases.length - 1) u.onend = u.onerror = () => { clearTimeout(reserva); pronto(); };
+        u.rate = 1.04;
+        u.onboundary = () => { pulso = 1; };
+        if (n === frases.length - 1) u.onend = u.onerror = () => { clearTimeout(reserva); falandoNavegador = false; pronto(); };
         speechSynthesis.speak(u);
       });
     });
+    // falar: a voz neural do servidor, pedaço a pedaço (o próximo já vem enquanto este toca); se ela falha, o resto vai
+    // na voz do navegador. Termina quando acaba ou quando é interrompida (pararVoz)
+    const falar = (texto) => {
+      pararVoz();
+      return new Promise((pronto) => {
+        const minha = pronto;
+        fimFala = pronto;
+        const vale = () => fimFala === minha;
+        (async () => {
+          await comPrazo(servidorPronto, 6000);
+          if (!vale()) return;
+          const cfg = servidorVoz();
+          const pedacos = pedacosDaFala(texto);
+          let feito = 0;
+          if (cfg && pedacos.length) {
+            let proximo = audioDaVoz(cfg, pedacos[0]);
+            for (; feito < pedacos.length; feito++) {
+              let blob = null;
+              try { blob = await proximo; } catch (e) { if (e.status === 501 || e.status === 404) vozNeuralSem = true; }
+              if (!vale()) return;
+              if (!blob) break;
+              if (feito + 1 < pedacos.length) { proximo = audioDaVoz(cfg, pedacos[feito + 1]); proximo.catch(() => {}); }
+              if (!(await tocarAudio(blob))) break;
+              if (!vale()) return;
+            }
+          }
+          if (feito < pedacos.length && vale()) await falarNoNavegador(pedacos.slice(feito).join(' ') || texto);
+          if (vale()) { fimFala = null; pronto(); }
+        })();
+      });
+    };
     const ouvir = () => {
       if (!aberto) return;
-      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      pararVoz();
       const antigo = rec; rec = null; antigo?.abort();
       const r = new ReconhecerVoz();
       rec = r;
@@ -14019,7 +14148,7 @@ function viewDuvidas() {
       respEl.hidden = true;
       fontesBtn.disabled = true;
       fontesBtn.setAttribute('aria-pressed', 'false');
-      const m = await perguntar(q);
+      const m = await perguntar(q, { voz: true });
       if (!aberto) return;
       if (!m) { ouvir(); return; }
       // a resposta em letra grande (o que a voz lê); as fontes e os cantos ficam no cartão, pelo botão da esquerda
@@ -14035,7 +14164,10 @@ function viewDuvidas() {
       if (!aberto) return;
       aberto = false;
       const r = rec; rec = null; r?.abort();
-      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      pararVoz();
+      cancelAnimationFrame(raf);
+      tocador.removeAttribute('src');
+      ctxAudio?.close().catch(() => {});
       document.removeEventListener('keydown', teclas);
       el.remove();
     };
@@ -14050,6 +14182,11 @@ function viewDuvidas() {
     };
     // "Toque para interromper": a voz para e já ouve a próxima pergunta
     el.querySelector('.dv-vivo-interromper').onclick = () => ouvir();
+    // a voz do Lumen: feminina (Francisca) ou masculina (Antonio); vale a partir da próxima fala
+    el.querySelector('.dv-vivo-voz')?.addEventListener('click', (e) => {
+      db.setPref('vozLumen', db.prefs().vozLumen === 'masculina' ? 'feminina' : 'masculina');
+      e.currentTarget.querySelector('span').textContent = vozNome();
+    });
     // o microfone: ouvindo, desliga; desligado (ou falando), liga
     micBtn.onclick = () => {
       const agora = el.dataset.estado;
@@ -14068,8 +14205,8 @@ function viewDuvidas() {
       if (e.target.closest('button.dv-fonte, a[href^="#"]')) fechar();
       tocarResposta(e);
     });
-    estado('falando', 'Olá! Eu sou o Lumen. Pode perguntar sobre a liturgia e os cantos.');
-    falar('Olá, eu sou o Lumen! Pode perguntar sobre a liturgia e os cantos.').then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+    estado('falando', 'Olá! Eu sou o Lumen. Pergunte sobre a liturgia, os cantos do acervo ou qualquer dúvida da missa.');
+    falar('Olá, eu sou o Lumen! Pode perguntar sobre a liturgia, os cantos do acervo ou qualquer dúvida da missa.').then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
   }
 }
 

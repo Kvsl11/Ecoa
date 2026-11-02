@@ -7,7 +7,8 @@ Google Drive que o app já leu) e, se eles não trazem a resposta, por uma busca
 
 Os textos vêm de public/data (cantos.json, hinario.json, acervo.json: letras, títulos, pastas) e, quando existe, de
 textos-acervo.jsonl (o texto inteiro dos PDFs do acervo: python indexar_acervo.py).
-Precisa de ANTHROPIC_API_KEY.
+Precisa de uma chave de IA: ANTHROPIC_API_KEY (o Claude, o padrão) ou GEMINI_API_KEY (o Gemini, com a busca do
+Google). Com as duas, vale o Claude (IA_PROVEDOR=gemini troca).
 """
 
 from __future__ import annotations
@@ -26,6 +27,19 @@ DADOS = os.environ.get("IA_DADOS") or os.path.join(PASTA, "..", "public", "data"
 TEXTOS = os.environ.get("IA_TEXTOS") or os.path.join(PASTA, "textos-acervo.jsonl")
 # o Sonnet: responde bem citando o acervo, por uma fração do preço do Opus (dá para trocar com IA_MODELO)
 MODELO = os.environ.get("IA_MODELO", "claude-sonnet-5-5")
+MODELO_GEMINI = os.environ.get("IA_GEMINI_MODELO", "gemini-2.5-flash")
+
+
+def chave_gemini() -> str:
+    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+
+
+def provedor() -> str | None:
+    """Qual IA responde: "claude", "gemini" ou None (sem chave nenhuma)."""
+    tem_claude, tem_gemini = bool(os.environ.get("ANTHROPIC_API_KEY")), bool(chave_gemini())
+    if tem_gemini and (not tem_claude or os.environ.get("IA_PROVEDOR", "").lower() == "gemini"):
+        return "gemini"
+    return "claude" if tem_claude else None
 # sem a pasta public/data ao lado (o servidor publicado sozinho, no Modal): os mesmos arquivos, do app no ar
 DADOS_URL = os.environ.get("IA_DADOS_URL", "https://kvsl11.github.io/Songbook/data/")
 
@@ -200,7 +214,22 @@ Primeiro use os trechos do acervo litúrgico do grupo que vêm na mensagem (arqu
 subsídios da CNBB, cantos, documentos). Cite cada informação tirada deles com o número do trecho entre colchetes, \
 como [2]. Se os trechos não respondem à pergunta (ou só em parte), use a busca na web, prefira fontes da Igreja \
 (CNBB, Vaticano, Instrução Geral do Missal Romano, documentos litúrgicos) e diga com clareza que essa parte veio da \
-internet. Não invente: se não achar, diga que não achou."""
+internet. Não invente: se não achar, diga que não achou.
+
+Você conhece bem a liturgia católica (Missal Romano, IGMR, Ano Litúrgico, Liturgia das Horas, o Diretório da CNBB) e \
+responde dúvidas como: quando não há missa (Sexta-feira Santa, Sábado Santo antes da Vigília), como é a missa de \
+Finados ou do Tríduo Pascal, o que se canta em cada parte da missa, cores e tempos litúrgicos, solenidades e festas. \
+Para a liturgia de uma data (leituras, salmo, evangelho), use a que vem em <app>; se ela não veio, procure na web \
+(liturgia diária da CNBB, Canção Nova, Paulus) e diga a fonte. Para cantos de uma celebração (casamento, batismo, \
+exéquias, crisma…), prefira os do acervo e explique em que parte da celebração cada um entra."""
+
+# na conversa ao vivo a resposta é falada: curta, em frases, sem lista nem marcação
+SISTEMA_VOZ = """
+
+A resposta será LIDA EM VOZ ALTA numa conversa ao vivo. Responda como numa conversa: de 2 a 5 frases curtas, sem \
+listas, sem títulos, sem negrito, sem citações entre colchetes e sem endereços de sites. Se for uma lista de cantos \
+ou leituras, diga os principais numa frase. Se a resposta veio da internet, diga só o nome da fonte ("segundo a \
+CNBB…")."""
 
 
 def montar_pergunta(pergunta: str, achados: list[tuple[float, Trecho]], contexto: str = "") -> str:
@@ -210,9 +239,7 @@ def montar_pergunta(pergunta: str, achados: list[tuple[float, Trecho]], contexto
     return f"{app}<acervo>\n{acervo}\n</acervo>\n\nPergunta: {pergunta}"
 
 
-def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "") -> dict:
-    import anthropic
-
+def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False) -> dict:
     pergunta = pergunta.strip()[:1000]
     if not pergunta:
         raise ValueError("escreva a pergunta")
@@ -223,13 +250,27 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
             mensagens.append({"role": m["role"], "content": m["content"][:4000]})
     # o contexto do app (liturgia, biblioteca) vem do aparelho: limitado, para a conta não crescer sem controle
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
+    sistema = SISTEMA + (SISTEMA_VOZ if voz else "")
+    if provedor() == "gemini":
+        texto, web, usou_web = _gemini(mensagens, sistema)
+    else:
+        texto, web, usou_web = _claude(mensagens, sistema, voz)
+    usados = {int(n) for n in re.findall(r"\[(\d+)\]", texto)}
+    fontes = [{"n": k, "titulo": t.titulo, "caminho": t.caminho, "id": t.id, "tipo": t.tipo}
+              for k, (_, t) in enumerate(achados, 1) if k in usados]
+    return {"resposta": texto, "fontes": fontes, "web": web, "usouWeb": usou_web}
+
+
+def _claude(mensagens: list[dict], sistema: str, voz: bool) -> tuple[str, list[dict], bool]:
+    import anthropic
+
     cliente = anthropic.Anthropic()
     ferramentas = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 4}]
     conteudo = []
     for _ in range(4):  # a busca na web pode pausar a resposta (pause_turn): continua de onde parou
         r = cliente.beta.messages.create(
-            model=MODELO, max_tokens=16000, system=SISTEMA, messages=mensagens, tools=ferramentas,
-            output_config={"effort": "medium"},
+            model=MODELO, max_tokens=16000, system=sistema, messages=mensagens, tools=ferramentas,
+            output_config={"effort": "low" if voz else "medium"},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         )
         conteudo.extend(r.content)
@@ -247,7 +288,44 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
                 if url and url not in vistos:
                     vistos.add(url)
                     web.append({"titulo": getattr(c, "title", None) or url, "url": url})
-    usados = {int(n) for n in re.findall(r"\[(\d+)\]", texto)}
-    fontes = [{"n": k, "titulo": t.titulo, "caminho": t.caminho, "id": t.id, "tipo": t.tipo}
-              for k, (_, t) in enumerate(achados, 1) if k in usados]
-    return {"resposta": texto, "fontes": fontes, "web": web, "usouWeb": any(b.type == "server_tool_use" for b in conteudo)}
+    return texto, web, any(b.type == "server_tool_use" for b in conteudo)
+
+
+class ErroGemini(RuntimeError):
+    def __init__(self, status: int, mensagem: str):
+        super().__init__(mensagem)
+        self.status = status
+
+
+def _gemini(mensagens: list[dict], sistema: str) -> tuple[str, list[dict], bool]:
+    """O Gemini pela API REST (sem pacote a mais), com a busca do Google para o que não está no acervo."""
+    import urllib.error
+    import urllib.request
+
+    corpo = {
+        "system_instruction": {"parts": [{"text": sistema}]},
+        "contents": [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]} for m in mensagens],
+        "tools": [{"google_search": {}}],
+    }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO_GEMINI}:generateContent"
+    pedido = urllib.request.Request(url, data=json.dumps(corpo).encode(), method="POST",
+                                    headers={"Content-Type": "application/json", "x-goog-api-key": chave_gemini()})
+    try:
+        with urllib.request.urlopen(pedido, timeout=120) as r:
+            dados = json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        raise ErroGemini(e.code, e.read().decode(errors="replace")[:300]) from e
+    except urllib.error.URLError as e:
+        raise ErroGemini(0, str(e.reason)) from e
+    cand = (dados.get("candidates") or [{}])[0]
+    if cand.get("finishReason") in ("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST"):
+        raise ValueError("não consegui responder a essa pergunta")
+    texto = "".join(p.get("text", "") for p in (cand.get("content") or {}).get("parts", [])).strip()
+    meta = cand.get("groundingMetadata") or {}
+    web, vistos = [], set()
+    for c in meta.get("groundingChunks") or []:
+        w = c.get("web") or {}
+        if w.get("uri") and w["uri"] not in vistos:
+            vistos.add(w["uri"])
+            web.append({"titulo": w.get("title") or w["uri"], "url": w["uri"]})
+    return texto, web, bool(meta.get("webSearchQueries"))
