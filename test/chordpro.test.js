@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  chordsOverLyricsToChordPro, isChord, linhasCantadas, isChordOnlyLine, parteEmIngles, parseChordPro, transposeChord, transposeChordPro, transposeKey,
+  chordsOverLyricsToChordPro, isChord, linhasCantadas, isChordOnlyLine, parteEmIngles, ehCabecalho, parseChordPro, transposeChord, transposeChordPro, transposeKey,
 } from '../public/js/chordpro.js';
 
 test('reconhece acordes e rejeita palavras', () => {
@@ -90,8 +90,15 @@ test('acordes com extensão depois da barra e linhas com marcas de repetição',
 });
 
 test('nomes das partes em inglês', () => {
-  const casos = { Refrão: 'Chorus', 'Pré-Refrão': 'Pre-Chorus', 'Pre-chorus': 'Pre-Chorus', 'Primeira Parte': 'Verse 1', 'Segunda Parte': 'Verse 2', 'Estrofe 3': 'Verse 3', Ponte: 'Bridge', Final: 'Outro', 'Repetir refrão': 'Repeat Chorus', Introdução: 'Intro', '(só vozes)': '(só vozes)' };
+  const casos = { Refrão: 'Chorus', 'Pré-Refrão': 'Pre-Chorus', 'Pre-chorus': 'Pre-Chorus', 'Primeira Parte': 'Verse 1', 'Segunda Parte': 'Verse 2', 'Estrofe 3': 'Verse 3', Ponte: 'Bridge', Final: 'Outro', 'Repetir refrão': 'Repeat Chorus', Introdução: 'Intro', '(só vozes)': '(só vozes)',
+    'Primeiro Refrão': 'Chorus 1', 'Segundo Refrão': 'Chorus 2', 'Segundo Verso': 'Verse 2', 'Terceira Estrofe': 'Verse 3', '2º Refrão': 'Chorus 2',
+    'Primeira Ponte': 'Bridge 1', 'Último Refrão': 'Final Chorus', 'Segundo Refrão 2x': 'Chorus 2', 'Primeiro amor': 'Primeiro amor' };
   for (const [pt, en] of Object.entries(casos)) assert.equal(parteEmIngles(pt), en, pt);
+  // numa linha solta (sem colchetes), "Segunda estrofe" pode ser letra; com ":" é o nome da parte
+  assert.equal(ehCabecalho('Segunda estrofe'), null);
+  assert.equal(ehCabecalho('Segundo Refrão:').nome, 'Chorus 2');
+  assert.equal(ehCabecalho('[Primeiro Refrão]').nome, 'Chorus 1');
+  assert.equal(ehCabecalho('Primeira Parte').nome, 'Verse 1');
 });
 
 test('linhasCantadas: linha só de acordes entre parênteses não é letra', () => {

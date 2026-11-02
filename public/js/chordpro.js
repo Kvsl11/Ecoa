@@ -540,7 +540,9 @@ export const ehObservacao = (texto) => OBSERVACAO.test(String(texto || '').trim(
 
 // Nomes das partes sempre em inglês (Intro, Verse 1, Pre-Chorus, Chorus, Bridge, Outro…), venham do Cifra Club
 // ("Primeira Parte", "Refrão"), de outro site, das cifras guardadas ou do editor. Nome desconhecido fica como está.
-const ORDINAIS = { primeira: 1, segunda: 2, terceira: 3, quarta: 4, quinta: 5, sexta: 6, 'sétima': 7, setima: 7, oitava: 8, nona: 9, 'décima': 10, decima: 10 };
+// (no feminino e no masculino: "Primeira Parte", "Primeiro Refrão", "Segundo Verso"…)
+const ORDINAIS = { primeira: 1, segunda: 2, terceira: 3, quarta: 4, quinta: 5, sexta: 6, 'sétima': 7, setima: 7, oitava: 8, nona: 9, 'décima': 10, decima: 10,
+  primeiro: 1, segundo: 2, terceiro: 3, quarto: 4, quinto: 5, sexto: 6, 'sétimo': 7, setimo: 7, oitavo: 8, nono: 9, 'décimo': 10, decimo: 10 };
 const NOMES_EM_INGLES = [
   [/^(pr[ée]|pre)\s*-?\s*(refr[ãa]o|coro|chorus)$/i, 'Pre-Chorus'],
   [/^(p[óo]s|post)\s*-?\s*(refr[ãa]o|coro|chorus)$/i, 'Post-Chorus'],
@@ -556,12 +558,22 @@ const NOMES_EM_INGLES = [
   [/^solo$/i, 'Solo'],
   [/^(repetir|repete|repeat)\s+(o\s+)?(refr[ãa]o|coro|chorus)$/i, 'Repeat Chorus'],
 ];
-const nomeConhecido = (nome) => {
+// solto: o nome numa linha sem colchetes nem ":" (pode ser letra: "Segunda estrofe"): só "Primeira Parte" e os nomes simples
+const nomeConhecido = (nome, solto = false) => {
   // (sem as marcas de repetição — "Refrão 2x", "Refrão (bis)" —, que não fazem parte do nome)
   const t = String(nome || '').trim().replace(/\s+/g, ' ').replace(/:$/, '')
     .replace(/\s*[-–(]?\s*(\d+\s*x|x\s*\d+|bis|\d+\s*vezes)\s*\)?\s*$/i, '').trim();
-  const ord = /^(\p{L}+)\s+parte$/iu.exec(t); // "Primeira Parte" -> Verse 1
-  if (ord && ORDINAIS[ord[1].toLowerCase()]) return `Verse ${ORDINAIS[ord[1].toLowerCase()]}`;
+  // o número na frente vai para o fim: "Primeira Parte" -> Verse 1, "Segundo Refrão" -> Chorus 2, "2º Refrão" -> Chorus 2;
+  // "Último Refrão" -> Final Chorus
+  const parte = /^(\p{L}+)\s+parte$/iu.exec(t);
+  if (parte && ORDINAIS[parte[1].toLowerCase()]) return `Verse ${ORDINAIS[parte[1].toLowerCase()]}`;
+  if (!solto && /^[úu]ltim[oa]\s+(refr[ãa]o|coro|chorus)$/i.test(t)) return 'Final Chorus';
+  const ord = !solto && /^(\p{L}+|\d+\s*[ºª°oa]?)\s+(.+)$/iu.exec(t);
+  const num = ord && (ORDINAIS[ord[1].toLowerCase()] || (/^\d/.test(ord[1]) ? parseInt(ord[1], 10) : 0));
+  if (num && !/\d\s*$/.test(ord[2])) {
+    const nome = nomeConhecido(ord[2]);
+    if (nome && !/\d$/.test(nome) && !/^(Final Chorus|Repeat Chorus)$/.test(nome)) return `${nome} ${num}`;
+  }
   const m = /^(.*?)(?:\s*(\d+))?$/.exec(t);
   const achou = NOMES_EM_INGLES.find(([re]) => re.test(m[1]));
   return achou ? achou[1] + (m[2] && achou[1] !== 'Repeat Chorus' ? ' ' + m[2] : '') : null;
@@ -576,7 +588,7 @@ export function ehCabecalho(linha) {
   const m = /^\s*\[([^\]]{2,40})\]\s*(.*)$/.exec(l);
   if (!m) {
     const s = /^\s*([\p{L}][\p{L} -]{1,24}?(?:\s+\d+)?)\s*:\s*(.*)$/u.exec(l) || /^\s*([\p{L}][\p{L} -]{1,24}?(?:\s+\d+)?)\s*$/u.exec(l);
-    const nome = s && nomeConhecido(s[1]);
+    const nome = s && nomeConhecido(s[1], !s[2] && !/:\s*$/.test(l));
     return nome && (!s[2] || isChordOnlyLine(s[2])) ? { nome, resto: s[2] || '', tab: false } : null;
   }
   if (isChord(m[1].trim()) || !/\p{L}{2,}/u.test(m[1])) return null;
