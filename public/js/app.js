@@ -221,7 +221,17 @@ function abrirCifra(href) {
 // a letra na tela toda aberta pelo "Tocando agora" (celular e computador): ao sair dela, volta para o Tocando agora
 let voltarAoTocando = false;
 const telaDeCelular = () => !ehTablet() && matchMedia('(max-width: 899px)').matches;
+// Com o player aberto (o mini player embaixo, ou o painel do tablet), tocar noutra música de uma lista só troca a
+// música nele e ela continua tocando ali: a tela dela não abre (abre ao tocar no player). Sem nada tocando, a música
+// abre na tela dela, como sempre. A música sem vídeo nem áudio abre a tela (é onde se escolhe um)
+const playerAberto = () => Boolean(player.atual) && document.body.classList.contains('com-player') && !document.body.classList.contains('painel-cheio');
+function tocarNoPlayer(song, set = null, i = -1) {
+  if (!song || !midiaDe(song) || !playerAberto()) return false;
+  player.tocar(itemDoPlayer(song, set, set ? i : -1));
+  return true;
+}
 function irParaMusica(id) {
+  if (tocarNoPlayer(db.song(id))) return;
   // abre a tela da música (a letra na tela toda) e já toca
   abrirNoTocando = true;
   location.hash = '#/musica/' + id;
@@ -554,7 +564,7 @@ const tipoDoSet = (set) => (ehPlaylist(set) ? 'Playlist' : 'Repertório');
 // No celular, os links para uma música (Início, repertórios e a missa montada pela Liturgia) abrem a música tocando no
 // Tocando agora, em vez da página antiga. Música sem vídeo continua abrindo a página (é onde está a cifra)
 document.addEventListener('click', (e) => {
-  if (e.defaultPrevented || e.button || !telaDeCelular()) return;
+  if (e.defaultPrevented || e.button) return;
   if (/^#\/(musica\/|repertorio\/[^/]+\/\d)/.test(location.hash)) return; // já na página da música (aberta pela cifra): segue nela
   const a = e.target.closest('a[href^="#/musica/"], a[href^="#/repertorio/"]');
   if (!a || a.closest('#player, dialog, .menu-mais')) return;
@@ -565,6 +575,9 @@ document.addEventListener('click', (e) => {
   const i = mr ? Number(mr[2]) : -1;
   const song = mm ? db.song(mm[1]) : set && db.song(set.items[i]?.songId);
   if (!song) return;
+  // (com o player aberto, em qualquer aparelho: só troca a música nele)
+  if (tocarNoPlayer(song, set || null, i)) { e.preventDefault(); return; }
+  if (!telaDeCelular()) return;
   e.preventDefault();
   if (midiaDe(song)) player.tocar(itemDoPlayer(song, set || null, set ? i : -1));
   else player.mostrarSemVideo(itemDoPlayer(song, set || null, set ? i : -1));
@@ -5459,6 +5472,8 @@ async function abrirMusica(dados, back, el) {
   // já está na biblioteca: abre a música salva (com o botão marcado), sem trazer de novo
   const ja = (!dados.video || dados.cifra || dados.letra) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
   if (ja) { irParaMusica(ja.id); return; }
+  // (com o player aberto: a música é preparada e só passa a tocar nele, sem abrir a tela)
+  const noPlayer = playerAberto();
   abrirNoTocando = true;
   const acts = el?.querySelector('.acts');
   const antes = acts?.innerHTML;
@@ -5475,7 +5490,7 @@ async function abrirMusica(dados, back, el) {
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
       const r = await trazerMusica(dados.video && !dados.cifra && !dados.letra ? await musicaDoVideo(dados.video) : dados);
-      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar);
+      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer });
     } finally { if (sub?.isConnected) sub.innerHTML = subAntes; }
   } catch (e) {
     abrirNoTocando = false;
@@ -5519,7 +5534,7 @@ async function videoDaMusica(titulo, artista, source) {
   return vs.find((v) => videoCombina(v.titulo, titulo)) || null;
 }
 
-async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null) {
+async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false } = {}) {
   const novo = { id: 'previa', content, source, transpose: 0, capo: capoDaCifra(content), back }; // capo da cifra (Cifra Club)
   let m = renderSong(novo.content).meta;
   if (!youtubeId(m.youtube) && !String(source || '').startsWith('cnbb:')) {
@@ -5599,6 +5614,12 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   void versoesProntas.then(() => { if (preview === novo && !novo.sincronia) aoPreparar?.('Sincronizando a letra…'); });
   await Promise.all([noMaximo(preparo, 25000, 'demorou'), noMaximo(versoesProntas, 15000, null), noMaximo(buscaCapaDaPrevia, 2000, '').then(aplicarCapaDaPrevia)]);
   if (preview !== novo) return;
+  // com o player aberto: ela toca nele, e a tela abre tocando no player (a música sem vídeo abre a tela, para escolher um)
+  if (noPlayer && novo.youtube && !jaNaPrevia && playerAberto()) {
+    abrirNoTocando = false;
+    player.tocar({ ...itemDoPlayer(novo), href: '#/musica/previa' });
+    return;
+  }
   if (jaNaPrevia) route(); else location.hash = '#/musica/previa';
 }
 
@@ -7737,8 +7758,9 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
     const com = itens.filter(midiaDe);
     const s = player.aleatorio() ? com[Math.floor(Math.random() * com.length)] : com[0];
     if (!s) return;
+    const jaTocava = playerAberto(); // (com o player já aberto, a música só troca nele)
     player.tocar(itemDoPlayer(s, null, -1));
-    if (telaDeCelular()) player.expandir();
+    if (telaDeCelular() && !jaTocava) player.expandir();
   });
   $('#bib-ordenar')?.addEventListener('click', () => { guardarPrefBib('ordem', ordem === 'az' ? 'recentes' : 'az'); viewLibrary(filtro); });
   $('#bib-modo')?.addEventListener('click', () => { guardarPrefBib('modo', modo === 'grade' ? 'lista' : 'grade'); viewLibrary(filtro, { selecionando, marcados }); });
@@ -11504,7 +11526,13 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     ativarArrastar(ul, (de, para) => { mover(set.items, de, para); db.saveSet(set); viewSet(id); });
     ul.addEventListener('click', (e) => {
       const li = e.target.closest('li[data-i]');
-      if (pl && li && e.target.closest('.info')) { e.preventDefault(); tocarPlaylist(set, Number(li.dataset.i)); if (telaDeCelular() && player.atual) player.expandir(); return; }
+      if (pl && li && e.target.closest('.info')) {
+        e.preventDefault();
+        const jaTocava = playerAberto(); // (com o player já aberto, a música só troca nele)
+        tocarPlaylist(set, Number(li.dataset.i));
+        if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
+        return;
+      }
       if (li && e.target.closest('[data-menu]')) {
         const i = Number(li.dataset.i);
         menuDaMusica(db.song(set.items[i]?.songId), { set, i }).then((r) => {

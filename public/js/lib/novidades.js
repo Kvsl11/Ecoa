@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 430, data: '2026-11-02', titulo: 'Trocar de música sem sair da lista',
+    itens: [
+      { tipo: 'melhoria', texto: 'Com uma música no player (embaixo, ou no painel do tablet), tocar em outra música de uma lista só troca a música no player: ela continua tocando ali e você fica onde estava. Para abrir a tela da música, toque no player. Sem nada tocando, a música abre direto na tela dela, como antes. Vale na Biblioteca, nas playlists, no Início e na Busca, no celular, no tablet e no computador.' },
+    ],
+  },
+  {
     versao: 429, data: '2026-11-02', titulo: 'O clipe oficial na busca',
     itens: [
       { tipo: 'correcao', texto: 'Na Busca, algumas músicas vinham com o vídeo errado (de letra, de programa de TV, ao vivo) em vez do clipe. Em “Standing Next to You”, do Jung Kook, o clipe oficial tem o nome dele entre parênteses — “정국 (Jung Kook)” — e não era reconhecido; vinha a apresentação no programa do Jimmy Fallon. Agora o nome do artista vale também entre parênteses, e entre os vídeos da mesma música fica o clipe oficial.' },
@@ -57,13 +63,6 @@ export const NOVIDADES = [
     versao: 421, data: '2026-11-02', titulo: 'Músicas da busca numa coluna só',
     itens: [
       { tipo: 'melhoria', texto: 'Na Busca, as músicas e os vídeos aparecem sempre numa coluna só, um embaixo do outro, também no tablet e no computador (antes, na tela larga, ficavam em duas colunas).' },
-    ],
-  },
-  {
-    versao: 420, data: '2026-11-02', titulo: 'O app agora se chama Ecoa',
-    itens: [
-      { tipo: 'novo', texto: 'O Songbook Litúrgico agora se chama Ecoa: um nome curto para um app que é tanto para cantar na missa quanto para ouvir música, buscada na internet. A logo nova é uma nota musical com as ondas do som saindo dela, em branco sobre o fundo preto. A biblioteca, os repertórios e os downloads continuam todos aqui, sem mudar nada.' },
-      { tipo: 'melhoria', texto: 'O ícone na tela inicial do celular e do tablet também muda (no Android, às vezes só depois de abrir o app de novo ou reinstalar o atalho).' },
     ],
   },
 ];
