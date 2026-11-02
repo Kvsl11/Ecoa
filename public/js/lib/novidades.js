@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 435, data: '2026-11-02', titulo: 'Puxe o player para aumentar o vídeo',
+    itens: [
+      { tipo: 'novo', texto: 'Com um vídeo tocando, segure o mini player e puxe para cima: o vídeo cresce junto com o dedo, como no Spotify. São três tamanhos: o compacto, o médio (o vídeo maior, com o nome em cima e os botões embaixo) e o grande (o vídeo na largura toda). Puxe para baixo para diminuir. O tamanho escolhido fica guardado.' },
+      { tipo: 'melhoria', texto: 'Vale no celular, no tablet (o cartão sobe a partir do pé da tela) e no computador (arraste a barra de baixo com o mouse: o vídeo flutua acima dela e cresce ou diminui). No tamanho grande, puxar mais uma vez para cima abre o Tocando agora.' },
+    ],
+  },
+  {
     versao: 434, data: '2026-11-02', titulo: 'A música certa do artista certo',
     itens: [
       { tipo: 'correcao', texto: 'Na Busca, uma música com o mesmo nome de outra vinha misturada: “Neverender”, do Justice, abria com o vídeo certo, mas a letra, a versão de música e o artista eram da “Neverender” do Coheed and Cambria. Agora o app usa o artista que a busca já mostrava (ou o que está no título do vídeo) e não aceita a música de outro artista só porque o título é igual. Se você salvou uma música assim, tire da biblioteca e salve de novo pela Busca.' },
@@ -63,12 +70,6 @@ export const NOVIDADES = [
     versao: 426, data: '2026-11-02', titulo: 'Foto do artista certa no “ver mais”',
     itens: [
       { tipo: 'correcao', texto: 'Às vezes, ao tocar em “ver mais” no cartão do artista, a foto principal (a mesma do cartão) sumia e a segunda foto da sequência ficava no lugar dela. Acontecia quando a mesma foto chegava de dois lugares e a do cartão terminava de carregar por último. Agora a foto do cartão é sempre a primeira, no celular, no tablet e no computador.' },
-    ],
-  },
-  {
-    versao: 425, data: '2026-11-02', titulo: 'Mini player do tablet deitado só sobe',
-    itens: [
-      { tipo: 'correcao', texto: 'No tablet deitado, a barrinha do que está tocando era mais larga que o painel “Tocando agora”: ao tocar nela ou puxá-la para cima, ela encolhia para o lado antes de subir. Agora ela tem a mesma largura do painel e, ao abrir, só sobe.' },
     ],
   },
 ];
