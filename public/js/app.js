@@ -1619,7 +1619,8 @@ const player = (() => {
   const modoCapa = () => (comCapa || Boolean(atual?.soMusica)) && document.documentElement.classList.contains('pp');
   // celular e computador, na barra embaixo (fora da tela toda): no modo música, a capa no lugar do vídeo, como no tablet
   // (antes a barra mostrava sempre o vídeo, mesmo com "Mudar para música")
-  const capaNaBarra = () => (comCapa || Boolean(atual?.soMusica)) && !document.documentElement.classList.contains('pp') && !atual?.semVideo && !el.classList.contains('grande');
+  // (o tamanho do mini player, médio ou grande, vale só com o vídeo: no modo música a barrinha fica com a capinha)
+  const capaNaBarra = () => (comCapa || Boolean(atual?.soMusica)) && !document.documentElement.classList.contains('pp') && !atual?.semVideo;
   // a música tocando é esta?
   // (com as duas versões, as duas são desta música)
   const desta = (id) => Boolean(atual && id && (atual.youtube === id || atual.video === id || atual.audio === id));
@@ -4071,8 +4072,11 @@ const semLinhasDeAcordes = (sinc) => {
     if (!puxada || e.pointerId !== puxada.id) return;
     const dy = e.clientY - puxada.y;
     const dx = e.clientX - puxada.x;
+    // a direção do gesto fica decidida nos primeiros 10 px: para o lado é trocar de música (uma tremida para cima no
+    // meio do caminho não vira mais "aumentar o vídeo"); para cima ou para baixo é o tamanho do vídeo
+    if (!puxada.eixo && Math.hypot(dx, dy) > 10) puxada.eixo = Math.abs(dy) > Math.abs(dx) * 1.2 ? 'v' : 'h';
     // com o vídeo: o cartão cresce e diminui com o dedo
-    if (puxada.tamanho && (puxada.arrastou || (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx) * 1.2))) {
+    if (puxada.tamanho && puxada.eixo === 'v') {
       if (!puxada.arrastou) {
         puxada.arrastou = true;
         puxada.ws = larguras();
