@@ -4643,3 +4643,30 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
   html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-meio, html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-video { cursor: grab; }
   #pl-tela:not(.no-palco):not(.na-telinha) { transition: border-radius 0.2s; }
 }
+
+/* o botão de tela cheia no vídeo do mini player aumentado (celular e tablet), também no vídeo do YouTube: ali o toque no
+   vídeo vai para o cartão (puxar e trocar de música) e o botão do próprio YouTube não funciona; este abre o vídeo na
+   tela inteira (antes o toque nele abria o Tocando agora). No computador o vídeo flutuante recebe o toque: vale o do YouTube */
+#pl-tela .pl-tela-cheia { pointer-events: auto; }
+@container (min-width: 260px) {
+  html.tablet body.painel-recolhido #pl-tela:not(.no-palco) .pl-tela-cheia,
+  html:not(.tablet):not(.pp) body:not(.painel-cheio) #pl-tela:not(.no-palco):not(.na-telinha) .pl-tela-cheia {
+    display: grid; place-items: center; position: absolute; z-index: 3; right: 8px; bottom: 8px; width: 40px; height: 40px; padding: 0;
+    border: 0; border-radius: 50%; color: #fff; background: rgb(0 0 0 / 0.6); cursor: pointer; }
+}
+@media (min-width: 900px) { html:not(.tablet) #pl-tela:not(.com-local) .pl-tela-cheia { display: none !important; } }
+/* a tela cheia do vídeo do YouTube: o vídeo recebe o toque (os controles dele) e sai o recorte do mini player */
+#pl-tela:fullscreen { pointer-events: auto !important; clip-path: none !important; border-radius: 0 !important; background: #000; }
+#pl-tela:-webkit-full-screen { pointer-events: auto !important; clip-path: none !important; border-radius: 0 !important; background: #000; }
+#pl-tela:fullscreen:not(.com-local) .pl-tela-cheia { display: none !important; }
+#pl-tela:-webkit-full-screen:not(.com-local) .pl-tela-cheia { display: none !important; }
+
+/* Buscar: o "x" que apaga tudo o que foi escrito, no fim da barra branca (o nativo do navegador sai, para não ficarem dois) */
+.busca-branca .search { padding-right: 48px; }
+.busca-branca .search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.busca-x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 50%; background: none; color: #121212; cursor: pointer; }
+.busca-x[hidden] { display: none; }
+.busca-x:hover { background: rgb(0 0 0 / 0.06); }
+.busca-x:active { transform: translateY(-50%) scale(0.92); }
+:root[data-theme="light"] .busca-x { color: var(--text); }

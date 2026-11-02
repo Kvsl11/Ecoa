@@ -1674,6 +1674,7 @@ const player = (() => {
   if (telaFixa) tela.classList.add('fixa');
   const seguir = () => {
     quadro = requestAnimationFrame(seguir);
+    if (!btnTelaCheia.isConnected && !tela.hidden && tela.firstElementChild) tela.append(btnTelaCheia);
     // o vídeo em tela cheia (o botão do YouTube ou o do vídeo baixado) fica onde está: mudar ele de lugar (ao girar a
     // tela, o lugar dele no player muda) tirava da tela cheia, e o vídeo girava, saía e voltava ao normal
     const cheia = document.fullscreenElement || document.webkitFullscreenElement;
@@ -2754,10 +2755,18 @@ const semLinhasDeAcordes = (sinc) => {
   btnTelaCheia.setAttribute('aria-label', 'Ver o vídeo na tela inteira');
   btnTelaCheia.title = 'Tela inteira';
   btnTelaCheia.innerHTML = icon('expand', 18);
+  // (também no vídeo do YouTube do mini player aumentado: ali o toque no vídeo vai para o cartão, puxar e trocar de
+  // música, e o botão de tela cheia do próprio YouTube não recebe o toque. Este leva o vídeo inteiro para a tela cheia)
+  btnTelaCheia.addEventListener('pointerdown', (e) => e.stopPropagation()); // (não começa a puxar o cartão)
   btnTelaCheia.addEventListener('click', (e) => {
     e.stopPropagation();
+    e.preventDefault();
     const v = somVideo;
-    if (!v) return;
+    if (!v || !tela.classList.contains('com-local')) {
+      const pedirTela = tela.requestFullscreen?.bind(tela) || tela.webkitRequestFullscreen?.bind(tela);
+      if (pedirTela) Promise.resolve(pedirTela()).catch(() => toast('O aparelho não deixou abrir o vídeo na tela inteira'));
+      return;
+    }
     v.controls = true;
     const sair = () => { if (!(document.fullscreenElement || document.webkitFullscreenElement)) { v.controls = false; document.removeEventListener('fullscreenchange', sair); document.removeEventListener('webkitfullscreenchange', sair); } };
     document.addEventListener('fullscreenchange', sair);
@@ -6946,7 +6955,8 @@ function viewSearch() {
   if (!FILTROS.some(([k]) => k === filtro)) filtro = 'tudo';
   view.innerHTML = `
     <h2 class="greet">Buscar</h2>
-    <label class="field busca-branca">${icon('search', 22)}<input class="search" type="search" placeholder="O que você quer ouvir ou cantar?" value="${esc(q)}"></label>
+    <label class="field busca-branca">${icon('search', 22)}<input class="search" type="search" placeholder="O que você quer ouvir ou cantar?" value="${esc(q)}">
+      <button type="button" class="busca-x" aria-label="Limpar a busca" title="Limpar" hidden>${icon('x', 20)}</button></label>
     <div class="chips" id="filtros" style="margin-top:12px"${q.trim() ? '' : ' hidden'}>${FILTROS.map(([k, n]) => `<button class="chip" data-f="${k}" aria-pressed="${k === filtro}">${n}</button>`).join('')}</div>
     <div id="res"></div>`;
   const res = $('#res');
@@ -7065,7 +7075,22 @@ function viewSearch() {
   };
   $('#filtros').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b) definirFiltro(b.dataset.f); };
   draw(q);
-  $('.search').oninput = (e) => { sessionStorage.setItem('busca', e.target.value); draw(e.target.value); };
+  $('.search').oninput = (e) => { sessionStorage.setItem('busca', e.target.value); draw(e.target.value); verX(); };
+  // o "x" que apaga tudo: aparece com a barra em uso (tocou nela) ou com algo escrito; fora dela e vazia, some
+  const campo = $('.search');
+  const x = $('.busca-x');
+  const verX = () => { x.hidden = !(campo.value || document.activeElement === campo); };
+  campo.addEventListener('focus', verX);
+  campo.addEventListener('blur', verX);
+  // (o toque no x não tira o foco da barra: o teclado continua aberto para escrever outra busca)
+  x.addEventListener('pointerdown', (e) => e.preventDefault());
+  x.addEventListener('click', (e) => {
+    e.preventDefault();
+    campo.value = '';
+    campo.dispatchEvent(new Event('input', { bubbles: true }));
+    campo.focus();
+  });
+  verX();
 }
 
 // ---- artista: mais tocadas, todas as músicas (com busca) e os álbuns com as faixas; tudo do Cifra Club

@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 438, data: '2026-11-02', titulo: 'Tela cheia no mini player e o x da busca',
+    itens: [
+      { tipo: 'correcao', texto: 'No mini player aumentado, o botão de tela cheia do vídeo abria o Tocando agora em vez de pôr o vídeo na tela inteira. Agora ele leva o vídeo para a tela cheia, no celular e no tablet, também nos vídeos do YouTube.' },
+      { tipo: 'novo', texto: 'Na Busca, a barra branca tem um x no fim para apagar tudo o que foi escrito de uma vez. Ele aparece quando você toca na barra ou escreve algo, e some quando a barra está vazia e fora de uso.' },
+    ],
+  },
+  {
     versao: 437, data: '2026-11-02', titulo: 'Mini player: passar o dedo de novo troca a música',
     itens: [
       { tipo: 'correcao', texto: 'Passar o dedo para o lado no mini player voltou a trocar de música (para a próxima ou para a anterior), no celular e no tablet. Desde que o vídeo passou a crescer com o dedo, o deslizar para o lado tinha parado. Agora funciona também em cima do vídeo, em qualquer tamanho do cartão.' },
@@ -65,12 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na Busca, algumas músicas vinham com o vídeo errado (de letra, de programa de TV, ao vivo) em vez do clipe. Em “Standing Next to You”, do Jung Kook, o clipe oficial tem o nome dele entre parênteses — “정국 (Jung Kook)” — e não era reconhecido; vinha a apresentação no programa do Jimmy Fallon. Agora o nome do artista vale também entre parênteses, e entre os vídeos da mesma música fica o clipe oficial.' },
       { tipo: 'correcao', texto: 'A capa do álbum também é achada quando o nome do artista vem escrito junto ou separado (“Jungkook” e “Jung Kook”).' },
-    ],
-  },
-  {
-    versao: 428, data: '2026-11-02', titulo: 'Tablet sem piscar ao abrir',
-    itens: [
-      { tipo: 'correcao', texto: 'No tablet, em pé ou deitado, ao abrir ou atualizar o app aparecia por um instante o jeito do computador, com o menu na lateral, antes de ele trocar para o menu de baixo. Agora o tablet já abre com a aparência dele.' },
     ],
   },
 ];
