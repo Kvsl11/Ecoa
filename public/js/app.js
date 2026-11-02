@@ -6512,9 +6512,11 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   const impressoes = new Map(); // a foto na tela → a impressão dela
   const caixaFotos = tela.querySelector('.sa-fotos');
   const naTela = () => caixaFotos.querySelectorAll('img').length;
-  const porFotos = (lista) => {
+  // a primeira é a do cartão (a que aparecia antes de abrir esta tela): ela fica sempre no começo, do jeito que estava
+  let principal = null;
+  const porFotos = (lista, { comPrincipal = false } = {}) => {
     caixaFotos.querySelector('.sa-sem-foto')?.remove();
-    for (const u of lista) {
+    for (const [n, u] of lista.entries()) {
       const k = u && chaveDaFoto(u);
       // (o quadro de um vídeo do YouTube não é foto do artista)
       if (!k || vistas.has(k) || naTela() >= 12 || /ytimg\.com\/vi(_webp)?\//.test(u)) continue;
@@ -6522,17 +6524,25 @@ async function abrirSobreArtista({ nome, slug = '' }) {
       const img = new Image();
       img.alt = '';
       img.decoding = 'async';
-      // (a que não abrir ou vier minúscula, a imagem cinza de "sem foto" do YouTube, sai)
+      if (comPrincipal && n === 0) principal = img;
+      // (a que não abrir ou vier minúscula, a imagem cinza de "sem foto" do YouTube, sai; a do cartão só sai se não abrir)
       img.onerror = () => img.remove();
       img.onload = async () => {
-        if (img.naturalWidth < 200) { img.remove(); return; }
+        if (img !== principal && img.naturalWidth < 200) { img.remove(); return; }
         const h = await impressaoDaFoto(u);
         if (!h || !img.isConnected) return;
         for (const [outra, ho] of impressoes) {
           if (outra === img || !outra.isConnected || distanciaDeImpressoes(h, ho) > 10) continue;
-          // a mesma foto: fica uma só, com a imagem maior
-          if (img.naturalWidth > outra.naturalWidth) outra.src = img.src;
-          img.remove();
+          // a mesma foto: fica uma só, no lugar da que vem antes (a do cartão nunca sai nem troca de imagem; antes a que
+          // terminava de carregar por último saía, e às vezes era a do cartão: a segunda foto ficava no lugar dela).
+          // Nas outras, fica a imagem maior
+          const antes = outra.compareDocumentPosition(img) & Node.DOCUMENT_POSITION_FOLLOWING ? outra : img;
+          const fica = outra === principal ? outra : img === principal ? img : antes;
+          const sai = fica === img ? outra : img;
+          if (fica !== principal && sai.naturalWidth > fica.naturalWidth) fica.src = sai.currentSrc || sai.src;
+          sai.remove();
+          impressoes.delete(sai);
+          if (fica === img) impressoes.set(img, h);
           return;
         }
         impressoes.set(img, h);
@@ -6541,7 +6551,7 @@ async function abrirSobreArtista({ nome, slug = '' }) {
       caixaFotos.append(img);
     }
   };
-  porFotos([foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', ...(adb?.fotos || []), dz?.foto, info?.foto]);
+  porFotos([foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', ...(adb?.fotos || []), dz?.foto, info?.foto], { comPrincipal: Boolean(foto) });
   if (!vistas.size) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
   // tocar numa foto: ela abre em tela cheia, e dá para passar para as outras
   caixaFotos.addEventListener('click', (e) => {
