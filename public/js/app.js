@@ -6640,8 +6640,10 @@ const linhaMusicaWeb = (r, i, extra = '') => `
 const ARTISTAS_CATOLICOS = ['Frei Gilson', 'Colo de Deus', 'Padre Fábio de Melo', 'Ministério Amor e Adoração', 'Comunidade Católica Shalom',
   'Eliana Ribeiro', 'Padre Marcelo Rossi', 'Davidson Silva', 'Walmir Alencar', 'Thiago Brado', 'Adoração e Vida', 'Celina Borges',
   'Padre Reginaldo Manzotti', 'Canção Nova', 'Anjos de Resgate', 'Fraternidade São João Paulo II', 'Rosa de Saron'];
-async function catolicasEmAlta() {
-  const listas = await Promise.all(ARTISTAS_CATOLICOS.map((a) => buscarCifraClub(a)
+const catolicasEmAlta = () => emAltaDe(ARTISTAS_CATOLICOS);
+// as mais tocadas de uma lista de artistas (as músicas católicas em alta, e as de cada estilo musical da Busca)
+async function emAltaDe(artistas, max = 30) {
+  const listas = await Promise.all(artistas.map((a) => buscarCifraClub(a)
     .then((r) => r.filter((x) => mesmoNome(x.artista, a) || mesmoNome(x.artista.replace(/^(comunidade cat[óo]lica|minist[ée]rio|padre|pe\.?)\s+/i, ''), a.replace(/^(comunidade cat[óo]lica|minist[ée]rio|padre)\s+/i, ''))).slice(0, 3))
     .catch(() => [])));
   // a mesma música por dois artistas (ex.: Noites Traiçoeiras) aparece uma vez só, na versão mais tocada
@@ -6650,9 +6652,87 @@ async function catolicasEmAlta() {
   const unicas = listas.map((l) => l.filter((x) => melhor.get(normalizar(tituloLimpo(x.titulo))) === x));
   // pelo menos a mais tocada de cada artista; o resto, as mais populares
   const escolhidas = new Set(unicas.map((l) => l[0]).filter(Boolean));
-  for (const x of unicas.flat().sort((a, b) => b.popularidade - a.popularidade)) if (escolhidas.size < 30) escolhidas.add(x);
+  for (const x of unicas.flat().sort((a, b) => b.popularidade - a.popularidade)) if (escolhidas.size < max) escolhidas.add(x);
   return [...escolhidas].sort((a, b) => b.popularidade - a.popularidade)
     .map((r) => ({ titulo: r.titulo, artista: r.artista, capa: r.capa, cifra: r.url }));
+}
+
+// ---- a Busca vazia no jeito do Spotify: "Navegar por tudo", uma grade de cards coloridos (o nome no canto de cima e,
+// no de baixo, a foto de um artista inclinada). Os estilos musicais abrem uma página com os artistas e as mais tocadas;
+// as partes da missa, os cantos cifrados da Cindy Ferrarezi
+const ESTILOS = [
+  ['catolica', 'Música católica', '#8d67ab', ARTISTAS_CATOLICOS],
+  ['sertanejo', 'Sertanejo', '#e1550a', ['Henrique e Juliano', 'Jorge e Mateus', 'Marília Mendonça', 'Gusttavo Lima', 'Zé Neto e Cristiano', 'Ana Castela', 'Luan Santana']],
+  ['pop', 'Pop', '#477d95', ['Ariana Grande', 'Dua Lipa', 'Justin Bieber', 'Sabrina Carpenter', 'Taylor Swift', 'The Weeknd', 'Billie Eilish']],
+  ['gospel', 'Gospel', '#148a08', ['Aline Barros', 'Fernandinho', 'Gabriela Rocha', 'Isaias Saad', 'Morada', 'Anderson Freire', 'Nívea Soares']],
+  ['samba-pagode', 'Samba e Pagode', '#509b20', ['Péricles', 'Thiaguinho', 'Menos É Mais', 'Ferrugem', 'Zeca Pagodinho', 'Sorriso Maroto', 'Dilsinho']],
+  ['mpb', 'MPB', '#1e3264', ['Djavan', 'Caetano Veloso', 'Gilberto Gil', 'Marisa Monte', 'Tim Maia', 'Milton Nascimento', 'Elis Regina']],
+  ['rock', 'Rock', '#e91429', ['Legião Urbana', 'Charlie Brown Jr.', 'Linkin Park', 'Queen', 'Coldplay', 'Capital Inicial', 'Skank']],
+  ['forro', 'Forró e Piseiro', '#d84000', ['Wesley Safadão', 'Xand Avião', 'Luiz Gonzaga', 'Dominguinhos', 'João Gomes', 'Mano Walter', 'Calcinha Preta']],
+  ['romanticas', 'Românticas', '#dc148c', ['Roberto Carlos', 'Fábio Jr.', 'Zezé Di Camargo e Luciano', 'Leonardo', 'Bruno e Marrone', 'Daniel']],
+  ['funk', 'Funk', '#0d73ec', ['Anitta', 'Ludmilla', 'MC Ryan SP', 'MC Kevin o Chris', 'Kevinho', 'MC Daniel']],
+  ['rap', 'Rap e Hip-hop', '#777777', ['Racionais MCs', 'Matuê', 'Filipe Ret', 'Emicida', 'Projota', 'Drake']],
+  ['classicos', 'Clássicos', '#ba5d07', ['Michael Jackson', 'The Beatles', 'ABBA', 'Elvis Presley', 'Bee Gees', 'Whitney Houston']],
+  ['kpop', 'K-pop', '#e8115b', ['BTS', 'BLACKPINK', 'TWICE', 'Stray Kids', 'NewJeans', 'EXO']],
+  ['eletronica', 'Eletrônica', '#7358ff', ['Alok', 'David Guetta', 'Calvin Harris', 'Avicii', 'Vintage Culture', 'Justice']],
+  ['reggae', 'Reggae', '#8c1932', ['Natiruts', 'Bob Marley', 'Armandinho', 'Maneva', 'Planta e Raiz', 'Cidade Negra']],
+  ['infantil', 'Infantil', '#e1118c', ['Palavra Cantada', 'Mundo Bita', 'Xuxa', 'Galinha Pintadinha', 'Bia Rosa']],
+];
+// as cores das partes da missa (como as do Spotify: vivas, cada card de uma)
+const CORES_CARDS = ['#27856a', '#1e3264', '#8d67ab', '#e8115b', '#148a08', '#e1550a', '#477d95', '#503750', '#ba5d07', '#0d73ec', '#af2896', '#8c1932', '#509b20', '#7358ff', '#d84000', '#777777'];
+const cartaoNavegar = ({ href, nome, cor, ic = 'music', artista = '' }) => {
+  const foto = artista ? fotoConhecida(artista) : '';
+  return `<a class="nav-card" href="${href}" style="--cor:${cor}"><b>${esc(nome)}</b>
+    <span class="nav-card-arte${foto ? ' com-foto' : ''}"${artista ? ` data-nav-artista="${esc(artista)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon(ic, 40)}</span></a>`;
+};
+// as fotos dos artistas nos cards (as que ainda não estão guardadas chegam aos poucos)
+function fotosDosCards(box) {
+  box?.querySelectorAll('[data-nav-artista]:not(.com-foto)').forEach((el) => {
+    fotoRapida(el.dataset.navArtista).then((url) => {
+      if (!url || !el.isConnected) return;
+      const img = new Image();
+      img.alt = '';
+      img.onload = () => { if (el.isConnected) { el.replaceChildren(img); el.classList.add('com-foto'); } };
+      img.src = url;
+    }).catch(() => {});
+  });
+}
+const cardsEstilos = () => ESTILOS.map(([k, nome, cor, artistas]) => cartaoNavegar({ href: `#/buscar/estilo/${k}`, nome, cor, artista: artistas[0] })).join('');
+const cardsPartes = () => CATEGORIAS.map(([nome, id, ic], i) => cartaoNavegar({ href: `#/buscar/categoria/${id}/${encodeURIComponent(nome)}`, nome, ic, cor: CORES_CARDS[i % CORES_CARDS.length] })).join('');
+
+// a página de um estilo musical: os artistas (fotos redondas) e as mais tocadas deles, numa coluna só
+async function viewEstilo(k) {
+  const est = ESTILOS.find((x) => x[0] === k);
+  if (!est) return viewNotFound();
+  const [, nome, cor, artistas] = est;
+  setTab('buscar');
+  setTint(cor);
+  setHeader(nome, { back: '#/buscar', eyebrow: 'Estilo' });
+  view.innerHTML = `<h2 class="estilo-titulo">${esc(nome)}</h2>
+    <div class="shelf-head"><h2>Artistas</h2></div><div class="shelf" id="est-art"></div>
+    <div class="shelf-head"><h2>Mais tocadas</h2><span class="muted" style="font-size:13px">com cifra, letra e vídeo</span></div>
+    <div id="est-mus"><div class="loading-note"><span class="spin"></span>Carregando as mais tocadas…</div></div>`;
+  const aqui = location.hash;
+  let lista = [];
+  $('#est-mus').addEventListener('click', (e) => {
+    const li = e.target.closest('[data-web]');
+    const item = li && lista[Number(li.dataset.i)];
+    if (item) abrirMusica(item, aqui, li);
+  });
+  Promise.all(artistas.map((a) => buscarArtistasCifraClub(a).then((l) => artistaCerto(l, a)).catch(() => null))).then(prepararFotosArtistas).then((l) => {
+    if (location.hash !== aqui || !$('#est-art')) return;
+    $('#est-art').innerHTML = l.filter(Boolean).map(tileArtista).join('');
+    enriquecerTilesArtistas($('#est-art'));
+  });
+  try {
+    lista = await emAltaDe(artistas, 40);
+    if (location.hash !== aqui || !$('#est-mus')) return;
+    await prepararMidiaBusca(lista);
+    if (location.hash !== aqui || !$('#est-mus')) return;
+    $('#est-mus').innerHTML = lista.length ? `<ul class="tracks">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Não consegui carregar agora. Confira a conexão.</p>';
+  } catch (e) {
+    if ($('#est-mus')) $('#est-mus').innerHTML = `<div class="alert">${icon('info', 18)}<span>${esc(e.message)}</span></div>`;
+  }
 }
 
 function viewSearch() {
@@ -6666,15 +6746,16 @@ function viewSearch() {
   if (!FILTROS.some(([k]) => k === filtro)) filtro = 'tudo';
   view.innerHTML = `
     <h2 class="greet">Buscar</h2>
-    <label class="field">${icon('search', 20)}<input class="search" type="search" placeholder="Música, artista ou trecho da letra" value="${esc(q)}"></label>
-    <div class="chips" id="filtros" style="margin-top:12px">${FILTROS.map(([k, n]) => `<button class="chip" data-f="${k}" aria-pressed="${k === filtro}">${n}</button>`).join('')}</div>
+    <label class="field busca-branca">${icon('search', 22)}<input class="search" type="search" placeholder="O que você quer ouvir ou cantar?" value="${esc(q)}"></label>
+    <div class="chips" id="filtros" style="margin-top:12px"${q.trim() ? '' : ' hidden'}>${FILTROS.map(([k, n]) => `<button class="chip" data-f="${k}" aria-pressed="${k === filtro}">${n}</button>`).join('')}</div>
     <div id="res"></div>`;
   const res = $('#res');
   res.addEventListener('click', (e) => { const lm = e.target.closest('li[data-id]'); if (lm) irParaMusica(lm.dataset.id); });
   let achados = { musica: [] };
   res.addEventListener('click', (e) => {
-    const li = e.target.closest('li[data-web]');
+    const li = e.target.closest('[data-web]');
     if (!li) return;
+    e.preventDefault();
     const item = achados[li.dataset.web][Number(li.dataset.i)];
     if (!item) return;
     abrirMusica(item, '#/buscar', li);
@@ -6686,18 +6767,22 @@ function viewSearch() {
   const erro = (id, e) => { if ($('#' + id)) $('#' + id).innerHTML = `<div class="alert">${icon('info', 18)}<span>${esc(e.message || e)}</span></div>`; };
   const draw = (term) => {
     term = term.trim();
+    $('#filtros').hidden = !term;
     if (!term) {
+      // como a Busca do Spotify: os setores em cards grandes, as em alta numa fileira de capas, os artistas e, por fim,
+      // "Navegar por tudo" (os estilos musicais e as partes da missa em cards coloridos)
       res.innerHTML = `
-        <section class="busca-hero">
-          <span class="busca-hero-ic">${icon('sparkles', 22)}</span>
-          <div class="busca-hero-txt"><h3>Qualquer música, pronta para tocar</h3><p>Digite o nome, o artista ou um trecho: ela abre com tudo junto.</p>
-            <div class="busca-hero-fontes"><span>${icon('chord', 14)}<b>Cifra</b><small>Cifra Club</small></span><span>${icon('text', 14)}<b>Letra</b><small>Letras</small></span><span>${icon('youtube', 14)}<b>Vídeo</b><small>YouTube</small></span></div>
-            <button class="busca-hero-colar" id="btn-importar">${icon('download', 14)} Achou a cifra em outro site? <b>Cole aqui</b></button></div>
-        </section>`;
-      $('#btn-importar').onclick = () => importarDaInternet();
-      res.insertAdjacentHTML('beforeend', `<div class="shelf-head"><h2>Navegar por setor</h2></div><div class="setores">${SETORES.map(cartaoSetor).join('')}</div>
+        <div class="shelf-head"><h2>Comece a navegar</h2></div>
+        <div class="nav-grade grande">${SETORES.map(([k, nome, , ic], i) => cartaoNavegar({ href: `#/setor/${k}`, nome, ic, cor: ['#1e3264', '#e8115b', '#8d67ab', '#27856a'][i % 4] })).join('')}</div>
+        <div class="shelf-head"><h2>Católicas em alta</h2></div>
+        <div id="em-alta"><div class="loading-note"><span class="spin"></span>Carregando as mais tocadas…</div></div>
         <div class="shelf-head"><h2>Artistas católicos</h2></div><div class="shelf" id="art-cat"></div>
-        <div class="shelf-head"><h2>Católicas em alta</h2></div><div id="em-alta"><div class="loading-note"><span class="spin"></span>Carregando as mais tocadas…</div></div>`);
+        <div class="shelf-head"><h2>Navegar por tudo</h2></div>
+        <h3 class="nav-sub">Estilos musicais</h3><div class="nav-grade" id="nav-estilos">${cardsEstilos()}</div>
+        <h3 class="nav-sub">Partes da missa</h3><div class="nav-grade">${cardsPartes()}</div>
+        <button class="busca-colar" id="btn-importar">${icon('download', 16)} Achou a cifra em outro site? <b>Cole aqui</b></button>`;
+      $('#btn-importar').onclick = () => importarDaInternet();
+      fotosDosCards($('#nav-estilos'));
       const meu = ++seq;
       Promise.all(ARTISTAS_CATOLICOS.map((a) => buscarArtistasCifraClub(a).then((l) => artistaCerto(l, a)).catch(() => null))).then(prepararFotosArtistas).then((lista) => {
         if (meu !== seq || !$('#art-cat')) return;
@@ -6709,7 +6794,9 @@ function viewSearch() {
         await prepararMidiaBusca(lista);
         if (meu !== seq || !$('#em-alta')) return;
         achados.musica = lista;
-        $('#em-alta').innerHTML = lista.length ? `<ul class="tracks tracks-grade em-alta">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Não consegui carregar agora. Digite o nome de uma música acima.</p>';
+        // (uma fileira de capas que rola de lado, como as do Início; tocar abre a música com a cifra, a letra e o vídeo)
+        $('#em-alta').innerHTML = lista.length ? `<div class="shelf em-alta">${lista.map((r, i) => `<a class="tile" href="#/buscar" data-web="musica" data-i="${i}"><div class="tile-art">${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}</div>
+          <b>${esc(r.titulo)}</b><small class="s">${esc(r.artista || '')}</small></a>`).join('')}</div>` : '<p class="muted">Não consegui carregar agora. Digite o nome de uma música acima.</p>';
       });
       return;
     }
@@ -13906,7 +13993,7 @@ function route() {
   desenharLateral();
   switch (a) {
     case undefined: return viewHome();
-    case 'buscar': return b === 'categoria' ? viewCategoria(c, d || 'Seção') : viewSearch();
+    case 'buscar': return b === 'categoria' ? viewCategoria(c, d || 'Seção') : b === 'estilo' ? viewEstilo(c) : viewSearch();
     case 'artista': return d === 'album' ? viewAlbum(b, c, e) : viewArtista(b, c);
     case 'album-da-musica': return viewAlbumDaMusica(b, c, d);
     case 'artista-pelo-nome': return viewArtistaPeloNome(b);
