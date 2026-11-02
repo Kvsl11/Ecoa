@@ -4664,7 +4664,7 @@ async function salvarDaInternet(tipo, item) {
   let r;
   try {
     r = await trazerMusica(tipo === 'video' ? await musicaDoVideo(item)
-      : item.video && !item.cifra && !item.letra ? await musicaDoVideo(item.video) : item);
+      : item.video && !item.cifra && !item.letra ? await musicaDoVideo(item.video, item) : item);
   } catch (e) {
     toast('Não consegui trazer: ' + e.message);
     return null;
@@ -5365,8 +5365,13 @@ const artistasDe = (titulo, artista) => {
   const part = [...String(titulo || '').matchAll(/\((?:part\.?|feat\.?|ft\.?|participa[çc][ãa]o( de)?|com)\s+([^)]+)\)/gi)].map((m) => m[2]);
   return [artista, ...part].flatMap((x) => String(x || '').split(/\s*(?:,|&| e | x |\/)\s*/i)).map((x) => x.trim()).filter(Boolean);
 };
+// o nome sem espaços nem pontuação: "Jung Kook" e "Jungkook", "AC/DC" e "ACDC" são o mesmo artista
+const nomeCompacto = (x) => normalizar(x).replace(/[^a-z0-9]/g, '');
+const parecidoNome = (a, b) => { const A = nomeCompacto(a); const B = nomeCompacto(b); return A.length >= 2 && B.length >= 2 && (A.includes(B) || B.includes(A)); };
 // entre os resultados de uma busca, a mesma música: mesmo título e (quando se sabe) mesmo artista,
-// contando os participantes. Sem o artista certo, aceita o mesmo título exato entre os primeiros resultados
+// contando os participantes. Sem o artista certo, aceita o mesmo título exato entre os primeiros resultados só se o
+// artista for o mesmo escrito de outro jeito (antes aceitava qualquer artista: "Neverender", do Justice, vinha com a
+// letra e a cifra da "Neverender" do Coheed and Cambria)
 function mesmaMusica(lista, titulo, artista, artistaIncerto = false) {
   const t = tituloLimpo(titulo);
   const doTitulo = lista.filter((r) => mesmoNome(tituloLimpo(r.titulo), t));
@@ -5374,7 +5379,8 @@ function mesmaMusica(lista, titulo, artista, artistaIncerto = false) {
   const certo = doTitulo.find((r) => !quem.length || artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => mesmoNome(a, b))));
   if (certo) return certo;
   if (artistaIncerto || !quem.length) return doTitulo[0] || null;
-  return lista.slice(0, 3).find((r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t)) || null;
+  return lista.slice(0, 3).find((r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t)
+    && artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => parecidoNome(a, b)))) || null;
 }
 
 // procura a cifra da música no Cifra Club: pelo título com o artista, com cada participante e só pelo título
@@ -5406,18 +5412,28 @@ function nomesDoVideo(v) {
 
 // Vídeo escolhido na busca: qual música é? Procura no Cifra Club e no Letras pelo título do vídeo inteiro e fica com
 // a música cujo título está no título do vídeo (de preferência do artista que aparece no título ou no canal).
-// Assim o vídeo vem com a cifra e a letra certas; sem achar, segue pelo nome tirado do título do vídeo
-async function musicaDoVideo(v) {
+// Assim o vídeo vem com a cifra e a letra certas; sem achar, segue pelo nome tirado do título do vídeo.
+// conhecido: o título e o artista que a busca já sabia (o resultado "Neverender · Justice"). Com o artista sabido (por
+// ela ou escrito no título do vídeo, "Justice - Neverender"), a música de outro artista com o mesmo título não serve
+async function musicaDoVideo(v, conhecido = {}) {
   const cru = tituloCruDoVideo(v.titulo);
   const noVideo = ` ${normalizar(cru)} `;
-  const quem = quemNoVideo(v);
+  const artistaConhecido = String(conhecido.artista || '').trim();
+  const quem = `${quemNoVideo(v)}${normalizar(artistaConhecido)} `;
   const lista = await buscarMusicas(cru.replace(/\s[|–—-]\s/g, ' ')).catch(() => []);
   const tit = (r) => normalizar(tituloLimpo(r.titulo));
   const cabe = lista.filter((r) => tit(r).length >= 3 && noVideo.includes(` ${tit(r)} `));
-  const doArtista = cabe.filter((r) => r.artista && artistasDe('', r.artista).some((a) => quem.includes(` ${normalizar(a)} `)));
+  const doArtista = cabe.filter((r) => r.artista && artistasDe('', r.artista).some((a) => quem.includes(` ${normalizar(a)} `) || nomeCompacto(quem).includes(nomeCompacto(a))));
   const maior = (l) => [...l].sort((a, b) => tit(b).length - tit(a).length)[0];
-  const r = maior(doArtista) || maior(cabe);
+  // "Justice - Neverender": o que vem antes do traço é o artista, a não ser que seja o próprio título ("Música - Ao Vivo")
+  const esquerda = / [-–—] /.test(cru) ? normalizar(cru.split(/ [-–—] /)[0]) : '';
+  const artistaNoTitulo = esquerda && !cabe.some((r) => tit(r) === esquerda) ? esquerda : '';
+  const artistaSabido = artistaConhecido || artistaNoTitulo;
+  const r = maior(doArtista) || (artistaSabido ? null : maior(cabe));
   if (r) return { titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra || null, video: v };
+  if (artistaConhecido) return { titulo: conhecido.titulo || nomesDoVideo(v).titulo, artista: artistaConhecido, video: v };
+  // o artista escrito no título do vídeo é certo: a cifra e a letra têm de ser dele
+  if (artistaNoTitulo) return { ...nomesDoVideo(v), video: v };
   return { ...nomesDoVideo(v), video: v, artistaIncerto: true };
 }
 
@@ -5498,7 +5514,7 @@ async function abrirMusica(dados, back, el) {
     // (a letra sincronizada já começa a ser procurada agora, junto com a cifra e o vídeo)
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
-      const r = await trazerMusica(dados.video && !dados.cifra && !dados.letra ? await musicaDoVideo(dados.video) : dados);
+      const r = await trazerMusica(dados.video && !dados.cifra && !dados.letra ? await musicaDoVideo(dados.video, dados) : dados);
       await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer });
     } finally { if (sub?.isConnected) sub.innerHTML = subAntes; }
   } catch (e) {
