@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 427, data: '2026-11-02', titulo: 'Selo “E” nas músicas com convidado',
+    itens: [
+      { tipo: 'correcao', texto: 'O “E” de explícita não aparecia em músicas cadastradas no nome do artista convidado, como “I Like You (A Happier Song)”, que o Cifra Club põe na Doja Cat e é do Post Malone com ela. Agora a música é reconhecida pelo “feat.” e por quem canta nela, e o selo (e a capa do álbum) aparece.' },
+      { tipo: 'melhoria', texto: '“Trocar o vídeo” e “Trocar música” abrem numa folha que sobe do rodapé, como os menus dos três pontos, e não mais numa janela solta no meio da tela.' },
+    ],
+  },
+  {
     versao: 426, data: '2026-11-02', titulo: 'Foto do artista certa no “ver mais”',
     itens: [
       { tipo: 'correcao', texto: 'Às vezes, ao tocar em “ver mais” no cartão do artista, a foto principal (a mesma do cartão) sumia e a segunda foto da sequência ficava no lugar dela. Acontecia quando a mesma foto chegava de dois lugares e a do cartão terminava de carregar por último. Agora a foto do cartão é sempre a primeira, no celular, no tablet e no computador.' },
@@ -59,13 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'As opções de exportar em PDF e em PowerPoint (a escolha do tipo, o PowerPoint simples, o do modelo do grupo e a lista de cantos de cada momento) não flutuam mais no meio da tela: sobem do rodapé, como o menu dos três pontinhos, no celular, no tablet e no computador. Arrastando a alça para cima a janela cresce; para baixo, fecha. Os botões de gerar ficam sempre à vista, presos embaixo. O calendário continua como era.' },
       { tipo: 'correcao', texto: 'No tema claro, o degradê de cor no topo das telas (Início, Busca, Biblioteca, Músicas curtidas, Liturgia e as outras) vai até a borda da tela e desce até o branco, sem a margem branca e os cantos arredondados em volta da página.' },
-    ],
-  },
-  {
-    versao: 417, data: '2026-11-02', titulo: 'Uma cor para cada música',
-    itens: [
-      { tipo: 'melhoria', texto: 'O fundo da música (a letra, o player, o Sobre o artista) não se repete mais tanto: o app guarda as cores fortes de cada capa ou vídeo (até 4) e cada música escolhe uma delas, com um toque só dela no tom, na intensidade e no brilho. Capas parecidas, como as dos clipes, davam sempre o mesmo roxo ou o mesmo laranja; agora são centenas de variações, sempre escuras o bastante para ler a letra em branco. A mesma música tem sempre a mesma cor.' },
-      { tipo: 'melhoria', texto: 'Sem capa, a cor pelo nome da música também ganhou mais variações.' },
     ],
   },
 ];
