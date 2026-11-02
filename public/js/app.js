@@ -241,13 +241,13 @@ async function notificarSistema({ titulo, texto = '', tag = '', href = '', silen
   if (!podeNotificarNoSistema()) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification(titulo || 'Songbook', {
+    await reg.showNotification(titulo || 'Ecoa', {
       body: texto,
       tag: tag || undefined,
       renotify: Boolean(tag && renovar),
       silent: silenciosa,
       timestamp: Date.now(),
-      icon: imagem || new URL('icon-192-v7.png', document.baseURI).href,
+      icon: imagem || new URL('icon-192-v9.png', document.baseURI).href,
       badge: new URL('badge-96.png', document.baseURI).href,
       data: { href: href ? new URL(href, location.href).href : location.href.split('#')[0] },
     });
@@ -282,7 +282,7 @@ async function compartilhar(dados) {
 function setHeader(title, { back = null, actions = [], eyebrow = '' } = {}) {
   titleEl.textContent = title;
   eyebrowEl.textContent = eyebrow;
-  document.title = `${title} · Songbook`;
+  document.title = `${title} · Ecoa`;
   backBtn.hidden = !back;
   backBtn.onclick = back ? () => (typeof back === 'string' ? (location.hash = back) : back()) : null;
   actionsEl.replaceChildren(...actions.map(({ icon: ic, html, label, onClick, href }) => {
@@ -3367,7 +3367,7 @@ const semLinhasDeAcordes = (sinc) => {
       sessaoDe = chave;
       const capa = atual.capa && /^https?:/.test(atual.capa) ? atual.capa : `https://i.ytimg.com/vi/${ytDaCapa()}/hqdefault.jpg`;
       ms.metadata = new MediaMetadata({
-        title: atual.titulo || 'Vídeo', artist: atual.artista || 'Songbook Litúrgico', album: atual.parte || 'Songbook Litúrgico',
+        title: atual.titulo || 'Vídeo', artist: atual.artista || 'Ecoa', album: atual.parte || 'Ecoa',
         artwork: !ytDaCapa() && !/^https?:/.test(atual.capa || '') ? [] : [{ src: capa, sizes: '480x360', type: 'image/jpeg' }, { src: `https://i.ytimg.com/vi/${ytDaCapa()}/mqdefault.jpg`, sizes: '320x180', type: 'image/jpeg' }],
       });
       const acao = (nome, fn) => { try { ms.setActionHandler(nome, fn); } catch { /* ação não suportada */ } };
@@ -4360,7 +4360,7 @@ function dialogoPdf({ repertorio = false, comCifraPossivel = true } = {}) {
   }, { folha: true });
 }
 
-const nomeArquivo = (t) => String(t || 'Songbook').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+const nomeArquivo = (t) => String(t || 'Ecoa').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 // cor do PDF = cor escolhida no app; cores claras (ciano, dourado…) são escurecidas para ler bem no papel
 function corDoPdf() {
@@ -9408,7 +9408,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       ${noPc ? '' : noGithub ? `<div class="aviso">${icon('info', 18)}<span>O <b>servidor no GitHub</b> está desligado (ele dorme quando ninguém usa). Ligue o Codespace e volte aqui: leva uns 2 minutos.</span>
           <a class="btn small primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('next', 15)} Ligar no GitHub</a><button class="btn small" id="ia-religar">${icon('refresh', 15)} Já liguei</button></div>`
         : `<p class="ia-dica-compartilhar">${icon('info', 16)}<span>Travou ou ficou fraco no celular? Ligue o <b>servidor no seu computador</b> (de graça, sem crédito): veja em Ajustes → Servidor no computador.</span></p>`}
-      <p class="ia-dica-compartilhar">${icon('info', 16)}<span>No Android, dá para baixar o áudio em outro app e tocar em <b>Compartilhar → Songbook</b>: ele já chega aqui.</span></p>`;
+      <p class="ia-dica-compartilhar">${icon('info', 16)}<span>No Android, dá para baixar o áudio em outro app e tocar em <b>Compartilhar → Ecoa</b>: ele já chega aqui.</span></p>`;
     $('#ia-auto')?.addEventListener('click', () => gerarSozinha());
     $('#ia-meu')?.addEventListener('click', async () => { const a = await arquivoDaMusica(song); if (a) lerNoAparelho(a); else telaFontes('O seu áudio desta música não está neste aparelho: escolha o arquivo.'); });
     $('#ia-religar')?.addEventListener('click', async (e) => {
@@ -9835,7 +9835,7 @@ async function viewCompartilhado() {
   } catch { /* sem cache: o arquivo não chegou */ }
   if (location.hash !== '#/compartilhado') return;
   if (!arquivo) {
-    view.innerHTML = `<div class="ia"><div class="aviso">${icon('info', 18)}<span>O áudio não chegou. Compartilhe de novo pelo app onde ele está (Compartilhar → Songbook) ou escolha o arquivo em Partituras → Gerar com IA.</span></div>
+    view.innerHTML = `<div class="ia"><div class="aviso">${icon('info', 18)}<span>O áudio não chegou. Compartilhe de novo pelo app onde ele está (Compartilhar → Ecoa) ou escolha o arquivo em Partituras → Gerar com IA.</span></div>
       <div class="row"><a class="btn primary" href="#/partituras">${icon('score', 16)} Ir para Partituras</a></div></div>`;
     return;
   }
@@ -12139,7 +12139,7 @@ function viewTopicosAjustes() {
   view.innerHTML = `<div class="ajustes aj-topicos">
     <section class="aj-topo">
       <span class="aj-logo">${logo(44)}</span>
-      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Songbook Litúrgico · versão ${APP_VERSAO}</span></div>
+      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
     </section>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
       ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
@@ -12225,7 +12225,7 @@ function viewSettings(topico) {
     <div class="ajustes">
     <section class="aj-topo">
       <span class="aj-logo">${logo(44)}</span>
-      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Songbook Litúrgico · versão ${APP_VERSAO}</span></div>
+      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
     </section>
 
     ${secao('Aparência', `
@@ -12279,7 +12279,7 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Sobre', `
-    <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Songbook Litúrgico</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
+    <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
     <div class="settings-group">
       ${jaInstalado() ? '' : `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Instalar o app</div><div class="s">Ícone na tela inicial e funciona sem internet</div></div><button class="btn small primary" id="instalar">Instalar</button></div>`}
       <a class="setting" href="#/novidades"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Novidades</div><div class="s">O que mudou em cada versão</div></div>${icon('next', 18)}</a>
@@ -12713,7 +12713,7 @@ function viewConectarYoutube() {
         ${passoN(3, 'Exporte e feche a janela', 'Toque na extensão → <b>Export</b> e feche a janela anônima <b>sem sair da conta</b>. (No Firefox, permita a extensão nas janelas privadas.)')}
         ${passoN(4, 'Envie o arquivo aqui', 'Se um dia o YouTube pedir de novo, é só repetir.')}
       </ol></details>
-    <p class="muted cy-nota">${icon('lock', 14)} O arquivo vai só para o servidor do Songbook, que o usa para baixar o áudio.</p></div>`;
+    <p class="muted cy-nota">${icon('lock', 14)} O arquivo vai só para o servidor do Ecoa, que o usa para baixar o áudio.</p></div>`;
   const texto = $('#cy-texto');
   const quando = (t) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
   const enviar = $('#cy-enviar');
@@ -14100,7 +14100,7 @@ async function instalarApp() {
     const { outcome } = await pedidoInstalar.userChoice.catch(() => ({}));
     pedidoInstalar = null;
     esconderConvite();
-    if (outcome === 'accepted') toast('Instalando o Songbook…');
+    if (outcome === 'accepted') toast('Instalando o Ecoa…');
     return;
   }
   if (ehIOS()) {
@@ -14118,7 +14118,7 @@ function mostrarConvite() {
   const el = document.createElement('div');
   el.id = 'convite-instalar';
   el.className = 'convite-instalar';
-  el.innerHTML = `${logo(44)}<div class="txt"><b>Instale o Songbook</b><span>Abre como app, em tela cheia, e funciona sem internet</span></div>
+  el.innerHTML = `${logo(44)}<div class="txt"><b>Instale o Ecoa</b><span>Abre como app, em tela cheia, e funciona sem internet</span></div>
     <button class="btn primary small" data-instalar>Instalar</button><button class="icon-btn" data-fechar aria-label="Agora não" title="Agora não">${icon('x', 18)}</button>`;
   el.querySelector('[data-instalar]').onclick = instalarApp;
   el.querySelector('[data-fechar]').onclick = () => { try { localStorage.setItem(CHAVE_ADIADO, String(Date.now())); } catch { /* sem armazenamento */ } esconderConvite(); };
@@ -14129,7 +14129,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   pedidoInstalar = e;
   setTimeout(mostrarConvite, 1500);
 });
-window.addEventListener('appinstalled', () => { pedidoInstalar = null; esconderConvite(); toast('Songbook instalado! Abra pelo ícone na tela inicial.'); });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; esconderConvite(); toast('Ecoa instalado! Abra pelo ícone na tela inicial.'); });
 // iPhone/iPad não têm o pedido automático: mostra o convite com as instruções
 if (ehIOS() && !jaInstalado()) setTimeout(mostrarConvite, 2500);
 
@@ -14212,8 +14212,8 @@ function viewOffline() {
     [['.of-dl', dl], ['.of-meus', meus], ['.of-cache', cache]].forEach(([c, n]) => { barra.querySelector(c).style.width = `${Math.max(n ? 0.6 : 0, (n / total) * 100)}%`; });
     $('#of-legenda').innerHTML = [['of-dl', 'Downloads', dl], ['of-meus', 'Áudios seus', meus], ['of-cache', 'Outros dados e cache do app', cache]]
       .map(([c, n, v]) => `<li><i class="${c}"></i><span>${n}</span><b>${fmtBytes(v)}</b></li>`).join('')
-      + `<li class="of-total"><span>Total ocupado pelo Songbook</span><b>${fmtBytes(usado)}</b></li>`
-      + `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Songbook. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA.</span></li>`;
+      + `<li class="of-total"><span>Total ocupado pelo Ecoa</span><b>${fmtBytes(usado)}</b></li>`
+      + `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Ecoa. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA.</span></li>`;
   };
   desenhar();
   // a cada avanço de um download só os números mudam (antes a tela inteira era desenhada de novo a cada 1%, com o

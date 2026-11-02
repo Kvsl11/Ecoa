@@ -18,7 +18,7 @@ export function montarPptxSimples(PptxGenJS, { itens, capa, proporcao = '16:9', 
   const pres = new PptxGenJS();
   pres.layout = f.layout;
   pres.title = nome;
-  pres.company = 'Songbook Litúrgico';
+  pres.company = 'Ecoa';
   pres.theme = { headFontFace: FONTE, bodyFontFace: FONTE };
 
   const margem = 0.3;

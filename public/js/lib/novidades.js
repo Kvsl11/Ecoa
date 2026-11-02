@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 420, data: '2026-11-02', titulo: 'O app agora se chama Ecoa',
+    itens: [
+      { tipo: 'novo', texto: 'O Songbook Litúrgico agora se chama Ecoa: um nome curto para um app que é tanto para cantar na missa quanto para ouvir música, buscada na internet. A logo nova é uma nota musical com as ondas do som saindo dela, em branco sobre o fundo preto. A biblioteca, os repertórios e os downloads continuam todos aqui, sem mudar nada.' },
+      { tipo: 'melhoria', texto: 'O ícone na tela inicial do celular e do tablet também muda (no Android, às vezes só depois de abrir o app de novo ou reinstalar o atalho).' },
+    ],
+  },
+  {
     versao: 419, data: '2026-11-02', titulo: 'Busca no jeito do Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'A Busca ficou como a do Spotify: a barra branca no alto e, embaixo, cards coloridos com o nome no canto e a foto de um artista inclinada. “Comece a navegar” traz os setores da missa em cards grandes; “Navegar por tudo”, os estilos musicais e as partes da missa (Entrada, Glória, Comunhão…). Os filtros só aparecem quando você digita.' },
@@ -65,13 +72,6 @@ export const NOVIDADES = [
     versao: 411, data: '2026-11-02', titulo: 'Lumen em tela cheia',
     itens: [
       { tipo: 'melhoria', texto: 'Ao entrar no Lumen, o menu (o de baixo no celular e no tablet, o lateral no computador) e o player somem, e a tela fica só com a conversa. Eles voltam quando você sai pela seta lá em cima. A música que estiver tocando continua tocando.' },
-    ],
-  },
-  {
-    versao: 410, data: '2026-11-02', titulo: 'Início no jeito do Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'A página inicial ficou parecida com a do Spotify: no topo, os filtros Tudo, Músicas, Repertórios e Liturgia mostram só o que você escolher; os atalhos ficam em 4 colunas no tablet; os repertórios aparecem como os “mixes”, com a capa grande e o nome numa faixa colorida; as Recentes ficam menores; o próximo repertório ganha um cartão largo com o botão de tocar; e os artistas da sua biblioteca aparecem em fotos redondas.' },
-      { tipo: 'melhoria', texto: 'Como no Spotify, a barra de rolagem não aparece mais em nenhuma tela do app (a rolagem continua normal).' },
     ],
   },
 ];
