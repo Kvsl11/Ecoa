@@ -1,13 +1,13 @@
 {
   "id": "./",
-  "name": "Songbook Litúrgico",
-  "short_name": "Songbook",
-  "description": "Cifras, repertórios e liturgia diária para ministérios de música",
+  "name": "Ecoa",
+  "short_name": "Ecoa",
+  "description": "Ouça e cante: músicas da internet com cifra, letra e vídeo, repertórios e a liturgia do dia",
   "start_url": "./#/",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#000000",
+  "background_color": "#0c0e1c",
   "theme_color": "#121212",
   "lang": "pt-BR",
   "categories": [
@@ -44,31 +44,31 @@
   },
   "icons": [
     {
-      "src": "icon-192-v7.png",
+      "src": "icon-192-v8.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-512-v7.png",
+      "src": "icon-512-v8.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-maskable-192-v7.png",
+      "src": "icon-maskable-192-v8.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icon-maskable-512-v7.png",
+      "src": "icon-maskable-512-v8.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icon.svg?v=7",
+      "src": "icon.svg?v=8",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

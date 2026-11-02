@@ -47,7 +47,7 @@ const classes = (o) => ['pdf', `pdf-${o.tamanho || 'media'}`, o.colunas ? 'pdf-c
 const estilo = (o) => (o.cor ? ` style="--pdf-cor:${o.cor}"` : '');
 
 export function htmlMusica(song, opcoes) {
-  return `<div class="${classes(opcoes)}"${estilo(opcoes)}>${blocoMusica(song, opcoes)}${rodape('Songbook Litúrgico')}</div>`;
+  return `<div class="${classes(opcoes)}"${estilo(opcoes)}>${blocoMusica(song, opcoes)}${rodape('Ecoa')}</div>`;
 }
 
 // itens: [{ song, parte }]
@@ -55,7 +55,7 @@ export function htmlRepertorio(set, itens, opcoes) {
   const data = dataLonga(set.date);
   const capa = `
     <section class="pdf-capa">
-      <div class="pdf-marca">Songbook Litúrgico · Repertório</div>
+      <div class="pdf-marca">Ecoa · Repertório</div>
       <h1>${esc(set.name)}</h1>
       ${data ? `<div class="pdf-data">${esc(data)}</div>` : ''}
       <table class="pdf-indice">
@@ -67,7 +67,7 @@ export function htmlRepertorio(set, itens, opcoes) {
       </table>
     </section>`;
   const corpo = itens.map(({ song, parte }, i) => blocoMusica(song, { ...opcoes, numero: i + 1, parte })).join('');
-  return `<div class="${classes(opcoes)}"${estilo(opcoes)}>${capa}${corpo}${rodape(`${set.name}${data ? ' · ' + data : ''} · Songbook Litúrgico`)}</div>`;
+  return `<div class="${classes(opcoes)}"${estilo(opcoes)}>${capa}${corpo}${rodape(`${set.name}${data ? ' · ' + data : ''} · Ecoa`)}</div>`;
 }
 
 // Abre a impressão; o nome sugerido do PDF vem do título da página

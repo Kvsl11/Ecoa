@@ -250,7 +250,7 @@ export function paraMusicXML(modelo, { marcar = null, cor = '#06b6d4', de = 0, a
   const lista = modelo.pautas.map((p, i) => `<score-part id="P${i + 1}"><part-name>${xmlEsc(p.nome)}</part-name></score-part>`).join('');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise version="3.1"><work><work-title>${xmlEsc(modelo.titulo || '')}</work-title></work><identification><encoding><software>Songbook Litúrgico</software></encoding></identification><part-list>${lista}</part-list>${partes}</score-partwise>`;
+<score-partwise version="3.1"><work><work-title>${xmlEsc(modelo.titulo || '')}</work-title></work><identification><encoding><software>Ecoa</software></encoding></identification><part-list>${lista}</part-list>${partes}</score-partwise>`;
 }
 
 // ---- leitura de MusicXML (o documento já lido pelo DOMParser)

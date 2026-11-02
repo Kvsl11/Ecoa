@@ -157,15 +157,20 @@ export function logoLumen(size = 32) {
   </svg>`;
 }
 
+// Logo do Ecoa: uma nota musical com duas ondas de eco saindo dela (o som que ecoa), no degradê ciano → violeta, sobre o
+// fundo azul-noite (um contorno leve separa do fundo escuro do app). O mesmo desenho em public/icon.svg
 let nLogo = 0;
 export function logo(size = 32) {
-  // palheta branca com a cruz recortada, sobre fundo preto (um contorno leve separa do fundo escuro do app)
-  ++nLogo;
+  const id = 'eg' + ++nLogo;
   return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">
-  <rect x=".5" y=".5" width="63" height="63" rx="15" fill="#000000" stroke="rgb(255 255 255 / .14)"/>
-  <g transform="translate(32 32) scale(0.92) translate(-32 -32.5)">
-  <path d="M32 9.5c11.2 0 21.5 3.8 21.5 12.3 0 10.3-10.9 27-16.8 33.4a6.4 6.4 0 0 1-9.4 0C21.4 48.8 10.5 32.1 10.5 21.8 10.5 13.3 20.8 9.5 32 9.5z" fill="#fff"/>
-  <path d="M32 17.5v23.5M24 25.5h16" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+  <defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="12" y1="12" x2="52" y2="52"><stop offset="0" stop-color="#2ee6f5"/><stop offset="0.55" stop-color="#6d6bff"/><stop offset="1" stop-color="#b45cff"/></linearGradient></defs>
+  <rect x=".5" y=".5" width="63" height="63" rx="15" fill="#0c0e1c" stroke="rgb(255 255 255 / .14)"/>
+  <g transform="translate(32 32) scale(1.12) translate(-30.5 -31.5)" fill="url(#${id})" stroke="url(#${id})">
+    <ellipse cx="21" cy="44" rx="7.6" ry="6" transform="rotate(-22 21 44)" stroke="none"/>
+    <rect x="25.4" y="13" width="4.8" height="32" rx="2.4" stroke="none"/>
+    <path d="M28 14.6c3.6 3.9 9.6 4.6 10.2 11.4" fill="none" stroke-width="4.6" stroke-linecap="round"/>
+    <path d="M40.6 31.4a10 10 0 0 1 0 13.2" fill="none" stroke-width="4.4" stroke-linecap="round"/>
+    <path d="M45.6 26.2a17 17 0 0 1 0 23.6" fill="none" stroke-width="4.4" stroke-linecap="round" opacity="0.55"/>
   </g>
   </svg>`;
 }

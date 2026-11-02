@@ -1,4 +1,7 @@
-# Songbook Litúrgico
+# Ecoa
+
+> Antes chamado Songbook Litúrgico. Ouça e cante: músicas da internet (YouTube, Cifra Club, Letras) com cifra, letra
+> e vídeo, repertórios e a liturgia do dia.
 
 Songbook digital no estilo do **SongbookPro** (`com.songbookpro.songbookpro`), voltado para ministérios
 de música católica. Ele já traz a **estrutura de cantos da missa do dia**: busca a liturgia oficial da
