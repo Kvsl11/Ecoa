@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 422, data: '2026-11-02', titulo: 'Fila inteira na folha esticada',
+    itens: [
+      { tipo: 'correcao', texto: 'Na Fila, ao puxar a folha para cima (deixando-a quase da tela toda), as músicas de baixo ficavam cortadas e sobrava um espaço vazio no pé da folha. Agora a lista ocupa a folha inteira, no celular e no tablet.' },
+    ],
+  },
+  {
     versao: 421, data: '2026-11-02', titulo: 'Músicas da busca numa coluna só',
     itens: [
       { tipo: 'melhoria', texto: 'Na Busca, as músicas e os vídeos aparecem sempre numa coluna só, um embaixo do outro, também no tablet e no computador (antes, na tela larga, ficavam em duas colunas).' },
@@ -65,13 +71,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A Biblioteca ficou como a do Spotify: as capas em grade, com o nome e “Repertório • 3 músicas” embaixo. As suas músicas salvas não ficam mais soltas: ficam dentro de “Músicas curtidas”, o card do coração fixado no topo (com o alfinete verde), junto com o das Baixadas. Depois vêm os seus repertórios e playlists.' },
       { tipo: 'novo', texto: 'Na Biblioteca, os chips Repertórios, Playlists e Artistas filtram a estante (Artistas mostra os artistas das suas músicas em fotos redondas). Dá para ordenar por Recentes ou em ordem alfabética e trocar entre grade e lista; a escolha fica guardada.' },
-    ],
-  },
-  {
-    versao: 412, data: '2026-11-02', titulo: 'Artista certo ao tocar na foto',
-    itens: [
-      { tipo: 'correcao', texto: 'Tocar no artista (nos créditos, no Explorar ou em Seus artistas) abre a página dele mesmo, e não a de outro artista de nome parecido: o Justice abria a página da Victoria Justice. Primeiro vale o nome igual; um nome de uma palavra só não é mais confundido com o de outra pessoa que tenha essa palavra no nome.' },
-      { tipo: 'correcao', texto: 'As músicas já salvas que ficaram com a foto do artista errado (de outro nome parecido) perdem essa foto sozinhas, e a do artista certo é procurada de novo.' },
     ],
   },
 ];

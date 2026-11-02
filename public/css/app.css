@@ -2005,7 +2005,9 @@ dialog.lista-fila .lista-txt small { font-size: 13.5px; }
 dialog.lista-fila { max-width: 560px; }
 dialog.lista-fila .lista-cab { gap: 8px; }
 dialog.lista-fila .lista-cab h3 { flex: 1; min-width: 0; }
-dialog.lista-fila .lista-opcoes { max-height: min(68dvh, 680px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+/* (sem altura própria: a lista ocupa o que sobra da folha, inclusive quando ela é puxada para cima e fica quase da
+   tela toda — com um teto aqui, as músicas de baixo ficavam cortadas e sobrava um vazio no pé da folha) */
+dialog.lista-fila .lista-opcoes { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 dialog.lista-fila .fila-item { min-height: 68px; user-select: none; -webkit-user-select: none; }
 dialog.lista-fila .fila-item.atual { background: var(--accent-soft); }
 dialog.lista-fila .fila-item.atual.arrastando { background: color-mix(in srgb, var(--text) 11%, var(--surface, #181818)); }
