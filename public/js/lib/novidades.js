@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 412, data: '2026-11-02', titulo: 'Artista certo ao tocar na foto',
+    itens: [
+      { tipo: 'correcao', texto: 'Tocar no artista (nos créditos, no Explorar ou em Seus artistas) abre a página dele mesmo, e não a de outro artista de nome parecido: o Justice abria a página da Victoria Justice. Primeiro vale o nome igual; um nome de uma palavra só não é mais confundido com o de outra pessoa que tenha essa palavra no nome.' },
+      { tipo: 'correcao', texto: 'As músicas já salvas que ficaram com a foto do artista errado (de outro nome parecido) perdem essa foto sozinhas, e a do artista certo é procurada de novo.' },
+    ],
+  },
+  {
     versao: 411, data: '2026-11-02', titulo: 'Lumen em tela cheia',
     itens: [
       { tipo: 'melhoria', texto: 'Ao entrar no Lumen, o menu (o de baixo no celular e no tablet, o lateral no computador) e o player somem, e a tela fica só com a conversa. Eles voltam quando você sai pela seta lá em cima. A música que estiver tocando continua tocando.' },
@@ -59,12 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O desenho dos acordes (Ajustes) volta a aparecer: na letra com a cifra em tela cheia, uma faixa logo abaixo dos botões mostra como montar cada acorde da música, no tom e no capotraste escolhidos. Tocar num acorde da cifra mostra o desenho dele.' },
       { tipo: 'novo', texto: 'Um botão ao lado do Rolar liga e desliga o desenho dos acordes ali mesmo, sem ir aos Ajustes.' },
-    ],
-  },
-  {
-    versao: 402, data: '2026-11-01', titulo: 'Cifra sem buraco quando a linha quebra',
-    itens: [
-      { tipo: 'correcao', texto: 'Na cifra, quando a frase não cabe e o fim desce para a linha de baixo, ele fica logo embaixo, sem o espaço grande em cima (o lugar de um acorde que não tem). Vale na página da música, na letra em tela cheia e no PDF.' },
     ],
   },
 ];
