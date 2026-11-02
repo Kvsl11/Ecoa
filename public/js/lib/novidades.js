@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 421, data: '2026-11-02', titulo: 'Músicas da busca numa coluna só',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na Busca, as músicas e os vídeos aparecem sempre numa coluna só, um embaixo do outro, também no tablet e no computador (antes, na tela larga, ficavam em duas colunas).' },
+    ],
+  },
+  {
     versao: 420, data: '2026-11-02', titulo: 'O app agora se chama Ecoa',
     itens: [
       { tipo: 'novo', texto: 'O Songbook Litúrgico agora se chama Ecoa: um nome curto para um app que é tanto para cantar na missa quanto para ouvir música, buscada na internet. A logo nova é uma nota musical com as ondas do som saindo dela, em branco sobre o fundo preto. A biblioteca, os repertórios e os downloads continuam todos aqui, sem mudar nada.' },
@@ -66,12 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Tocar no artista (nos créditos, no Explorar ou em Seus artistas) abre a página dele mesmo, e não a de outro artista de nome parecido: o Justice abria a página da Victoria Justice. Primeiro vale o nome igual; um nome de uma palavra só não é mais confundido com o de outra pessoa que tenha essa palavra no nome.' },
       { tipo: 'correcao', texto: 'As músicas já salvas que ficaram com a foto do artista errado (de outro nome parecido) perdem essa foto sozinhas, e a do artista certo é procurada de novo.' },
-    ],
-  },
-  {
-    versao: 411, data: '2026-11-02', titulo: 'Lumen em tela cheia',
-    itens: [
-      { tipo: 'melhoria', texto: 'Ao entrar no Lumen, o menu (o de baixo no celular e no tablet, o lateral no computador) e o player somem, e a tela fica só com a conversa. Eles voltam quando você sai pela seta lá em cima. A música que estiver tocando continua tocando.' },
     ],
   },
 ];
