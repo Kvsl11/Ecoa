@@ -56,6 +56,10 @@
 /* ============================================================ base */
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+/* como no Spotify: nenhuma barra de rolagem à vista em todo o app (a rolagem continua com o dedo, a roda do mouse e o
+   teclado) */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }
 body { background: var(--black); color: var(--text); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -298,10 +302,10 @@ a.chip.sm { cursor: pointer; }
 @media (hover: none) { .tile .tile-play { display: none; } }
 
 .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (min-width: 900px) { .quick { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 700px) { .quick { grid-template-columns: repeat(4, 1fr); } }
 .quick a {
   display: flex; align-items: center; gap: 10px; height: 56px; overflow: hidden; text-decoration: none;
-  background: rgb(255 255 255 / 0.08); border-radius: 6px; font-weight: 700; font-size: 13px; line-height: 1.2; transition: background 0.2s;
+  background: rgb(255 255 255 / 0.1); border-radius: 4px; font-weight: 800; font-size: 13px; line-height: 1.2; letter-spacing: -0.01em; transition: background 0.2s;
 }
 :root[data-theme="light"] .quick a { background: rgb(0 0 0 / 0.05); }
 .quick a:hover { background: rgb(255 255 255 / 0.16); }
@@ -4302,3 +4306,68 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .vf-foto img { transform-origin: 50% 50%; will-change: transform; }
 .ver-fotos.ampliada { cursor: grab; }
 .ver-fotos.ampliada:active { cursor: grabbing; }
+
+/* ============================================================ página inicial no jeito do Spotify */
+/* os filtros em chips no topo (Tudo, Músicas, Repertórios, Liturgia): o escolhido em destaque; a página mostra só as
+   seções dele */
+.inicio-filtros { margin: -6px 0 12px; padding-bottom: 4px; }
+.inicio-filtros .chip { height: 34px; padding: 0 16px; font-size: 14px; font-weight: 600; background: rgb(255 255 255 / 0.1); }
+:root[data-theme="light"] .inicio-filtros .chip { background: rgb(0 0 0 / 0.06); }
+.inicio-filtros .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.inicio:not([data-filtro="tudo"]) > section:not([data-sec="tudo"]) { display: none; }
+.inicio[data-filtro="musicas"] > section[data-sec="musicas"],
+.inicio[data-filtro="repertorios"] > section[data-sec="repertorios"],
+.inicio[data-filtro="liturgia"] > section[data-sec="liturgia"] { display: block; }
+.inicio:not([data-filtro="tudo"]) > section[data-sec="tudo"] { display: none; }
+.inicio .shelf-head { margin-top: 32px; }
+.inicio .shelf-head h2 { font-size: 22px; letter-spacing: -0.025em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inicio .shelf-head a { white-space: nowrap; }
+.inicio .tile small { hyphens: manual; -webkit-hyphens: manual; }
+@media (min-width: 700px) { .inicio .shelf-head h2 { font-size: 28px; } }
+
+/* prateleiras: as grandes (os repertórios, como os mixes) com umas 2,3 capas por tela no celular e 3,3 no tablet; as
+   pequenas (as recentes) com mais capas */
+.shelf.grande { grid-auto-columns: clamp(150px, 42%, 300px); }
+@media (min-width: 700px) { .shelf.grande { grid-auto-columns: clamp(180px, 28%, 300px); gap: 22px; } }
+.shelf.pequena { grid-auto-columns: clamp(108px, 30%, 170px); gap: 14px; }
+@media (min-width: 700px) { .shelf.pequena { grid-auto-columns: clamp(120px, 15%, 180px); gap: 18px; } }
+.shelf.pequena .tile b { font-size: 13px; }
+.shelf.pequena .tile small { font-size: 12px; -webkit-line-clamp: 1; }
+
+/* o repertório como mix: o nome numa faixa clara na capa, com o filete na mesma cor (como "Samba Mix" no Spotify) */
+.tile-mix .cover { border-radius: 4px; }
+.mix-faixa {
+  position: absolute; left: 0; right: 0; bottom: 13%; display: flex; pointer-events: none;
+  padding-left: 6%; /* o filete à esquerda */
+}
+.mix-faixa::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3.5%; background: hsl(var(--h) 75% 86%); }
+.mix-faixa span {
+  flex: 1; min-width: 0; padding: 3% 6% 3% 5%; background: hsl(var(--h) 75% 86%); color: #121212;
+  font-weight: 800; font-size: clamp(14px, 10.5cqw, 30px); line-height: 1.1; letter-spacing: -0.02em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; hyphens: none;
+}
+.tile-mix .tile-art { container-type: inline-size; }
+.tile-mix small { margin-top: 8px; font-size: 13px; }
+
+/* o repertório em destaque: cartão largo na cor dele (como os "Made for you" do Spotify) */
+.destaque {
+  display: flex; gap: 16px; padding: 14px; border-radius: 10px; align-items: stretch;
+  background: hsl(var(--h) 32% 30%);
+}
+:root[data-theme="light"] .destaque { background: hsl(var(--h) 45% 88%); }
+.destaque-capa { position: relative; flex: none; width: clamp(120px, 34%, 210px); text-decoration: none; container-type: inline-size; }
+.destaque-capa .cover { width: 100%; aspect-ratio: 1; border-radius: 6px; box-shadow: var(--shadow); }
+.destaque-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.destaque-nome { text-decoration: none; color: inherit; display: block; }
+.destaque-nome b { display: block; font-size: 17px; font-weight: 800; line-height: 1.25; }
+.destaque-nome small { color: var(--muted); font-size: 13px; }
+.destaque-info p { hyphens: manual; -webkit-hyphens: manual; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+:root:not([data-theme="light"]) .destaque-info p, :root:not([data-theme="light"]) .destaque-nome small { color: rgb(255 255 255 / 0.75); }
+.destaque-acoes { margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.destaque-acoes .play-big { width: 44px; height: 44px; }
+@media (min-width: 700px) { .destaque { padding: 18px; gap: 20px; } .destaque-nome b { font-size: 20px; } .destaque-acoes .play-big { width: 52px; height: 52px; } }
+
+@media (min-width: 700px) { .inicio .quick a { height: 64px; font-size: 14px; } .inicio .quick .cover { width: 64px; height: 64px; } }
+@media (max-width: 420px) { .inicio-filtros .chip { padding: 0 14px; } }
+/* os artistas da biblioteca: fotos redondas um pouco maiores, como no Spotify */
+.inicio .tile-artista .cover img { width: 100%; height: 100%; object-fit: cover; }

@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 410, data: '2026-11-02', titulo: 'Início no jeito do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'A página inicial ficou parecida com a do Spotify: no topo, os filtros Tudo, Músicas, Repertórios e Liturgia mostram só o que você escolher; os atalhos ficam em 4 colunas no tablet; os repertórios aparecem como os “mixes”, com a capa grande e o nome numa faixa colorida; as Recentes ficam menores; o próximo repertório ganha um cartão largo com o botão de tocar; e os artistas da sua biblioteca aparecem em fotos redondas.' },
+      { tipo: 'melhoria', texto: 'Como no Spotify, a barra de rolagem não aparece mais em nenhuma tela do app (a rolagem continua normal).' },
+    ],
+  },
+  {
     versao: 409, data: '2026-11-01', titulo: 'Balão do acorde na cor da música',
     itens: [
       { tipo: 'melhoria', texto: 'Na cifra em tela cheia, o balão que abre ao tocar num acorde tem agora o mesmo fundo dos diagramas da faixa (a cor da música), com o desenho em branco e os dedos e o nome na cor dos acordes, no lugar do fundo cinza.' },
@@ -58,12 +65,6 @@ export const NOVIDADES = [
     versao: 401, data: '2026-11-01', titulo: 'Botões da letra e da cifra mais limpos',
     itens: [
       { tipo: 'melhoria', texto: 'Na letra em tela cheia, os botões do topo ficaram mais limpos: Letra e Cifra viraram um seletor de duas opções (a escolhida em branco, deslizando de uma para a outra), e o olho (só a letra) ganhou uma bolinha do mesmo jeito, branca quando ligado. Tom, Capo, o tamanho da letra (um A pequeno e um A grande) e o Rolar ficaram no mesmo estilo, mais finos e numa linha só.' },
-    ],
-  },
-  {
-    versao: 400, data: '2026-11-01', titulo: 'Tela da conta do YouTube mais simples',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela de conectar o YouTube ficou curta e clara: o estado num cartão só (conectado, com quantos cookies e quando foi enviado), o botão Trocar para enviar outro arquivo e os passos mais curtos. O texto dos cookies não aparece mais na tela; colar o texto fica num link, para quem preferir.' },
     ],
   },
 ];
