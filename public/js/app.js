@@ -5094,6 +5094,62 @@ if (matchMedia('(hover: hover)').matches) {
   view.addEventListener('mouseout', (e) => { const t = e.target.closest('.tile[data-yt]'); if (t && !t.contains(e.relatedTarget)) tirarPrevia(); });
 }
 
+// ---- a página inicial no jeito do Spotify: filtros em chips no topo (Tudo, Músicas, Repertórios, Liturgia), os
+// atalhos, os repertórios como os "mixes" (a capa grande com o nome numa faixa colorida), as recentes menores, um
+// repertório em destaque num cartão largo e os artistas da biblioteca em fotos redondas
+const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios'], ['liturgia', 'Liturgia']];
+const filtroInicio = () => { try { return sessionStorage.getItem('filtroInicio') || 'tudo'; } catch { return 'tudo'; } };
+// quem canta as músicas do repertório: "Frei Gilson, Cindy Ferrarezi e mais"
+function quemNoRepertorio(set) {
+  const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
+  const nomes = [...new Set(songs.map((s) => s.artist || s.title).filter(Boolean))];
+  if (!nomes.length) return resumoRepertorio(set);
+  return nomes.length > 3 ? `${nomes.slice(0, 3).join(', ')} e mais` : nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0];
+}
+function tileMix(s) {
+  return `<a class="tile tile-mix" href="#/repertorio/${s.id}" style="--h:${hue(s.name)}"><div class="tile-art">${capaRepertorio(s)}
+    <span class="mix-faixa"><span>${esc(s.name)}</span></span>
+    ${s.items.length ? (ehPlaylist(s) ? `<button class="tile-play" data-tocar-set="${s.id}" aria-label="Ouvir a playlist">${icon('play', 18)}</button>` : `<button class="tile-play" data-href="#/repertorio/${s.id}/0" aria-label="Tocar repertório">${icon('play', 18)}</button>`) : ''}</div>
+    <small>${esc(quemNoRepertorio(s))}</small></a>`;
+}
+// o repertório em destaque: o próximo (de hoje em diante) ou o mais recente, num cartão largo na cor dele
+function cartaoDestaque(s) {
+  const songs = s.items.map((it) => db.song(it.songId)).filter(Boolean);
+  const nomes = songs.slice(0, 4).map((x) => x.title).join(', ');
+  return `<div class="destaque" style="--h:${hue(s.name)}">
+    <a class="destaque-capa" href="#/repertorio/${s.id}" tabindex="-1" aria-hidden="true">${capaRepertorio(s)}<span class="mix-faixa"><span>${esc(s.name)}</span></span></a>
+    <div class="destaque-info">
+      <a class="destaque-nome" href="#/repertorio/${s.id}"><b>${esc(s.name)}</b><small>${tipoDoSet(s)} · ${fmtData(s.date)}</small></a>
+      <p>${esc(resumoRepertorio(s))}${nomes ? ` • ${esc(nomes)}${songs.length > 4 ? ' e mais' : ''}` : ''}</p>
+      <div class="destaque-acoes">
+        <a class="icon-btn" href="#/repertorio/${s.id}" aria-label="Abrir o repertório" title="Abrir">${icon('list', 20)}</a>
+        ${s.items.length ? (ehPlaylist(s) ? `<button class="play-big" data-tocar-set="${s.id}" aria-label="Ouvir a playlist">${icon('play', 20)}</button>`
+    : `<a class="play-big" href="#/repertorio/${s.id}/0" aria-label="Tocar o repertório">${icon('play', 20)}</a>`) : ''}
+      </div>
+    </div>
+  </div>`;
+}
+// os artistas da biblioteca (os com mais músicas primeiro). Nas músicas da missa, só quem é confiável (a foto de um
+// nome como "Hinário Litúrgico" seria de outra pessoa)
+function artistasDaBiblioteca(n = 12) {
+  const porNome = new Map();
+  for (const s of db.recentSongs(1e4)) {
+    const nome = String(s.artist || '').trim();
+    if (!nome || (ehDaLiturgia(s) && !confiavelNaLiturgia(nome))) continue;
+    const k = normalizar(nome);
+    const a = porNome.get(k) || { nome, n: 0, foto: '' };
+    a.n++;
+    if (!a.foto) a.foto = fotoReal(s.fotoArtista);
+    porNome.set(k, a);
+  }
+  return [...porNome.values()].sort((a, b) => b.n - a.n).slice(0, n);
+}
+const tileArtistaInicio = (a) => {
+  const foto = a.foto || fotoConhecida(a.nome);
+  return `<a class="tile tile-artista" href="#/artista-pelo-nome/${encodeURIComponent(a.nome)}">
+  <div class="cover" data-artista-foto data-nome="${esc(a.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
+};
+
 function viewHome() {
   setTab('inicio');
   setTint('#1e3264');
@@ -5105,30 +5161,56 @@ function viewHome() {
   const sets = db.sets();
   const recentes = db.recent();
   const novas = db.recentSongs(12);
+  const hoje = hojeISO();
   const atalhos = [
     `<a href="#/liturgia"><div class="cover gen" style="--h:130">${icon('cross', 22)}</div><span>Liturgia de hoje</span></a>`,
     ...sets.slice(0, 3).map((s) => `<a href="#/repertorio/${s.id}">${capaRepertorio(s)}<span>${esc(s.name)}</span></a>`),
     ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 7 - Math.min(3, sets.length))
       .map((s) => `<a href="#/musica/${s.id}">${capa(s)}<span>${esc(s.title)}</span></a>`),
   ];
-  const hoje = hojeISO();
+  // em destaque: o próximo repertório com músicas (ou o mais recente)
+  const comMusicas = sets.filter((s) => s.items.length);
+  const destaque = [...comMusicas].filter((s) => (s.date || '') >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0] || comMusicas[0];
+  const artistas = artistasDaBiblioteca();
+  const filtro = filtroInicio();
   view.innerHTML = `
-    <h2 class="greet">${saudacao()}</h2>
-    <div class="quick">${atalhos.join('')}</div>
+    <div class="inicio" data-filtro="${filtro}">
+    <nav class="chips inicio-filtros" aria-label="Mostrar na página inicial">${FILTROS_INICIO.map(([k, nome]) => `<button class="chip" data-filtro="${k}" aria-pressed="${k === filtro}">${nome}</button>`).join('')}</nav>
+    <section data-sec="tudo"><div class="quick">${atalhos.join('')}</div></section>
 
-    <div class="shelf-head"><h2>Liturgia de hoje</h2><a href="#/liturgia">Abrir</a></div>
-    <div id="home-lit"><div class="skeleton sk-hero"></div></div>
+    ${sets.length ? `<section data-sec="repertorios"><div class="shelf-head"><h2>Seus repertórios</h2><a href="#/biblioteca/repertorios">Mostrar tudo</a></div>
+      <div class="shelf grande">${sets.slice(0, 12).map(tileMix).join('')}</div></section>` : ''}
 
-    ${sets.length ? `<div class="shelf-head"><h2>Seus repertórios</h2><a href="#/biblioteca/repertorios">Mostrar tudo</a></div>
-      <div class="shelf">${sets.slice(0, 12).map(tileRepertorio).join('')}</div>` : ''}
-    ${recentes.length ? `<div class="shelf-head"><h2>Tocadas recentemente</h2></div>
-      <div class="shelf">${recentes.slice(0, 12).map(tileMusica).join('')}</div>` : ''}
-    ${novas.length ? `<div class="shelf-head"><h2>Adicionadas recentemente</h2><a href="#/biblioteca/musicas">Biblioteca</a></div>
-      <div class="shelf">${novas.map(tileMusica).join('')}</div>` : `
-      <div class="empty"><div class="bubble">${icon('music', 34)}</div><h3>Comece sua biblioteca</h3>
+    <section data-sec="liturgia"><div class="shelf-head"><h2>Liturgia de hoje</h2><a href="#/liturgia">Abrir</a></div>
+    <div id="home-lit"><div class="skeleton sk-hero"></div></div></section>
+
+    ${recentes.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Recentes</h2><a href="#/biblioteca/musicas">Mostrar tudo</a></div>
+      <div class="shelf pequena">${recentes.slice(0, 16).map(tileMusica).join('')}</div></section>` : ''}
+
+    ${destaque ? `<section data-sec="repertorios"><div class="shelf-head"><h2>${(destaque.date || '') >= hoje ? 'Para o próximo repertório' : 'Feito por você'}</h2></div>
+      ${cartaoDestaque(destaque)}</section>` : ''}
+
+    ${artistas.length >= 2 ? `<section data-sec="musicas"><div class="shelf-head"><h2>Seus artistas</h2></div>
+      <div class="shelf">${artistas.map(tileArtistaInicio).join('')}</div></section>` : ''}
+
+    ${novas.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Adicionadas recentemente</h2><a href="#/biblioteca/musicas">Biblioteca</a></div>
+      <div class="shelf">${novas.map(tileMusica).join('')}</div></section>` : `
+      <section data-sec="musicas"><div class="empty"><div class="bubble">${icon('music', 34)}</div><h3>Comece sua biblioteca</h3>
         <p>Monte o repertório da missa de hoje com as cifras da Cindy Ferrarezi e do Músicas para Missa, busque cantos ou importe arquivos ChordPro.</p>
-        <div class="row"><a class="btn primary" href="#/editar/novo">Criar música</a><a class="btn" href="#/liturgia">Missa de hoje</a><a class="btn" href="#/buscar">Buscar cantos</a></div></div>`}`;
+        <div class="row"><a class="btn primary" href="#/editar/novo">Criar música</a><a class="btn" href="#/liturgia">Missa de hoje</a><a class="btn" href="#/buscar">Buscar cantos</a></div></div></section>`}
+    </div>`;
   ligarTiles(view);
+  enriquecerTilesArtistas(view);
+  // os chips filtram a página (como no Spotify); a escolha fica até fechar o app
+  $('.inicio-filtros', view).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-filtro]');
+    if (!b) return;
+    const k = b.dataset.filtro === filtroInicio() ? 'tudo' : b.dataset.filtro; // tocar no escolhido volta para Tudo
+    try { sessionStorage.setItem('filtroInicio', k); } catch { /* sem armazenamento */ }
+    $('.inicio', view).dataset.filtro = k;
+    view.querySelectorAll('.inicio-filtros [data-filtro]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.filtro === k)));
+    view.scrollTop = 0;
+  });
 
   // liturgia de hoje: aparece na hora com o que já está guardado, depois atualiza sozinha
   const desenharLit = (lit, m) => {
