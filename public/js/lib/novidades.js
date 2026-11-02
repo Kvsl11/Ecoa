@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 419, data: '2026-11-02', titulo: 'Busca no jeito do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'A Busca ficou como a do Spotify: a barra branca no alto e, embaixo, cards coloridos com o nome no canto e a foto de um artista inclinada. “Comece a navegar” traz os setores da missa em cards grandes; “Navegar por tudo”, os estilos musicais e as partes da missa (Entrada, Glória, Comunhão…). Os filtros só aparecem quando você digita.' },
+      { tipo: 'novo', texto: 'Estilos musicais na Busca: Música católica, Sertanejo, Pop, Gospel, Samba e Pagode, MPB, Rock, Forró e Piseiro, Românticas, Funk, Rap e Hip-hop, Clássicos, K-pop, Eletrônica, Reggae e Infantil. Cada um abre uma página com os artistas e as mais tocadas, prontas para abrir com a cifra, a letra e o vídeo.' },
+      { tipo: 'melhoria', texto: 'As Católicas em alta viraram uma fileira de capas que rola de lado, no lugar da lista em duas colunas.' },
+    ],
+  },
+  {
     versao: 418, data: '2026-11-02', titulo: 'PDF e PowerPoint sobem do rodapé; topo sem bordas',
     itens: [
       { tipo: 'melhoria', texto: 'As opções de exportar em PDF e em PowerPoint (a escolha do tipo, o PowerPoint simples, o do modelo do grupo e a lista de cantos de cada momento) não flutuam mais no meio da tela: sobem do rodapé, como o menu dos três pontinhos, no celular, no tablet e no computador. Arrastando a alça para cima a janela cresce; para baixo, fecha. Os botões de gerar ficam sempre à vista, presos embaixo. O calendário continua como era.' },
@@ -64,12 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A página inicial ficou parecida com a do Spotify: no topo, os filtros Tudo, Músicas, Repertórios e Liturgia mostram só o que você escolher; os atalhos ficam em 4 colunas no tablet; os repertórios aparecem como os “mixes”, com a capa grande e o nome numa faixa colorida; as Recentes ficam menores; o próximo repertório ganha um cartão largo com o botão de tocar; e os artistas da sua biblioteca aparecem em fotos redondas.' },
       { tipo: 'melhoria', texto: 'Como no Spotify, a barra de rolagem não aparece mais em nenhuma tela do app (a rolagem continua normal).' },
-    ],
-  },
-  {
-    versao: 409, data: '2026-11-01', titulo: 'Balão do acorde na cor da música',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na cifra em tela cheia, o balão que abre ao tocar num acorde tem agora o mesmo fundo dos diagramas da faixa (a cor da música), com o desenho em branco e os dedos e o nome na cor dos acordes, no lugar do fundo cinza.' },
     ],
   },
 ];
