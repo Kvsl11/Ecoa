@@ -13749,6 +13749,9 @@ function route() {
   // embaixo, ao lado do menu (sem mudar a escolha guardada; tocar na barrinha abre o painel de novo)
   const telaDePartitura = a === 'musica' && (c === 'compor' || c === 'partitura');
   document.body.classList.toggle('na-musica', (a === 'musica' && !telaDePartitura) || (a === 'repertorio' && c !== undefined));
+  // no Lumen, a tela é só a conversa: o menu (de baixo ou o lateral) e o player somem e voltam ao sair pela seta do
+  // topo (em qualquer tela: celular, tablet e computador). A música que estiver tocando continua tocando
+  document.body.classList.toggle('no-lumen', a === 'duvidas');
   if (ehTablet()) document.body.classList.toggle('painel-recolhido', telaDePartitura || Boolean(db.prefs().painelRecolhido));
   desenharLateral();
   switch (a) {
