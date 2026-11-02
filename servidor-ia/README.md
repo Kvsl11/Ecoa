@@ -105,6 +105,14 @@ Roda numa máquina pequena do Modal (a função `lumen`), separada da das partit
 acervo (`indexar_acervo.py`, até 800 arquivos novos por vez, guardados entre as publicações) e roda sozinha toda
 segunda-feira para ler os que entraram no Drive. Sem a chave, o Lumen continua com a busca gratuita no aparelho.
 
+**Ou o Gemini (`GEMINI_API_KEY`)**: com a chave do Google AI Studio (<https://aistudio.google.com/apikey>, tem uso
+grátis) no secret `GEMINI_API_KEY`, o Lumen responde pelo Gemini (`gemini-2.5-flash`, troque com `IA_GEMINI_MODELO`),
+com a busca do Google para o que não está no acervo. Com as duas chaves vale o Claude (`IA_PROVEDOR=gemini` troca).
+
+**A voz do Lumen ao vivo (`/falar`)**: a conversa ao vivo fala com uma voz neural realista (as vozes da Microsoft do
+"Ler em voz alta" do Edge, pelo pacote `edge-tts`: de graça, sem chave). Francisca (feminina) e Antonio (masculina);
+`IA_VOZ` e `IA_VOZ_MASCULINA` trocam. Sem o servidor, o app usa a voz mais natural do aparelho.
+
 ## Rodar no seu computador
 
 ```bash

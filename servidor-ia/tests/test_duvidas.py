@@ -48,3 +48,56 @@ def test_responder_usa_o_acervo_e_devolve_as_fontes(monkeypatch):
     # o que está no app (liturgia do dia, biblioteca) vai junto, antes do acervo
     assert "<app>\nHoje: 22/10/2026\nSalmo do dia: Sl 32\n</app>" in kw["messages"][-1]["content"]
     assert kw["tools"][0]["type"] == "web_search_20260209"
+
+
+def test_provedor_escolhe_a_ia_pela_chave(monkeypatch):
+    for k in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "IA_PROVEDOR"):
+        monkeypatch.delenv(k, raising=False)
+    assert duvidas.provedor() is None
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    assert duvidas.provedor() == "gemini"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
+    assert duvidas.provedor() == "claude"
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    assert duvidas.provedor() == "gemini"
+
+
+def test_responder_pelo_gemini_com_as_fontes_da_busca(monkeypatch):
+    import io
+    import json
+    import urllib.request
+
+    for k in ("ANTHROPIC_API_KEY", "IA_PROVEDOR"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    ix = Indice([Trecho("Guia do salmista", "Subsídios", "O salmista canta o salmo do ambão", "id1", "documento")])
+    monkeypatch.setattr(duvidas, "indice", lambda: ix)
+    pedidos = []
+
+    class Resposta(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def abrir(pedido, timeout=0):
+        pedidos.append(json.loads(pedido.data))
+        return Resposta(json.dumps({"candidates": [{"content": {"parts": [{"text": "Do ambão [1]."}]},
+                                                    "groundingMetadata": {"webSearchQueries": ["salmista"],
+                                                                          "groundingChunks": [{"web": {"uri": "https://cnbb.org.br", "title": "CNBB"}}]}}]}).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    r = duvidas.responder("onde o salmista canta?", voz=True)
+    assert r["resposta"] == "Do ambão [1]." and r["fontes"][0]["id"] == "id1" and r["usouWeb"]
+    assert r["web"] == [{"titulo": "CNBB", "url": "https://cnbb.org.br"}]
+    corpo = pedidos[0]
+    assert corpo["tools"] == [{"google_search": {}}]
+    # na conversa ao vivo a resposta é falada: o pedido diz para ser curta
+    assert "LIDA EM VOZ ALTA" in corpo["system_instruction"]["parts"][0]["text"]
+
+
+def test_falar_limpa_o_texto_para_a_voz():
+    import falar
+
+    assert falar.limpar("**Salmo 22** [1]\n- O Senhor é meu pastor\nVeja https://cnbb.org.br") == "Salmo 22 O Senhor é meu pastor Veja"

@@ -4,7 +4,7 @@
 # Antes do primeiro uso, uma vez: entre em modal.com com a conta do GitHub, crie um token em
 # modal.com/settings/tokens → New token e guarde os dois valores no GitHub em
 # Settings → Secrets and variables → Actions → New repository secret: MODAL_TOKEN_ID e MODAL_TOKEN_SECRET.
-# Opcionais, no mesmo lugar: ANTHROPIC_API_KEY (liga o "Tirar dúvidas") e YT_COOKIES (o conteúdo do cookies.txt,
+# Opcionais, no mesmo lugar: ANTHROPIC_API_KEY ou GEMINI_API_KEY (ligam a IA do Lumen) e YT_COOKIES (o conteúdo do cookies.txt,
 # para vídeos do YouTube com restrição de idade).
 name: Publicar o servidor da IA
 
@@ -29,6 +29,7 @@ jobs:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       YT_COOKIES: ${{ secrets.YT_COOKIES }}
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +50,7 @@ jobs:
           key: textos-acervo-${{ github.run_id }}
           restore-keys: textos-acervo-
       - name: Ler o texto dos PDFs do acervo (Drive)
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != '' && env.ANTHROPIC_API_KEY != ''
+        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != '' && (env.ANTHROPIC_API_KEY != '' || env.GEMINI_API_KEY != '')
         continue-on-error: true
         timeout-minutes: 30
         working-directory: servidor-ia
@@ -65,6 +66,7 @@ jobs:
           # os segredos do servidor (o Modal pede pelo menos um valor)
           args=(IA_PUBLICADO=1)
           [ -n "$ANTHROPIC_API_KEY" ] && args+=("ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
+          [ -n "$GEMINI_API_KEY" ] && args+=("GEMINI_API_KEY=$GEMINI_API_KEY")
           [ -n "$YT_COOKIES" ] && args+=("YT_COOKIES=$YT_COOKIES")
           modal secret create songbook-ia "${args[@]}" --force > /dev/null
           modal deploy modal_app.py
