@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 418, data: '2026-11-02', titulo: 'PDF e PowerPoint sobem do rodapé; topo sem bordas',
+    itens: [
+      { tipo: 'melhoria', texto: 'As opções de exportar em PDF e em PowerPoint (a escolha do tipo, o PowerPoint simples, o do modelo do grupo e a lista de cantos de cada momento) não flutuam mais no meio da tela: sobem do rodapé, como o menu dos três pontinhos, no celular, no tablet e no computador. Arrastando a alça para cima a janela cresce; para baixo, fecha. Os botões de gerar ficam sempre à vista, presos embaixo. O calendário continua como era.' },
+      { tipo: 'correcao', texto: 'No tema claro, o degradê de cor no topo das telas (Início, Busca, Biblioteca, Músicas curtidas, Liturgia e as outras) vai até a borda da tela e desce até o branco, sem a margem branca e os cantos arredondados em volta da página.' },
+    ],
+  },
+  {
     versao: 417, data: '2026-11-02', titulo: 'Uma cor para cada música',
     itens: [
       { tipo: 'melhoria', texto: 'O fundo da música (a letra, o player, o Sobre o artista) não se repete mais tanto: o app guarda as cores fortes de cada capa ou vídeo (até 4) e cada música escolhe uma delas, com um toque só dela no tom, na intensidade e no brilho. Capas parecidas, como as dos clipes, davam sempre o mesmo roxo ou o mesmo laranja; agora são centenas de variações, sempre escuras o bastante para ler a letra em branco. A mesma música tem sempre a mesma cor.' },
@@ -63,12 +70,6 @@ export const NOVIDADES = [
     versao: 409, data: '2026-11-01', titulo: 'Balão do acorde na cor da música',
     itens: [
       { tipo: 'melhoria', texto: 'Na cifra em tela cheia, o balão que abre ao tocar num acorde tem agora o mesmo fundo dos diagramas da faixa (a cor da música), com o desenho em branco e os dedos e o nome na cor dos acordes, no lugar do fundo cinza.' },
-    ],
-  },
-  {
-    versao: 408, data: '2026-11-01', titulo: '“Diagrama dos acordes”',
-    itens: [
-      { tipo: 'melhoria', texto: 'Nos Ajustes, a opção “Desenho dos acordes” agora se chama “Diagrama dos acordes” (também nos avisos de ligar e desligar e no botão da cifra).' },
     ],
   },
 ];

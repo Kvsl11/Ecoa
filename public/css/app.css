@@ -4471,7 +4471,24 @@ html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .mai
   html.pp:not(.tablet):not(.celular):root[data-theme="light"] body.com-player #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
 }
 /* no computador, a linha fininha separa o menu da esquerda da página (as duas brancas) */
-@media (min-width: 900px) { :root[data-theme="light"]:not(.tablet) .side > * { box-shadow: inset -1px 0 0 var(--surface-2); } }
+/* o degradê do topo vai até a borda da tela: no tema claro, sem a margem branca em volta da página e sem os cantos
+   arredondados (no escuro, a margem preta some no fundo e fica como está). No computador, uma linha fininha separa o
+   menu da esquerda da página */
+:root[data-theme="light"] .shell, html.tablet:root[data-theme="light"] .shell { padding: 0; gap: 0; }
+:root[data-theme="light"] .main-col, html.tablet:root[data-theme="light"] .main-col { border-radius: 0; }
+html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .main-col { margin-right: var(--painel-w); }
+@media (min-width: 900px) {
+  :root[data-theme="light"]:not(.tablet) .side { border-right: 1px solid var(--surface-2); }
+  :root[data-theme="light"]:not(.tablet) .side > *, :root[data-theme="light"]:not(.tablet) .brand-row { border-radius: 0; }
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] .shell { padding: 0; gap: 0; }
+  :root[data-theme="auto"] .main-col { border-radius: 0; }
+  @media (min-width: 900px) {
+    :root[data-theme="auto"]:not(.tablet) .side { border-right: 1px solid var(--surface-2); }
+    :root[data-theme="auto"]:not(.tablet) .side > *, :root[data-theme="auto"]:not(.tablet) .brand-row { border-radius: 0; }
+  }
+}
 @media (prefers-color-scheme: light) {
   :root[data-theme="auto"] { --black: #ffffff; }
   :root[data-theme="auto"] main::before { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 24%, transparent) 0%, transparent 100%); }
@@ -4487,4 +4504,23 @@ html.pp.tablet body.com-player.painel-cheio:not(.painel-recolhido):not(.com-letr
 html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { top: 0; right: 0; bottom: 0; border-radius: 0; }
 @media (prefers-color-scheme: light) {
   html.pp.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { top: 0; right: 0; bottom: 0; border-radius: 0; }
+}
+
+/* ============================================================ janelas de configurar (PDF, PowerPoint…) como folha
+   Sobem do rodapé, como os ⋮ (a alça em cima: arrastar para cima a deixa quase da tela toda, para baixo fecha), no
+   celular, no tablet e no computador, em vez de flutuar no meio da tela. (O calendário continua flutuando.) */
+dialog.folha { margin: auto auto 0; width: min(600px, 100%); max-width: none; max-height: min(90dvh, 860px); border-radius: 18px 18px 0 0;
+  padding-bottom: env(safe-area-inset-bottom); transition: transform 0.22s ease, height 0.22s ease, max-height 0.22s ease; }
+dialog.folha[open] { animation: menu-subir 0.22s ease; }
+dialog.folha.folha-arrastando { transition: none; }
+dialog.folha.folha-cheia { height: 94dvh; max-height: 94dvh !important; }
+dialog.folha .folha-cab { position: sticky; top: 0; z-index: 2; height: 22px; background: var(--surface); touch-action: none; cursor: grab; user-select: none; }
+dialog.folha .folha-cab + .dlg { padding-top: 6px; }
+dialog.folha .dlg .acts { position: sticky; bottom: calc(-1 * env(safe-area-inset-bottom)); margin: 0 -22px -22px; padding: 12px 22px 18px; background: var(--surface); border-top: 1px solid var(--border); }
+dialog.lista-dlg.folha .lista-cab.menu-cab { padding-top: 22px; border-bottom: 0; touch-action: none; cursor: grab; }
+dialog.lista-dlg.folha .lista-cab h3 { flex: 1; min-width: 0; }
+@media (max-width: 699px) {
+  dialog.folha { width: 100%; max-height: 92dvh; }
+  /* (a lista de escolha do celular já sobe de baixo com margem: a folha encosta no rodapé como as outras) */
+  dialog.lista-dlg.folha { margin: auto 0 0; width: 100%; border-radius: 18px 18px 0 0; }
 }

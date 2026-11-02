@@ -4227,10 +4227,14 @@ function desenharLateral() {
 
 // ------------------------------------------------------------------ diálogos
 
-function openDialog(html, setup) {
+// folha: true = a janela sobe do rodapé, como os ⋮ (a alça em cima: arrastar para cima cresce, para baixo fecha), em
+// qualquer tela; sem ela, a janela fica no meio (as perguntas de confirmar)
+function openDialog(html, setup, { folha = false } = {}) {
   const dlg = document.createElement('dialog');
-  dlg.innerHTML = `<div class="dlg">${html}</div>`;
+  if (folha) dlg.className = 'folha';
+  dlg.innerHTML = folha ? `<div class="menu-cab folha-cab"><span class="menu-alca" aria-hidden="true"></span></div><div class="dlg">${html}</div>` : `<div class="dlg">${html}</div>`;
   document.body.append(dlg);
+  if (folha) arrastarFolha(dlg);
   return new Promise((resolve) => {
     let result = null;
     const done = (v) => { result = v; dlg.close(); };
@@ -4282,11 +4286,11 @@ function arrastarFolha(dlg) {
   cab.addEventListener('pointercancel', soltar);
 }
 
-function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls = '' }) {
+function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls = '', folha = false }) {
   const dlg = document.createElement('dialog');
-  dlg.className = `${menu ? 'lista-dlg lista-menu' : 'lista-dlg'} ${cls}`.trim();
+  dlg.className = `${menu ? 'lista-dlg lista-menu' : 'lista-dlg'}${folha && !menu ? ' folha' : ''} ${cls}`.trim();
   dlg.innerHTML = `${menu ? `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span>${cabeca || `<h3>${esc(titulo || '')}</h3>`}</div>`
-    : `<div class="lista-cab"><h3>${esc(titulo)}</h3><button class="icon-btn" data-fechar aria-label="Fechar">${icon('x', 20)}</button></div>`}
+    : `<div class="lista-cab${folha ? ' menu-cab' : ''}">${folha ? '<span class="menu-alca" aria-hidden="true"></span>' : ''}<h3>${esc(titulo)}</h3><button class="icon-btn" data-fechar aria-label="Fechar">${icon('x', 20)}</button></div>`}
     <div class="lista-opcoes" role="listbox">${opcoes.map((o, i) => `<button class="lista-op${o.perigo ? ' perigo' : ''}" role="option" data-i="${i}" aria-selected="${o.valor === atual}">
       ${o.capa || (o.ic ? `<span class="lista-ic">${icon(o.ic, 18)}</span>` : '')}<span class="lista-txt"><b>${esc(o.rotulo)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</span>
       ${o.dir ? `<span class="lista-dir">${esc(o.dir)}</span>` : ''}${o.valor === atual ? `<span class="lista-ok">${icon('check', 18)}</span>` : ''}</button>`).join('')}</div>`;
@@ -4299,7 +4303,7 @@ function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls
       if (b) { valor = opcoes[Number(b.dataset.i)].valor; dlg.close(); }
     });
     dlg.addEventListener('close', () => { dlg.remove(); resolve(valor); });
-    if (menu) arrastarFolha(dlg);
+    if (menu || folha) arrastarFolha(dlg);
     dlg.showModal();
     if (!menu) (dlg.querySelector('[aria-selected="true"]') || dlg.querySelector('.lista-op'))?.focus({ preventScroll: false });
   });
@@ -4353,7 +4357,7 @@ function dialogoPdf({ repertorio = false, comCifraPossivel = true } = {}) {
       try { localStorage.setItem(PDF_PREF, JSON.stringify(o)); } catch { /* sem armazenamento */ }
       done(o);
     };
-  });
+  }, { folha: true });
 }
 
 const nomeArquivo = (t) => String(t || 'Songbook').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -4414,7 +4418,7 @@ async function exportarPowerPoint(set) {
   (dlg, done) => {
     dlg.querySelectorAll('[data-tipo]').forEach((b) => (b.onclick = () => done(b.dataset.tipo)));
     $('[data-no]', dlg).onclick = () => done(null);
-  });
+  }, { folha: true });
   if (o === 'modelo') return exportarPowerPointModelo(set);
   if (o === 'simples') return exportarPowerPointSimples(set);
 }
@@ -4440,7 +4444,7 @@ async function exportarPowerPointSimples(set) {
     }));
     $('[data-no]', dlg).onclick = () => done(null);
     $('[data-ok]', dlg).onclick = () => done({ repetirRefrao: $('[data-refrao]', dlg).checked, comCapa: $('[data-capa]', dlg).checked });
-  });
+  }, { folha: true });
   if (!r) return;
   db.setPref('pptxProporcao', proporcao);
   toast('Gerando o PowerPoint…');
@@ -4489,6 +4493,7 @@ async function exportarPowerPointModelo(set) {
       if (!b) return;
       const parte = modelo.partes.find((p) => p.chave === b.dataset.parte);
       const v = await escolherNaLista({
+        folha: true,
         titulo: parte.nome,
         atual: escolha[parte.chave] === undefined ? '' : String(escolha[parte.chave]),
         opcoes: [{ valor: '', rotulo: 'Deixar como está no modelo', sub: 'Não muda os slides desta parte', ic: 'file' },
@@ -4502,7 +4507,7 @@ async function exportarPowerPointModelo(set) {
     $('[data-no]', dlg).onclick = () => done(null);
     $('[data-trocar]', dlg).onclick = () => done('trocar');
     $('[data-ok]', dlg).onclick = () => done({ escolha: { ...escolha }, repetirRefrao: $('[data-refrao]', dlg).checked, comLiturgia: $('[data-lit]', dlg).checked });
-  });
+  }, { folha: true });
   if (r === 'trocar') { if (await enviarModeloPptx()) exportarPowerPointModelo(set); return; }
   if (!r) return;
   if (!Object.keys(r.escolha).length && !r.comLiturgia) { toast('Escolha ao menos um canto'); return; }
