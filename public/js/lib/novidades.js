@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 423, data: '2026-11-02', titulo: 'Partes da música sempre em inglês',
+    itens: [
+      { tipo: 'correcao', texto: 'Na letra e na cifra, nomes como “Primeiro Refrão”, “Segundo Refrão”, “Segundo Verso” ou “2º Refrão” voltavam a aparecer em português. Agora viram Chorus 1, Chorus 2, Verse 2… e “Último Refrão” vira Final Chorus, também nas músicas que você já tinha salvo.' },
+    ],
+  },
+  {
     versao: 422, data: '2026-11-02', titulo: 'Fila inteira na folha esticada',
     itens: [
       { tipo: 'correcao', texto: 'Na Fila, ao puxar a folha para cima (deixando-a quase da tela toda), as músicas de baixo ficavam cortadas e sobrava um espaço vazio no pé da folha. Agora a lista ocupa a folha inteira, no celular e no tablet.' },
@@ -64,13 +70,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Dentro do repertório e da playlist, a página ficou como a de uma playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração, os botões de baixar e editar à esquerda e o aleatório e o play à direita. As ações (Adicionar, Criar música, a data, PDF, PowerPoint, Selecionar e Excluir) viraram chips numa linha que rola de lado.' },
       { tipo: 'melhoria', texto: 'As Músicas curtidas ficaram como as do Spotify: o degradê azul, a busca e a ordem (Recentes ou A–Z) no alto, o nome e a quantidade, o aleatório e o play, os filtros em chips e a linha “Adicionar a esta playlist” antes das músicas.' },
       { tipo: 'novo', texto: 'Botão de aleatório nas duas páginas: ligado, o play começa por uma música qualquer e a fila segue embaralhada (é o mesmo aleatório do player).' },
-    ],
-  },
-  {
-    versao: 413, data: '2026-11-02', titulo: 'Biblioteca no jeito do Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'A Biblioteca ficou como a do Spotify: as capas em grade, com o nome e “Repertório • 3 músicas” embaixo. As suas músicas salvas não ficam mais soltas: ficam dentro de “Músicas curtidas”, o card do coração fixado no topo (com o alfinete verde), junto com o das Baixadas. Depois vêm os seus repertórios e playlists.' },
-      { tipo: 'novo', texto: 'Na Biblioteca, os chips Repertórios, Playlists e Artistas filtram a estante (Artistas mostra os artistas das suas músicas em fotos redondas). Dá para ordenar por Recentes ou em ordem alfabética e trocar entre grade e lista; a escolha fica guardada.' },
     ],
   },
 ];
