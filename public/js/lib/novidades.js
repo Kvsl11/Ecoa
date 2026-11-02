@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 428, data: '2026-11-02', titulo: 'Tablet sem piscar ao abrir',
+    itens: [
+      { tipo: 'correcao', texto: 'No tablet, em pé ou deitado, ao abrir ou atualizar o app aparecia por um instante o jeito do computador, com o menu na lateral, antes de ele trocar para o menu de baixo. Agora o tablet já abre com a aparência dele.' },
+    ],
+  },
+  {
     versao: 427, data: '2026-11-02', titulo: 'Selo “E” nas músicas com convidado',
     itens: [
       { tipo: 'correcao', texto: 'O “E” de explícita não aparecia em músicas cadastradas no nome do artista convidado, como “I Like You (A Happier Song)”, que o Cifra Club põe na Doja Cat e é do Post Malone com ela. Agora a música é reconhecida pelo “feat.” e por quem canta nela, e o selo (e a capa do álbum) aparece.' },
@@ -59,13 +65,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A Busca ficou como a do Spotify: a barra branca no alto e, embaixo, cards coloridos com o nome no canto e a foto de um artista inclinada. “Comece a navegar” traz os setores da missa em cards grandes; “Navegar por tudo”, os estilos musicais e as partes da missa (Entrada, Glória, Comunhão…). Os filtros só aparecem quando você digita.' },
       { tipo: 'novo', texto: 'Estilos musicais na Busca: Música católica, Sertanejo, Pop, Gospel, Samba e Pagode, MPB, Rock, Forró e Piseiro, Românticas, Funk, Rap e Hip-hop, Clássicos, K-pop, Eletrônica, Reggae e Infantil. Cada um abre uma página com os artistas e as mais tocadas, prontas para abrir com a cifra, a letra e o vídeo.' },
       { tipo: 'melhoria', texto: 'As Católicas em alta viraram uma fileira de capas que rola de lado, no lugar da lista em duas colunas.' },
-    ],
-  },
-  {
-    versao: 418, data: '2026-11-02', titulo: 'PDF e PowerPoint sobem do rodapé; topo sem bordas',
-    itens: [
-      { tipo: 'melhoria', texto: 'As opções de exportar em PDF e em PowerPoint (a escolha do tipo, o PowerPoint simples, o do modelo do grupo e a lista de cantos de cada momento) não flutuam mais no meio da tela: sobem do rodapé, como o menu dos três pontinhos, no celular, no tablet e no computador. Arrastando a alça para cima a janela cresce; para baixo, fecha. Os botões de gerar ficam sempre à vista, presos embaixo. O calendário continua como era.' },
-      { tipo: 'correcao', texto: 'No tema claro, o degradê de cor no topo das telas (Início, Busca, Biblioteca, Músicas curtidas, Liturgia e as outras) vai até a borda da tela e desce até o branco, sem a margem branca e os cantos arredondados em volta da página.' },
     ],
   },
 ];
