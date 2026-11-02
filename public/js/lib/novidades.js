@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 413, data: '2026-11-02', titulo: 'Biblioteca no jeito do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'A Biblioteca ficou como a do Spotify: as capas em grade, com o nome e “Repertório • 3 músicas” embaixo. As suas músicas salvas não ficam mais soltas: ficam dentro de “Músicas curtidas”, o card do coração fixado no topo (com o alfinete verde), junto com o das Baixadas. Depois vêm os seus repertórios e playlists.' },
+      { tipo: 'novo', texto: 'Na Biblioteca, os chips Repertórios, Playlists e Artistas filtram a estante (Artistas mostra os artistas das suas músicas em fotos redondas). Dá para ordenar por Recentes ou em ordem alfabética e trocar entre grade e lista; a escolha fica guardada.' },
+    ],
+  },
+  {
     versao: 412, data: '2026-11-02', titulo: 'Artista certo ao tocar na foto',
     itens: [
       { tipo: 'correcao', texto: 'Tocar no artista (nos créditos, no Explorar ou em Seus artistas) abre a página dele mesmo, e não a de outro artista de nome parecido: o Justice abria a página da Victoria Justice. Primeiro vale o nome igual; um nome de uma palavra só não é mais confundido com o de outra pessoa que tenha essa palavra no nome.' },
@@ -59,13 +66,6 @@ export const NOVIDADES = [
     versao: 404, data: '2026-11-01', titulo: 'Ouça o acorde no violão',
     itens: [
       { tipo: 'novo', texto: 'Tocar no desenho de um acorde faz ele soar no violão, corda por corda, como uma batida para baixo: na faixa dos acordes da cifra em tela cheia, no balão que abre ao tocar num acorde da cifra (que já toca ao abrir) e nos desenhos da página da música. Com capotraste, soa no tom de verdade.' },
-    ],
-  },
-  {
-    versao: 403, data: '2026-11-01', titulo: 'Desenho dos acordes na cifra',
-    itens: [
-      { tipo: 'correcao', texto: 'O desenho dos acordes (Ajustes) volta a aparecer: na letra com a cifra em tela cheia, uma faixa logo abaixo dos botões mostra como montar cada acorde da música, no tom e no capotraste escolhidos. Tocar num acorde da cifra mostra o desenho dele.' },
-      { tipo: 'novo', texto: 'Um botão ao lado do Rolar liga e desliga o desenho dos acordes ali mesmo, sem ir aos Ajustes.' },
     ],
   },
 ];

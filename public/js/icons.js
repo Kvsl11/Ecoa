@@ -57,6 +57,7 @@ const P = {
   // os momentos da missa (nas capas dos cantos que não têm capa): a porta da entrada, o coração do ato penitencial, a
   // estrela do Glória, a lira do salmo, o cálice das oferendas e a hóstia sobre o cálice da comunhão
   porta: '<path d="M5 21V10a7 7 0 0 1 14 0v11"/><path d="M3 21h18"/><path d="M12 3.5V21"/>',
+  fixado: '<path d="M14.6 3.2l6.2 6.2-2.4 1.2-3.7 3.7.3 4.6-1.6 1.6-4-4-4.9 4.9-1.2-1.2 4.9-4.9-4-4 1.6-1.6 4.6.3 3.7-3.7z" fill="currentColor" stroke="none"/>',
   coracao: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.1a4.2 4.2 0 0 1 7.5 2.7C19.5 15.4 12 20 12 20z"/>',
   estrela: '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.6l-5.3 2.9 1.1-6-4.4-4.2 6-.8z"/>',
   lira: '<path d="M7.5 3.5C5 6.5 5 12.5 7.5 16.5h9c2.5-4 2.5-10 0-13"/><path d="M10 6.5v10M14 6.5v10"/><path d="M12 16.5V21M8.5 21h7"/>',
