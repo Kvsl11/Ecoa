@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 417, data: '2026-11-02', titulo: 'Uma cor para cada música',
+    itens: [
+      { tipo: 'melhoria', texto: 'O fundo da música (a letra, o player, o Sobre o artista) não se repete mais tanto: o app guarda as cores fortes de cada capa ou vídeo (até 4) e cada música escolhe uma delas, com um toque só dela no tom, na intensidade e no brilho. Capas parecidas, como as dos clipes, davam sempre o mesmo roxo ou o mesmo laranja; agora são centenas de variações, sempre escuras o bastante para ler a letra em branco. A mesma música tem sempre a mesma cor.' },
+      { tipo: 'melhoria', texto: 'Sem capa, a cor pelo nome da música também ganhou mais variações.' },
+    ],
+  },
+  {
     versao: 416, data: '2026-11-02', titulo: 'Tema claro sem bordas',
     itens: [
       { tipo: 'correcao', texto: 'No tema claro, sumiu a moldura cinza-clara em volta do app (bem à vista em volta do player escuro), e o degradê do topo das páginas, que virava uma faixa azul-acinzentada, ficou suave, na cor da tela.' },
@@ -62,12 +69,6 @@ export const NOVIDADES = [
     versao: 408, data: '2026-11-01', titulo: '“Diagrama dos acordes”',
     itens: [
       { tipo: 'melhoria', texto: 'Nos Ajustes, a opção “Desenho dos acordes” agora se chama “Diagrama dos acordes” (também nos avisos de ligar e desligar e no botão da cifra).' },
-    ],
-  },
-  {
-    versao: 407, data: '2026-11-01', titulo: 'Ícone novo para o desenho dos acordes',
-    itens: [
-      { tipo: 'melhoria', texto: 'O botão do desenho dos acordes (na cifra em tela cheia e nos Ajustes) ganhou um ícone que é o próprio desenho de um acorde: o braço do violão com as 6 cordas, as casas e os dedos (um Lá menor), no lugar dos quadradinhos.' },
     ],
   },
 ];
