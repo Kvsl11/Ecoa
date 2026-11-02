@@ -4628,8 +4628,8 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-texto:has(.dita:empty):has(.vem:empty) { display: none; }
 .dv-vivo[data-estado="pensando"] .dv-vivo-estado { animation: dv-pensa 1.6s ease-in-out infinite; }
 @keyframes dv-pensa { 50% { opacity: 0.45; } }
-/* a legenda desligada: só o brilho (o que a pessoa fala continua na caixa de baixo) */
-.dv-vivo.sem-legenda .dv-vivo-estado, .dv-vivo.sem-legenda .dv-vivo-texto { display: none; }
+/* a transcrição desligada: o que a pessoa fala não aparece (a fala do Lumen continua escrita) */
+.dv-vivo.sem-transcricao .dv-vivo-fala { display: none; }
 /* as fontes da resposta, num cartão (pelo botão da esquerda) */
 .dv-vivo-resposta { margin-top: 22px; padding: 16px 18px; border-radius: 22px; line-height: 1.6; color: #f2f2f5;
   background: rgb(155 114 255 / 0.08); border: 1px solid rgb(155 114 255 / 0.2); animation: chat-entra 0.3s ease both; }
@@ -4707,3 +4707,12 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
   .dv-vivo-btn { width: 50px; height: 50px; }
   .dv-orbe { min-width: 84px; height: 50px; }
 }
+/* o pedido do microfone, no meio da tela do ao vivo */
+.dv-vivo-permissao { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 420px; margin: 8vh auto 0; padding: 26px 22px; text-align: center;
+  border-radius: 24px; background: rgb(155 114 255 / 0.1); border: 1px solid rgb(155 114 255 / 0.25); animation: chat-entra 0.3s ease both; }
+.dv-vivo-permissao[hidden] { display: none; }
+.dv-vivo-permissao-ic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #fff; background: var(--lm-grad-btn); box-shadow: 0 8px 26px rgb(110 90 255 / 0.4); }
+.dv-vivo-permissao.negado .dv-vivo-permissao-ic { background: #3b1d1d; color: #fca5a5; box-shadow: none; }
+.dv-vivo-permissao h3 { margin: 6px 0 0; font-size: 20px; }
+.dv-vivo-permissao p { margin: 0; font-size: 15px; line-height: 1.5; color: rgb(255 255 255 / 0.75); }
+.dv-vivo-permitir { margin-top: 8px; padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700; color: #fff; background: var(--lm-grad-btn); }
