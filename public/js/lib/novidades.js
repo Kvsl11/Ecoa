@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 434, data: '2026-11-02', titulo: 'A música certa do artista certo',
+    itens: [
+      { tipo: 'correcao', texto: 'Na Busca, uma música com o mesmo nome de outra vinha misturada: “Neverender”, do Justice, abria com o vídeo certo, mas a letra, a versão de música e o artista eram da “Neverender” do Coheed and Cambria. Agora o app usa o artista que a busca já mostrava (ou o que está no título do vídeo) e não aceita a música de outro artista só porque o título é igual. Se você salvou uma música assim, tire da biblioteca e salve de novo pela Busca.' },
+    ],
+  },
+  {
     versao: 433, data: '2026-11-02', titulo: 'Lumen mais inteligente e com voz de verdade',
     itens: [
       { tipo: 'novo', texto: 'Lumen ao vivo com voz realista: a resposta é falada por uma voz neural (feminina ou masculina, troque no alto da tela), no lugar da voz robótica do celular. As respostas faladas vêm curtas, como numa conversa.' },
@@ -63,12 +69,6 @@ export const NOVIDADES = [
     versao: 425, data: '2026-11-02', titulo: 'Mini player do tablet deitado só sobe',
     itens: [
       { tipo: 'correcao', texto: 'No tablet deitado, a barrinha do que está tocando era mais larga que o painel “Tocando agora”: ao tocar nela ou puxá-la para cima, ela encolhia para o lado antes de subir. Agora ela tem a mesma largura do painel e, ao abrir, só sobe.' },
-    ],
-  },
-  {
-    versao: 424, data: '2026-11-02', titulo: 'Sem tela preta ao sair da música',
-    itens: [
-      { tipo: 'correcao', texto: 'Às vezes, ao sair da música, a tela ficava toda preta, só com a seta de voltar no topo. Acontecia quando o celular fechava o app em segundo plano e, ao voltar, ele abria de novo direto na música: não havia página antes dela para onde voltar. Agora o app vai para a lista de onde a música veio (a Biblioteca, por exemplo).' },
     ],
   },
 ];
