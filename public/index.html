@@ -10,6 +10,15 @@
       document.documentElement.dataset.theme = t;
       if (p.sideCollapsed) document.documentElement.classList.add('side-collapsed');
     } catch (e) {}
+    // tablet e celular (a mesma regra do app.js) antes de desenhar: no tablet, ao abrir ou atualizar, aparecia por um
+    // instante o jeito do computador (o menu na lateral) até o app carregar e trocar para o menu de baixo
+    try {
+      var lado = Math.min(screen.width, screen.height);
+      var toque = matchMedia('(pointer: coarse)').matches;
+      var raiz = document.documentElement.classList;
+      if (toque && lado >= 600) { raiz.add('tablet'); raiz.add('pp'); }
+      else if (toque) raiz.add('celular');
+    } catch (e) {}
     // rede de segurança: se o app não terminar de carregar (arquivo de outra versão, cópia offline estragada),
     // apaga a cópia offline e recarrega (uma vez por sessão)
     window.__recuperarApp = function () {
