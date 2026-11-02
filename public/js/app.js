@@ -3286,7 +3286,7 @@ const semLinhasDeAcordes = (sinc) => {
       cancelAnimationFrame(quadro);
       quadro = 0;
       el.hidden = true;
-      el.classList.remove('grande', 'sem-video');
+      el.classList.remove('sem-video');
       guardado = null;
       document.body.classList.remove('com-player', 'painel-cheio');
       atual = null;
@@ -4022,17 +4022,75 @@ const semLinhasDeAcordes = (sinc) => {
   // Puxar o mini player para cima abre o "Tocando agora", como no Spotify (no tablet, o painel; no celular, a tela toda)
   const ehMini = () => (ehTablet() ? document.body.classList.contains('painel-recolhido')
     : !document.body.classList.contains('painel-cheio') && matchMedia('(max-width: 899px)').matches);
+  // a barra de baixo do computador (fora do Tocando agora)
+  const ehBarraPc = () => !ehTablet() && !document.body.classList.contains('painel-cheio') && matchMedia('(min-width: 900px)').matches;
+  // O tamanho do cartão com o vídeo, como o mini player do Spotify: segurar e puxar para cima aumenta o vídeo, puxar para
+  // baixo diminui. Nível 0: compacto; 1: médio (o vídeo maior, o nome ao lado em cima e os botões embaixo); 2: grande
+  // (o vídeo na largura toda; no computador, flutuando acima da barra). Durante o arraste o vídeo acompanha o dedo; ao
+  // soltar, para no tamanho mais perto (e o tamanho escolhido fica guardado). No grande, puxar mais abre o Tocando agora
+  const comVideoNaBarra = () => Boolean(atual) && !atual.semVideo && !(atual.soMusica || comCapa) && !el.classList.contains('letra-cheia');
+  let nivelMini = Math.max(0, Math.min(2, Number(db.prefs().miniNivel) || 0));
+  // as larguras do vídeo em cada nível (as mesmas do CSS), em px, para o lugar onde o cartão está agora
+  const larguras = () => {
+    if (ehBarraPc()) return [112, 340, Math.max(420, Math.min(640, innerWidth * 0.42))];
+    const larg = el.clientWidth;
+    if (ehTablet()) {
+      const alt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-alt')) || 86;
+      return [(alt - 16) * 16 / 9, larg * 0.5, larg - 20];
+    }
+    return [innerWidth < 600 ? 72 : 96, innerWidth * 0.38, larg - 16];
+  };
+  const nivelDaLargura = (w, [w0, w1, w2]) => (w >= (w1 + w2) / 2 ? 2 : w > (w0 + w1) / 2 ? 1 : 0);
+  const marcarNivel = (n) => {
+    el.classList.toggle('mini-1', n === 1);
+    el.classList.toggle('grande', n === 2);
+    const b = $('[data-pl="ampliar"]', el);
+    if (b) b.innerHTML = icon(n === 2 ? 'shrink' : 'expand', 18);
+  };
+  const mudarNivel = (n, { guardar = true } = {}) => {
+    nivelMini = n;
+    // (o vídeo vai suave do tamanho em que o dedo soltou até o do nível)
+    el.classList.add('mini-anima');
+    el.style.removeProperty('--mini-v');
+    marcarNivel(n);
+    clearTimeout(mudarNivel.t);
+    mudarNivel.t = setTimeout(() => el.classList.remove('mini-anima'), 320);
+    if (guardar) db.setPref('miniNivel', n);
+  };
+  marcarNivel(nivelMini);
   let puxada = null;
   let engolirClique = false;
   el.addEventListener('pointerdown', (e) => {
     puxada = null;
-    if (!ehMini() || e.target.closest('.pl-prog') || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    puxada = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    if (e.target.closest('.pl-prog, input') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const pc = ehBarraPc();
+    if (!ehMini() && !(pc && comVideoNaBarra())) return;
+    puxada = { x: e.clientX, y: e.clientY, id: e.pointerId, pc, tamanho: comVideoNaBarra(), nivel: nivelMini, ws: null, w: 0, arrastou: false };
   });
   el.addEventListener('pointermove', (e) => {
     if (!puxada || e.pointerId !== puxada.id) return;
     const dy = e.clientY - puxada.y;
     const dx = e.clientX - puxada.x;
+    // com o vídeo: o cartão cresce e diminui com o dedo
+    if (puxada.tamanho && (puxada.arrastou || (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx) * 1.2))) {
+      if (!puxada.arrastou) {
+        puxada.arrastou = true;
+        puxada.ws = larguras();
+        puxada.w0 = puxada.ws[puxada.nivel];
+        el.classList.add('mini-arrastando');
+        try { el.setPointerCapture(e.pointerId); } catch { /* segue sem captura */ }
+      }
+      const [w0, , w2] = puxada.ws;
+      // (um pouco mais que o dedo: puxar meio cartão já leva ao tamanho seguinte)
+      const w = Math.max(w0, Math.min(w2, puxada.w0 - dy * 1.6));
+      puxada.w = w;
+      el.style.setProperty('--mini-v', `${Math.round(w)}px`);
+      marcarNivel(nivelDaLargura(w, puxada.ws));
+      // no grande, puxar mais para cima: o cartão sobe junto com o dedo (soltando, abre o Tocando agora)
+      el.style.translate = !puxada.pc && puxada.nivel === 2 && dy < 0 ? `0 ${Math.max(dy, -60) / 2}px` : '';
+      return;
+    }
+    if (puxada.pc) return;
     // (o card sobe um pouco junto com o dedo; numa fila, para o lado ele anda junto, como no Spotify)
     el.style.translate = dy < 0 && Math.abs(dy) > Math.abs(dx) ? `0 ${Math.max(dy, -60) / 2}px`
       : el.classList.contains('com-fila') && Math.abs(dx) > Math.abs(dy) ? `${Math.max(-80, Math.min(80, dx)) / 2}px 0` : '';
@@ -4041,8 +4099,26 @@ const semLinhasDeAcordes = (sinc) => {
     if (!puxada || e.pointerId !== puxada.id) return;
     const dy = e.clientY - puxada.y;
     const dx = e.clientX - puxada.x;
+    const p = puxada;
     puxada = null;
     el.style.translate = '';
+    el.classList.remove('mini-arrastando');
+    if (p.arrastou) {
+      engolirClique = true; // (o clique que vem depois do arraste não aperta o botão onde o dedo saiu)
+      setTimeout(() => { engolirClique = false; }, 400);
+      // já no grande e puxando mais para cima: abre o Tocando agora (como antes)
+      if (e.type === 'pointerup' && !p.pc && p.nivel === 2 && dy < -60) {
+        mudarNivel(2, { guardar: false });
+        if (ehTablet()) { document.body.classList.remove('painel-recolhido'); db.setPref('painelRecolhido', false); } else painelCheio(true);
+        return;
+      }
+      // o tamanho mais perto de onde soltou; um puxão curto já passa um tamanho na direção dele
+      let n = nivelDaLargura(p.w || p.w0, p.ws);
+      if (n === p.nivel && Math.abs(dy) > 24) n = Math.max(0, Math.min(2, p.nivel + (dy < 0 ? 1 : -1)));
+      mudarNivel(e.type === 'pointerup' ? n : p.nivel);
+      return;
+    }
+    if (p.pc) return;
     // passar o dedo para o lado, numa fila (repertório, playlist): para a esquerda vai para a próxima, para a direita
     // volta para a anterior (no celular o mini player não tem mais esses botões, como no Spotify)
     if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
@@ -4231,7 +4307,7 @@ const semLinhasDeAcordes = (sinc) => {
         else trocarVideoDaMusica(s, url);
       });
     }
-    if (b.dataset.pl === 'ampliar') { el.classList.toggle('grande'); b.innerHTML = icon(el.classList.contains('grande') ? 'shrink' : 'expand', 18); }
+    if (b.dataset.pl === 'ampliar') mudarNivel(nivelMini === 2 ? 0 : 2);
     // abrir a música (o nome no player): a página dela (o expandir da letra abre a letra na tela toda, aqui mesmo)
     // no celular o Tocando agora é a tela da música: tocar no nome não leva para a página antiga
     if (b.dataset.pl === 'abrir' && telaDeCelular()) return;

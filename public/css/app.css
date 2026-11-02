@@ -4580,3 +4580,62 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 @media (prefers-reduced-motion: reduce) {
   .dv-vivo-aura, .dv-vivo-aura i { animation: none !important; }
 }
+
+/* ============================================================ o cartão do vídeo cresce com o dedo (como no Spotify)
+   segurar e puxar o mini player para cima aumenta o vídeo; para baixo, diminui. --mini-v é a largura do vídeo durante
+   o arraste (vem do app); soltando, ele vai suave até o tamanho do nível: .mini-1 (médio) ou .grande (grande) */
+#player.mini-arrastando, #player.mini-arrastando * { transition: none !important; user-select: none; -webkit-user-select: none; }
+#player.mini-arrastando { touch-action: none; cursor: grabbing; }
+#player.mini-anima .pl-video { transition: width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.28s ease; }
+
+/* celular: o médio é o do Spotify — o vídeo à esquerda, o nome em cima e os botões embaixo, à direita; o grande, o vídeo
+   na largura toda, com o nome e os botões embaixo dele (a mesma grade de 5 colunas do mini player do celular) */
+@media (max-width: 899px) {
+  html:not(.tablet):not(.pp) #player { touch-action: pan-x; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) { grid-template-areas: "video info info info info" "video . lado salva play"; padding-bottom: 4px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 38vw); margin: 8px 0 6px 8px; border-radius: 8px; align-self: start; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-info { align-self: start; padding: 10px 8px 0 12px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-txt b { font-size: 15px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-txt small { margin-top: 2px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) :is(.pl-lado, .pl-salva, .pl-ctrl) { align-self: end; margin-bottom: 2px; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) { grid-template-areas: "video video video video video" "info info lado salva play"; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, auto); margin: 8px 8px 0; border-radius: 8px; justify-self: start; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.mini-arrastando) .pl-video { justify-self: stretch; }
+  /* o toque no vídeo da barrinha vai para o cartão (puxar, abrir): o YouTube fica com o toque no Tocando agora */
+  html:not(.pp) body:not(.painel-cheio) #pl-tela:not(.no-palco):not(.na-telinha) { pointer-events: none; }
+  html:not(.pp) body:not(.painel-cheio) #player:is(.mini-1, .grande) ~ #pl-tela:not(.no-palco):not(.na-telinha) { border-radius: 8px; }
+}
+
+/* tablet, a barrinha recolhida: o cartão sobe a partir do pé (o menu continua ao lado) */
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) { height: auto; display: grid; align-items: center; row-gap: 6px; padding: 10px 10px 14px; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) {
+  grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "video info info" "video salva play";
+}
+html.tablet body.painel-recolhido #player.grande:not(.sem-video) {
+  grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "video video video" "info salva play";
+}
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-video { grid-area: video; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, calc(var(--linha-w) * 0.2)); align-self: start; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, auto); justify-self: start;
+  position: relative; right: auto; bottom: auto; margin: 0; box-shadow: none; } /* (o grande do computador flutua; no tablet, fica no cartão) */
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.mini-arrastando) .pl-video { justify-self: stretch; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-info { grid-area: info; align-self: start; padding: 4px 4px 0 6px; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video) .pl-info { align-self: center; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-salva { grid-area: salva; align-self: end; justify-self: end; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-ctrl { grid-area: play; align-self: end; justify-self: end; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-salva, html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-ctrl { align-self: end; }
+html.tablet body.painel-recolhido #player { touch-action: pan-x; }
+
+/* computador: o vídeo sai da barra e flutua acima dela, à direita; puxando, ele cresce ou diminui */
+@media (min-width: 900px) {
+  html:not(.tablet):not(.pp) #player { touch-action: pan-x; }
+  html:not(.tablet) #player.mini-1:not(.sem-video) .pl-video, html:not(.tablet) #player.grande:not(.sem-video) .pl-video {
+    grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px);
+    margin: 0; border-radius: 12px; box-shadow: var(--shadow-lg);
+  }
+  html:not(.tablet) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 340px); }
+  html:not(.tablet) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, clamp(420px, 42vw, 640px)); }
+  html:not(.tablet) #player.mini-1 .pl-info { margin-left: 0; }
+  html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-meio, html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-video { cursor: grab; }
+  #pl-tela:not(.no-palco):not(.na-telinha) { transition: border-radius 0.2s; }
+}
