@@ -5388,7 +5388,7 @@ function nomesDoVideo(v) {
 async function musicaDoVideo(v) {
   const cru = tituloCruDoVideo(v.titulo);
   const noVideo = ` ${normalizar(cru)} `;
-  const quem = ` ${normalizar(`${cru} ${v.canal || ''}`)} `;
+  const quem = quemNoVideo(v);
   const lista = await buscarMusicas(cru.replace(/\s[|–—-]\s/g, ' ')).catch(() => []);
   const tit = (r) => normalizar(tituloLimpo(r.titulo));
   const cabe = lista.filter((r) => tit(r).length >= 3 && noVideo.includes(` ${tit(r)} `));
@@ -5413,7 +5413,8 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
   // o vídeo é procurado junto com a cifra (pelo título e o artista da busca); só com o link da cifra, sem o nome,
   // espera a cifra para procurar pelo nome que vem nela
   const pBusca = (video ? Promise.resolve([video])
-    : cifra && !tituloLimpo(titulo) ? pCifra.then((c) => buscarYoutube(c ? `${c.titulo} ${c.artista || ''}` : termo)) : buscarYoutube(termo)).catch(() => []);
+    : cifra && !tituloLimpo(titulo) ? pCifra.then((c) => buscarYoutube(c ? `${c.titulo} ${c.artista || ''}` : termo).then((vs) => (c ? videosDaMusica(vs, c.titulo, c.artista) : vs)))
+      : buscarYoutube(termo).then((vs) => videosDaMusica(vs, titulo, artista))).catch(() => []);
   // a busca de vídeos não respondeu ou não achou: o vídeo que a página da letra (Letras) mostra
   const pVideo = pBusca.then(async (vs) => {
     if (vs.length) return vs;
@@ -5511,7 +5512,7 @@ function videoCombina(tituloVideo, titulo) {
   return ps.filter((p) => v.includes(p)).length / ps.length >= 0.6;
 }
 async function videoDaMusica(titulo, artista, source) {
-  if (!/^(acervo|hinario):/.test(source || '')) return (await buscarYoutube([titulo, artista].filter(Boolean).join(' ')))[0] || null;
+  if (!/^(acervo|hinario):/.test(source || '')) return videosDaMusica(await buscarYoutube([titulo, artista].filter(Boolean).join(' ')), titulo, artista)[0] || null;
   const autor = String(artista || '').replace(/hin[áa]rio lit[úu]rgico cnbb|\b(svd|ofm|ofmcap|sj|pe\.|padre|frei|fr\.|ir\.|d\.r\.)/gi, ' ').replace(/[,.]/g, ' ').trim();
   const extra = String(source).startsWith('hinario:') ? 'hinário litúrgico CNBB' : 'canto litúrgico';
   const vs = [...await buscarYoutube(`${titulo} ${autor} ${extra}`).catch(() => []), ...(autor ? await buscarYoutube(`${titulo} ${extra}`).catch(() => []) : [])];
@@ -5693,6 +5694,31 @@ async function buscarMusicas(termo) {
 // Resultado único da busca: junta os vídeos do YouTube às músicas. O vídeo cujo título tem o nome da música e o
 // artista (no título ou no canal) passa a ser o vídeo dela (abre já com cifra, letra e vídeo; o primeiro achado vale);
 // os vídeos que não são de nenhuma música da lista entram nela também (ao abrir, o app descobre a música e traz a cifra e a letra)
+// (o artista também vale entre parênteses: "정국 (Jung Kook) 'Standing Next to You' Official MV", no canal HYBE LABELS,
+// só tem o nome dele ali. Antes os parênteses saíam antes de procurar o artista, e o clipe oficial não era reconhecido)
+const quemNoVideo = (v) => ` ${normalizar(`${v.titulo || ''} ${v.canal || ''}`)} `;
+// O clipe oficial antes dos outros vídeos da mesma música: o "Official MV" e o "clipe oficial" sobem; o de letra, ao
+// vivo, a coreografia, o karaokê, o cover, o remix… descem (a não ser que a palavra seja do próprio título da música)
+const VIDEO_OFICIAL = /\b(official\s+(music\s+)?video|official\s+mv|mv|m\s*v|music\s+video|videoclipe|clipe\s+oficial|video\s+oficial|clipe)\b/;
+const VIDEO_OUTRO = /\b(lyrics?|letra|legendad[oa]|traducao|translation|sub\s+esp|karaoke|cover|reaction|react|dance\s+practice|choreography|coreografia|fancam|live|ao\s+vivo|performance|remix|instrumental|piano|8d|slowed|sped\s+up|nightcore|tutorial|aula|cifra|how\s+to\s+play|visualizer|teaser|behind|making)\b/;
+function notaDoVideo(v, titulo = '') {
+  const t = normalizar(v.titulo || '');
+  const daMusica = ` ${normalizar(titulo)} `;
+  const tem = (re) => { const m = re.exec(t); return Boolean(m) && !daMusica.includes(` ${m[0]} `); };
+  return (tem(VIDEO_OFICIAL) ? 3 : 0) - (tem(VIDEO_OUTRO) ? 3 : 0) + (/\bvevo\b/.test(normalizar(v.canal || '')) ? 1 : 0);
+}
+// os vídeos na ordem de preferência para a música: o clipe oficial primeiro; empatados, na ordem da busca
+const videosPorPreferencia = (videos, titulo = '') => (videos || []).map((v, i) => ({ v, i, n: notaDoVideo(v, titulo) }))
+  .sort((a, b) => b.n - a.n || a.i - b.i).map((x) => x.v);
+// da busca do YouTube pelo título e o artista: o melhor entre os que têm o título da música (sem nenhum com o título,
+// a ordem da busca)
+function videosDaMusica(videos, titulo, artista = '') {
+  const t = normalizar(tituloLimpo(titulo));
+  const comTitulo = (videos || []).filter((v) => t && ` ${normalizar(tituloCruDoVideo(v.titulo))} `.includes(` ${t} `));
+  const doArtista = comTitulo.filter((v) => artistasDe('', artista).some((a) => quemNoVideo(v).includes(` ${normalizar(a)} `)));
+  const melhores = videosPorPreferencia(doArtista.length ? doArtista : comTitulo, titulo);
+  return melhores.length ? [...melhores, ...(videos || []).filter((v) => !melhores.includes(v))] : (videos || []);
+}
 function juntarVideos(musicas, videos) {
   const tit = (m) => normalizar(tituloLimpo(m.titulo));
   const lista = musicas.map((m) => ({ ...m }));
@@ -5701,11 +5727,12 @@ function juntarVideos(musicas, videos) {
   for (const v of videos) {
     const cru = tituloCruDoVideo(v.titulo);
     const noTitulo = ` ${normalizar(cru)} `;
-    const quem = ` ${normalizar(`${cru} ${v.canal || ''}`)} `;
+    const quem = quemNoVideo(v);
     const m = porTamanho.find((x) => tit(x).length >= 2 && noTitulo.includes(` ${tit(x)} `)
       && artistasDe('', x.artista).some((a) => quem.includes(` ${normalizar(a)} `)));
-    // outro vídeo da mesma música (ao vivo, letra, outra versão) não se repete na lista
-    if (m) m.video = m.video || v; else sobra.push(v);
+    // outro vídeo da mesma música (ao vivo, letra, outra versão) não se repete na lista; fica o clipe oficial (antes
+    // ficava o primeiro achado, que podia ser o de letra)
+    if (m) { if (!m.video || notaDoVideo(v, m.titulo) > notaDoVideo(m.video, m.titulo)) m.video = v; } else sobra.push(v);
   }
   return [...lista, ...sobra.map((v) => ({ titulo: tituloDoVideo(v.titulo) || v.titulo, artista: v.canal || '', capa: v.capa, video: v }))];
 }
@@ -6058,7 +6085,9 @@ function capaOficial(titulo, artista) {
   // Post Malone "feat. Doja Cat". Vale o nome no "feat." do título)
   // (só no "feat.": no karaokê, "Originally Performed by …" também tem o nome dele, e não é a música dele)
   const convidados = (x) => [...String(x || '').matchAll(/[([](?:feat|ft|with|part|com)\b\.?([^)\]]*)[)\]]/gi)].map((m) => normalizar(m[1])).join(' ');
-  const mesmoArtista = (tit, art) => mesmoNome(art || '', a) || ` ${convidados(tit)} `.includes(` ${normalizar(a)} `);
+  // (sem os espaços também: "Jungkook" e "JUNG KOOK" são o mesmo)
+  const junto = (x) => normalizar(x || '').replace(/ /g, '');
+  const mesmoArtista = (tit, art) => mesmoNome(art || '', a) || (junto(a).length >= 4 && junto(art) === junto(a)) || ` ${convidados(tit)} `.includes(` ${normalizar(a)} `);
   const mesmaMusica = (tit, art) => mesmoArtista(tit, art) && mesmoTitulo(tit);
   if (!capasOficiais.has(k)) {
     const busca = (async () => {

@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 429, data: '2026-11-02', titulo: 'O clipe oficial na busca',
+    itens: [
+      { tipo: 'correcao', texto: 'Na Busca, algumas músicas vinham com o vídeo errado (de letra, de programa de TV, ao vivo) em vez do clipe. Em “Standing Next to You”, do Jung Kook, o clipe oficial tem o nome dele entre parênteses — “정국 (Jung Kook)” — e não era reconhecido; vinha a apresentação no programa do Jimmy Fallon. Agora o nome do artista vale também entre parênteses, e entre os vídeos da mesma música fica o clipe oficial.' },
+      { tipo: 'correcao', texto: 'A capa do álbum também é achada quando o nome do artista vem escrito junto ou separado (“Jungkook” e “Jung Kook”).' },
+    ],
+  },
+  {
     versao: 428, data: '2026-11-02', titulo: 'Tablet sem piscar ao abrir',
     itens: [
       { tipo: 'correcao', texto: 'No tablet, em pé ou deitado, ao abrir ou atualizar o app aparecia por um instante o jeito do computador, com o menu na lateral, antes de ele trocar para o menu de baixo. Agora o tablet já abre com a aparência dele.' },
@@ -57,14 +64,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'O Songbook Litúrgico agora se chama Ecoa: um nome curto para um app que é tanto para cantar na missa quanto para ouvir música, buscada na internet. A logo nova é uma nota musical com as ondas do som saindo dela, em branco sobre o fundo preto. A biblioteca, os repertórios e os downloads continuam todos aqui, sem mudar nada.' },
       { tipo: 'melhoria', texto: 'O ícone na tela inicial do celular e do tablet também muda (no Android, às vezes só depois de abrir o app de novo ou reinstalar o atalho).' },
-    ],
-  },
-  {
-    versao: 419, data: '2026-11-02', titulo: 'Busca no jeito do Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'A Busca ficou como a do Spotify: a barra branca no alto e, embaixo, cards coloridos com o nome no canto e a foto de um artista inclinada. “Comece a navegar” traz os setores da missa em cards grandes; “Navegar por tudo”, os estilos musicais e as partes da missa (Entrada, Glória, Comunhão…). Os filtros só aparecem quando você digita.' },
-      { tipo: 'novo', texto: 'Estilos musicais na Busca: Música católica, Sertanejo, Pop, Gospel, Samba e Pagode, MPB, Rock, Forró e Piseiro, Românticas, Funk, Rap e Hip-hop, Clássicos, K-pop, Eletrônica, Reggae e Infantil. Cada um abre uma página com os artistas e as mais tocadas, prontas para abrir com a cifra, a letra e o vídeo.' },
-      { tipo: 'melhoria', texto: 'As Católicas em alta viraram uma fileira de capas que rola de lado, no lugar da lista em duas colunas.' },
     ],
   },
 ];
