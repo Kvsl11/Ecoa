@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 415, data: '2026-11-02', titulo: 'Busca das Músicas curtidas rola com a página',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas Músicas curtidas, a busca não fica mais presa no topo (com a faixa azul por cima das músicas): ela fica no alto da página e some ao rolar, como no Spotify.' },
+    ],
+  },
+  {
     versao: 414, data: '2026-11-02', titulo: 'Repertórios e Músicas curtidas no jeito do Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'Dentro do repertório e da playlist, a página ficou como a de uma playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração, os botões de baixar e editar à esquerda e o aleatório e o play à direita. As ações (Adicionar, Criar música, a data, PDF, PowerPoint, Selecionar e Excluir) viraram chips numa linha que rola de lado.' },
@@ -61,13 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O som do acorde sai na hora do toque: as notas do violão dos acordes da música já vão sendo preparadas quando a faixa dos desenhos aparece, e o silêncio do começo de cada gravação foi tirado.' },
       { tipo: 'correcao', texto: 'Rolando a faixa dos desenhos até o fim, o último acorde aparece inteiro (antes ficava meio apagado na borda).' },
-    ],
-  },
-  {
-    versao: 405, data: '2026-11-01', titulo: 'Violão de verdade nos acordes',
-    itens: [
-      { tipo: 'melhoria', texto: 'O som do acorde agora é de um violão de nylon de verdade, gravado nota por nota, no lugar do som feito pelo aparelho (que tinha chiado). Na primeira vez que um acorde toca, as notas dele são baixadas; depois ficam guardadas e tocam também sem internet.' },
-      { tipo: 'correcao', texto: 'Arrastar para o lado a faixa dos desenhos dos acordes (ou a das ferramentas) não troca mais de música no repertório.' },
     ],
   },
 ];

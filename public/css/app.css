@@ -4447,7 +4447,9 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .spot-add-ic { width: 48px; height: 48px; border-radius: 4px; display: grid; place-items: center; background: rgb(255 255 255 / 0.1); flex: none; }
 :root[data-theme="light"] .spot-add-ic { background: rgb(0 0 0 / 0.06); }
 /* Músicas curtidas: a busca e a ordem no alto; o nome e a quantidade no degradê azul */
-.curtidas-busca { display: flex; align-items: center; gap: 8px; }
+/* (a busca fica no alto, mas rola junto com a página e some, como no Spotify; não fica presa no topo) */
+.curtidas-busca { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
+.curtidas-busca .bib-busca { display: flex; margin: 0; }
 .curtidas-busca .bib-busca { flex: 1; }
 .spot-ordenar { flex: none; }
 .curtidas-topo { padding: 18px 0 2px; }
