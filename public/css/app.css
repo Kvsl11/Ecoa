@@ -731,6 +731,12 @@ dialog { max-height: calc(100dvh - 24px); overflow-y: auto; overflow-x: hidden; 
 .editor.cheio .editor-split textarea { flex: 1; min-height: 0; height: 100% !important; resize: none; overflow-y: auto; }
 .editor.cheio .editor-prev { flex: 1; overflow: auto; }
 body.editando-cheio .nav, body.editando-cheio #player { display: none !important; }
+/* no Lumen: só a conversa na tela. O menu (de baixo ou o lateral) e o player somem, a página ocupa a largura toda e a
+   caixa de pergunta desce para o pé da tela; tudo volta ao sair (a música continua tocando escondida) */
+body.no-lumen .side, body.no-lumen .nav, body.no-lumen #player { display: none !important; }
+body.no-lumen #pl-tela { visibility: hidden !important; }
+body.no-lumen { --rodape: calc(10px + env(safe-area-inset-bottom)) !important; --painel-w: 0px !important; --col-esq: 0px !important; }
+body.no-lumen .main-col { margin: 0 !important; }
 
 /* ============================================================ editor de música (nova / editar cifra), repaginado */
 .ed2 { gap: 14px; padding-bottom: 8px; }

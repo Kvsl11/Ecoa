@@ -1060,6 +1060,9 @@ const REVISOES = [
   // v395: os cantos que o Montar repertório já tinha trazido (da liturgia, e que só estão em repertórios da missa
   // montados pelo app, "Missa 01/11/2026 – …") ficam só no repertório: saem das Músicas da biblioteca
   { rev: 4, soNoRepertorio: true, quais: (s) => !s.soNoRepertorio && ehDaLiturgia(s) && soEmMissasMontadas(s.id) },
+  // v412: a foto do artista que era a de outra pessoa com o nome parecido (o Justice com a foto da Victoria Justice):
+  // sai, e a do artista certo é procurada de novo
+  { rev: 5, fotoOutroArtista: true, quais: (s) => Boolean(s.fotoArtista && s.artist) && /sscdn\.co\/letras\/[^/]+\/fotos\//.test(s.fotoArtista) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1119,6 +1122,23 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   if (quer('fotosLiturgia') && s.fotoArtista) { db.updateSong(id, { fotoArtista: undefined }); s = db.song(id); }
   if (quer('soNoRepertorio')) { db.updateSong(id, { soNoRepertorio: true }); s = db.song(id); }
+  // a foto do artista que veio de outro artista da busca do Cifra Club (de nome parecido): sai, e também a guardada
+  // para o nome, para a do artista certo ser procurada de novo
+  if (quer('fotoOutroArtista')) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const lista = await buscarArtistasCifraClub(s.artist).catch(() => null);
+      if (!lista) completa = false;
+      else {
+        const de = lista.find((a) => a.capa && a.capa === s.fotoArtista);
+        if (de && !mesmoArtista(de.nome, s.artist)) {
+          db.updateSong(id, { fotoArtista: undefined });
+          esquecerFotoDoArtista(s.artist);
+        }
+      }
+    }
+    s = db.song(id);
+  }
   // a letra sincronizada (a feita à mão pela pessoa fica como está)
   if (quer('letra') && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
     try { recuperarSincronia(s); } catch { /* segue */ }
@@ -5672,7 +5692,23 @@ const tileArtista = (a) => {
   return `<a class="tile tile-artista" href="#/artista/${encodeURIComponent(a.slug)}/${encodeURIComponent(a.nome)}">
   <div class="cover" data-artista-foto data-nome="${esc(a.nome)}" data-slug="${esc(a.slug)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
 };
-const artistaCerto = (lista, nome) => lista.find((a) => mesmoNome(a.nome, nome)) || null;
+// O artista certo numa busca do Cifra Club: primeiro o de nome igual (a busca por "Justice" traz a "Victoria Justice"
+// antes do Justice). Um nome dentro do outro só vale quando a diferença é um título ("Gilson" e "Frei Gilson") ou
+// quando o nome tem mais de uma palavra ("Marcelo Rossi" e "Padre Marcelo Rossi"); uma palavra só ("Justice") dentro
+// do nome de outra pessoa não é ela
+const TITULO_NO_NOME = /^(padre|pe|frei|fr|irmao|irma|ir|dom|diacono|monsenhor|mons|cardeal|ministerio|comunidade)$/;
+function mesmoArtista(a, b) {
+  const A = normalizar(nomeReligioso(a));
+  const B = normalizar(nomeReligioso(b));
+  if (!A || !B) return false;
+  if (A === B) return true;
+  const [curto, longo] = A.length <= B.length ? [A, B] : [B, A];
+  if (!` ${longo} `.includes(` ${curto} `)) return false;
+  const resto = ` ${longo} `.replace(` ${curto} `, ' ').trim().split(' ');
+  return curto.includes(' ') || resto.every((p) => TITULO_NO_NOME.test(p));
+}
+const artistaCerto = (lista, nome) => lista.find((a) => normalizar(nomeReligioso(a.nome)) === normalizar(nomeReligioso(nome)))
+  || lista.find((a) => mesmoArtista(a.nome, nome)) || null;
 // as pessoas dos créditos, cada uma com os papéis dela: o artista principal, quem participa (o "feat." do nome do
 // artista ou do título: "Lady Gaga feat. Bruno Mars", "Die With A Smile (part. Bruno Mars)"), a composição e a letra
 const FEAT = /\s*(?:\(|\[|-\s)?\s*\b(?:feat\.?|ft\.?|featuring|part\.?|participa[çc][ãa]o(?: especial)?(?: de)?|com|with)\s+/i;
@@ -5846,6 +5882,12 @@ function fotoDoArtista(nome, slug = '') {
 }
 // A foto e a capa que já se conhece na hora (a última trazida da internet, guardada no aparelho), sem esperar nada
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';
+// tira a foto guardada para o nome (a da sessão e a do aparelho), para ela ser procurada de novo
+function esquecerFotoDoArtista(nome) {
+  fotosArtistas.delete(normalizar(nome));
+  delete artistasGuardados[`foto:${normalizar(nome)}`];
+  try { localStorage.setItem(CHAVE_ARTISTAS, JSON.stringify(artistasGuardados)); } catch { /* sem espaço: fica na sessão */ }
+}
 // espera a promessa no máximo ms; passou disso, vale a reserva
 const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch(() => reserva), new Promise((ok) => setTimeout(() => ok(reserva), ms))]);
 // A foto definitiva para desenhar de primeira: a atual da internet; se ela demorar, a última guardada (que já é a
@@ -13749,6 +13791,9 @@ function route() {
   // embaixo, ao lado do menu (sem mudar a escolha guardada; tocar na barrinha abre o painel de novo)
   const telaDePartitura = a === 'musica' && (c === 'compor' || c === 'partitura');
   document.body.classList.toggle('na-musica', (a === 'musica' && !telaDePartitura) || (a === 'repertorio' && c !== undefined));
+  // no Lumen, a tela é só a conversa: o menu (de baixo ou o lateral) e o player somem e voltam ao sair pela seta do
+  // topo (em qualquer tela: celular, tablet e computador). A música que estiver tocando continua tocando
+  document.body.classList.toggle('no-lumen', a === 'duvidas');
   if (ehTablet()) document.body.classList.toggle('painel-recolhido', telaDePartitura || Boolean(db.prefs().painelRecolhido));
   desenharLateral();
   switch (a) {

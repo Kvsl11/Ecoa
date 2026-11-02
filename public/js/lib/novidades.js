@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 412, data: '2026-11-02', titulo: 'Artista certo ao tocar na foto',
+    itens: [
+      { tipo: 'correcao', texto: 'Tocar no artista (nos créditos, no Explorar ou em Seus artistas) abre a página dele mesmo, e não a de outro artista de nome parecido: o Justice abria a página da Victoria Justice. Primeiro vale o nome igual; um nome de uma palavra só não é mais confundido com o de outra pessoa que tenha essa palavra no nome.' },
+      { tipo: 'correcao', texto: 'As músicas já salvas que ficaram com a foto do artista errado (de outro nome parecido) perdem essa foto sozinhas, e a do artista certo é procurada de novo.' },
+    ],
+  },
+  {
+    versao: 411, data: '2026-11-02', titulo: 'Lumen em tela cheia',
+    itens: [
+      { tipo: 'melhoria', texto: 'Ao entrar no Lumen, o menu (o de baixo no celular e no tablet, o lateral no computador) e o player somem, e a tela fica só com a conversa. Eles voltam quando você sai pela seta lá em cima. A música que estiver tocando continua tocando.' },
+    ],
+  },
+  {
     versao: 410, data: '2026-11-02', titulo: 'Início no jeito do Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'A página inicial ficou parecida com a do Spotify: no topo, os filtros Tudo, Músicas, Repertórios e Liturgia mostram só o que você escolher; os atalhos ficam em 4 colunas no tablet; os repertórios aparecem como os “mixes”, com a capa grande e o nome numa faixa colorida; as Recentes ficam menores; o próximo repertório ganha um cartão largo com o botão de tocar; e os artistas da sua biblioteca aparecem em fotos redondas.' },
@@ -53,18 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O desenho dos acordes (Ajustes) volta a aparecer: na letra com a cifra em tela cheia, uma faixa logo abaixo dos botões mostra como montar cada acorde da música, no tom e no capotraste escolhidos. Tocar num acorde da cifra mostra o desenho dele.' },
       { tipo: 'novo', texto: 'Um botão ao lado do Rolar liga e desliga o desenho dos acordes ali mesmo, sem ir aos Ajustes.' },
-    ],
-  },
-  {
-    versao: 402, data: '2026-11-01', titulo: 'Cifra sem buraco quando a linha quebra',
-    itens: [
-      { tipo: 'correcao', texto: 'Na cifra, quando a frase não cabe e o fim desce para a linha de baixo, ele fica logo embaixo, sem o espaço grande em cima (o lugar de um acorde que não tem). Vale na página da música, na letra em tela cheia e no PDF.' },
-    ],
-  },
-  {
-    versao: 401, data: '2026-11-01', titulo: 'Botões da letra e da cifra mais limpos',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na letra em tela cheia, os botões do topo ficaram mais limpos: Letra e Cifra viraram um seletor de duas opções (a escolhida em branco, deslizando de uma para a outra), e o olho (só a letra) ganhou uma bolinha do mesmo jeito, branca quando ligado. Tom, Capo, o tamanho da letra (um A pequeno e um A grande) e o Rolar ficaram no mesmo estilo, mais finos e numa linha só.' },
     ],
   },
 ];
