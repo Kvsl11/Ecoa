@@ -13880,7 +13880,7 @@ function viewDuvidas() {
       <div class="chat-ouvindo" id="dv-ouvindo" hidden><span class="dv-onda" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span>Ouvindo… fale a sua pergunta</span></div>
       <div class="chat-anexo" id="dv-anexo" hidden></div>
       <div class="chat-campo">
-        <button class="chat-mic chat-anexar" type="button" aria-label="Enviar um arquivo (PDF, foto, vídeo…)" title="Enviar um arquivo">${icon('upload', 21)}</button>
+        <button class="chat-anexar" type="button" aria-label="Enviar um arquivo (PDF, foto, vídeo…)" title="Enviar um arquivo">${icon('upload', 21)}</button>
         <input type="file" id="dv-arquivo" accept="${ACEITA_ANEXO}" hidden>
         <textarea name="q" rows="1" placeholder="Pergunte ao Lumen" aria-label="Sua pergunta"></textarea>
         ${ReconhecerVoz ? `<button class="chat-mic" type="button" aria-label="Falar a pergunta (ditado)" aria-pressed="false" title="Falar a pergunta">${icon('mic', 22)}</button>` : ''}
@@ -14093,7 +14093,8 @@ function viewDuvidas() {
     // segurar a resposta se ela falhar
     // (a pergunta sem as palavras de conversa: "preciso que você me diga se tem algo sobre casamento" → "casamento")
     const assunto = palavrasDuvida(q).join(' ') || q;
-    const canto = pedeCanto(q) || /\b(cantos?|musicas?|hinos?|salmos?)\b/.test(normalizar(q));
+    // (só o pedido de canto: "como o salmista proclama o salmo?" é dúvida, e virava uma lista de cantos)
+    const canto = pedeCanto(q);
     const naWeb = buscarNaWeb(assunto).catch(() => []);
     const naWiki = buscarNaWikipedia(assunto).catch(() => null);
     const doServidor = comPrazo(carregarServidor().catch(() => {}).then(() => buscarAcervoNoServidor(q)), 26000).then((r) => r || []);
@@ -14104,13 +14105,18 @@ function viewDuvidas() {
     // da explicação; o mesmo nome em duas pastas aparece uma vez)
     const focoArquivos = /\b(acervo|arquivos?|pdfs?|documentos?|partituras?|audios?|cifras?|livros?|rituais?|subsidios?|tem algo|tem alguma|existe)\b/.test(normalizar(q));
     const nomes = new Set();
-    const arquivos = todos.filter((a) => a.tipo === 'arquivo' && !nomes.has(normalizar(a.titulo)) && nomes.add(normalizar(a.titulo)))
+    // (na dúvida, só o arquivo que fala do assunto inteiro: "proclamar o salmo" não traz a "Proclamação da Páscoa")
+    const cobreMin = focoArquivos ? 0.5 : 0.99;
+    const arquivos = todos.filter((a) => a.tipo === 'arquivo' && a.cobre >= cobreMin && !nomes.has(normalizar(a.titulo)) && nomes.add(normalizar(a.titulo)))
       .slice(0, focoArquivos ? 8 : 3).map(({ titulo, caminho, id, formato }) => ({ titulo, caminho, id, formato }));
     // os cantos (do acervo e do Hinário), pelo título e pela letra
-    const cantos = canto ? todos.filter((a) => a.tipo !== 'arquivo').slice(0, 6).map((a) => ({ titulo: a.titulo, caminho: a.caminho, id: a.id, i: a.i, tipo: a.tipo })) : [];
+    const titulosVistos = new Set();
+    const cantos = canto ? todos.filter((a) => a.tipo !== 'arquivo' && !titulosVistos.has(normalizar(a.titulo)) && titulosVistos.add(normalizar(a.titulo))).slice(0, 6).map((a) => ({ titulo: a.titulo, caminho: a.caminho, id: a.id, i: a.i, tipo: a.tipo })) : [];
     // dúvida: só texto que explica (letra de canto não responde)
     const minimo = Math.min(2, gruposDuvida(q));
-    let achados = todos.filter((a) => a.tipo !== 'arquivo')
+    // (as letras dos cantos e do Hinário não entram como explicação: um verso com "salmos" e "proclame" não ensina como
+    // proclamar o salmo. A explicação vem do texto dos documentos do acervo, pelo servidor, e da internet)
+    let achados = todos.filter((a) => a.tipo !== 'arquivo' && a.tipo !== 'canto' && a.tipo !== 'hinario')
       .map((a) => ({ titulo: a.titulo, caminho: a.caminho, id: a.id, i: a.i, tipo: a.tipo, frases: melhoresFrases(a.texto, q, 3, { soExplicacao: true }) }))
       // o trecho tem de falar do assunto: pelo menos 2 palavras da pergunta nas frases mostradas (uma só é coincidência,
       // e um verso de canto com "noiva" não explica nada sobre casamento)
@@ -14165,7 +14171,7 @@ function viewDuvidas() {
   // o botão azul da caixa (sem texto): a conversa ao vivo
   form.querySelector('.chat-vivo')?.addEventListener('click', () => abrirVivo());
   // o microfone: o que a pessoa fala vai aparecendo no campo (dá para corrigir antes de enviar); tocar de novo para de ouvir
-  const mic = form.querySelector('.chat-mic');
+  const mic = form.querySelector('.chat-mic'); // (o de anexar tem a marcação própria: antes, ele ligava o ditado)
   const ouvindo = (sim) => {
     mic.classList.toggle('gravando', sim);
     mic.setAttribute('aria-pressed', String(sim));

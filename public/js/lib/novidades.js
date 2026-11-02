@@ -8,6 +8,8 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O Lumen ao vivo mostrava o texto, mas a voz não saía. No celular e no tablet Android, o microfone que fica atento para você interromper colocava o som em “modo ligação”, e a voz ia para o alto-falante de ouvido, quase muda. Agora a voz sai normal, e se o aparelho pausar a voz sozinho, ela volta a tocar.' },
       { tipo: 'novo', texto: 'O app pede a permissão do microfone antes de usar, no Lumen ao vivo e no ditado, com uma explicação. Se o microfone estiver bloqueado, ele mostra o caminho para liberar e o botão Tentar de novo.' },
+      { tipo: 'correcao', texto: 'O botão de enviar arquivo, na conversa por texto do Lumen, ligava o ditado (ficava “Ouvindo…”) em vez de abrir a escolha do arquivo. Agora ele abre a escolha do arquivo.' },
+      { tipo: 'correcao', texto: 'Dúvidas como “como o salmista deve proclamar o salmo?” não viram mais uma lista de cantos repetidos com versos de antífona: sem a IA, a resposta vem dos documentos do acervo e da internet.' },
       { tipo: 'melhoria', texto: 'O que o Lumen fala aparece sempre escrito. O botão do alto agora mostra ou esconde só o que VOCÊ fala: sem o traço, a sua fala aparece escrita embaixo; com o traço, não aparece.' },
     ],
   },

@@ -150,6 +150,8 @@ export const explica = (frase) => {
   if ((f.match(/[\p{L}\d]+/gu) || []).length < 10) return false;
   // letra de canto que veio emendada do PDF: acordes no meio (Bm, F#, C7…) ou exclamações seguidas
   if ((f.match(/(^|\s)[A-G][#b]?(m|maj|dim|sus)?\d*(\/[A-G][#b]?)?(?=\s|$)/g) || []).length >= 1) return false;
+  // texto para cantar (salmo, antífona): o asterisco e a cruz marcam as pausas do canto
+  if (/[*†]/.test(f)) return false;
   return (f.match(/!/g) || []).length < 2;
 };
 
