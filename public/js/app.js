@@ -247,7 +247,7 @@ async function notificarSistema({ titulo, texto = '', tag = '', href = '', silen
       renotify: Boolean(tag && renovar),
       silent: silenciosa,
       timestamp: Date.now(),
-      icon: imagem || new URL('icon-192-v8.png', document.baseURI).href,
+      icon: imagem || new URL('icon-192-v9.png', document.baseURI).href,
       badge: new URL('badge-96.png', document.baseURI).href,
       data: { href: href ? new URL(href, location.href).href : location.href.split('#')[0] },
     });
