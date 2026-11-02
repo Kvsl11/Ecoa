@@ -1307,8 +1307,8 @@ body.performance .convite-instalar { display: none; }
 #player.arrastando .pl-prog i { transition: none; }
 html.pp #player.arrastando .pl-prog i::after { transform: scale(1.35); }
 /* ampliado: o vídeo grande em cima da barra */
-html:not(.pp) #player.grande { grid-template-areas: "video video video video" "info info play lado" "tempo tempo tempo tempo"; }
-html:not(.pp) #player.grande .pl-video { width: auto; margin: 8px 8px 0; }
+html:not(.pp) #player.grande:not(.capa-na-barra) { grid-template-areas: "video video video video" "info info play lado" "tempo tempo tempo tempo"; }
+html:not(.pp) #player.grande:not(.capa-na-barra) .pl-video { width: auto; margin: 8px 8px 0; }
 /* computador e tablet deitado: uma barra no rodapé, de ponta a ponta, como no Spotify — a música à esquerda,
    tocar/pausar e o tempo no centro, ampliar e fechar à direita */
 @media (min-width: 900px) {
@@ -1333,10 +1333,10 @@ html:not(.pp) #player.grande .pl-video { width: auto; margin: 8px 8px 0; }
   #player .pl-prog:hover i { background: var(--accent); }
   #player .pl-lado { grid-area: lado; justify-self: end; gap: 4px; }
   /* ampliado: o vídeo flutua grande acima da barra, no canto direito */
-  html:not(.pp) #player.grande { grid-template-areas: "esq play lado" "esq tempo lado"; }
-  html:not(.pp) #player.grande .pl-video { grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px); width: 420px; margin: 0; border-radius: 10px; box-shadow: var(--shadow-lg); }
+  html:not(.pp) #player.grande:not(.capa-na-barra) { grid-template-areas: "esq play lado" "esq tempo lado"; }
+  html:not(.pp) #player.grande:not(.capa-na-barra) .pl-video { grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px); width: 420px; margin: 0; border-radius: 10px; box-shadow: var(--shadow-lg); }
   #player .pl-tmini { display: none; }
-  html:not(.pp) #player.grande .pl-info { margin-left: 0; }
+  html:not(.pp) #player.grande:not(.capa-na-barra) .pl-info { margin-left: 0; }
 }
 body.performance #player { bottom: calc(env(safe-area-inset-bottom) + 70px); }
 
@@ -3853,7 +3853,7 @@ html.toque .date-field:focus-visible, html.toque .cal-dias button:focus-visible,
 }
 /* celular e computador, na barra embaixo, no modo música: a capa (quadrada) no lugar do vídeo, que continua tocando
    escondido, como no tablet */
-html:not(.pp) #player.capa-na-barra:not(.grande) .pl-video { aspect-ratio: 1 / 1; width: 48px; background: #000 center / cover no-repeat; }
+html:not(.pp) #player.capa-na-barra .pl-video { aspect-ratio: 1 / 1; width: 48px; background: #000 center / cover no-repeat; }
 html:not(.pp) #player.capa-na-barra .pl-video.capa-yt { background-size: auto 134%; }
 /* página do álbum: o ano, as faixas e quantas têm cifra em pílulas; a faixa da música que abriu o álbum, destacada */
 .album-dados { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -4064,7 +4064,7 @@ html.tablet body.painel-recolhido #player { overflow: clip; }
   html:not(.tablet):not(.pp) #player { grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: "video info lado salva play";
     border-radius: 8px; padding-right: 6px; }
   html:not(.tablet):not(.pp) #player .pl-video { margin: 8px 0 8px 8px; border-radius: 4px; }
-  html:not(.tablet):not(.pp) #player.capa-na-barra:not(.grande) .pl-video { width: 44px; }
+  html:not(.tablet):not(.pp) #player.capa-na-barra .pl-video { width: 44px; }
   html:not(.tablet):not(.pp) #player .pl-info { padding: 8px 6px 8px 10px; }
   html:not(.tablet):not(.pp) #player .pl-txt b { font-size: 14px; font-weight: 700; }
   html:not(.tablet):not(.pp) #player .pl-txt small { font-size: 13px; }
@@ -4591,50 +4591,54 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 /* celular: o médio é o do Spotify — o vídeo à esquerda, o nome em cima e os botões embaixo, à direita; o grande, o vídeo
    na largura toda, com o nome e os botões embaixo dele (a mesma grade de 5 colunas do mini player do celular) */
 @media (max-width: 899px) {
-  html:not(.tablet):not(.pp) #player { touch-action: pan-x; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) { grid-template-areas: "video info info info info" "video . lado salva play"; padding-bottom: 4px; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 38vw); margin: 8px 0 6px 8px; border-radius: 8px; align-self: start; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-info { align-self: start; padding: 10px 8px 0 12px; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-txt b { font-size: 15px; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-txt small { margin-top: 2px; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) :is(.pl-lado, .pl-salva, .pl-ctrl) { align-self: end; margin-bottom: 2px; }
-  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) { grid-template-areas: "video video video video video" "info info lado salva play"; }
-  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, auto); margin: 8px 8px 0; border-radius: 8px; justify-self: start; }
-  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.mini-arrastando) .pl-video { justify-self: stretch; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) { grid-template-areas: "video info info info info" "video . lado salva play"; padding-bottom: 4px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, 38vw); margin: 8px 0 6px 8px; border-radius: 8px; align-self: start; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-info { align-self: start; padding: 10px 8px 0 12px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-txt b { font-size: 15px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-txt small { margin-top: 2px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) :is(.pl-lado, .pl-salva, .pl-ctrl) { align-self: end; margin-bottom: 2px; }
+  /* (o ✓ tem 24 px e o play 44: os três centrados na mesma linha) */
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-salva { margin-bottom: 12px; }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-lado { margin-bottom: 4px; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) { grid-template-areas: "video video video video video" "info info lado salva play"; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, auto); margin: 8px 8px 0; border-radius: 8px; justify-self: start; }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-arrastando) .pl-video { justify-self: stretch; }
   /* o toque no vídeo da barrinha vai para o cartão (puxar, abrir): o YouTube fica com o toque no Tocando agora */
   html:not(.pp) body:not(.painel-cheio) #pl-tela:not(.no-palco):not(.na-telinha) { pointer-events: none; }
   html:not(.pp) body:not(.painel-cheio) #player:is(.mini-1, .grande) ~ #pl-tela:not(.no-palco):not(.na-telinha) { border-radius: 8px; }
 }
 
 /* tablet, a barrinha recolhida: o cartão sobe a partir do pé (o menu continua ao lado) */
-html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) { height: auto; display: grid; align-items: center; row-gap: 6px; padding: 10px 10px 14px; }
-html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) {
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) { height: auto; display: grid; align-items: center; row-gap: 6px; padding: 10px 10px 14px; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) {
   grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "video info info" "video salva play";
 }
-html.tablet body.painel-recolhido #player.grande:not(.sem-video) {
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) {
   grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "video video video" "info salva play";
 }
-html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-video { grid-area: video; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; }
-html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, calc(var(--linha-w) * 0.2)); align-self: start; }
-html.tablet body.painel-recolhido #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, auto); justify-self: start;
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { grid-area: video; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, calc(var(--linha-w) * 0.2)); align-self: start; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, auto); justify-self: start;
   position: relative; right: auto; bottom: auto; margin: 0; box-shadow: none; } /* (o grande do computador flutua; no tablet, fica no cartão) */
-html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.mini-arrastando) .pl-video { justify-self: stretch; }
-html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-info { grid-area: info; align-self: start; padding: 4px 4px 0 6px; }
-html.tablet body.painel-recolhido #player.grande:not(.sem-video) .pl-info { align-self: center; }
-html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-salva { grid-area: salva; align-self: end; justify-self: end; }
-html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video) .pl-ctrl { grid-area: play; align-self: end; justify-self: end; }
-html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-salva, html.tablet body.painel-recolhido #player.mini-1:not(.sem-video) .pl-ctrl { align-self: end; }
-html.tablet body.painel-recolhido #player { touch-action: pan-x; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-arrastando) .pl-video { justify-self: stretch; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-info { grid-area: info; align-self: start; padding: 4px 4px 0 6px; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-info { align-self: center; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-salva { grid-area: salva; align-self: end; justify-self: end; }
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-ctrl { grid-area: play; align-self: end; justify-self: end; }
+html.tablet body.painel-recolhido #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-salva, html.tablet body.painel-recolhido #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-ctrl { align-self: end; }
+/* o ✓ (34 px) e o play (50 px) na mesma altura: centrados um no outro (antes, alinhados pela base, o ✓ ficava abaixo) */
+html.tablet body.painel-recolhido #player:is(.mini-1, .grande):not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-salva { margin: 0 6px 8px 0; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) :is(.pl-info, .pl-salva, .pl-ctrl) { align-self: center; }
+html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-salva { margin-bottom: 0; }
 
 /* computador: o vídeo sai da barra e flutua acima dela, à direita; puxando, ele cresce ou diminui */
 @media (min-width: 900px) {
-  html:not(.tablet):not(.pp) #player { touch-action: pan-x; }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video, html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video {
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video, html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video {
     grid-area: auto / auto / auto / auto; position: absolute; right: 16px; left: auto; bottom: calc(100% + 12px);
     margin: 0; border-radius: 12px; box-shadow: var(--shadow-lg);
   }
-  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video) .pl-video { width: var(--mini-v, 340px); }
-  html:not(.tablet):not(.pp) #player.grande:not(.sem-video) .pl-video { width: var(--mini-v, clamp(420px, 42vw, 640px)); }
+  html:not(.tablet):not(.pp) #player.mini-1:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, 340px); }
+  html:not(.tablet):not(.pp) #player.grande:not(.sem-video):not(.capa-na-barra):not(.modo-capa) .pl-video { width: var(--mini-v, clamp(420px, 42vw, 640px)); }
   html:not(.tablet):not(.pp) #player.mini-1 .pl-info { margin-left: 0; }
   html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-meio, html:not(.tablet) #player:not(.mini-1):not(.grande) .pl-video { cursor: grab; }
   #pl-tela:not(.no-palco):not(.na-telinha) { transition: border-radius 0.2s; }

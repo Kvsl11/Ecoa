@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 437, data: '2026-11-02', titulo: 'Mini player: passar o dedo de novo troca a música',
+    itens: [
+      { tipo: 'correcao', texto: 'Passar o dedo para o lado no mini player voltou a trocar de música (para a próxima ou para a anterior), no celular e no tablet. Desde que o vídeo passou a crescer com o dedo, o deslizar para o lado tinha parado. Agora funciona também em cima do vídeo, em qualquer tamanho do cartão.' },
+      { tipo: 'correcao', texto: 'O ✓ da biblioteca ficava mais baixo que o tocar/pausar no mini player aumentado (no médio do celular e no médio e no grande do tablet). Agora os botões ficam na mesma altura.' },
+      { tipo: 'correcao', texto: 'No modo música (com a capa), o mini player não fica mais grande com a capa cortada: ele volta ao compacto, com a capinha. Voltando para o vídeo, o tamanho que você escolheu volta junto.' },
+    ],
+  },
+  {
     versao: 436, data: '2026-11-02', titulo: 'O vídeo volta ao Tocando agora',
     itens: [
       { tipo: 'correcao', texto: 'Depois de aumentar o vídeo do mini player até o tamanho grande, o Tocando agora (no tablet, deitado ou em pé, e na tela toda) abria sem o vídeo: só o nome, a barra do tempo e os botões. O tamanho grande do mini player levava o vídeo para fora da tela. Agora os tamanhos valem só no mini player, e o Tocando agora mostra o vídeo como sempre.' },
@@ -63,13 +71,6 @@ export const NOVIDADES = [
     versao: 428, data: '2026-11-02', titulo: 'Tablet sem piscar ao abrir',
     itens: [
       { tipo: 'correcao', texto: 'No tablet, em pé ou deitado, ao abrir ou atualizar o app aparecia por um instante o jeito do computador, com o menu na lateral, antes de ele trocar para o menu de baixo. Agora o tablet já abre com a aparência dele.' },
-    ],
-  },
-  {
-    versao: 427, data: '2026-11-02', titulo: 'Selo “E” nas músicas com convidado',
-    itens: [
-      { tipo: 'correcao', texto: 'O “E” de explícita não aparecia em músicas cadastradas no nome do artista convidado, como “I Like You (A Happier Song)”, que o Cifra Club põe na Doja Cat e é do Post Malone com ela. Agora a música é reconhecida pelo “feat.” e por quem canta nela, e o selo (e a capa do álbum) aparece.' },
-      { tipo: 'melhoria', texto: '“Trocar o vídeo” e “Trocar música” abrem numa folha que sobe do rodapé, como os menus dos três pontos, e não mais numa janela solta no meio da tela.' },
     ],
   },
 ];
