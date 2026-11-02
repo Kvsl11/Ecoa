@@ -301,8 +301,9 @@ a.chip.sm { cursor: pointer; }
 .tile:hover .tile-play, .tile:focus-within .tile-play { opacity: 1; transform: none; }
 @media (hover: none) { .tile .tile-play { display: none; } }
 
-.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (min-width: 700px) { .quick { grid-template-columns: repeat(4, 1fr); } }
+/* (as colunas pela largura da página, e não da tela: com o painel do player aberto ao lado, a página estreita fica com 2;
+   larga, com até 4) */
+.quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(150px, calc(25% - 8px)), 1fr)); gap: 8px; }
 .quick a {
   display: flex; align-items: center; gap: 10px; height: 56px; overflow: hidden; text-decoration: none;
   background: rgb(255 255 255 / 0.1); border-radius: 4px; font-weight: 800; font-size: 13px; line-height: 1.2; letter-spacing: -0.01em; transition: background 0.2s;
@@ -4380,10 +4381,9 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 
 /* ============================================================ biblioteca no jeito do Spotify */
 /* a estante: em grade, as capas grandes com o nome e "Playlist • 12 músicas" embaixo (2 colunas no celular, 4 no tablet) */
-.bib-grade { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 16px; }
-@media (min-width: 600px) { .bib-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 760px) { .bib-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 22px; } }
-@media (min-width: 1300px) { .bib-grade { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+/* (as colunas pela largura da página: 2 no celular ou com o painel do player aberto, até 4 na página larga) */
+.bib-grade { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(max(140px, calc(25% - 22px)), 1fr)); gap: 22px 16px; }
+@media (min-width: 760px) { .bib-grade { gap: 28px 22px; } }
 .bib-card { position: relative; min-width: 0; cursor: pointer; border-radius: 6px; -webkit-tap-highlight-color: transparent; }
 .bib-card > .cover { width: 100%; height: auto; aspect-ratio: 1; border-radius: 4px; }
 .bib-card > .cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -4455,3 +4455,36 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .curtidas-topo { padding: 18px 0 2px; }
 .curtidas-topo h2 { margin: 0 0 6px; font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
 .curtidas-topo p { margin: 0; color: var(--muted); font-size: 14px; }
+
+/* ============================================================ tema claro sem as bordas claras
+   No tema claro, a margem do app (8 px em volta do conteúdo, do menu e do player, que no escuro é preta e some) ficava
+   cinza-clara: uma moldura em volta de tudo, bem à vista em volta do player escuro. E o degradê do topo, na cor da
+   tela a 75% por cima do branco, virava uma faixa azul-acinzentada. Agora a margem é da cor da página (some), o
+   degradê e o topo ao rolar são bem mais suaves, e o "Tocando agora" (o painel e a tela cheia) vai até a borda */
+:root[data-theme="light"] { --black: #ffffff; }
+:root[data-theme="light"] main::before { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 24%, transparent) 0%, transparent 100%); }
+:root[data-theme="light"] .topbar.scrolled, :root[data-theme="light"] .main-col:has(.topbar.scrolled) .bib-fixo { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
+/* (o painel aberto, no tablet e no computador; não a barrinha do player recolhido nem o celular) */
+html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
+html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .main-col { margin-right: var(--painel-w); }
+@media (min-width: 900px) {
+  html.pp:not(.tablet):not(.celular):root[data-theme="light"] body.com-player #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
+}
+/* no computador, a linha fininha separa o menu da esquerda da página (as duas brancas) */
+@media (min-width: 900px) { :root[data-theme="light"]:not(.tablet) .side > * { box-shadow: inset -1px 0 0 var(--surface-2); } }
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] { --black: #ffffff; }
+  :root[data-theme="auto"] main::before { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 24%, transparent) 0%, transparent 100%); }
+  :root[data-theme="auto"] .topbar.scrolled, :root[data-theme="auto"] .main-col:has(.topbar.scrolled) .bib-fixo { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
+  html.pp.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido) #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
+  html.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido) .main-col { margin-right: var(--painel-w); }
+}
+/* "Tocando agora" na tela toda, no tablet: de ponta a ponta, sem a margem em volta (em qualquer tema); o vídeo de fundo,
+   que fica numa camada fora do painel (.pl-fundo-casa), vai junto */
+html.pp.tablet body.painel-cheio #player { inset: 0; border-radius: 0; }
+html.pp.tablet body.com-player.painel-cheio:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { inset: 0; width: auto; border-radius: 0; }
+/* (tema claro, o painel aberto ao lado: o fundo dele também encosta na borda) */
+html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { top: 0; right: 0; bottom: 0; border-radius: 0; }
+@media (prefers-color-scheme: light) {
+  html.pp.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { top: 0; right: 0; bottom: 0; border-radius: 0; }
+}

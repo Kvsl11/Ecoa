@@ -14,7 +14,7 @@ import {
   mudarOitava, NOMES_NOTA, nomeDaAltura, nomeDoTom, nomeDuracao, novaPartitura, paraMusicXML, tiquesDoCompasso,
   claveDaVoz, estimarAndamento, estimarCompasso, estimarTom, faixaDoModo, FAIXA_CORAL, melodiaDasNotas, tempoDaGrade, tomDaCifra, vozesDasNotas, colocarLetra, letraEmSilabas, temLetra, silabasDaLetra, temCifra as temCifraNaPartitura,
 } from './lib/partitura.js';
-import { corCss, corDominante } from './lib/cores.js';
+import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cores.js';
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
@@ -428,20 +428,25 @@ function abrirCalendario(ancora, valor, aoEscolher) {
 const hue = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 const host = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 // sem capa: uma cor pelo título (matiz, saturação e brilho variam de música para música)
-const corDaMusica = (titulo) => `hsl(${hue(titulo)} ${36 + (hue(titulo + 's') % 28)}% ${27 + (hue(titulo + 'l') % 10)}%)`;
-// cor da capa: a cor dominante da capa da música (ou da miniatura do vídeo) vira o fundo da letra e do player. É
-// calculada uma vez por imagem e guardada; sem capa, capa cinza ou sem internet, fica a cor pelo título
-const CORES_CAPA = 'songbook.coresCapa';
+const corDaMusica = (titulo) => corCss(corPeloTitulo(titulo));
+// cor da capa: as cores fortes da capa da música (ou da miniatura do vídeo) são calculadas uma vez por imagem e
+// guardadas; cada música escolhe uma delas, com um toque só dela (lib/cores.js), e ela vira o fundo da letra e do
+// player. Sem capa, capa cinza ou sem internet, fica a cor pelo título
+// (v2: antes guardava só a cor mais forte; a chave nova faz as capas já vistas serem lidas de novo)
+const CORES_CAPA = 'songbook.coresCapa2';
+try { localStorage.removeItem('songbook.coresCapa'); } catch { /* sem armazenamento */ }
+const chaveDaCor = (song) => `${song.title || song.titulo || ''}|${song.artist || song.artista || ''}`;
+const corDasCores = (cores, song) => (Array.isArray(cores) && cores.length ? corCss(corDaMusicaNaCapa(cores, chaveDaCor(song))) : '');
 let coresCapa = {};
 try { coresCapa = JSON.parse(localStorage.getItem(CORES_CAPA) || '{}') || {}; } catch { /* sem armazenamento */ }
 const capaDaMusica = (song) => song.cover || song.capa || (song.youtube ? `https://i.ytimg.com/vi/${song.youtube}/mqdefault.jpg` : '');
-const corDe = (song) => coresCapa[capaDaMusica(song)] || corDaMusica(song.title || song.titulo || '');
+const corDe = (song) => corDasCores(coresCapa[capaDaMusica(song)], song) || corDaMusica(song.title || song.titulo || '');
 const calculando = new Map();
 function corDaCapa(song) {
   const src = capaDaMusica(song);
   if (!src) return Promise.resolve(null);
-  if (src in coresCapa) return Promise.resolve(coresCapa[src] || null);
-  if (calculando.has(src)) return calculando.get(src);
+  if (src in coresCapa) return Promise.resolve(corDasCores(coresCapa[src], song) || null);
+  if (calculando.has(src)) return calculando.get(src).then((cores) => corDasCores(cores, song) || null);
   const p = (async () => {
     // a imagem direto (o YouTube deixa ler os pixels) ou, se o site não deixa, por um redimensionador público
     for (const url of [src, `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=48&h=48&fit=cover&output=png`]) {
@@ -453,8 +458,8 @@ function corDaCapa(song) {
         c.width = c.height = 32;
         const ctx = c.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(bmp, 0, 0, 32, 32);
-        const d = corDominante(ctx.getImageData(0, 0, 32, 32).data);
-        coresCapa[src] = d ? corCss(d) : ''; // '' = capa sem cor: fica a do título
+        const cores = coresDaCapa(ctx.getImageData(0, 0, 32, 32).data);
+        coresCapa[src] = cores || ''; // '' = capa sem cor: fica a do título
         const chaves = Object.keys(coresCapa);
         if (chaves.length > 400) for (const k of chaves.slice(0, chaves.length - 400)) delete coresCapa[k];
         try { localStorage.setItem(CORES_CAPA, JSON.stringify(coresCapa)); } catch { /* cota cheia */ }
@@ -465,7 +470,7 @@ function corDaCapa(song) {
   })();
   calculando.set(src, p);
   p.finally(() => calculando.delete(src));
-  return p;
+  return p.then((cores) => corDasCores(cores, song) || null);
 }
 // a cor da música na tela e no player: a conhecida já, e a da capa quando ficar pronta (se ainda estiver na mesma tela)
 function corDaMusicaNaTela(song) {
