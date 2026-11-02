@@ -4,6 +4,18 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 424, data: '2026-11-02', titulo: 'Sem tela preta ao sair da música',
+    itens: [
+      { tipo: 'correcao', texto: 'Às vezes, ao sair da música, a tela ficava toda preta, só com a seta de voltar no topo. Acontecia quando o celular fechava o app em segundo plano e, ao voltar, ele abria de novo direto na música: não havia página antes dela para onde voltar. Agora o app vai para a lista de onde a música veio (a Biblioteca, por exemplo).' },
+    ],
+  },
+  {
+    versao: 423, data: '2026-11-02', titulo: 'Partes da música sempre em inglês',
+    itens: [
+      { tipo: 'correcao', texto: 'Na letra e na cifra, nomes como “Primeiro Refrão”, “Segundo Refrão”, “Segundo Verso” ou “2º Refrão” voltavam a aparecer em português. Agora viram Chorus 1, Chorus 2, Verse 2… e “Último Refrão” vira Final Chorus, também nas músicas que você já tinha salvo.' },
+    ],
+  },
+  {
     versao: 422, data: '2026-11-02', titulo: 'Fila inteira na folha esticada',
     itens: [
       { tipo: 'correcao', texto: 'Na Fila, ao puxar a folha para cima (deixando-a quase da tela toda), as músicas de baixo ficavam cortadas e sobrava um espaço vazio no pé da folha. Agora a lista ocupa a folha inteira, no celular e no tablet.' },
@@ -56,21 +68,6 @@ export const NOVIDADES = [
     versao: 415, data: '2026-11-02', titulo: 'Busca das Músicas curtidas rola com a página',
     itens: [
       { tipo: 'correcao', texto: 'Nas Músicas curtidas, a busca não fica mais presa no topo (com a faixa azul por cima das músicas): ela fica no alto da página e some ao rolar, como no Spotify.' },
-    ],
-  },
-  {
-    versao: 414, data: '2026-11-02', titulo: 'Repertórios e Músicas curtidas no jeito do Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'Dentro do repertório e da playlist, a página ficou como a de uma playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração, os botões de baixar e editar à esquerda e o aleatório e o play à direita. As ações (Adicionar, Criar música, a data, PDF, PowerPoint, Selecionar e Excluir) viraram chips numa linha que rola de lado.' },
-      { tipo: 'melhoria', texto: 'As Músicas curtidas ficaram como as do Spotify: o degradê azul, a busca e a ordem (Recentes ou A–Z) no alto, o nome e a quantidade, o aleatório e o play, os filtros em chips e a linha “Adicionar a esta playlist” antes das músicas.' },
-      { tipo: 'novo', texto: 'Botão de aleatório nas duas páginas: ligado, o play começa por uma música qualquer e a fila segue embaralhada (é o mesmo aleatório do player).' },
-    ],
-  },
-  {
-    versao: 413, data: '2026-11-02', titulo: 'Biblioteca no jeito do Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'A Biblioteca ficou como a do Spotify: as capas em grade, com o nome e “Repertório • 3 músicas” embaixo. As suas músicas salvas não ficam mais soltas: ficam dentro de “Músicas curtidas”, o card do coração fixado no topo (com o alfinete verde), junto com o das Baixadas. Depois vêm os seus repertórios e playlists.' },
-      { tipo: 'novo', texto: 'Na Biblioteca, os chips Repertórios, Playlists e Artistas filtram a estante (Artistas mostra os artistas das suas músicas em fotos redondas). Dá para ordenar por Recentes ou em ordem alfabética e trocar entre grade e lista; a escolha fica guardada.' },
     ],
   },
 ];

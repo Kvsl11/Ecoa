@@ -285,6 +285,7 @@ function setHeader(title, { back = null, actions = [], eyebrow = '' } = {}) {
   document.title = `${title} · Ecoa`;
   backBtn.hidden = !back;
   backBtn.onclick = back ? () => (typeof back === 'string' ? (location.hash = back) : back()) : null;
+  backBtn.dataset.volta = typeof back === 'string' ? back : ''; // (para onde a seta leva: também ao sair da música presa)
   actionsEl.replaceChildren(...actions.map(({ icon: ic, html, label, onClick, href }) => {
     const b = document.createElement(href ? 'a' : 'button');
     b.className = 'icon-btn';
@@ -2508,11 +2509,27 @@ const semLinhasDeAcordes = (sinc) => {
     // foi para outra página de verdade: a troca antiga não vale mais
     if (enderecoTrocado && location.hash !== enderecoTrocado.de && location.hash !== enderecoTrocado.para) enderecoTrocado = null;
   }, true);
+  // esconde a página da música ao sair dela (a página antiga não aparece enquanto a de antes é desenhada); quem
+  // mostra de novo é o roteador, ao desenhar a próxima página. Se ele não chega a desenhar, a tela ficava toda preta,
+  // só com a seta do topo: o app reaberto direto na música (o celular fecha o app em segundo plano e, ao voltar, ele
+  // abre de novo na música) não tem página antes dela no histórico, e o voltar não ia a lugar nenhum; ou o voltar caía
+  // numa entrada com o endereço trocado (salvou ou tirou a música com ela aberta), que é ignorada. Aqui, sem página
+  // nova a tempo: ainda na música, vai para onde a seta do topo leva (a lista de onde ela veio), no lugar dela no
+  // histórico; fora dela, desenha a página do endereço atual
+  const esconderAoSair = () => {
+    view.style.visibility = 'hidden';
+    setTimeout(() => {
+      if (view.style.visibility !== 'hidden') return; // a próxima página já foi desenhada
+      // (uma troca de endereço de verdade, que avisa o roteador e o player: o player tira as marcas da tela da música)
+      if (/^#\/(musica\/|repertorio\/[^/]+\/\d)/.test(location.hash)) location.replace(location.pathname + location.search + (backBtn.dataset.volta || ultimaLista || '#/'));
+      else window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }, 700);
+  };
   // fecha a tela da música: sai da página dela, de volta para a lista (a página antiga não aparece no caminho)
   const fecharMusica = () => {
     letraDaPagina = false;
     pararRolagem();
-    view.style.visibility = 'hidden';
+    esconderAoSair();
     if (ehTablet()) { painelCheio(false, { semVoltar: true }); history.back(); return; }
     sobrePagina = location.hash; // fechando, sai da página da música também
     painelCheio(false);
@@ -3872,7 +3889,7 @@ const semLinhasDeAcordes = (sinc) => {
         // aberto por cima da página da música: fechando, sai dela também (a página antiga não aparece)
         const sairDaPagina = !manter && sobrePagina && location.hash === sobrePagina;
         // (some já, até a página de antes ser desenhada, para não piscar)
-        if (sairDaPagina) view.style.visibility = 'hidden';
+        if (sairDaPagina) esconderAoSair();
         if (history.state?.tocandoAgora) history.go(sairDaPagina ? -2 : -1);
         else if (sairDaPagina) history.back();
       }
@@ -3934,7 +3951,7 @@ const semLinhasDeAcordes = (sinc) => {
       letraDaPagina = false;
       pararRolagem();
       if (ehTablet()) { painelCheio(false, { semVoltar: true }); return; }
-      view.style.visibility = 'hidden';
+      esconderAoSair();
       sobrePagina = location.hash;
       painelCheio(false);
       return;
