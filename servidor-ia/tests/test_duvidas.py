@@ -101,3 +101,46 @@ def test_falar_limpa_o_texto_para_a_voz():
     import falar
 
     assert falar.limpar("**Salmo 22** [1]\n- O Senhor é meu pastor\nVeja https://cnbb.org.br") == "Salmo 22 O Senhor é meu pastor Veja"
+
+
+def test_busca_entende_a_conversa_e_os_sinonimos(monkeypatch):
+    ix = Indice([Trecho("RITUAL DO MATRIMÔNIO - CNBB.pdf", "COLETÂNEA RITUAIS CNBB", "COLETÂNEA RITUAIS CNBB / RITUAL DO MATRIMÔNIO - CNBB.pdf", "m1", "arquivo"),
+                 Trecho("Glória", "x", "Glória a Deus nas alturas", "g1", "canto"),
+                 Trecho("Ritual de Bênçãos", "y", "Bênção de objetos", "b1", "arquivo")])
+    monkeypatch.setattr(duvidas, "indice", lambda: ix)
+    q = "Preciso que você me diga se tem algo no acervo referente a casamento"
+    assert palavras(q) == ["casamento"]
+    achados = duvidas.buscar_trechos(q)
+    assert achados and achados[0]["titulo"].startswith("RITUAL DO MATRIMÔNIO")
+
+
+def test_anexo_vai_para_a_ia_e_o_texto_sai_sem_ia(monkeypatch):
+    import base64
+    import json as _json
+
+    assert duvidas.texto_do_anexo("roteiro.txt", "text/plain", "Salmo 127".encode()) == "Salmo 127"
+    assert duvidas.texto_do_anexo("foto.jpg", "image/jpeg", b"\xff\xd8") == ""
+    enviado = {}
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps({"candidates": [{"content": {"parts": [{"text": "É o Salmo 127."}]}}]}).encode()
+
+    def abrir(pedido, timeout=0):
+        enviado.update(_json.loads(pedido.data))
+        return Resp()
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(duvidas, "indice", lambda: Indice([]))
+    r = duvidas.responder("qual o salmo?", anexos=[{"nome": "foto.jpg", "tipo": "image/jpeg", "dados": base64.b64encode(b"\xff\xd8").decode()}])
+    assert r["resposta"] == "É o Salmo 127."
+    assert enviado["contents"][-1]["parts"][0]["inline_data"]["mime_type"] == "image/jpeg"

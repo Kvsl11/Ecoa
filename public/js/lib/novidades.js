@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 439, data: '2026-11-02', titulo: 'Lumen ao vivo de cara nova, mais esperto e com arquivos',
+    itens: [
+      { tipo: 'melhoria', texto: 'Lumen ao vivo repaginado, como o do Gemini: no alto ficam só o logo, o botão da legenda e o “⋯” (com a voz); a resposta aparece numa coluna no centro, em letra de leitura; o que você fala aparece numa caixa embaixo, centrada, junto com o “Toque para interromper” e a barra de botões.' },
+      { tipo: 'novo', texto: 'Legenda: com o botão do alto ligado, a resposta acompanha a voz (as palavras já ditas acendem, as que vêm ficam apagadas). Desligado, a tela fica só com o brilho. A escolha fica guardada.' },
+      { tipo: 'novo', texto: 'Falar por cima interrompe: enquanto o Lumen fala, se você começar a falar, ele para na hora e passa a ouvir. Dá para desligar no “⋯” (Parar quando eu falar).' },
+      { tipo: 'novo', texto: 'Mande um arquivo para o Lumen (PDF, foto, vídeo, áudio, Word ou texto) pelo botão de enviar, ao lado das fontes, no ao vivo e na conversa por texto, e pergunte o que quiser sobre ele. O arquivo fica junto das perguntas até você tocar no x.' },
+      { tipo: 'melhoria', texto: 'O Lumen entende a pergunta falada: “preciso que você me diga se tem algo no acervo sobre casamento” acha o Ritual do Matrimônio e os outros arquivos do acervo (PDFs e áudios, pelo nome e pela pasta), também por sinônimos (casamento e matrimônio, enterro e exéquias, batizado e batismo…). Com o servidor, procura também dentro do texto dos PDFs.' },
+      { tipo: 'correcao', texto: 'O teclado do tablet e do celular não abre mais sozinho a cada resposta do Lumen.' },
+      { tipo: 'correcao', texto: 'O que você fala começa com letra maiúscula, no ao vivo e no ditado.' },
+      { tipo: 'correcao', texto: 'A pílula colorida do ao vivo não tem mais as bordinhas pretas quando se mexe.' },
+    ],
+  },
+  {
     versao: 438, data: '2026-11-02', titulo: 'Tela cheia no mini player e o x da busca',
     itens: [
       { tipo: 'correcao', texto: 'No mini player aumentado, o botão de tela cheia do vídeo abria o Tocando agora em vez de pôr o vídeo na tela inteira. Agora ele leva o vídeo para a tela cheia, no celular e no tablet, também nos vídeos do YouTube.' },
@@ -65,13 +78,6 @@ export const NOVIDADES = [
     versao: 430, data: '2026-11-02', titulo: 'Trocar de música sem sair da lista',
     itens: [
       { tipo: 'melhoria', texto: 'Com uma música no player (embaixo, ou no painel do tablet), tocar em outra música de uma lista só troca a música no player: ela continua tocando ali e você fica onde estava. Para abrir a tela da música, toque no player. Sem nada tocando, a música abre direto na tela dela, como antes. Vale na Biblioteca, nas playlists, no Início e na Busca, no celular, no tablet e no computador.' },
-    ],
-  },
-  {
-    versao: 429, data: '2026-11-02', titulo: 'O clipe oficial na busca',
-    itens: [
-      { tipo: 'correcao', texto: 'Na Busca, algumas músicas vinham com o vídeo errado (de letra, de programa de TV, ao vivo) em vez do clipe. Em “Standing Next to You”, do Jung Kook, o clipe oficial tem o nome dele entre parênteses — “정국 (Jung Kook)” — e não era reconhecido; vinha a apresentação no programa do Jimmy Fallon. Agora o nome do artista vale também entre parênteses, e entre os vídeos da mesma música fica o clipe oficial.' },
-      { tipo: 'correcao', texto: 'A capa do álbum também é achada quando o nome do artista vem escrito junto ou separado (“Jungkook” e “Jung Kook”).' },
     ],
   },
 ];
