@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 425, data: '2026-11-02', titulo: 'Mini player do tablet deitado só sobe',
+    itens: [
+      { tipo: 'correcao', texto: 'No tablet deitado, a barrinha do que está tocando era mais larga que o painel “Tocando agora”: ao tocar nela ou puxá-la para cima, ela encolhia para o lado antes de subir. Agora ela tem a mesma largura do painel e, ao abrir, só sobe.' },
+    ],
+  },
+  {
     versao: 424, data: '2026-11-02', titulo: 'Sem tela preta ao sair da música',
     itens: [
       { tipo: 'correcao', texto: 'Às vezes, ao sair da música, a tela ficava toda preta, só com a seta de voltar no topo. Acontecia quando o celular fechava o app em segundo plano e, ao voltar, ele abria de novo direto na música: não havia página antes dela para onde voltar. Agora o app vai para a lista de onde a música veio (a Biblioteca, por exemplo).' },
@@ -62,12 +68,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No tema claro, sumiu a moldura cinza-clara em volta do app (bem à vista em volta do player escuro), e o degradê do topo das páginas, que virava uma faixa azul-acinzentada, ficou suave, na cor da tela.' },
       { tipo: 'melhoria', texto: 'O “Tocando agora” na tela toda, no tablet, vai de ponta a ponta, sem margem em volta; no tema claro, o painel do player aberto ao lado também encosta na borda.' },
       { tipo: 'correcao', texto: 'Com o painel do player aberto ao lado, os atalhos do Início e a grade da Biblioteca não ficam mais espremidos: as colunas seguem a largura da página (2 quando ela é estreita, até 4 quando é larga).' },
-    ],
-  },
-  {
-    versao: 415, data: '2026-11-02', titulo: 'Busca das Músicas curtidas rola com a página',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas Músicas curtidas, a busca não fica mais presa no topo (com a faixa azul por cima das músicas): ela fica no alto da página e some ao rolar, como no Spotify.' },
     ],
   },
 ];
