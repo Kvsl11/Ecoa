@@ -7429,38 +7429,66 @@ async function viewBuscaAcervo(termo) {
 
 // ------------------------------------------------------------- biblioteca
 
-function viewLibrary(filtro = 'musicas', { selecionando = false, marcados = new Set() } = {}) {
+// A biblioteca no jeito do Spotify: a estante (#/biblioteca) mostra em grade as "Músicas curtidas" (o coração, com
+// todas as músicas salvas dentro), as Baixadas e os repertórios e playlists; os chips filtram Repertórios, Playlists e
+// Artistas. As músicas salvas não ficam soltas na estante: abrem pelo coração (#/biblioteca/musicas e os filtros dela)
+const FILTROS_MUSICAS = ['musicas', 'video', 'partitura', 'proprias', 'baixadas'];
+const prefBib = (k, padrao) => { try { return localStorage.getItem('songbook.bib.' + k) || padrao; } catch { return padrao; } };
+const guardarPrefBib = (k, v) => { try { localStorage.setItem('songbook.bib.' + k, v); } catch { /* sem armazenamento */ } };
+const capaCurtidas = (cls = '') => `<div class="cover capa-curtidas ${cls}">${icon('coracao', 40)}</div>`;
+const capaBaixadas = (cls = '') => `<div class="cover capa-baixadas ${cls}">${icon('download', 40)}</div>`;
+function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set() } = {}) {
+  if (!['tudo', 'repertorios', 'playlists', 'artistas', ...FILTROS_MUSICAS].includes(filtro)) filtro = 'tudo';
+  const naEstante = !FILTROS_MUSICAS.includes(filtro);
   setTab('biblioteca');
-  setTint('#2b3d4f');
-  setHeader('Sua biblioteca');
+  setTint(naEstante ? '#2b3d4f' : '#3b2a8f');
+  setHeader(naEstante ? 'Sua biblioteca' : 'Músicas curtidas', naEstante ? {} : { back: '#/biblioteca', eyebrow: 'Sua biblioteca' });
   // Músicas primeiro (é o que mais se abre); cada filtro mostra quantos itens tem
   // (os cantos que o Montar repertório trouxe ficam só no repertório)
   const todas = db.songs().filter((x) => !x.soNoRepertorio);
   const sets = db.sets();
   const ehPropria = (x) => !/^https?:|^cnbb:/.test(x.source || '');
   const temPartitura = (x) => x.partitura?.pautas?.length || mxlDaPartitura(x.content) || paginasDaPartitura(x.content).length;
-  const FILTROS = [['musicas', 'Músicas', todas.length], ['repertorios', 'Repertórios', sets.filter((x) => !ehPlaylist(x)).length], ['playlists', 'Playlists', sets.filter(ehPlaylist).length],
-    ['video', 'Com vídeo', todas.filter((x) => x.youtube).length], ['partitura', 'Com partitura', todas.filter(temPartitura).length], ['proprias', 'Cifras próprias', todas.filter(ehPropria).length],
-    ['baixadas', 'Baixadas', todas.filter((x) => x.baixado && !precisaBaixar(x)).length]];
-  if (!FILTROS.some(([k]) => k === filtro)) filtro = 'musicas';
-  const ehRep = filtro === 'repertorios' || filtro === 'playlists';
+  const nBaixadas = todas.filter((x) => x.baixado && !precisaBaixar(x)).length;
+  const artistas = naEstante ? artistasDaBiblioteca(200) : [];
+  // na estante, os chips (tocar no escolhido volta para tudo); nas músicas curtidas, os filtros delas
+  const FILTROS = naEstante
+    ? [['repertorios', 'Repertórios', sets.filter((x) => !ehPlaylist(x)).length], ['playlists', 'Playlists', sets.filter(ehPlaylist).length], ['artistas', 'Artistas', artistas.length]]
+    : [['musicas', 'Todas', todas.length], ['video', 'Com vídeo', todas.filter((x) => x.youtube).length], ['partitura', 'Com partitura', todas.filter(temPartitura).length],
+      ['proprias', 'Cifras próprias', todas.filter(ehPropria).length], ['baixadas', 'Baixadas', nBaixadas]];
+  const ehArt = filtro === 'artistas';
+  const ehRep = naEstante && !ehArt;
   const ehPl = filtro === 'playlists';
+  const modo = prefBib('modo', 'grade'); // grade ou lista
+  const ordem = prefBib('ordem', 'recentes'); // recentes (a data do repertório) ou alfabética
   let songs = todas;
   if (filtro === 'video') songs = songs.filter((s) => s.youtube);
   if (filtro === 'proprias') songs = songs.filter(ehPropria);
   if (filtro === 'partitura') songs = songs.filter(temPartitura);
   if (filtro === 'baixadas') songs = songs.filter((x) => x.baixado && !precisaBaixar(x));
-  const itens = ehRep ? db.sets().filter((x) => ehPlaylist(x) === ehPl) : songs;
+  const itens = ehArt ? [] : ehRep ? sets.filter((x) => filtro === 'tudo' || ehPlaylist(x) === ehPl) : songs;
+  if (ehRep && ordem === 'az') itens.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const marca = (id) => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const lixeira = (id, nome) => `<button class="icon-btn lixo" data-excluir="${id}" aria-label="Excluir ${esc(nome)}" title="Excluir">${icon('trash', 16)}</button>`;
-  const linha = ehRep
+  const subSet = (s) => `${tipoDoSet(s)} • ${s.items.length} ${s.items.length === 1 ? 'música' : 'músicas'}`;
+  const cartao = (s) => `<li class="bib-card lib-item" data-k="${s.id}">${marca(s.id)}${capaRepertorio(s)}<b>${esc(s.name)}</b><small>${subSet(s)}</small></li>`;
+  // as fixadas no topo da estante (como as Músicas Curtidas do Spotify): abrem as músicas salvas e as baixadas
+  const fixadas = filtro === 'tudo' ? [
+    { ir: '#/biblioteca/musicas', capa: capaCurtidas(), nome: 'Músicas curtidas', sub: `Playlist • ${todas.length} ${todas.length === 1 ? 'música' : 'músicas'}` },
+    ...(nBaixadas ? [{ ir: '#/biblioteca/baixadas', capa: capaBaixadas(), nome: 'Baixadas', sub: `Playlist • ${nBaixadas} ${nBaixadas === 1 ? 'música' : 'músicas'}` }] : []),
+  ] : [];
+  const htmlFixadas = fixadas.map((f) => (modo === 'grade'
+    ? `<li class="bib-card bib-fixa" data-bib-ir="${f.ir}">${f.capa}<b>${esc(f.nome)}</b><small><span class="pino">${icon('fixado', 13)}</span>${esc(f.sub)}</small></li>`
+    : `<li class="track clickable bib-fixa" data-bib-ir="${f.ir}">${f.capa}<div class="info"><div class="t">${esc(f.nome)}</div><div class="s"><span class="pino">${icon('fixado', 13)}</span>${esc(f.sub)}</div></div><span class="acts"></span></li>`)).join('');
+  const linha = ehRep && modo === 'grade' ? cartao : ehRep
     ? (s) => `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capaRepertorio(s)}
         <div class="info"><div class="t">${esc(s.name)}</div><div class="s">${tipoDoSet(s)} · ${fmtData(s.date)} · ${resumoRepertorio(s)}</div></div>
         <span class="acts">${s.items.length ? (ehPlaylist(s) ? `<button class="icon-btn" data-tocar-set="${s.id}" aria-label="Ouvir">${icon('play', 16)}</button>` : `<a class="icon-btn" href="#/repertorio/${s.id}/0" aria-label="Tocar">${icon('play', 16)}</a>`) : ''}${lixeira(s.id, s.name)}</span></li>`
     : (s) => `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capa(s)}
         <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
         <span class="acts">${s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}</span></li>`;
-  const vazio = ehRep
+  const vazio = ehArt ? `<div class="empty"><div class="bubble">${icon('mic', 32)}</div><h3>Nenhum artista ainda</h3><p>Os artistas das músicas que você salva aparecem aqui.</p><div class="row"><a class="btn primary" href="#/buscar">Buscar músicas</a></div></div>`
+    : ehRep
     ? ehPl ? `<div class="empty"><div class="bubble">${icon('disc', 32)}</div><h3>Crie sua primeira playlist</h3><p>Playlists são para ouvir: as músicas tocam uma atrás da outra no player. Em Buscar → Missas completas, crie a da missa de hoje.</p>
         <div class="row"><button class="btn primary" id="vazio-pl">Nova playlist</button><a class="btn" href="#/setor/fixas/missas-completas">Missa de hoje</a></div></div>`
     : `<div class="empty"><div class="bubble">${icon('list', 32)}</div><h3>Crie seu primeiro repertório</h3><p>Monte o da missa de hoje automaticamente ou crie uma lista do zero.</p>
@@ -7471,15 +7499,33 @@ function viewLibrary(filtro = 'musicas', { selecionando = false, marcados = new 
     : `<div class="empty"><div class="bubble">${icon(filtro === 'video' ? 'youtube' : filtro === 'partitura' ? 'score' : filtro === 'baixadas' ? 'baixar' : 'edit', 30)}</div><h3>${filtro === 'video' ? 'Nenhuma música com vídeo' : filtro === 'partitura' ? 'Nenhuma música com partitura' : filtro === 'baixadas' ? 'Nenhuma música baixada' : 'Nenhuma cifra própria'}</h3>
       <p>${filtro === 'video' ? 'Abra uma música e escolha um vídeo do YouTube para ela.' : filtro === 'baixadas' ? 'Toque na seta da música para baixar: ela fica no aparelho, com o áudio e o vídeo, e toca sem internet.' : filtro === 'partitura' ? 'Crie uma partitura no app ou salve músicas do acervo litúrgico, que já vêm com partitura.' : 'Cifras que você escreveu ou importou aparecem aqui.'}</p>
       <div class="row">${filtro === 'partitura' ? '<a class="btn primary" href="#/partituras">Ir para Partituras</a>' : filtro === 'proprias' ? '<a class="btn primary" href="#/editar/novo">Criar música</a>' : '<a class="btn primary" href="#/biblioteca/musicas">Ver todas as músicas</a>'}</div></div>`;
-  const nRep = FILTROS[1][2];
-  const nPl = FILTROS[2][2];
   const acao = ehPl ? ['lib-nova-pl', 'disc', 'Nova playlist'] : ehRep ? ['lib-novo-rep', 'plus', 'Novo repertório'] : ['lib-nova-mus', 'edit', 'Criar música'];
   const busca = sessionStorage.getItem('buscaBib') || '';
-  view.innerHTML = `
+  // o conteúdo: na estante, a grade (ou a lista) com as fixadas primeiro; nos artistas, as fotos redondas
+  const conteudo = ehArt ? (artistas.length ? `<div class="bib-artistas">${artistas.map(tileArtistaInicio).join('')}</div>` : vazio)
+    : ehRep && (itens.length || fixadas.length) ? `<ul class="${modo === 'grade' ? 'bib-grade' : 'tracks'}">${htmlFixadas}${itens.map(linha).join('')}</ul>${itens.length ? '' : vazio}`
+    : itens.length ? `<ul class="tracks">${itens.map(linha).join('')}</ul>` : vazio;
+  view.innerHTML = naEstante ? `
     <h2 class="bib-titulo">Sua biblioteca</h2>
     <div class="bib-fixo">
-      <nav class="bib-filtros chips" aria-label="Filtrar a biblioteca">${FILTROS.map(([k, n, c]) => `<a class="chip" href="#/biblioteca/${k}" aria-pressed="${k === filtro}">${n}<b>${c}</b></a>`).join('')}</nav>
-      ${itens.length ? `<label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar ${ehRep ? (ehPl ? 'nas playlists' : 'nos repertórios') : 'nas músicas'}" value="${esc(busca)}" autocomplete="off"></label>` : ''}
+      <nav class="bib-filtros chips" aria-label="Filtrar a biblioteca">${FILTROS.map(([k, n]) => `<a class="chip" href="#/biblioteca${k === filtro ? '' : '/' + k}" aria-pressed="${k === filtro}">${n}</a>`).join('')}</nav>
+      ${itens.length > 6 ? `<label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar ${ehPl ? 'nas playlists' : filtro === 'repertorios' ? 'nos repertórios' : 'na biblioteca'}" value="${esc(busca)}" autocomplete="off"></label>` : ''}
+    </div>
+    ${ehArt ? '' : `<div class="bib-ordem">
+      <button class="bib-ordenar" id="bib-ordenar" title="Mudar a ordem">${icon('reordenar', 16)}<span>${ordem === 'az' ? 'Ordem alfabética' : 'Recentes'}</span></button>
+      <span class="spacer"></span>
+      ${itens.length ? `<button class="icon-btn${selecionando ? ' ativo' : ''}" id="lib-sel" aria-pressed="${selecionando}" aria-label="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}" title="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}">${icon(selecionando ? 'x' : 'check', 18)}</button>` : ''}
+      <button class="icon-btn" id="bib-modo" aria-label="${modo === 'grade' ? 'Ver em lista' : 'Ver em grade'}" title="${modo === 'grade' ? 'Ver em lista' : 'Ver em grade'}">${icon(modo === 'grade' ? 'rows' : 'grid', 18)}</button>
+    </div>`}
+    <div id="lib" class="${selecionando ? 'selecionando' : ''}">${conteudo}</div>
+    <div class="barra-sel" id="barra-sel" ${selecionando ? '' : 'hidden'}>
+      <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
+      <button class="btn small danger solid" id="sel-excluir">${icon('trash', 15)} Excluir</button></div>
+    <button class="fab" ${selecionando || ehArt ? 'hidden' : ''} aria-label="${ehPl ? 'Nova playlist' : 'Novo repertório'}">${icon('plus', 24)}<span>${ehPl ? 'Nova playlist' : 'Novo repertório'}</span></button>` : `
+    <div class="curtidas-topo">${capaCurtidas('grande')}<div><small>Playlist</small><h2>Músicas curtidas</h2><p>${todas.length} ${todas.length === 1 ? 'música' : 'músicas'}</p></div></div>
+    <div class="bib-fixo">
+      <nav class="bib-filtros chips" aria-label="Filtrar as músicas">${FILTROS.map(([k, n, c]) => `<a class="chip" href="#/biblioteca/${k}" aria-pressed="${k === filtro}">${n}<b>${c}</b></a>`).join('')}</nav>
+      ${itens.length ? `<label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar nas músicas" value="${esc(busca)}" autocomplete="off"></label>` : ''}
     </div>
     <div class="bib-barra">
       <div class="bib-acoes">
@@ -7499,6 +7545,9 @@ function viewLibrary(filtro = 'musicas', { selecionando = false, marcados = new 
     linhas.forEach((li, i) => { li.dataset.midiaIndex = String(i); });
     enriquecerLinhasMusicais(lib, itens, { busca: false });
   }
+  $('#bib-ordenar')?.addEventListener('click', () => { guardarPrefBib('ordem', ordem === 'az' ? 'recentes' : 'az'); viewLibrary(filtro); });
+  $('#bib-modo')?.addEventListener('click', () => { guardarPrefBib('modo', modo === 'grade' ? 'lista' : 'grade'); viewLibrary(filtro, { selecionando, marcados }); });
+  enriquecerTilesArtistas(lib);
   $('.fab').onclick = () => (ehRep ? novoRepertorio(ehPl ? 'playlist' : '') : (location.hash = '#/editar/novo'));
   $('#lib-novo-rep')?.addEventListener('click', () => novoRepertorio());
   $('#lib-nova-pl')?.addEventListener('click', () => novoRepertorio('playlist'));
@@ -7529,6 +7578,7 @@ function viewLibrary(filtro = 'musicas', { selecionando = false, marcados = new 
   if (selecionando) atualizarSel();
   $('#lib-sel')?.addEventListener('click', () => redesenhar(!selecionando));
   $('#lib-sel-todos')?.addEventListener('click', () => { itens.forEach((x) => marcados.add(x.id)); redesenhar(true); });
+  if (!$('#sel-todos')) return; // (artistas: nada a selecionar)
   $('#sel-todos').onclick = () => { if (marcados.size === itens.length) marcados.clear(); else itens.forEach((x) => marcados.add(x.id)); atualizarSel(); };
   // exclui e confirma antes; músicas saem também dos repertórios
   const excluir = async (ids) => {
@@ -7563,6 +7613,8 @@ function viewLibrary(filtro = 'musicas', { selecionando = false, marcados = new 
     if (segurar === 'feito') { segurar = null; return; }
     const del = e.target.closest('[data-excluir]');
     if (del) { excluir([del.dataset.excluir]); return; }
+    const fixa = e.target.closest('[data-bib-ir]');
+    if (fixa) { if (!selecionando) location.hash = fixa.dataset.bibIr; return; }
     const li = e.target.closest('.lib-item');
     if (!li) return;
     if (selecionando) {
