@@ -13728,6 +13728,27 @@ async function textoDoAnexo(anexo) {
   fd.append('arquivo', anexo.arquivo, anexo.nome);
   try { return (await chamar({ url: SERVIDOR_IA.lumen || SERVIDOR_IA.url, chave: SERVIDOR_IA.chave }, '/ler-anexo', { form: fd, tempo: 90e3 }))?.texto || ''; } catch { return ''; }
 }
+// A permissão do microfone: o app pergunta antes de usar (o Lumen ao vivo e o ditado). 'ok', 'pedir' (ainda não
+// respondida), 'negado' ou 'sem' (aparelho sem microfone / navegador sem suporte)
+async function estadoDoMicrofone() {
+  if (!navigator.mediaDevices?.getUserMedia) return 'sem';
+  try {
+    const st = await navigator.permissions?.query({ name: 'microphone' });
+    if (st?.state === 'granted') return 'ok';
+    if (st?.state === 'denied') return 'negado';
+  } catch { /* navegador sem a consulta: pergunta */ }
+  return 'pedir';
+}
+// abre a pergunta do navegador ("Permitir o uso do microfone?"); devolve 'ok', 'negado' ou 'sem'
+async function pedirMicrofone() {
+  if (!navigator.mediaDevices?.getUserMedia) return 'sem';
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach((t) => t.stop());
+    return 'ok';
+  } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
+}
+const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Songbook → Informações do app → Permissões → Microfone.';
 // o começo da fala com letra maiúscula (o reconhecimento de voz entrega tudo em minúscula)
 const comMaiuscula = (t) => { const s = String(t || '').trimStart(); return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1); };
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
@@ -14152,8 +14173,14 @@ function viewDuvidas() {
     form.classList.toggle('gravando', sim);
     $('#dv-ouvindo').hidden = !sim;
   };
-  mic?.addEventListener('click', () => {
+  mic?.addEventListener('click', async () => {
     if (vozDuvidas) { vozDuvidas.stop(); return; }
+    // (pede a permissão do microfone antes de ouvir, com a explicação de como liberar se ela foi negada)
+    if (await estadoDoMicrofone() !== 'ok') {
+      const r = await pedirMicrofone();
+      if (r === 'negado') { await ask({ title: 'Permita o microfone', text: `O Lumen precisa do microfone para ouvir a sua pergunta. ${COMO_LIBERAR_MIC}`, ok: 'Entendi' }); return; }
+      if (r === 'sem') { toast('Não achei o microfone do aparelho', { tipo: 'erro' }); return; }
+    }
     const rec = new ReconhecerVoz();
     rec.lang = 'pt-BR';
     rec.interimResults = true;
@@ -14243,13 +14270,14 @@ function viewDuvidas() {
     el.className = 'dv-vivo';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', 'Conversa ao vivo com o Lumen');
-    const comLegenda = () => db.prefs().legendaLumen !== false;
+    // o botão do alto mostra ou esconde a transcrição do que a PESSOA fala (a fala do Lumen aparece sempre escrita)
+    const comLegenda = () => db.prefs().transcricaoLumen !== false;
     const comInterrupcao = () => db.prefs().interromperLumen !== false;
     el.innerHTML = `<div class="dv-vivo-aura" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="dv-vivo-topo">
         <span class="dv-vivo-marca" aria-hidden="true">${logoLumen(22)}</span>
         <div class="dv-vivo-acoes">
-          <button type="button" class="dv-vivo-ic dv-vivo-legenda" aria-pressed="false" aria-label="Legenda" title="Legenda"></button>
+          <button type="button" class="dv-vivo-ic dv-vivo-legenda" aria-pressed="false" aria-label="Mostrar o que eu falo"></button>
           <button type="button" class="dv-vivo-ic dv-vivo-mais" aria-haspopup="menu" aria-expanded="false" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button>
           <div class="dv-vivo-menu" role="menu" hidden>
             <div class="dv-vivo-menu-vozes" hidden>
@@ -14264,6 +14292,12 @@ function viewDuvidas() {
       <div class="dv-vivo-meio"><div class="dv-vivo-col">
         <p class="dv-vivo-estado" aria-live="polite"></p>
         <p class="dv-vivo-texto"><span class="dita"></span><span class="vem"></span></p>
+        <div class="dv-vivo-permissao" hidden>
+          <span class="dv-vivo-permissao-ic">${icon('mic', 30)}</span>
+          <h3>Permita o microfone</h3>
+          <p>Para conversar com você, o Lumen precisa ouvir o que você fala. O áudio só é usado para entender a pergunta.</p>
+          <button type="button" class="dv-vivo-permitir">Permitir o microfone</button>
+        </div>
         <div class="dv-vivo-resposta chat-bolha" hidden></div>
       </div></div>
       <div class="dv-vivo-baixo">
@@ -14337,13 +14371,14 @@ function viewDuvidas() {
     // ---- a legenda: o botão do alto liga e desliga (fica guardado)
     const desenharLegendaBtn = () => {
       const sim = comLegenda();
-      el.classList.toggle('sem-legenda', !sim);
+      el.classList.toggle('sem-transcricao', !sim);
       legendaBtn.setAttribute('aria-pressed', String(sim));
-      legendaBtn.setAttribute('aria-label', sim ? 'Esconder a legenda' : 'Mostrar a legenda');
+      legendaBtn.setAttribute('aria-label', sim ? 'Esconder o que eu falo' : 'Mostrar o que eu falo');
+      legendaBtn.title = sim ? 'Esconder o que eu falo' : 'Mostrar o que eu falo';
       legendaBtn.innerHTML = icon(sim ? 'legenda' : 'legendaOff', 22);
     };
     desenharLegendaBtn();
-    legendaBtn.onclick = () => { db.setPref('legendaLumen', !comLegenda()); desenharLegendaBtn(); };
+    legendaBtn.onclick = () => { db.setPref('transcricaoLumen', !comLegenda()); desenharLegendaBtn(); };
     // a fala inteira em palavras; "ditas" já acenderam, até "fim" aparecem apagadas (o pedaço que está sendo falado)
     const leg = { palavras: [], ditas: 0, fim: 0, mostradas: '' };
     const contarPalavras = (t) => (String(t).match(/\S+/g) || []).length;
@@ -14409,7 +14444,9 @@ function viewDuvidas() {
       if (vigia || vigiaSem || !comInterrupcao() || !ctxAudio || !navigator.mediaDevices?.getUserMedia) return;
       const v = vigia = { parado: false };
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+        // (sem o cancelamento de eco do aparelho: no Android ele põe o som em "modo ligação" e a voz do Lumen ia para o
+        // alto-falante de ouvido, quase muda. O eco que volta pelo microfone é medido aqui mesmo, pelo vigia)
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
         if (v.parado || vigia !== v || !aberto) { stream.getTracks().forEach((t) => t.stop()); return; }
         const src = ctxAudio.createMediaStreamSource(stream);
         const an = ctxAudio.createAnalyser();
@@ -14436,9 +14473,9 @@ function viewDuvidas() {
       const mic = Math.sqrt(soma / v.buf.length);
       // sem o medidor da saída (a voz do navegador), o eco é estimado pelo pior caso
       const eco = medida ? v.eco * saida : 0.03;
-      const limite = Math.max(0.012, v.ruido * 3.5, eco * 2.6);
-      // aprendendo (os primeiros ~0,7 s de voz saindo): só mede quanto do som volta, não interrompe
-      if (v.aprendeu < 700) {
+      const limite = Math.max(0.015, v.ruido * 4, eco * 3);
+      // aprendendo (o primeiro ~1 s de voz saindo): só mede quanto do som volta, não interrompe
+      if (v.aprendeu < 1000) {
         if (saida > 0.015 || !medida) { v.aprendeu += dt; if (medida) v.eco = Math.max(v.eco * 0.995, Math.min(2, mic / saida)); }
         else v.ruido = v.ruido * 0.9 + mic * 0.1;
         return;
@@ -14492,7 +14529,10 @@ function viewDuvidas() {
     };
     raf = requestAnimationFrame(animar);
     let fimFala = null;
+    // (a pausa pedida pelo app; a outra é do aparelho, que tirou o som do Lumen — ele volta a tocar)
+    let pausaNossa = false;
     const pararVoz = () => {
+      pausaNossa = true; // (o evento da pausa chega depois: quem o recebe apaga a marca)
       tocador.pause();
       pedacoAtual = null;
       if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -14505,8 +14545,18 @@ function viewDuvidas() {
       const fim = (tocou) => { tocador.onended = tocador.onerror = tocador.onpause = null; URL.revokeObjectURL(url); ok(tocou); };
       tocador.onended = () => fim(true);
       tocador.onerror = () => fim(false);
-      tocador.onpause = () => { if (!tocador.ended) fim(true); };
+      let retomadas = 0;
+      tocador.onpause = () => {
+        const nossa = pausaNossa;
+        pausaNossa = false;
+        if (tocador.ended) return;
+        // o aparelho pausou a voz sozinho (no Android, quando o microfone do vigia abre): volta a tocar e o vigia fica
+        // desligado nesta conversa, para não atrapalhar de novo. Antes isso valia como fim da fala e o Lumen ficava mudo
+        if (!nossa && retomadas++ < 3) { desligarVigia(); vigiaSem = true; tocador.play().catch(() => fim(false)); return; }
+        fim(true);
+      };
       tocador.src = url;
+      pausaNossa = false;
       ligarMedidor();
       tocador.play().then(() => { if (comInterrupcao()) ligarVigia(); }).catch(() => fim(false));
     });
@@ -14599,7 +14649,8 @@ function viewDuvidas() {
         // ficou em silêncio: tenta ouvir mais uma vez antes de parar
         if (erro === 'no-speech' && ++silencios < 2) { ouvir(); return; }
         silencios = 0;
-        estado('parado', /not-allowed/.test(erro) ? 'Permita o microfone para conversar.' : erro === 'network' ? 'O ditado precisa de internet.' : 'Microfone desligado. Toque nele para falar.');
+        if (/not-allowed/.test(erro)) { mostrarPermissao(true); return; }
+        estado('parado', erro === 'network' ? 'O ditado precisa de internet.' : 'Microfone desligado. Toque nele para falar.');
       };
       try { r.start(); } catch { estado('parado', 'Microfone desligado. Toque nele para falar.'); }
     };
@@ -14649,7 +14700,10 @@ function viewDuvidas() {
     micBtn.onclick = () => {
       const agora = el.dataset.estado;
       if (agora === 'ouvindo') { const r = rec; rec = null; r?.abort(); silencios = 0; estado('parado', 'Microfone desligado. Toque nele para falar.'); }
-      else if (agora !== 'pensando') ouvir();
+      else if (agora !== 'pensando') {
+        if (!permissaoEl.hidden) { permissaoEl.querySelector('button').click(); return; }
+        ouvir();
+      }
     };
     // as fontes e os cantos da resposta, num cartão embaixo do texto
     fontesBtn.onclick = () => {
@@ -14663,8 +14717,34 @@ function viewDuvidas() {
       if (e.target.closest('button.dv-fonte, a[href^="#"]')) fechar();
       tocarResposta(e);
     });
-    estado('falando');
-    falar('Olá, eu sou o Lumen! Pode perguntar sobre a liturgia, os cantos e os arquivos do acervo, ou qualquer dúvida da missa.').then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+    const comecar = () => {
+      if (!aberto) return;
+      permissaoEl.hidden = true;
+      estado('falando');
+      falar('Olá, eu sou o Lumen! Pode perguntar sobre a liturgia, os cantos e os arquivos do acervo, ou qualquer dúvida da missa.').then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+    };
+    // a permissão do microfone: o Lumen pede antes de começar (um cartão explica e o botão abre a pergunta do navegador)
+    const permissaoEl = el.querySelector('.dv-vivo-permissao');
+    const mostrarPermissao = (negado) => {
+      estado('parado');
+      permissaoEl.hidden = false;
+      permissaoEl.classList.toggle('negado', negado);
+      permissaoEl.querySelector('p').textContent = negado
+        ? `O microfone está bloqueado para o app. ${COMO_LIBERAR_MIC} Depois, toque em Tentar de novo.`
+        : 'Para conversar com você, o Lumen precisa ouvir o que você fala. O áudio só é usado para entender a pergunta.';
+      permissaoEl.querySelector('button').textContent = negado ? 'Tentar de novo' : 'Permitir o microfone';
+    };
+    permissaoEl.querySelector('button').onclick = async () => {
+      const r = await pedirMicrofone();
+      if (r === 'ok') comecar();
+      else if (r === 'sem') { permissaoEl.querySelector('p').textContent = 'Não achei o microfone deste aparelho.'; }
+      else mostrarPermissao(true);
+    };
+    estadoDoMicrofone().then((st) => {
+      if (!aberto) return;
+      if (st === 'ok' || st === 'sem') comecar();
+      else mostrarPermissao(st === 'negado');
+    });
   }
 }
 

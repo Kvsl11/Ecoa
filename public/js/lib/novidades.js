@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 440, data: '2026-11-02', titulo: 'Lumen pede o microfone e volta a falar',
+    itens: [
+      { tipo: 'correcao', texto: 'O Lumen ao vivo mostrava o texto, mas a voz não saía. No celular e no tablet Android, o microfone que fica atento para você interromper colocava o som em “modo ligação”, e a voz ia para o alto-falante de ouvido, quase muda. Agora a voz sai normal, e se o aparelho pausar a voz sozinho, ela volta a tocar.' },
+      { tipo: 'novo', texto: 'O app pede a permissão do microfone antes de usar, no Lumen ao vivo e no ditado, com uma explicação. Se o microfone estiver bloqueado, ele mostra o caminho para liberar e o botão Tentar de novo.' },
+      { tipo: 'melhoria', texto: 'O que o Lumen fala aparece sempre escrito. O botão do alto agora mostra ou esconde só o que VOCÊ fala: sem o traço, a sua fala aparece escrita embaixo; com o traço, não aparece.' },
+    ],
+  },
+  {
     versao: 439, data: '2026-11-02', titulo: 'Lumen ao vivo de cara nova, mais esperto e com arquivos',
     itens: [
       { tipo: 'melhoria', texto: 'Lumen ao vivo repaginado, como o do Gemini: no alto ficam só o logo, o botão da legenda e o “⋯” (com a voz); a resposta aparece numa coluna no centro, em letra de leitura; o que você fala aparece numa caixa embaixo, centrada, junto com o “Toque para interromper” e a barra de botões.' },
@@ -72,12 +80,6 @@ export const NOVIDADES = [
     versao: 431, data: '2026-11-02', titulo: 'A música anterior para na hora',
     itens: [
       { tipo: 'correcao', texto: 'Ao abrir outra música, às vezes a anterior continuava tocando por alguns instantes. Acontecia com a música que ainda não tinha vídeo (enquanto o app procurava um) e com as músicas baixadas (enquanto a nova abria do aparelho). Agora a anterior para assim que você toca na outra.' },
-    ],
-  },
-  {
-    versao: 430, data: '2026-11-02', titulo: 'Trocar de música sem sair da lista',
-    itens: [
-      { tipo: 'melhoria', texto: 'Com uma música no player (embaixo, ou no painel do tablet), tocar em outra música de uma lista só troca a música no player: ela continua tocando ali e você fica onde estava. Para abrir a tela da música, toque no player. Sem nada tocando, a música abre direto na tela dela, como antes. Vale na Biblioteca, nas playlists, no Início e na Busca, no celular, no tablet e no computador.' },
     ],
   },
 ];
