@@ -2735,50 +2735,6 @@ dialog.creditos-dlg::backdrop { background: #121212; }
 .dv-favicon.sem { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .dv-favicon.sem img { display: none; }
 .dv-favicon.sem .ic { display: block; color: var(--accent); }
-/* Conversa ao vivo, como a do Gemini: tela preta, a resposta em letra grande no alto, o que a pessoa falou embaixo e a
-   barra com fontes, a pílula azul que brilha (ouvindo / procurando / falando), o microfone e o encerrar */
-.dv-vivo { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; color: #fff; background: #000;
-  padding: max(16px, env(safe-area-inset-top)) 20px max(18px, env(safe-area-inset-bottom));
-  opacity: 0; transition: opacity 0.25s ease; }
-.dv-vivo.aberto { opacity: 1; }
-.dv-vivo-topo { display: flex; align-items: center; min-height: 44px; }
-.dv-vivo-selo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: rgb(255 255 255 / 0.7); }
-.dv-vivo-selo i { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: dv-pisca 1.4s ease-in-out infinite; }
-.dv-vivo-meio { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 0 12px; overscroll-behavior: contain; }
-.dv-vivo-estado { margin: 0; font-size: clamp(26px, 7.4vw, 36px); font-weight: 400; line-height: 1.25; letter-spacing: -0.01em; white-space: pre-line; }
-.dv-vivo[data-estado="ouvindo"] .dv-vivo-estado, .dv-vivo[data-estado="pensando"] .dv-vivo-estado, .dv-vivo[data-estado="parado"] .dv-vivo-estado { color: rgb(255 255 255 / 0.55); }
-.dv-vivo-resposta { margin-top: 22px; padding: 16px 18px; border-radius: 22px; line-height: 1.6; color: #f2f2f5;
-  background: rgb(255 255 255 / 0.07); border: 1px solid rgb(255 255 255 / 0.1); animation: chat-entra 0.3s ease both; }
-.dv-vivo-resposta[hidden] { display: none; }
-.dv-vivo-resposta .dv-fonte { background: rgb(255 255 255 / 0.08); }
-.dv-vivo-resposta .dv-fonte b { color: #fff; }
-.dv-vivo-resposta .dv-fonte small, .dv-vivo-resposta .dv-sub, .dv-vivo-resposta .dv-aviso, .dv-vivo-resposta .dv-nada, .dv-vivo-resposta .dv-atalho small { color: rgb(255 255 255 / 0.65); }
-.dv-vivo-baixo { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 8px; }
-.dv-vivo-interromper { padding: 10px 20px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 15px; color: #fff; background: #1f1f1f; }
-.dv-vivo:not([data-estado="falando"]) .dv-vivo-interromper { visibility: hidden; }
-.dv-vivo-fala { align-self: stretch; min-height: 1.4em; margin: 0; padding: 0 22px; font-size: 18px; font-style: italic; color: rgb(255 255 255 / 0.85);
-  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.dv-vivo-barra { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 520px; }
-.dv-vivo-btn { flex: none; width: 58px; height: 58px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #fff; background: #1f1f1f; }
-.dv-vivo-btn:hover { background: #2a2a2a; }
-.dv-vivo-btn:disabled { opacity: 0.35; cursor: default; }
-.dv-vivo-btn[aria-pressed="true"] { background: #fff; color: #000; }
-.dv-vivo-mic.desligado { background: #3b1d1d; color: #fca5a5; }
-/* a pílula do meio: o brilho azul de baixo para cima, que respira ouvindo, corre procurando e pulsa falando */
-.dv-orbe { position: relative; flex: 1; max-width: 230px; height: 58px; border: 0; border-radius: 999px; cursor: pointer; overflow: hidden; background: #050814; }
-.dv-orbe-brilho { position: absolute; inset: 0; border-radius: inherit;
-  background: radial-gradient(90% 120% at 50% 130%, #6aa1ff 0%, #2f5be0 35%, rgb(30 60 180 / 0.35) 65%, transparent 85%); transition: opacity 0.4s; }
-.dv-vivo[data-estado="ouvindo"] .dv-orbe-brilho { animation: dv-respira 2.2s ease-in-out infinite; }
-.dv-vivo[data-estado="pensando"] .dv-orbe-brilho { background: linear-gradient(90deg, transparent, #4f7dff, #9b72ff, transparent); background-size: 200% 100%; animation: dv-corre 1.3s linear infinite; }
-.dv-vivo[data-estado="parado"] .dv-orbe-brilho { opacity: 0.35; }
-@keyframes dv-pisca { 50% { opacity: 0.35; } }
-@keyframes dv-fala { from { transform: scaleY(0.85); opacity: 0.8; } to { transform: scaleY(1.15); opacity: 1; } }
-@keyframes dv-corre { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .dv-vivo, .dv-vivo-resposta { transition: none; animation: none; }
-  .dv-vivo .dv-orbe-brilho, .dv-vivo-selo i { animation: none !important; }
-}
-
 /* ============================================================ as cores do Lumen
    toda a tela dele (fundo, topo, textos, ícones e botões) usa as cores do logo: azul, roxo, rosa e dourado.
    --accent vira o azul do Lumen dentro da tela, então tudo que já usava a cor de destaque acompanha */
@@ -2849,17 +2805,6 @@ dialog.creditos-dlg::backdrop { background: #121212; }
 .chat-vivo:hover { background: var(--lm-grad-btn); filter: brightness(1.12); }
 .chat-rodape { color: color-mix(in srgb, var(--lm-roxo) 40%, var(--subtle)); }
 .chat-aviso { background: color-mix(in srgb, var(--lm-roxo) 14%, transparent); }
-/* o ao vivo: o céu do Lumen no fundo, a pílula com o brilho do logo e os botões lilases */
-.dv-vivo { background: radial-gradient(80% 45% at 50% 105%, rgb(110 90 255 / 0.28), transparent 75%), #05060f; }
-.dv-vivo-selo { color: var(--lm-roxo); }
-.dv-vivo-btn, .dv-vivo-interromper { background: #1a1a30; color: #e6e1ff; }
-.dv-vivo-btn:hover { background: #26264a; }
-.dv-vivo-btn[aria-pressed="true"] { background: var(--lm-grad-btn); color: #fff; }
-.dv-vivo-resposta { background: rgb(155 114 255 / 0.08); border-color: rgb(155 114 255 / 0.2); }
-.dv-orbe { background: #0a0820; }
-.dv-orbe-brilho { background: radial-gradient(65% 140% at 28% 115%, #4f8cff, transparent 75%),
-  radial-gradient(65% 140% at 72% 115%, #9b72ff, transparent 75%), radial-gradient(45% 100% at 50% 125%, #ff6fa8, transparent 80%); }
-.dv-vivo[data-estado="pensando"] .dv-orbe-brilho { background: linear-gradient(90deg, transparent, #4f8cff, #9b72ff, #ff6fa8, #ffb84d, transparent); background-size: 200% 100%; }
 
 /* ============================================================ tablet: como o Spotify no tablet
    (em pé e deitado) sem menu lateral: o menu flutua embaixo, numa pílula, e o "Tocando agora" (vídeo, controles e a
@@ -4549,38 +4494,6 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 .ens-voz.destaque { display: grid; gap: 2px 4px; align-items: center; padding: 6px 6px 8px 10px; border-radius: 12px; }
 @media (max-width: 600px) { .ens-voz.destaque { padding: 2px 4px 4px 10px; border-radius: 10px; } }
 
-/* ============================================================ Lumen ao vivo: o brilho que acompanha a voz (como no Gemini)
-   --nivel (0 a 1) vem do volume de verdade da voz que está saindo: o brilho de baixo cresce e clareia e a pílula
-   enche com ele. Ouvindo, o brilho respira devagar; pensando, ele corre pela pílula; parado, apaga */
-.dv-vivo { --nivel: 0; isolation: isolate; overflow: hidden; }
-.dv-vivo > :not(.dv-vivo-aura) { position: relative; z-index: 1; }
-.dv-vivo-aura { position: absolute; z-index: 0; left: -20%; right: -20%; bottom: -12%; height: 52%; pointer-events: none;
-  opacity: calc(0.45 + var(--nivel) * 0.55); transform-origin: 50% 100%; transform: scaleY(calc(0.75 + var(--nivel) * 0.55));
-  transition: opacity 0.5s ease; filter: blur(48px); }
-.dv-vivo-aura i { position: absolute; bottom: 0; width: 55%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
-.dv-vivo-aura i:nth-child(1) { left: 0; background: radial-gradient(closest-side, #4f8cff, transparent); animation: dv-aura-a 7s ease-in-out infinite alternate; }
-.dv-vivo-aura i:nth-child(2) { left: 22%; background: radial-gradient(closest-side, #9b72ff, transparent); animation: dv-aura-b 9s ease-in-out infinite alternate; }
-.dv-vivo-aura i:nth-child(3) { right: 0; background: radial-gradient(closest-side, #ff6fa8, transparent); opacity: 0.75; animation: dv-aura-a 8s ease-in-out infinite alternate-reverse; }
-@keyframes dv-aura-a { to { transform: translateX(12%) scale(1.08); } }
-@keyframes dv-aura-b { to { transform: translateX(-10%) scale(0.92); } }
-.dv-vivo[data-estado="ouvindo"] .dv-vivo-aura { opacity: 0.6; animation: dv-aura-respira 2.6s ease-in-out infinite; }
-.dv-vivo[data-estado="pensando"] .dv-vivo-aura { opacity: 0.4; }
-.dv-vivo[data-estado="parado"] .dv-vivo-aura { opacity: 0.15; }
-@keyframes dv-aura-respira { 50% { transform: scaleY(0.9); opacity: 0.8; } }
-/* a pílula do meio: falando, o brilho sobe e clareia com a voz (sem a animação fixa de antes, que pulava fora do ritmo) */
-.dv-vivo[data-estado="falando"] .dv-orbe-brilho { transform-origin: 50% 100%; transform: scaleY(calc(0.7 + var(--nivel) * 0.7));
-  filter: brightness(calc(0.9 + var(--nivel) * 0.6)); }
-.dv-vivo[data-estado="falando"] .dv-orbe { box-shadow: 0 0 calc(var(--nivel) * 28px) rgb(124 140 255 / calc(var(--nivel) * 0.7)); }
-.dv-vivo-topo { justify-content: space-between; gap: 10px; }
-.dv-vivo-voz { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 999px; cursor: pointer; font: inherit;
-  font-size: 12.5px; font-weight: 700; color: #e6e1ff; background: rgb(255 255 255 / 0.08); }
-.dv-vivo-voz:hover { background: rgb(255 255 255 / 0.14); }
-.dv-vivo-voz[hidden] { display: none; }
-.dv-vivo-estado { hyphens: manual; -webkit-hyphens: manual; text-wrap: pretty; }
-@media (prefers-reduced-motion: reduce) {
-  .dv-vivo-aura, .dv-vivo-aura i { animation: none !important; }
-}
-
 /* ============================================================ o cartão do vídeo cresce com o dedo (como no Spotify)
    segurar e puxar o mini player para cima aumenta o vídeo; para baixo, diminui. --mini-v é a largura do vídeo durante
    o arraste (vem do app); soltando, ele vai suave até o tamanho do nível: .mini-1 (médio) ou .grande (grande) */
@@ -4670,3 +4583,127 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .busca-x:hover { background: rgb(0 0 0 / 0.06); }
 .busca-x:active { transform: translateY(-50%) scale(0.92); }
 :root[data-theme="light"] .busca-x { color: var(--text); }
+
+/* ============================================================ Lumen ao vivo, como o do Gemini
+   o alto só com o logo, a legenda e o "⋯"; a resposta numa coluna centrada, em letra de leitura (as palavras já ditas
+   acesas, as que vêm apagadas); embaixo, o "Toque para interromper", a caixa com o que a pessoa falou e a barra
+   (fontes · a pílula que brilha com a voz · microfone · encerrar), tudo no centro. --nivel (0 a 1) é o volume de
+   verdade da voz que sai: o brilho de baixo e a pílula crescem com ele */
+.dv-vivo { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; color: #fff; --nivel: 0;
+  isolation: isolate; overflow: hidden; padding: max(8px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  background: radial-gradient(80% 45% at 50% 105%, rgb(110 90 255 / 0.22), transparent 75%), #05060f;
+  opacity: 0; transition: opacity 0.25s ease; }
+.dv-vivo.aberto { opacity: 1; }
+.dv-vivo > :not(.dv-vivo-aura) { position: relative; z-index: 1; }
+.dv-vivo button { -webkit-tap-highlight-color: transparent; }
+/* o alto */
+.dv-vivo-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; z-index: 3 !important; }
+.dv-vivo-marca { display: grid; place-items: center; width: 44px; height: 44px; }
+.dv-vivo-marca .logo-lumen { filter: drop-shadow(0 0 8px rgb(124 92 255 / 0.45)); }
+.dv-vivo-acoes { position: relative; display: flex; align-items: center; gap: 2px; }
+.dv-vivo-ic { width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #ece8ff; background: transparent; }
+.dv-vivo-ic:hover, .dv-vivo-ic[aria-expanded="true"] { background: rgb(255 255 255 / 0.09); }
+.dv-vivo-legenda[aria-pressed="false"] { color: rgb(236 232 255 / 0.55); }
+.dv-vivo-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 250px; padding: 8px; border-radius: 18px; display: flex; flex-direction: column; gap: 2px;
+  background: #1a1a2e; border: 1px solid rgb(155 114 255 / 0.18); box-shadow: 0 16px 44px rgb(0 0 0 / 0.55); animation: chat-entra 0.18s ease both; }
+.dv-vivo-menu[hidden], .dv-vivo-menu-vozes[hidden] { display: none; }
+.dv-vivo-menu-vozes { display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgb(255 255 255 / 0.08); }
+.dv-vivo-menu small { padding: 6px 12px 4px; font-size: 12px; font-weight: 600; color: rgb(236 232 255 / 0.55); }
+.dv-vivo-menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border: 0; border-radius: 12px; cursor: pointer;
+  font: inherit; font-size: 15px; text-align: left; color: #f2efff; background: none; }
+.dv-vivo-menu button:hover { background: rgb(255 255 255 / 0.07); }
+.dv-vivo-menu button span { flex: 1; }
+.dv-vivo-menu button .ic:last-child { opacity: 0; color: var(--lm-azul); }
+.dv-vivo-menu button[aria-checked="true"] .ic:last-child { opacity: 1; }
+/* o meio: a resposta (a legenda) numa coluna no centro da tela */
+.dv-vivo-meio { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 0 12px; scrollbar-width: none; }
+.dv-vivo-meio::-webkit-scrollbar { display: none; }
+.dv-vivo-col { width: 100%; max-width: 720px; margin: 0 auto; padding: 0 6px; }
+.dv-vivo-estado, .dv-vivo-texto { margin: 0; font-size: clamp(19px, 1.6vw + 12px, 26px); font-weight: 400; line-height: 1.38; letter-spacing: -0.005em;
+  text-wrap: pretty; overflow-wrap: break-word; hyphens: manual; -webkit-hyphens: manual; }
+.dv-vivo-estado { color: rgb(255 255 255 / 0.5); }
+.dv-vivo-estado:empty { display: none; }
+.dv-vivo-texto .dita { color: #fff; }
+.dv-vivo-texto .vem { color: rgb(255 255 255 / 0.36); }
+.dv-vivo-texto:has(.dita:empty):has(.vem:empty) { display: none; }
+.dv-vivo[data-estado="pensando"] .dv-vivo-estado { animation: dv-pensa 1.6s ease-in-out infinite; }
+@keyframes dv-pensa { 50% { opacity: 0.45; } }
+/* a legenda desligada: só o brilho (o que a pessoa fala continua na caixa de baixo) */
+.dv-vivo.sem-legenda .dv-vivo-estado, .dv-vivo.sem-legenda .dv-vivo-texto { display: none; }
+/* as fontes da resposta, num cartão (pelo botão da esquerda) */
+.dv-vivo-resposta { margin-top: 22px; padding: 16px 18px; border-radius: 22px; line-height: 1.6; color: #f2f2f5;
+  background: rgb(155 114 255 / 0.08); border: 1px solid rgb(155 114 255 / 0.2); animation: chat-entra 0.3s ease both; }
+.dv-vivo-resposta[hidden] { display: none; }
+.dv-vivo-resposta .dv-fonte { background: rgb(255 255 255 / 0.08); }
+.dv-vivo-resposta .dv-fonte b { color: #fff; }
+.dv-vivo-resposta .dv-fonte small, .dv-vivo-resposta .dv-sub, .dv-vivo-resposta .dv-aviso, .dv-vivo-resposta .dv-nada, .dv-vivo-resposta .dv-atalho small { color: rgb(255 255 255 / 0.65); }
+/* embaixo, tudo no centro */
+.dv-vivo-baixo { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 6px; }
+.dv-vivo-interromper { padding: 8px 16px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; color: #ece8ff; background: #1c1b33; }
+.dv-vivo:not([data-estado="falando"]) .dv-vivo-interromper { visibility: hidden; }
+.dv-vivo-fala { box-sizing: border-box; width: min(100%, 500px); margin: 0; padding: 13px 20px; border-radius: 20px; font-size: 16px; line-height: 1.4; font-style: italic;
+  color: rgb(255 255 255 / 0.9); background: rgb(30 29 52 / 0.92); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.dv-vivo-fala[hidden] { display: none; }
+.dv-vivo-barra { display: flex; align-items: center; justify-content: center; gap: 10px; width: min(100%, 500px); }
+.dv-vivo-btn { flex: none; width: 56px; height: 56px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #ece8ff; background: #1c1b33; }
+.dv-vivo-btn:hover { background: #28274a; }
+.dv-vivo-btn:disabled { opacity: 0.35; cursor: default; }
+.dv-vivo-btn[aria-pressed="true"] { background: var(--lm-grad-btn); color: #fff; }
+.dv-vivo-mic.desligado { background: #3b1d1d; color: #fca5a5; }
+/* a pílula: o fundo escuro fica DENTRO do brilho (uma camada só na borda arredondada; antes eram duas, e a de baixo,
+   quase preta, aparecia como uma bordinha escura em volta da cor quando o brilho se mexia), e o brilho passa das
+   bordas, para nunca deixar a borda descoberta */
+.dv-orbe { position: relative; flex: 1 1 auto; min-width: 110px; max-width: 190px; height: 56px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  overflow: hidden; background: transparent; transition: box-shadow 0.2s; }
+.dv-orbe-brilho { position: absolute; left: -15%; right: -15%; top: -60%; bottom: -45%; border-radius: 0; pointer-events: none;
+  background: radial-gradient(42% 46% at 32% 82%, #4f8cff, transparent 100%), radial-gradient(42% 46% at 68% 82%, #9b72ff, transparent 100%),
+    radial-gradient(28% 34% at 50% 90%, #ff6fa8, transparent 100%), linear-gradient(#100d2b 38%, #1b1650);
+  transform: translateY(calc((1 - var(--nivel)) * 9%)); transition: opacity 0.4s, filter 0.2s; }
+.dv-vivo[data-estado="falando"] .dv-orbe-brilho { filter: brightness(calc(0.95 + var(--nivel) * 0.5)) saturate(calc(1 + var(--nivel) * 0.3)); }
+.dv-vivo[data-estado="falando"] .dv-orbe { box-shadow: 0 0 calc(var(--nivel) * 26px) rgb(124 140 255 / calc(var(--nivel) * 0.6)); }
+.dv-vivo[data-estado="ouvindo"] .dv-orbe-brilho { animation: dv-orbe-respira 2.2s ease-in-out infinite; }
+.dv-vivo[data-estado="pensando"] .dv-orbe-brilho { background: linear-gradient(90deg, #4f8cff, #9b72ff, #ff6fa8, #ffb84d, #4f8cff, #9b72ff); background-size: 200% 100%;
+  transform: none; animation: dv-corre 1.6s linear infinite; }
+.dv-vivo[data-estado="parado"] .dv-orbe-brilho { opacity: 0.4; transform: translateY(9%); }
+@keyframes dv-orbe-respira { 50% { transform: translateY(3%); filter: brightness(1.2); } }
+@keyframes dv-corre { from { background-position: 200% 0; } to { background-position: 0 0; } }
+/* o brilho que sobe de baixo da tela */
+.dv-vivo-aura { position: absolute; z-index: 0; left: -20%; right: -20%; bottom: -12%; height: 52%; pointer-events: none;
+  opacity: calc(0.45 + var(--nivel) * 0.55); transform-origin: 50% 100%; transform: scaleY(calc(0.75 + var(--nivel) * 0.55));
+  transition: opacity 0.5s ease; filter: blur(48px); }
+.dv-vivo-aura i { position: absolute; bottom: 0; width: 55%; height: 100%; border-radius: 50%; mix-blend-mode: screen; }
+.dv-vivo-aura i:nth-child(1) { left: 0; background: radial-gradient(closest-side, #4f8cff, transparent); animation: dv-aura-a 7s ease-in-out infinite alternate; }
+.dv-vivo-aura i:nth-child(2) { left: 22%; background: radial-gradient(closest-side, #9b72ff, transparent); animation: dv-aura-b 9s ease-in-out infinite alternate; }
+.dv-vivo-aura i:nth-child(3) { right: 0; background: radial-gradient(closest-side, #ff6fa8, transparent); opacity: 0.75; animation: dv-aura-a 8s ease-in-out infinite alternate-reverse; }
+@keyframes dv-aura-a { to { transform: translateX(12%) scale(1.08); } }
+@keyframes dv-aura-b { to { transform: translateX(-10%) scale(0.92); } }
+.dv-vivo[data-estado="ouvindo"] .dv-vivo-aura { opacity: 0.6; animation: dv-aura-respira 2.6s ease-in-out infinite; }
+.dv-vivo[data-estado="pensando"] .dv-vivo-aura { opacity: 0.4; }
+.dv-vivo[data-estado="parado"] .dv-vivo-aura { opacity: 0.15; }
+@keyframes dv-aura-respira { 50% { transform: scaleY(0.9); opacity: 0.8; } }
+@media (min-width: 900px) {
+  .dv-vivo { padding-left: 28px; padding-right: 28px; }
+  .dv-vivo-meio { padding-top: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-vivo, .dv-vivo-resposta, .dv-vivo-menu { transition: none; animation: none; }
+  .dv-vivo .dv-orbe-brilho, .dv-vivo-aura, .dv-vivo-aura i, .dv-vivo-estado { animation: none !important; }
+}
+/* o primeiro título da resposta não leva a linha de cima */
+.chat-bolha > .dv-sub:first-child { margin-top: 0 !important; padding-top: 0; border-top: 0 !important; }
+/* o arquivo enviado ao Lumen: uma pílula com o nome e o x (no chat, em cima da caixa; ao vivo, em cima do que foi falado) */
+.chat-anexo, .dv-vivo-anexo { display: inline-flex; align-items: center; gap: 8px; max-width: min(100%, 420px); padding: 6px 6px 6px 12px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: #ece8ff; background: color-mix(in srgb, var(--lm-roxo, #a88bff) 22%, #15142a); border: 1px solid rgb(155 114 255 / 0.3); }
+.chat-anexo { align-self: flex-start; margin: 0 0 8px 8px; }
+.chat-anexo[hidden], .dv-vivo-anexo[hidden] { display: none; }
+.chat-anexo span, .dv-vivo-anexo span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-anexo button, .dv-vivo-anexo button { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: inherit; background: rgb(255 255 255 / 0.1); }
+.chat-campo .chat-anexar { margin-left: -12px; }
+.chat-anexo-msg { display: inline-flex; align-items: center; gap: 6px; align-self: flex-end; max-width: 80%; margin-bottom: 6px; padding: 6px 12px; border-radius: 14px;
+  font-size: 13px; font-weight: 600; color: var(--lm-roxo, #a88bff); background: color-mix(in srgb, var(--lm-roxo, #a88bff) 14%, transparent); }
+.chat-anexo-msg span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 480px) {
+  .dv-vivo-barra { gap: 8px; }
+  .dv-vivo-btn { width: 50px; height: 50px; }
+  .dv-orbe { min-width: 84px; height: 50px; }
+}

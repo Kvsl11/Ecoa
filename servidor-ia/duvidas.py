@@ -46,7 +46,38 @@ DADOS_URL = os.environ.get("IA_DADOS_URL", "https://kvsl11.github.io/Songbook/da
 VAZIAS = set("""a o e os as um uma uns umas de do da dos das no na nos nas em por para pra com sem que se ao aos à às
 é ser foi são era como mais mas ou eu tu ele ela nós vós eles elas me te lhe nos vos seu sua seus suas meu minha
 qual quais quando onde quem porque porquê isso isto esse essa este esta aquele aquela num numa pelo pela pelos pelas
-ja já tem ter há sobre entre até também muito muita qual hora vez""".split())
+ja já tem ter há sobre entre até também muito muita qual hora vez
+preciso precisa precisava quero queria gostaria voce você vc voces vocês diga dizer diz fala falar fale algo alguma
+coisa coisas referente referentes respeito relacionado relacionada relacionados acerca acervo arquivos arquivo
+documentos saber sabe sei encontre encontrar encontra ache achar acha procure procurar procura busque buscar busca
+traga trazer traz mostre mostrar mostra poderia poderiam consegue conseguir favor lumen ai aí entao então tipo assim
+ne né mim nosso nossa nossos nossas la lá aqui ali tudo todo toda todos todas existe existem tenho temos tinha
+oi ola olá bom boa dia tarde noite obrigado obrigada gentileza""".split())
+
+# os sinônimos do assunto: "casamento" acha o Ritual do Matrimônio, "enterro" as exéquias (o mesmo do app)
+SINONIMOS = [
+    "casamento casamentos matrimonio nupcias nupcial noivos noiva casal esponsais bodas",
+    "batismo batizado batizar batismal",
+    "crisma confirmacao crismandos",
+    "enterro funeral velorio exequias defuntos falecidos finados sepultamento",
+    "comunhao eucaristia eucaristica eucaristico",
+    "salmo salmos salmista responsorial",
+    "canto cantos musica musicas hino hinos cancao cancoes",
+    "natal natalino nascimento",
+    "pascoa pascal ressurreicao",
+    "quaresma quaresmal cinzas",
+    "ofertorio oferendas ofertas",
+    "final envio saida despedida",
+    "penitencia confissao reconciliacao",
+    "uncao enfermos doentes",
+    "ordenacao sacerdotal diaconal",
+    "partitura partituras notacao cifra cifras",
+]
+_SINONIMO: dict[str, set[str]] = {}
+for _g in SINONIMOS:
+    _ps = set(_g.split())
+    for _p in _ps:
+        _SINONIMO.setdefault(_p, set()).update(_ps)
 
 
 def normalizar(texto: str) -> str:
@@ -165,14 +196,25 @@ class Indice:
         self.idf = {p: math.log(1 + (n - d + 0.5) / (d + 0.5)) for p, d in df.items()}
 
     def buscar(self, pergunta: str, quantos: int = 8) -> list[tuple[float, Trecho]]:
-        termos = set(palavras(pergunta))
+        # cada palavra da pergunta vale pela melhor forma achada: ela mesma ou um sinônimo (este um pouco menos)
+        grupos, vistos_p = [], set()
+        for p in palavras(pergunta):
+            if p in vistos_p:
+                continue
+            g = [p] + sorted(_SINONIMO.get(p, set()) - {p})
+            vistos_p.update(g)
+            grupos.append(g)
         notas = []
         for i, c in enumerate(self.contas):
             s = 0.0
-            for p in termos:
-                f = c.get(p)
-                if f:
-                    s += self.idf[p] * f * (self.k1 + 1) / (f + self.k1 * (1 - self.b + self.b * self.tam[i] / self.media))
+            for g in grupos:
+                melhor = 0.0
+                for k, p in enumerate(g):
+                    f = c.get(p)
+                    if f:
+                        v = self.idf[p] * f * (self.k1 + 1) / (f + self.k1 * (1 - self.b + self.b * self.tam[i] / self.media))
+                        melhor = max(melhor, v * (0.85 if k else 1.0))
+                s += melhor
             if s > 0:
                 notas.append((s, i))
         notas.sort(reverse=True)
@@ -201,6 +243,27 @@ def indice() -> Indice:
         return _indice
 
 
+def buscar_trechos(pergunta: str, quantos: int = 8) -> list[dict]:
+    """A busca no acervo inteiro (letras, Hinário, nomes dos arquivos e o texto dos PDFs), sem IA: o Lumen usa quando o
+    servidor não tem a chave da IA. Cada achado vem com as frases que mais respondem."""
+    pergunta = (pergunta or "").strip()[:1000]
+    if not palavras(pergunta):
+        return []
+    termos = set(palavras(pergunta))
+    for p in list(termos):
+        termos |= _SINONIMO.get(p, set())
+    out = []
+    for nota, t in indice().buscar(pergunta, quantos * 2):
+        frases = [f.strip() for f in re.split(r"(?<=[.!?;])\s+|\n+", t.texto) if len(f.strip()) > 3]
+        boas = sorted(((len(set(palavras(f)) & termos), i, f) for i, f in enumerate(frases)), key=lambda x: (-x[0], x[1]))
+        escolhidas = [f for n, i, f in sorted((b for b in boas[:3] if b[0] > 0), key=lambda x: x[1])]
+        out.append({"titulo": t.titulo, "caminho": t.caminho, "id": t.id, "tipo": t.tipo, "nota": round(nota, 3),
+                    "frases": [f[:400] for f in escolhidas] or [t.texto[:300]]})
+        if len(out) >= quantos:
+            break
+    return out
+
+
 SISTEMA = """Você é o Lumen, o assistente litúrgico do app Songbook Litúrgico. Você ajuda ministérios de música \
 católica (cantores, instrumentistas, equipes de liturgia) com liturgia, canto litúrgico, a missa e o próprio app. \
 Responda em português do Brasil, claro e direto, como quem explica para o grupo antes do ensaio. Use listas curtas \
@@ -214,7 +277,10 @@ Primeiro use os trechos do acervo litúrgico do grupo que vêm na mensagem (arqu
 subsídios da CNBB, cantos, documentos). Cite cada informação tirada deles com o número do trecho entre colchetes, \
 como [2]. Se os trechos não respondem à pergunta (ou só em parte), use a busca na web, prefira fontes da Igreja \
 (CNBB, Vaticano, Instrução Geral do Missal Romano, documentos litúrgicos) e diga com clareza que essa parte veio da \
-internet. Não invente: se não achar, diga que não achou.
+internet. Os trechos também trazem os NOMES dos arquivos e das pastas do acervo (PDFs, áudios, cifras): quando a \
+pessoa pergunta "tem algo no acervo sobre X?", liste os arquivos que tratam de X, citando cada um. Seja útil de \
+verdade: antes de dizer que não achou, procure na web e use o que você sabe da liturgia; só diga que não achou \
+quando nem o acervo, nem a web, nem o seu conhecimento trazem a resposta. Não invente referências.
 
 Você conhece bem a liturgia católica (Missal Romano, IGMR, Ano Litúrgico, Liturgia das Horas, o Diretório da CNBB) e \
 responde dúvidas como: quando não há missa (Sexta-feira Santa, Sábado Santo antes da Vigília), como é a missa de \
@@ -239,30 +305,99 @@ def montar_pergunta(pergunta: str, achados: list[tuple[float, Trecho]], contexto
     return f"{app}<acervo>\n{acervo}\n</acervo>\n\nPergunta: {pergunta}"
 
 
-def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False) -> dict:
+# ---- arquivos enviados pela pessoa (PDF, foto, vídeo, áudio, texto): a IA lê junto com a pergunta
+MAX_ANEXO = 18 << 20
+
+
+def texto_do_anexo(nome: str, tipo: str, dados: bytes) -> str:
+    """O texto de um arquivo enviado (PDF, Word, texto), sem IA; foto, vídeo e áudio não têm: ""."""
+    import io
+    import zipfile
+
+    nome, tipo = (nome or "").lower(), (tipo or "").lower()
+    try:
+        if tipo == "application/pdf" or nome.endswith(".pdf"):
+            from pypdf import PdfReader
+
+            return "\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(dados)).pages[:300])
+        if nome.endswith(".docx"):
+            with zipfile.ZipFile(io.BytesIO(dados)) as z:
+                xml = z.read("word/document.xml").decode("utf-8", "ignore")
+            return re.sub(r"<[^>]+>", "", re.sub(r"</w:p>", "\n", xml))
+        if tipo.startswith("text/") or nome.endswith((".txt", ".md", ".cho", ".chordpro", ".csv", ".json", ".html", ".htm")):
+            return dados.decode("utf-8", "ignore")
+    except Exception:  # arquivo estragado: fica sem texto
+        return ""
+    return ""
+
+
+def _decodificar(anexos: list[dict] | None) -> list[dict]:
+    import base64
+
+    out, total = [], 0
+    for a in (anexos or [])[:3]:
+        try:
+            dados = base64.b64decode(a.get("dados") or "")
+        except Exception:
+            continue
+        total += len(dados)
+        if not dados or total > MAX_ANEXO:
+            continue
+        out.append({"nome": str(a.get("nome") or "arquivo")[:200], "tipo": str(a.get("tipo") or "application/octet-stream"), "dados": dados})
+    return out
+
+
+SISTEMA_ANEXO = """
+
+A pessoa enviou um ou mais arquivos (PDF, foto, vídeo, áudio ou texto) junto com a pergunta. Leia, veja ou ouça o \
+arquivo com atenção e responda com base nele primeiro (cite a página ou o trecho quando der). Se a pergunta for só \
+"o que é isso?" ou vier vazia, resuma o arquivo e diga o que dá para fazer com ele na liturgia."""
+
+
+def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False,
+              anexos: list[dict] | None = None) -> dict:
     pergunta = pergunta.strip()[:1000]
     if not pergunta:
         raise ValueError("escreva a pergunta")
-    achados = indice().buscar(pergunta, 10)
+    achados = indice().buscar(pergunta, 14)
     mensagens = []
     for m in (historico or [])[-6:]:  # as últimas perguntas e respostas: dá para perguntar "e no ofertório?"
         if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str):
             mensagens.append({"role": m["role"], "content": m["content"][:4000]})
     # o contexto do app (liturgia, biblioteca) vem do aparelho: limitado, para a conta não crescer sem controle
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
-    sistema = SISTEMA + (SISTEMA_VOZ if voz else "")
+    arquivos = _decodificar(anexos)
+    sistema = SISTEMA + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
     if provedor() == "gemini":
-        texto, web, usou_web = _gemini(mensagens, sistema)
+        texto, web, usou_web = _gemini(mensagens, sistema, arquivos)
     else:
-        texto, web, usou_web = _claude(mensagens, sistema, voz)
+        texto, web, usou_web = _claude(mensagens, sistema, voz, arquivos)
     usados = {int(n) for n in re.findall(r"\[(\d+)\]", texto)}
     fontes = [{"n": k, "titulo": t.titulo, "caminho": t.caminho, "id": t.id, "tipo": t.tipo}
               for k, (_, t) in enumerate(achados, 1) if k in usados]
     return {"resposta": texto, "fontes": fontes, "web": web, "usouWeb": usou_web}
 
 
-def _claude(mensagens: list[dict], sistema: str, voz: bool) -> tuple[str, list[dict], bool]:
+def _claude(mensagens: list[dict], sistema: str, voz: bool, arquivos: list[dict] | None = None) -> tuple[str, list[dict], bool]:
+    import base64
+
     import anthropic
+
+    if arquivos:
+        # o Claude lê PDF e foto direto; Word e texto vão como texto; vídeo e áudio ele não abre (fica o aviso)
+        blocos = []
+        for a in arquivos:
+            b64 = base64.b64encode(a["dados"]).decode()
+            if a["tipo"] == "application/pdf":
+                blocos.append({"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}, "title": a["nome"]})
+            elif a["tipo"] in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                blocos.append({"type": "image", "source": {"type": "base64", "media_type": a["tipo"], "data": b64}})
+            else:
+                t = texto_do_anexo(a["nome"], a["tipo"], a["dados"])
+                blocos.append({"type": "text", "text": f"<arquivo nome=\"{a['nome']}\">\n{t[:60000]}\n</arquivo>" if t
+                               else f"(a pessoa enviou {a['nome']} ({a['tipo']}), que não consigo abrir: diga isso a ela)"})
+        ultima = mensagens[-1]
+        mensagens = mensagens[:-1] + [{"role": "user", "content": blocos + [{"type": "text", "text": ultima["content"]}]}]
 
     cliente = anthropic.Anthropic()
     ferramentas = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 4}]
@@ -297,8 +432,10 @@ class ErroGemini(RuntimeError):
         self.status = status
 
 
-def _gemini(mensagens: list[dict], sistema: str) -> tuple[str, list[dict], bool]:
-    """O Gemini pela API REST (sem pacote a mais), com a busca do Google para o que não está no acervo."""
+def _gemini(mensagens: list[dict], sistema: str, arquivos: list[dict] | None = None) -> tuple[str, list[dict], bool]:
+    """O Gemini pela API REST (sem pacote a mais), com a busca do Google para o que não está no acervo. Ele lê PDF,
+    foto, vídeo e áudio direto (inline_data)."""
+    import base64
     import urllib.error
     import urllib.request
 
@@ -307,6 +444,13 @@ def _gemini(mensagens: list[dict], sistema: str) -> tuple[str, list[dict], bool]
         "contents": [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]} for m in mensagens],
         "tools": [{"google_search": {}}],
     }
+    if arquivos:
+        partes = []
+        for a in arquivos:
+            t = "" if a["tipo"].split("/")[0] in ("image", "video", "audio") or a["tipo"] == "application/pdf" else texto_do_anexo(a["nome"], a["tipo"], a["dados"])
+            partes.append({"text": f"<arquivo nome=\"{a['nome']}\">\n{t[:60000]}\n</arquivo>"} if t
+                          else {"inline_data": {"mime_type": a["tipo"], "data": base64.b64encode(a["dados"]).decode()}})
+        corpo["contents"][-1]["parts"] = partes + corpo["contents"][-1]["parts"]
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO_GEMINI}:generateContent"
     pedido = urllib.request.Request(url, data=json.dumps(corpo).encode(), method="POST",
                                     headers={"Content-Type": "application/json", "x-goog-api-key": chave_gemini()})

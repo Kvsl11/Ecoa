@@ -128,3 +128,15 @@ test('tirar dúvidas: reconhece o pedido de sugestão de cantos para partes da m
   // pergunta sobre o app (o meu repertório) não é pedido de sugestão
   assert.equal(pedidoSugestao('Quando se canta o Glória e o que tem no meu repertório?', hoje), null);
 });
+
+test('tirar dúvidas: a pergunta falada, cheia de palavras de conversa, acha o arquivo pelo sinônimo', async () => {
+  const { palavras, gruposDaPergunta } = await import('../public/js/lib/duvidas.js');
+  const q = 'preciso que você me diga se tem algo no acervo referente a casamento';
+  assert.deepEqual(palavras(q), ['casamento']);
+  assert.ok(gruposDaPergunta(q)[0].includes('matrimoni'));
+  const ix = criarIndice([
+    { titulo: 'Glória', texto: 'Glória a Deus nas alturas' },
+    { titulo: 'RITUAL DO MATRIMÔNIO - CNBB', texto: 'COLETÂNEA RITUAIS CNBB RITUAL DO MATRIMÔNIO - CNBB', tipo: 'arquivo' },
+  ]);
+  assert.equal(ix.buscar(q)[0].titulo, 'RITUAL DO MATRIMÔNIO - CNBB');
+});

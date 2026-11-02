@@ -43,6 +43,8 @@ const P = {
   onda: '<path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/>',
   enviar: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/>',
+  legenda: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/>',
+  legendaOff: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/><path d="M3 3l18 18"/>',
   more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
   // o desenho de um acorde: o braço do violão de frente (pestana em cima, 4 cordas, 3 casas) com dois dedos
   diagrama: '<path d="M4 4.5h16" stroke-width="2.6"/><path d="M4 4.5V20M7.2 4.5V20M10.4 4.5V20M13.6 4.5V20M16.8 4.5V20M20 4.5V20M4 9.67h16M4 14.83h16M4 20h16" stroke-width="1.2"/><circle cx="16.8" cy="7.1" r="1.75" fill="currentColor" stroke="none"/><circle cx="10.4" cy="12.25" r="1.75" fill="currentColor" stroke="none"/><circle cx="13.6" cy="12.25" r="1.75" fill="currentColor" stroke="none"/>',

@@ -50,7 +50,8 @@ jobs:
           key: textos-acervo-${{ github.run_id }}
           restore-keys: textos-acervo-
       - name: Ler o texto dos PDFs do acervo (Drive)
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != '' && (env.ANTHROPIC_API_KEY != '' || env.GEMINI_API_KEY != '')
+        # (lê mesmo sem a chave da IA: a busca do Lumen no acervo, sem IA, também usa o texto dos PDFs)
+        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         continue-on-error: true
         timeout-minutes: 30
         working-directory: servidor-ia

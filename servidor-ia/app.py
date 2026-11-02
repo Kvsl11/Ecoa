@@ -258,6 +258,7 @@ def saude():
         "cookiesInfo": youtube.info_dos_cookies(),
         "letra": letra.tem_whisper(),
         "duvidas": duvidas.provedor() is not None,
+        "buscaAcervo": True,
         "ia": duvidas.provedor(),
         "voz": falar.tem_voz(),
         "chave": bool(os.environ.get("IA_CHAVE")),
@@ -558,6 +559,8 @@ class PedidoDuvida(BaseModel):
     contexto: str = ""
     # a conversa ao vivo: a resposta vai ser falada (curta, sem listas nem citações)
     voz: bool = False
+    # arquivos enviados pela pessoa: [{nome, tipo, dados (base64)}]
+    anexos: list[dict] = []
 
 
 @app.post("/duvida", dependencies=[Depends(conferir_chave)])
@@ -568,7 +571,7 @@ def tirar_duvida(pedido: PedidoDuvida):
         raise HTTPException(501, "este servidor não tem a chave da IA (ANTHROPIC_API_KEY ou GEMINI_API_KEY)")
     if qual == "gemini":
         try:
-            return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz)
+            return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos)
         except ValueError as e:
             raise HTTPException(422, str(e))
         except duvidas.ErroGemini as e:
@@ -577,7 +580,7 @@ def tirar_duvida(pedido: PedidoDuvida):
     import anthropic
 
     try:
-        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz)
+        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except anthropic.RateLimitError:
@@ -587,6 +590,26 @@ def tirar_duvida(pedido: PedidoDuvida):
         raise HTTPException(502, "a IA não respondeu agora, tente de novo")
     except anthropic.APIConnectionError:
         raise HTTPException(502, "sem conexão com a IA, tente de novo")
+
+
+class PedidoBusca(BaseModel):
+    pergunta: str
+    quantos: int = 8
+
+
+@app.post("/buscar-acervo", dependencies=[Depends(conferir_chave)])
+def buscar_acervo(pedido: PedidoBusca):
+    """A busca no acervo inteiro (com o texto dos PDFs), sem IA: funciona mesmo sem a chave da IA."""
+    return {"achados": duvidas.buscar_trechos(pedido.pergunta, max(1, min(20, pedido.quantos)))}
+
+
+@app.post("/ler-anexo", dependencies=[Depends(conferir_chave)])
+async def ler_anexo(arquivo: UploadFile = File(...)):
+    """O texto de um arquivo enviado (PDF, Word, texto), sem IA: o Lumen procura a resposta nele."""
+    dados = await arquivo.read(duvidas.MAX_ANEXO + 1)
+    if len(dados) > duvidas.MAX_ANEXO:
+        raise HTTPException(413, "o arquivo é grande demais (até 18 MB)")
+    return {"texto": duvidas.texto_do_anexo(arquivo.filename or "", arquivo.content_type or "", dados)[:400000]}
 
 
 class PedidoFala(BaseModel):

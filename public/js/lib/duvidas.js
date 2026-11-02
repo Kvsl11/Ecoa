@@ -6,7 +6,13 @@ const VAZIAS = new Set(`a o e os as um uma uns umas de do da dos das no na nos n
 aos à às é ser foi são era como mais mas ou eu tu ele ela nós vós eles elas me te lhe nos vos seu sua seus suas meu
 minha qual quais quando onde quem porque porquê isso isto esse essa este esta aquele aquela num numa pelo pela pelos
 pelas já tem ter há sobre entre até também muito muita hora vez deve devo pode posso fazer faz como fica ficam fora
-dentro algum alguma alguns ser estar está estão`.split(/\s+/)
+dentro algum alguma alguns ser estar está estão
+preciso precisa precisava quero queria gostaria voce você vc voces vocês diga dizer diz fala falar fale algo alguma
+coisa coisas referente referentes respeito relacionado relacionada relacionados acerca acervo arquivos arquivo
+documentos saber sabe sei encontre encontrar encontra ache achar acha procure procurar procura busque buscar busca
+traga trazer traz mostre mostrar mostra poderia poderiam consegue conseguir favor lumen ai aí entao então tipo assim
+ne né mim nosso nossa nossos nossas la lá aqui ali tudo todo toda todos todas existe existem tenho temos tinha
+oi ola olá bom boa dia tarde noite obrigado obrigada por gentileza`.split(/\s+/)
   .map((p) => sem(p)));
 
 function sem(texto) {
@@ -36,6 +42,50 @@ export function semCifra(chordpro) {
   }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// Sinônimos do assunto: quem pergunta "casamento" acha o "Ritual do Matrimônio"; "enterro", as exéquias. Cada grupo
+// vale como uma palavra só da pergunta (a cobertura não cai por causa deles)
+const SINONIMOS = [
+  ['casamento', 'casamentos', 'matrimonio', 'nupcias', 'nupcial', 'noivos', 'noiva', 'casal', 'esponsais', 'bodas'],
+  ['batismo', 'batizado', 'batizar', 'batismal'],
+  ['crisma', 'confirmacao', 'crismandos'],
+  ['enterro', 'funeral', 'velorio', 'exequias', 'defuntos', 'falecidos', 'finados', 'sepultamento'],
+  ['comunhao', 'eucaristia', 'eucaristica', 'eucaristico'],
+  ['salmo', 'salmos', 'salmista', 'responsorial'],
+  ['canto', 'cantos', 'musica', 'musicas', 'hino', 'hinos', 'cancao', 'cancoes'],
+  ['missa', 'celebracao', 'eucaristica'],
+  ['natal', 'natalino', 'nascimento'],
+  ['pascoa', 'pascal', 'ressurreicao'],
+  ['quaresma', 'quaresmal', 'cinzas'],
+  ['maria', 'mariano', 'mariana', 'nossa senhora', 'virgem'],
+  ['ofertorio', 'oferendas', 'ofertas'],
+  ['entrada', 'abertura'],
+  ['final', 'envio', 'saida', 'despedida'],
+  ['penitencia', 'confissao', 'reconciliacao'],
+  ['uncao', 'enfermos', 'doentes'],
+  ['ordenacao', 'ordem', 'sacerdotal', 'diaconal'],
+  ['partitura', 'partituras', 'notacao', 'cifra', 'cifras'],
+];
+const SINONIMO = new Map();
+for (const g of SINONIMOS) {
+  const rs = [...new Set(g.flatMap((x) => palavras(x)).map(raiz))];
+  for (const r of rs) SINONIMO.set(r, [...new Set([...(SINONIMO.get(r) || []), ...rs])]);
+}
+// as palavras da pergunta, cada uma com os sinônimos dela: [[raiz, sinônimos…], …]
+export function gruposDaPergunta(pergunta) {
+  const vistos = new Set();
+  const grupos = [];
+  for (const p of palavras(pergunta)) {
+    const r = raiz(p);
+    if (vistos.has(r)) continue;
+    const g = SINONIMO.get(r) || [r];
+    g.forEach((x) => vistos.add(x));
+    grupos.push(g.includes(r) ? [r, ...g.filter((x) => x !== r)] : [r, ...g]);
+  }
+  return grupos;
+}
+// todas as raízes que respondem à pergunta (as dela e os sinônimos)
+export const raizesDaPergunta = (pergunta) => new Set(gruposDaPergunta(pergunta).flat());
+
 // índice BM25: a palavra rara (que diz mais sobre o trecho) pesa mais que a comum; trecho longo não ganha só por ser longo
 export function criarIndice(trechos) {
   const contas = trechos.map((t) => {
@@ -52,19 +102,24 @@ export function criarIndice(trechos) {
   return {
     // os melhores trechos e quanto da pergunta cada um cobre (0 a 1: a fração das palavras dela que aparecem)
     buscar(pergunta, quantos = 4) {
-      const termos = [...new Set(palavras(pergunta).map(raiz))];
-      if (!termos.length) return [];
+      const grupos = gruposDaPergunta(pergunta);
+      if (!grupos.length) return [];
       const notas = [];
       contas.forEach((c, i) => {
         let s = 0;
         let achou = 0;
-        for (const p of termos) {
-          const f = c.get(p);
-          if (!f) continue;
-          achou++;
-          s += idf(p) * (f * 2.4) / (f + 1.4 * (0.25 + 0.75 * tam[i] / media));
+        // cada palavra da pergunta vale pela melhor forma achada (ela mesma ou um sinônimo, este um pouco menos)
+        for (const g of grupos) {
+          let melhor = 0;
+          g.forEach((p, k) => {
+            const f = c.get(p);
+            if (!f) return;
+            const v = idf(p) * (f * 2.4) / (f + 1.4 * (0.25 + 0.75 * tam[i] / media)) * (k ? 0.85 : 1);
+            if (v > melhor) melhor = v;
+          });
+          if (melhor) { achou++; s += melhor; }
         }
-        if (s > 0) notas.push({ s, i, cobre: achou / termos.length });
+        if (s > 0) notas.push({ s, i, cobre: achou / grupos.length });
       });
       notas.sort((a, b) => b.s - a.s);
       const vistos = new Set();
@@ -100,7 +155,7 @@ export const explica = (frase) => {
 
 // as frases do texto que mais têm as palavras da pergunta (na ordem em que aparecem), para mostrar o trecho certo
 export function melhoresFrases(texto, pergunta, quantas = 3, { soExplicacao = false } = {}) {
-  const termos = new Set(palavras(pergunta).map(raiz));
+  const termos = raizesDaPergunta(pergunta);
   const frases = String(texto || '').replace(/\s*\n+\s*/g, '\n').split(/(?<=[.!?;])\s+|\n/).map((f) => f.trim())
     .filter((f) => f.length > 3 && (!soExplicacao || explica(f)));
   const nota = (f) => new Set(palavras(f).map(raiz).filter((p) => termos.has(p))).size;
