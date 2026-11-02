@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 441, data: '2026-11-02', titulo: 'Lumen: o anexar e o microfone do chat voltam a funcionar',
+    itens: [
+      { tipo: 'correcao', texto: 'Na conversa por texto do Lumen, o botão de enviar arquivo ligava a gravação da voz (“Ouvindo…”), e o botão do microfone não fazia nada. Agora o de anexar abre a escolha do arquivo, e o microfone liga o ditado.' },
+      { tipo: 'correcao', texto: 'Dúvidas como “como o salmista deve proclamar o salmo?” não viram mais uma lista de cantos repetidos com versos de antífona: sem a IA, a resposta vem dos documentos do acervo e da internet.' },
+    ],
+  },
+  {
     versao: 440, data: '2026-11-02', titulo: 'Lumen pede o microfone e volta a falar',
     itens: [
       { tipo: 'correcao', texto: 'O Lumen ao vivo mostrava o texto, mas a voz não saía. No celular e no tablet Android, o microfone que fica atento para você interromper colocava o som em “modo ligação”, e a voz ia para o alto-falante de ouvido, quase muda. Agora a voz sai normal, e se o aparelho pausar a voz sozinho, ela volta a tocar.' },
@@ -74,12 +81,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Gerar com IA: enquanto a IA trabalha, um cartão só mostra a etapa da vez, o tempo e uma barra com o andamento geral; as etapas aparecem numa lista enxuta, marcadas conforme terminam. No fim, “Partitura pronta” vem numa linha, com o resumo e os ajustes recolhidos.' },
       { tipo: 'correcao', texto: 'O andamento da IA às vezes parava na primeira etapa (“Baixando o áudio”, em 0%) até a partitura ficar pronta. Agora cada etapa acende na hora.' },
       { tipo: 'correcao', texto: 'No ensaio, a voz em destaque aparecia cortada (“S…”, “C…”) com o volume espremido do lado. Agora o nome aparece inteiro e o volume fica embaixo, como nas outras vozes.' },
-    ],
-  },
-  {
-    versao: 431, data: '2026-11-02', titulo: 'A música anterior para na hora',
-    itens: [
-      { tipo: 'correcao', texto: 'Ao abrir outra música, às vezes a anterior continuava tocando por alguns instantes. Acontecia com a música que ainda não tinha vídeo (enquanto o app procurava um) e com as músicas baixadas (enquanto a nova abria do aparelho). Agora a anterior para assim que você toca na outra.' },
     ],
   },
 ];
