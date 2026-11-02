@@ -3086,6 +3086,9 @@ const semLinhasDeAcordes = (sinc) => {
     tocandoAlgo: () => Boolean(atual) && estado === 'tocando',
     desta,
     ouvir(fn) { ouvintes.add(fn); return () => ouvintes.delete(fn); },
+    // o aleatório ligado ou desligado de fora do player (o botão das páginas do repertório e das Músicas curtidas)
+    aleatorio: () => aleatorio,
+    definirAleatorio(v) { aleatorio = Boolean(v); db.setPref('aleatorio', aleatorio); filaOrdemChave = ''; historico = []; tocadas = new Set(); desenharModos(); },
     // pausado: abre a música sem começar a tocar (a página dela aberta por um link, voltando do editor…)
     tocar(item, { pausado = false } = {}) {
       if (!item?.youtube) return;
@@ -7441,7 +7444,7 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   if (!['tudo', 'repertorios', 'playlists', 'artistas', ...FILTROS_MUSICAS].includes(filtro)) filtro = 'tudo';
   const naEstante = !FILTROS_MUSICAS.includes(filtro);
   setTab('biblioteca');
-  setTint(naEstante ? '#2b3d4f' : '#3b2a8f');
+  setTint(naEstante ? '#2b3d4f' : '#2d46b9');
   setHeader(naEstante ? 'Sua biblioteca' : 'Músicas curtidas', naEstante ? {} : { back: '#/biblioteca', eyebrow: 'Sua biblioteca' });
   // Músicas primeiro (é o que mais se abre); cada filtro mostra quantos itens tem
   // (os cantos que o Montar repertório trouxe ficam só no repertório)
@@ -7461,12 +7464,14 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   const ehPl = filtro === 'playlists';
   const modo = prefBib('modo', 'grade'); // grade ou lista
   const ordem = prefBib('ordem', 'recentes'); // recentes (a data do repertório) ou alfabética
+  const ordemMus = prefBib('ordemMus', 'recentes'); // nas músicas curtidas: as salvas por último primeiro, ou A–Z
   let songs = todas;
   if (filtro === 'video') songs = songs.filter((s) => s.youtube);
   if (filtro === 'proprias') songs = songs.filter(ehPropria);
   if (filtro === 'partitura') songs = songs.filter(temPartitura);
   if (filtro === 'baixadas') songs = songs.filter((x) => x.baixado && !precisaBaixar(x));
   const itens = ehArt ? [] : ehRep ? sets.filter((x) => filtro === 'tudo' || ehPlaylist(x) === ehPl) : songs;
+  if (!naEstante && ordemMus === 'recentes') itens.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   if (ehRep && ordem === 'az') itens.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const marca = (id) => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const lixeira = (id, nome) => `<button class="icon-btn lixo" data-excluir="${id}" aria-label="Excluir ${esc(nome)}" title="Excluir">${icon('trash', 16)}</button>`;
@@ -7522,18 +7527,21 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
       <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
       <button class="btn small danger solid" id="sel-excluir">${icon('trash', 15)} Excluir</button></div>
     <button class="fab" ${selecionando || ehArt ? 'hidden' : ''} aria-label="${ehPl ? 'Nova playlist' : 'Novo repertório'}">${icon('plus', 24)}<span>${ehPl ? 'Nova playlist' : 'Novo repertório'}</span></button>` : `
-    <div class="curtidas-topo">${capaCurtidas('grande')}<div><small>Playlist</small><h2>Músicas curtidas</h2><p>${todas.length} ${todas.length === 1 ? 'música' : 'músicas'}</p></div></div>
-    <div class="bib-fixo">
-      <nav class="bib-filtros chips" aria-label="Filtrar as músicas">${FILTROS.map(([k, n, c]) => `<a class="chip" href="#/biblioteca/${k}" aria-pressed="${k === filtro}">${n}<b>${c}</b></a>`).join('')}</nav>
-      ${itens.length ? `<label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar nas músicas" value="${esc(busca)}" autocomplete="off"></label>` : ''}
+    <div class="bib-fixo curtidas-busca">
+      <label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar nas músicas curtidas" value="${esc(busca)}" autocomplete="off"></label>
+      <button class="btn small spot-ordenar" id="bib-ordenar-mus" title="Mudar a ordem">${ordemMus === 'az' ? 'A–Z' : 'Recentes'}</button>
     </div>
-    <div class="bib-barra">
-      <div class="bib-acoes">
-        <button class="btn small primary" id="${acao[0]}">${icon(acao[1], 15)} ${acao[2]}</button>
-        ${ehRep ? '' : `<button class="btn small" id="lib-importar" title="Importar arquivos ChordPro, PDF, texto">${icon('upload', 15)} Importar</button>`}
-        ${itens.length ? `<button class="btn small${selecionando ? ' ativo' : ''}" id="lib-sel" aria-pressed="${selecionando}" title="Selecionar para excluir">${icon(selecionando ? 'x' : 'check', 15)} ${selecionando ? 'Cancelar' : 'Selecionar'}</button>` : ''}
-      </div>
+    <section class="curtidas-topo"><h2>Músicas curtidas</h2><p>${todas.length} ${todas.length === 1 ? 'música' : 'músicas'}</p></section>
+    <div class="spot-acoes">
+      <button class="icon-btn" id="lib-nova-mus" aria-label="Criar música" title="Criar música">${icon('edit', 22)}</button>
+      <button class="icon-btn" id="lib-importar" aria-label="Importar arquivos" title="Importar arquivos ChordPro, PDF, texto">${icon('upload', 22)}</button>
+      ${itens.length ? `<button class="icon-btn${selecionando ? ' ativo' : ''}" id="lib-sel" aria-pressed="${selecionando}" aria-label="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}" title="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}">${icon(selecionando ? 'x' : 'check', 22)}</button>` : ''}
+      <span class="spacer"></span>
+      ${itens.some(midiaDe) ? `<button class="icon-btn spot-aleat${db.prefs().aleatorio ? ' ligado' : ''}" id="mus-aleat" aria-pressed="${Boolean(db.prefs().aleatorio)}" aria-label="Aleatório" title="Aleatório">${icon('shuffle', 24)}</button>
+      <button class="play-big" id="mus-play" aria-label="Tocar as músicas curtidas" title="Tocar">${icon('play', 24)}</button>` : ''}
     </div>
+    <nav class="bib-filtros chips spot-chips" aria-label="Filtrar as músicas">${FILTROS.map(([k, n, c]) => `<a class="chip" href="#/biblioteca/${k}" aria-pressed="${k === filtro}">${n}<b>${c}</b></a>`).join('')}</nav>
+    ${selecionando ? '' : `<a class="track spot-add" href="#/buscar"><span class="spot-add-ic">${icon('plus', 24)}</span><span>Adicionar a esta playlist</span></a>`}
     <div id="lib" class="${selecionando ? 'selecionando' : ''}">${itens.length ? `<ul class="tracks">${itens.map(linha).join('')}</ul>` : vazio}</div>
     <div class="barra-sel" id="barra-sel" ${selecionando ? '' : 'hidden'}>
       <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
@@ -7545,6 +7553,22 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
     linhas.forEach((li, i) => { li.dataset.midiaIndex = String(i); });
     enriquecerLinhasMusicais(lib, itens, { busca: false });
   }
+  $('#bib-ordenar-mus')?.addEventListener('click', () => { guardarPrefBib('ordemMus', ordemMus === 'az' ? 'recentes' : 'az'); viewLibrary(filtro); });
+  // aleatório e play das músicas curtidas (o play começa pela primeira com vídeo; com o aleatório, por uma qualquer)
+  $('#mus-aleat')?.addEventListener('click', (e) => {
+    const v = !player.aleatorio();
+    player.definirAleatorio(v);
+    e.currentTarget.classList.toggle('ligado', v);
+    e.currentTarget.setAttribute('aria-pressed', String(v));
+    toast(v ? 'Aleatório ligado' : 'Aleatório desligado');
+  });
+  $('#mus-play')?.addEventListener('click', () => {
+    const com = itens.filter(midiaDe);
+    const s = player.aleatorio() ? com[Math.floor(Math.random() * com.length)] : com[0];
+    if (!s) return;
+    player.tocar(itemDoPlayer(s, null, -1));
+    if (telaDeCelular()) player.expandir();
+  });
   $('#bib-ordenar')?.addEventListener('click', () => { guardarPrefBib('ordem', ordem === 'az' ? 'recentes' : 'az'); viewLibrary(filtro); });
   $('#bib-modo')?.addEventListener('click', () => { guardarPrefBib('modo', modo === 'grade' ? 'lista' : 'grade'); viewLibrary(filtro, { selecionando, marcados }); });
   enriquecerTilesArtistas(lib);
@@ -11185,25 +11209,33 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   const pl = ehPlaylist(set);
   const tipo = tipoDoSet(set);
   setHeader(set.name, { back: pl ? '#/biblioteca/playlists' : '#/biblioteca/repertorios', eyebrow: tipo });
+  // no jeito da playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração; os botões (baixar,
+  // editar) à esquerda e o aleatório e o play à direita; embaixo, os chips das ações (Adicionar, Criar música, Data…)
+  const aleat = Boolean(db.prefs().aleatorio);
   view.innerHTML = `
-    <section class="page-hero"><button class="capa-editar" id="capa-ed" aria-label="Editar capa e detalhes" title="Editar capa e detalhes">${capaRepertorio(set)}<span class="lapis">${icon('edit', 28)}<small>Escolher foto</small></span></button>
-      <div><div class="kind">${tipo}</div><h2 id="set-nome" class="editavel" title="Editar detalhes">${esc(set.name)}</h2>
-        <div class="meta"><b>${dataPorExtenso(set.date)}</b><span id="set-resumo">· ${resumoRepertorio(set)}</span></div></div></section>
-    <div class="actions-row">
-      ${set.items.length ? (pl ? `<button class="play-big" data-tocar-set="${id}" aria-label="Ouvir a playlist" title="Ouvir">${icon('play', 24)}</button>`
-    : `<a class="play-big" href="#/repertorio/${id}/0" aria-label="Tocar repertório" title="Tocar">${icon('play', 24)}</a>`) : ''}
+    <section class="spot-topo"><button class="capa-editar" id="capa-ed" aria-label="Editar capa e detalhes" title="Editar capa e detalhes">${capaRepertorio(set)}<span class="lapis">${icon('edit', 28)}<small>Escolher foto</small></span></button>
+      <h2 id="set-nome" class="editavel" title="Editar detalhes">${esc(set.name)}</h2>
+      <div class="spot-dono">${tipo} · ${esc(dataPorExtenso(set.date))}</div>
+      <div class="spot-dur">${icon('clock', 14)}<span id="set-resumo">${resumoRepertorio(set)}</span></div></section>
+    <div class="spot-acoes">
       ${set.items.length ? botaoBaixarSet(set) : ''}
-      <button class="icon-btn" id="add" aria-label="Adicionar música da biblioteca" title="Adicionar música da biblioteca">${icon('plus', 24)}</button>
-      <a class="btn small" href="#/editar/novo/${id}" title="Escrever uma música nova (letra, cifra, estrutura) e já colocar neste repertório">${icon('edit', 15)} Criar música</a>
       <button class="icon-btn" id="ren" aria-label="Editar detalhes" title="Editar capa, nome e tipo">${icon('edit', 22)}</button>
-      ${set.items.length ? `<button class="btn small" id="exp" title="Exportar o repertório inteiro em PDF (com ou sem cifra) ou backup">${icon('file', 15)} Exportar PDF</button>` : ''}
-      ${set.items.length ? `<button class="btn small" id="pptx" title="Gerar o PowerPoint da missa no modelo do grupo, com as letras nos lugares certos">${icon('grid', 15)} PowerPoint</button>` : ''}
-      <button class="icon-btn danger" id="del" aria-label="Excluir ${tipo.toLowerCase()}" title="Excluir">${icon('trash', 22)}</button>
-      <div class="seg-tabs" style="min-width:190px">${campoData('set-date', set.date, 'Data do repertório')}</div>
+      <span class="spacer"></span>
+      ${set.items.length ? `<button class="icon-btn spot-aleat${aleat ? ' ligado' : ''}" id="set-aleat" aria-pressed="${aleat}" aria-label="Aleatório" title="Aleatório">${icon('shuffle', 24)}</button>` : ''}
+      ${set.items.length ? (pl ? `<button class="play-big" id="set-play" aria-label="Ouvir a playlist" title="Ouvir">${icon('play', 24)}</button>`
+    : `<a class="play-big" id="set-play" href="#/repertorio/${id}/0" aria-label="Tocar repertório" title="Tocar">${icon('play', 24)}</a>`) : ''}
     </div>
+    <nav class="chips spot-chips" aria-label="Ações d${pl ? 'a playlist' : 'o repertório'}">
+      <button class="chip" id="add" title="Adicionar música da biblioteca">${icon('plus', 16)} Adicionar</button>
+      <a class="chip" href="#/editar/novo/${id}" title="Escrever uma música nova (letra, cifra, estrutura) e já colocar neste repertório">${icon('edit', 15)} Criar música</a>
+      <span class="spot-data">${campoData('set-date', set.date, 'Data do repertório')}</span>
+      ${set.items.length ? `<button class="chip" id="exp" title="Exportar o repertório inteiro em PDF (com ou sem cifra) ou backup">${icon('file', 15)} PDF</button>` : ''}
+      ${set.items.length ? `<button class="chip" id="pptx" title="Gerar o PowerPoint da missa no modelo do grupo, com as letras nos lugares certos">${icon('grid', 15)} PowerPoint</button>` : ''}
+      ${set.items.length && !selecionando ? `<button class="chip" id="set-sel" title="Marcar músicas para remover">${icon('check', 15)} Selecionar</button>` : ''}
+      <button class="chip" id="del" title="Excluir">${icon('trash', 15)} Excluir</button>
+    </nav>
     ${!pl && set.items.length && set.date && !selecionando ? '<div id="revisao"></div>' : ''}
-    ${set.items.length ? `<div class="row" style="margin:0 0 6px"><p class="muted" style="font-size:13px;margin:0;flex:1 1 260px">${selecionando ? 'Toque nas músicas para marcar ou desmarcar.' : 'Para mudar a ordem, segure uma música e arraste (no computador, clique e arraste).'}</p>
-      ${selecionando ? '' : `<button class="btn small" id="set-sel">${icon('check', 15)} Selecionar</button><button class="btn small" id="set-sel-todos">${icon('check', 15)} Selecionar tudo</button>`}</div>
+    ${set.items.length ? `${selecionando ? '<p class="muted" style="font-size:13px;margin:0 0 6px">Toque nas músicas para marcar ou desmarcar.</p>' : ''}
     <ul class="tracks ${selecionando ? 'selecionando' : ''}">${set.items.map((it, i) => linhaItemRepertorio(set, it, i)).join('')}</ul>
     <div class="barra-sel" id="barra-sel" ${selecionando ? '' : 'hidden'}>
       <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
@@ -11241,11 +11273,25 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     if (!$('#set-resumo')) return;
     if (d) view.querySelectorAll(`.set-item[data-i="${k}"] .dur-faixa`).forEach((x) => { x.textContent = ` · ${fmtTempo(d)}`; });
     const atual = db.set(id);
-    if (atual) $('#set-resumo').textContent = `· ${resumoRepertorio(atual)}`;
+    if (atual) $('#set-resumo').textContent = resumoRepertorio(atual);
     return proximaDuracao();
   };
   proximaDuracao(); proximaDuracao(); proximaDuracao();
   if (pl) videosDaPlaylist(set, () => db.set(id) && $('#set-resumo') && location.hash === '#/repertorio/' + id && viewSet(id));
+  // aleatório (fica ligado também no player) e o play: com o aleatório, começa por uma música qualquer
+  $('#set-aleat')?.addEventListener('click', (e) => {
+    const v = !player.aleatorio();
+    player.definirAleatorio(v);
+    e.currentTarget.classList.toggle('ligado', v);
+    e.currentTarget.setAttribute('aria-pressed', String(v));
+    toast(v ? 'Aleatório ligado' : 'Aleatório desligado');
+  });
+  $('#set-play')?.addEventListener('click', (e) => {
+    if (!player.aleatorio()) { if (pl) { e.preventDefault(); tocarPlaylist(set); } return; }
+    const com = set.items.map((it, k) => (midiaDe(db.song(it.songId)) ? k : -1)).filter((k) => k >= 0);
+    const k = com.length ? com[Math.floor(Math.random() * com.length)] : 0;
+    if (pl) { e.preventDefault(); tocarPlaylist(set, k); } else e.currentTarget.href = `#/repertorio/${id}/${k}`;
+  });
   const ul = view.querySelector('.tracks');
   // modo Selecionar: marcar várias (ou todas) e remover de uma vez
   const selecionar = (todas) => viewSet(id, { selecionando: true, marcados: new Set(todas ? set.items.map((_, i) => i) : []) });

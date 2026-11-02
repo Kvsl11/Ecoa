@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 414, data: '2026-11-02', titulo: 'Repertórios e Músicas curtidas no jeito do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'Dentro do repertório e da playlist, a página ficou como a de uma playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração, os botões de baixar e editar à esquerda e o aleatório e o play à direita. As ações (Adicionar, Criar música, a data, PDF, PowerPoint, Selecionar e Excluir) viraram chips numa linha que rola de lado.' },
+      { tipo: 'melhoria', texto: 'As Músicas curtidas ficaram como as do Spotify: o degradê azul, a busca e a ordem (Recentes ou A–Z) no alto, o nome e a quantidade, o aleatório e o play, os filtros em chips e a linha “Adicionar a esta playlist” antes das músicas.' },
+      { tipo: 'novo', texto: 'Botão de aleatório nas duas páginas: ligado, o play começa por uma música qualquer e a fila segue embaralhada (é o mesmo aleatório do player).' },
+    ],
+  },
+  {
     versao: 413, data: '2026-11-02', titulo: 'Biblioteca no jeito do Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'A Biblioteca ficou como a do Spotify: as capas em grade, com o nome e “Repertório • 3 músicas” embaixo. As suas músicas salvas não ficam mais soltas: ficam dentro de “Músicas curtidas”, o card do coração fixado no topo (com o alfinete verde), junto com o das Baixadas. Depois vêm os seus repertórios e playlists.' },
@@ -60,12 +68,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O som do acorde agora é de um violão de nylon de verdade, gravado nota por nota, no lugar do som feito pelo aparelho (que tinha chiado). Na primeira vez que um acorde toca, as notas dele são baixadas; depois ficam guardadas e tocam também sem internet.' },
       { tipo: 'correcao', texto: 'Arrastar para o lado a faixa dos desenhos dos acordes (ou a das ferramentas) não troca mais de música no repertório.' },
-    ],
-  },
-  {
-    versao: 404, data: '2026-11-01', titulo: 'Ouça o acorde no violão',
-    itens: [
-      { tipo: 'novo', texto: 'Tocar no desenho de um acorde faz ele soar no violão, corda por corda, como uma batida para baixo: na faixa dos acordes da cifra em tela cheia, no balão que abre ao tocar num acorde da cifra (que já toca ao abrir) e nos desenhos da página da música. Com capotraste, soa no tom de verdade.' },
     ],
   },
 ];

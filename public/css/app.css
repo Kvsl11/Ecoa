@@ -4413,9 +4413,43 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 @media (min-width: 760px) { .bib-artistas { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
 .bib-artistas .tile { margin: 0; padding: 0; }
 .bib-artistas .tile-artista .cover img { width: 100%; height: 100%; object-fit: cover; }
-/* o topo das Músicas curtidas: a capa do coração, "Playlist" e o nome grande */
-.curtidas-topo { display: flex; align-items: flex-end; gap: 18px; margin: 0 0 18px; }
-.curtidas-topo .cover.grande { width: clamp(110px, 28vw, 200px); height: auto; aspect-ratio: 1; border-radius: 6px; box-shadow: 0 14px 34px rgb(0 0 0 / 0.5); }
-.curtidas-topo small { font-size: 13px; font-weight: 600; }
-.curtidas-topo h2 { margin: 2px 0 6px; font-size: clamp(28px, 6.5vw, 64px); font-weight: 900; letter-spacing: -0.035em; line-height: 1; }
+/* ============================================================ dentro da playlist (repertório) e das Músicas curtidas,
+   no jeito do Spotify */
+/* a capa grande no meio, o nome à esquerda, o tipo e a data, a duração */
+.spot-topo { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 0 6px; }
+.spot-topo .capa-editar { align-self: center; margin-bottom: 18px; }
+.spot-topo .capa-editar .cover { width: clamp(180px, 52vw, 300px); height: auto; aspect-ratio: 1; border-radius: 4px; box-shadow: 0 16px 48px rgb(0 0 0 / 0.55); }
+.spot-topo .capa-editar .cover img { width: 100%; height: 100%; object-fit: cover; }
+.spot-topo h2 { margin: 0 0 8px; font-size: clamp(24px, 4.2vw, 34px); font-weight: 800; letter-spacing: -0.025em; line-height: 1.12; cursor: pointer; }
+.spot-dono { font-size: 14px; font-weight: 700; text-transform: none; }
+.spot-dono::first-letter { text-transform: uppercase; }
+.spot-dur { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--muted); font-size: 13px; }
+/* a linha dos botões: baixar e editar à esquerda; o aleatório e o play (verde no Spotify, aqui na cor do app) à direita */
+.spot-acoes { display: flex; align-items: center; gap: 6px; margin: 10px 0 12px; }
+.spot-acoes .icon-btn { width: 40px; height: 40px; color: var(--muted); }
+.spot-acoes .icon-btn:hover { color: var(--text); }
+.spot-acoes .icon-btn.ativo { color: var(--accent); }
+.spot-acoes .play-big { width: 52px; height: 52px; margin-left: 6px; }
+.spot-aleat { position: relative; }
+.spot-aleat.ligado { color: var(--accent) !important; }
+.spot-aleat.ligado::after { content: ""; position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; }
+/* os chips das ações (ou dos filtros), numa linha que rola de lado */
+.spot-chips { flex-wrap: nowrap; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 2px var(--gutter) 6px; }
+.spot-chips .chip { gap: 6px; background: rgb(255 255 255 / 0.1); }
+:root[data-theme="light"] .spot-chips .chip { background: rgb(0 0 0 / 0.06); }
+.spot-chips .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.spot-data { flex: none; display: flex; }
+.spot-data .date-field { height: 32px; min-height: 0; padding: 0 14px; border-radius: 999px; border: 0; font-size: 13px; background: rgb(255 255 255 / 0.1); gap: 6px; }
+:root[data-theme="light"] .spot-data .date-field { background: rgb(0 0 0 / 0.06); }
+.spot-data .date-field .ic { width: 15px; height: 15px; }
+/* "Adicionar a esta playlist": a primeira linha, com o + num quadrado */
+.track.spot-add { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+.spot-add-ic { width: 48px; height: 48px; border-radius: 4px; display: grid; place-items: center; background: rgb(255 255 255 / 0.1); flex: none; }
+:root[data-theme="light"] .spot-add-ic { background: rgb(0 0 0 / 0.06); }
+/* Músicas curtidas: a busca e a ordem no alto; o nome e a quantidade no degradê azul */
+.curtidas-busca { display: flex; align-items: center; gap: 8px; }
+.curtidas-busca .bib-busca { flex: 1; }
+.spot-ordenar { flex: none; }
+.curtidas-topo { padding: 18px 0 2px; }
+.curtidas-topo h2 { margin: 0 0 6px; font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
 .curtidas-topo p { margin: 0; color: var(--muted); font-size: 14px; }
