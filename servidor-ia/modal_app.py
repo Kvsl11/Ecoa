@@ -45,7 +45,7 @@ NUCLEOS = 8
 # 1 minuto depois do último uso (antes 5: o tempo parado também é cobrado)
 @app.function(image=imagem, cpu=float(NUCLEOS), memory=8192, timeout=900, scaledown_window=60, max_containers=1,
               secrets=[modal.Secret.from_name("songbook-ia")], volumes={"/cache": guardados},
-              env={"IA_THREADS": str(NUCLEOS), "IA_TAREFAS": "1", "IA_CACHE": "/cache"})
+              env={"IA_THREADS": str(NUCLEOS), "IA_TAREFAS": "1", "IA_CACHE": "/cache", "IA_CREPE": "full"})
 @modal.concurrent(max_inputs=4)
 @modal.asgi_app()
 def web():
