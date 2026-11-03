@@ -6,8 +6,8 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from transcricao import (Nota, alinhar_inicios, corrigir_pela_afinacao, dividir_pela_afinacao,  # noqa: E402
-                         juntar_pedacos, limpar, polifonia, rearticulacoes, tirar_estalos, tirar_harmonicos,
-                         uma_linha)
+                         juntar_pedacos, limpar, polifonia, preencher_pela_afinacao, rearticulacoes, tirar_estalos,
+                         tirar_harmonicos, uma_linha)
 from youtube import id_do_video  # noqa: E402
 
 
@@ -165,3 +165,21 @@ def test_inicio_vai_para_o_ataque_da_voz():
     saida = alinhar_inicios(notas, np.array([1.0, 1.5, 3.2]))
     assert [round(n.ini, 2) for n in saida] == [1.0, 1.5, 3.0]  # a 3ª: o ataque está longe demais
     assert saida[0].fim == 1.5  # a de antes acaba onde a seguinte começa
+
+
+def test_nota_perdida_volta_pela_afinacao():
+    tempos = np.arange(0, 2, 0.01)
+    f0 = np.where(tempos < 1, 67.0, 71.0) + 0.3 * np.sin(2 * np.pi * 5.5 * tempos)  # Sol e depois Si, com vibrato
+    vozeado = (tempos < 1.6) & ~((tempos > 0.95) & (tempos < 1.0))  # um respiro entre as duas; depois, silêncio
+    # o Basic Pitch só ouviu o Sol
+    saida = preencher_pela_afinacao([Nota(0.0, 0.95, 67, 0.7, "voz")], f0, vozeado, tempos)
+    assert [n.alt for n in saida] == [67, 71]
+    assert abs(saida[1].ini - 1.0) < 0.02 and abs(saida[1].fim - 1.6) < 0.02 and saida[1].fonte == "voz"
+    assert saida[1].amp < 0.7
+
+
+def test_nao_preenche_onde_ja_tem_nota_nem_pedacinho():
+    tempos = np.arange(0, 1, 0.01)
+    f0 = np.full_like(tempos, 69.0)
+    notas = [Nota(0.0, 0.5, 69, 0.7), Nota(0.55, 1.0, 69, 0.7)]  # o buraco de 50 ms não vira nota
+    assert len(preencher_pela_afinacao(notas, f0, np.ones_like(tempos, bool), tempos)) == 2

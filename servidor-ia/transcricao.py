@@ -277,6 +277,55 @@ def dividir_pela_afinacao(notas: list[Nota], f0_midi: np.ndarray, vozeado: np.nd
     return saida
 
 
+def preencher_pela_afinacao(notas: list[Nota], f0_midi: np.ndarray, vozeado: np.ndarray, tempos: np.ndarray,
+                            minimo: float = 0.12, fonte: str = "voz") -> list[Nota]:
+    """As notas perdidas: onde a voz canta firme numa altura (a afinação diz que há voz, numa altura só, por pelo
+    menos "minimo") e o Basic Pitch não marcou nota nenhuma, a nota entra pela afinação. Só o pedaço que nenhuma nota
+    cobre: a nota nova não fica por cima das outras. A força é a de uma nota típica da voz, um pouco mais fraca."""
+    if len(tempos) < 2:
+        return notas
+    quadro = float(tempos[1] - tempos[0]) or 0.01
+    janela = max(3, int(round(0.15 / quadro)) | 1)
+    forca = float(np.median([n.amp for n in notas])) * 0.8 if notas else 0.5
+    ocupado = sorted((n.ini, n.fim) for n in notas)
+    novas = []
+    # os trechos seguidos com voz
+    vivo = np.asarray(vozeado, bool)
+    k = 0
+    while k < len(vivo):
+        if not vivo[k]:
+            k += 1
+            continue
+        fim_trecho = k
+        while fim_trecho < len(vivo) and vivo[fim_trecho]:
+            fim_trecho += 1
+        curva = _mediana_movel(f0_midi[k:fim_trecho], janela)
+        alturas = np.round(curva).astype(int)
+        i = 0
+        while i < len(alturas):
+            j = i
+            while j < len(alturas) and alturas[j] == alturas[i]:
+                j += 1
+            ini, fim = float(tempos[k + i]), float(tempos[k + j - 1]) + quadro
+            if fim - ini >= minimo and 21 <= alturas[i] <= 108:
+                # o que nenhuma nota cobre, dentro do trecho
+                livres, cursor = [], ini
+                for a, b in ocupado:
+                    if b <= cursor or a >= fim:
+                        continue
+                    if a > cursor:
+                        livres.append((cursor, a))
+                    cursor = max(cursor, b)
+                if cursor < fim:
+                    livres.append((cursor, fim))
+                for a, b in livres:
+                    if b - a >= minimo:
+                        novas.append(Nota(a, b, int(alturas[i]), forca, fonte))
+            i = j
+        k = fim_trecho
+    return sorted(notas + novas, key=lambda x: x.ini)
+
+
 def alinhar_inicios(notas: list[Nota], ataques: np.ndarray, raio: float = 0.05) -> list[Nota]:
     """O começo de cada nota vai para o ataque de verdade da voz (onde o som da sílaba começa, achado na voz
     separada), se ele está a menos de "raio": o Basic Pitch marca o começo em quadros de ~12 ms e às vezes adianta ou
@@ -338,6 +387,7 @@ def limpar(voz: list[Nota], banda: list[Nota], afinacao=None, quebra_voz=None, q
     if tipo == "solo":
         if afinacao is not None:
             voz = corrigir_pela_afinacao(dividir_pela_afinacao(voz, *afinacao), *afinacao)
+            voz = preencher_pela_afinacao(voz, *afinacao)
         voz = juntar_pedacos(uma_linha(voz), vibrato=True, quebra=quebra_voz)
         voz = alinhar_inicios(voz, ataques)
     return voz, banda, tipo
@@ -539,9 +589,10 @@ OPCOES_MISTURA = dict(onset_threshold=0.5, frame_threshold=0.3, minimum_note_len
 
 def afinacao_da_voz(voz: np.ndarray):
     """A afinação cantada, quadro a quadro: (altura em MIDI, se há voz, instante). Com o CREPE (rede treinada para
-    a afinação da voz: erra bem menos oitava que o pYIN) quando instalado; senão, o pYIN do librosa. O modelo "tiny"
-    do CREPE: no servidor (2 CPUs) o "full" levava ~10 min numa música de 3 min e segurava a fila (a outra música
-    esperando parecia travada no "Baixando"); o tiny leva segundos e acerta quase igual na voz."""
+    a afinação da voz: erra bem menos oitava que o pYIN) quando instalado; senão, o pYIN do librosa. O modelo "full"
+    do CREPE (IA_CREPE; "tiny" é o rápido): é mais lento (no servidor de 8 núcleos, uns 2 a 3 minutos numa música de
+    3 min), mas ouve melhor onde há voz e em que altura, e acha as notas que o Basic Pitch perde. Se ele falhar
+    (memória), vai o tiny."""
     import librosa
 
     try:
@@ -553,9 +604,17 @@ def afinacao_da_voz(voz: np.ndarray):
         _threads_do_torch()
         sr, hop = 16000, 160  # quadros de 10 ms
         x = torch.tensor(librosa.resample(voz, orig_sr=SR, target_sr=sr), dtype=torch.float32)[None]
-        f0, period = torchcrepe.predict(x, sr, hop, 65.0, 1100.0, os.environ.get("IA_CREPE", "tiny"),
-                                        decoder=torchcrepe.decode.viterbi, return_periodicity=True,
-                                        batch_size=1024, device="cpu")
+        modelo = os.environ.get("IA_CREPE", "full")
+        for tentativa in dict.fromkeys((modelo, "tiny")):
+            try:
+                f0, period = torchcrepe.predict(x, sr, hop, 65.0, 1100.0, tentativa,
+                                                decoder=torchcrepe.decode.viterbi, return_periodicity=True,
+                                                batch_size=512, device="cpu")
+                break
+            except Exception:
+                if tentativa == "tiny":
+                    raise
+                log.exception("CREPE %s falhou: vai o tiny", tentativa)
         period = torchcrepe.filter.median(period, 3)[0].numpy()
         f0 = f0[0].numpy()
         tempos = np.arange(len(f0)) * hop / sr

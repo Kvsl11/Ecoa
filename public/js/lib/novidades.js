@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 453, data: '2026-11-03', titulo: 'Partitura pela IA sem notas perdidas',
+    itens: [
+      { tipo: 'melhoria', texto: 'A partitura pela IA não perde mais notas cantadas: onde a voz canta firme e a IA não tinha marcado nota, ela entra pela afinação da voz. A afinação agora é ouvida com o modelo maior (mais lento, uns minutos a mais, e mais preciso), que acerta melhor onde há voz e em que nota.' },
+    ],
+  },
+  {
     versao: 452, data: '2026-11-03', titulo: 'Partitura pela IA mais precisa',
     itens: [
       { tipo: 'melhoria', texto: 'A partitura feita pela IA erra menos o tempo das notas: o servidor ouve as batidas na banda (bateria, violão), sem a voz, e a partitura usa essas batidas como a grade dos tempos. O cantor que adianta ou atrasa um pouco não faz mais a nota cair na figura errada.' },
@@ -71,17 +77,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A saudação do ao vivo ficou curta (“Olá, eu sou a Lumen.”) e toca na hora em que você abre: ela fica guardada no aparelho, na voz escolhida. Antes ela demorava uns 5 segundos.' },
       { tipo: 'correcao', texto: 'O Lumen dizia toda hora que “a inteligência artificial não respondeu agora”. O Gemini 3.6 Flash estava recusando os pedidos pelo limite do plano grátis. Agora, quando um modelo do Gemini está no limite, o Lumen passa na hora para outro Gemini que a sua chave pode usar (e, no limite por minuto, espera uns segundos e tenta de novo). Se o arquivo inteiro do acervo deixar a pergunta grande demais, ela vai só com os trechos.' },
       { tipo: 'melhoria', texto: 'Quando a IA não responde mesmo assim, o Lumen não fala mais o aviso: só aparece um aviso pequeno, escrito, no alto da resposta.' },
-    ],
-  },
-  {
-    versao: 443, data: '2026-11-02', titulo: 'Lumen com o Gemini 3.6 Flash e as vozes do Gemini',
-    itens: [
-      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o Lumen usa o Gemini 3.6 Flash; se ele não responder, o servidor tenta os outros Gemini Flash que a sua chave pode usar.' },
-      { tipo: 'novo', texto: 'Lumen ao vivo com a voz do próprio Gemini. Se a voz do Gemini não responder (ou acabar o limite grátis do dia), entra a voz de antes, sem parar a conversa.' },
-      { tipo: 'melhoria', texto: 'Quando a IA não responde, o Lumen avisa (“a inteligência artificial não respondeu agora, então fiz uma busca simples”), em vez de responder calado pela busca simples.' },
-      { tipo: 'melhoria', texto: 'O Lumen ao vivo espera você terminar: ele só responde depois de uns 5 segundos sem você falar. Dá para parar, pensar e continuar a frase. Para ele responder na hora, toque na pílula do meio.' },
-      { tipo: 'melhoria', texto: 'A pergunta falada ganha a pontuação: o ponto de interrogação nas perguntas, a exclamação nos cumprimentos e agradecimentos e o ponto final no resto, no ao vivo e no ditado da conversa por texto.' },
-      { tipo: 'novo', texto: 'As vozes do Lumen são as do Gemini, com os nomes de lá: 30 vozes (14 femininas e 16 masculinas), como Kore, Aoede, Zephyr, Charon e Puck, cada uma com o seu jeito (firme, leve, animada, tranquila…). Escolha no “⋯” do ao vivo: a voz nova se apresenta na hora. Com voz feminina, ela é “a Lumen” e fala de si no feminino; com voz masculina, ele é “o Lumen”.' },
     ],
   },
 ];
