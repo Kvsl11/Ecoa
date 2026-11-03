@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
@@ -52,10 +53,34 @@ def esperar_servidor(limite: float = 40 * 60) -> bool:
 
 
 def gh(*args: str, token: str | None = None, entrada: str | None = None) -> subprocess.CompletedProcess:
+    """O gh (o programa do GitHub). A imagem do Codespace nem sempre o tem: sem ele, volta como erro (não quebra)."""
     env = dict(os.environ)
     if token:
         env["GH_TOKEN"] = token
-    return subprocess.run(["gh", *args], env=env, capture_output=True, text=True, input=entrada, timeout=60)
+    try:
+        return subprocess.run(["gh", *args], env=env, capture_output=True, text=True, input=entrada, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return subprocess.CompletedProcess(["gh", *args], 127, "", f"gh: {e}")
+
+
+def api(metodo: str, caminho: str, dados: dict | None = None) -> tuple[int, dict]:
+    """A API do GitHub direto (sem o gh), com o token que o Codespace já tem (GITHUB_TOKEN): (status, resposta)."""
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    pedido = urllib.request.Request(
+        "https://api.github.com/" + caminho.lstrip("/"), method=metodo,
+        data=json.dumps(dados).encode() if dados is not None else None,
+        headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+                 "User-Agent": "songbook-codespace", **({"Authorization": f"Bearer {token}"} if token else {})})
+    try:
+        with urllib.request.urlopen(pedido, timeout=30) as r:
+            return r.status, json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode() or "{}")
+        except Exception:
+            return e.code, {}
+    except Exception as e:
+        return 0, {"message": str(e)}
 
 
 def porta_publica(nome: str) -> None:
@@ -106,27 +131,26 @@ def publicar(url: str) -> None:
         dizer("não sei qual é o repositório: o endereço não foi para o site")
         return
     caminho = f"repos/{repo}/contents/.devcontainer/endereco.txt"
-    atual = gh("api", caminho)
+    status, atual = api("GET", caminho)
     sha, antes = None, ""
-    if atual.returncode == 0:
+    if status == 200:
+        sha = atual.get("sha")
         try:
-            d = json.loads(atual.stdout)
-            sha, antes = d.get("sha"), base64.b64decode(d.get("content", "")).decode().strip()
+            antes = base64.b64decode(atual.get("content", "")).decode().strip()
         except Exception:
             pass
     if antes == url:
         dizer(f"o site já tem este endereço ({url})")
         return
-    args = ["api", "-X", "PUT", caminho, "-f", "message=Servidor da IA: o endereço do Codespace",
-            "-f", "content=" + base64.b64encode((url + "\n").encode()).decode()]
+    dados = {"message": "Servidor da IA: o endereço do Codespace", "content": base64.b64encode((url + "\n").encode()).decode()}
     if sha:
-        args += ["-f", f"sha={sha}"]
-    r = gh(*args)
-    if r.returncode == 0:
+        dados["sha"] = sha
+    status, r = api("PUT", caminho, dados)
+    if status in (200, 201):
         dizer(f"endereço publicado no site ({url}): em uns 2 minutos os aparelhos acham este servidor sozinhos")
     else:
-        dizer(f"não consegui publicar o endereço no site ({(r.stderr or '').strip()[:160]}). Grave uma vez a variável "
-              f"SERVIDOR_IA_URL = {url} (GitHub → Settings → Secrets and variables → Actions → Variables)")
+        dizer(f"não consegui publicar o endereço no site ({status} {str(r.get('message', ''))[:160]}). Grave uma vez a "
+              f"variável SERVIDOR_IA_URL = {url} (GitHub → Settings → Secrets and variables → Actions → Variables)")
 
 
 def main() -> None:
@@ -139,7 +163,8 @@ def main() -> None:
         dizer("o servidor não respondeu: veja o que aconteceu acima neste log")
         return
     url, proc = f"https://{nome}-{PORTA}.{dominio}", None
-    porta_publica(nome)
+    if not responde(url):  # já pública (a pessoa mudou na aba Portas, ou de uma vez anterior): nem pede
+        porta_publica(nome)
     for _ in range(6):  # a porta pública demora uns segundos para valer
         if responde(url):
             break
@@ -160,4 +185,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:  # o servidor segue ligado; o log diz o que faltou
+        dizer(f"parou com um erro ({type(e).__name__}: {e}): mude a porta 7860 para Pública na aba Portas do Codespace")
+        raise
