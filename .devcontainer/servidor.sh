@@ -49,6 +49,28 @@ if ! sha256sum -c --status dados/.requisitos 2>/dev/null; then
   fi
 fi
 
+# a versão nova do GitHub sem ninguém mexer: a cada 5 minutos procura; se mudou algo do servidor (servidor-ia/ ou
+# .devcontainer/), atualiza e, quando nenhuma música está sendo ouvida, reinicia o servidor com o código novo (antes o
+# código novo só valia quando o Codespace era desligado e ligado de novo). Pacotes novos instalam antes de reiniciar
+(
+  while sleep "${IA_ATUALIZAR_A_CADA:-300}"; do
+    git -C .. diff --quiet && git -C .. diff --cached --quiet || continue
+    antes=$(git -C .. rev-parse HEAD)
+    git -C .. pull -q --ff-only 2>/dev/null || continue
+    depois=$(git -C .. rev-parse HEAD)
+    [ "$antes" = "$depois" ] && continue
+    git -C .. diff --quiet "$antes" "$depois" -- servidor-ia .devcontainer && continue
+    echo "Versão nova do GitHub: $(git -C .. log -1 --format='%h %s')"
+    sha256sum -c --status dados/.requisitos 2>/dev/null || bash ../.devcontainer/instalar.sh
+    for _ in $(seq 60); do  # espera as músicas que estão sendo ouvidas (até 30 minutos)
+      curl -s -m 5 http://127.0.0.1:${PORT:-7860}/saude | grep -q '"ocupado": *0' && break
+      sleep 30
+    done
+    echo "Reiniciando o servidor com a versão nova…"
+    pkill -f "^python iniciar_pc\.py" 2>/dev/null
+  done
+) &
+
 # se o servidor cair, liga de novo (no máximo 5 vezes seguidas em menos de um minuto)
 quedas=0
 while true; do
