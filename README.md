@@ -123,6 +123,17 @@ Visual escuro moderno (cor padrão ciano (a da logo)), com capas, cabeçalhos em
 - **Letra sincronizada** (menu ⋯ da música → *Sincronizar a letra com o vídeo*, com o servidor): o Whisper ouve o
   vídeo e cada linha ganha o seu instante; tocando, a linha cantada acende e a letra rola junto, como no Spotify, e
   tocar numa linha leva o vídeo até ela (o refrão repetido vai para a próxima vez dele).
+- **Karaokê** (como o *Sing* do Apple Music): na letra na tela toda, o **microfone** à direita (em cima da barra do
+  tempo; também no ⋯ do Tocando agora) tira a voz do cantor e deixa a banda. É um controle deslizante: arrastando para
+  cima, a voz volta aos poucos, de guia (o volume é o quadrado da posição: no meio ela já fica baixinha); outro toque e
+  a música volta a ser a gravação inteira, sem parar nem trocar de arquivo. Na primeira vez de cada música o servidor da
+  IA (`POST /karaoke`, ou `/karaoke/arquivo` com o áudio da pessoa) separa a voz com o **Demucs em estéreo, a 44,1 kHz**
+  (de 60 em 60 s, com as emendas cruzadas) e devolve **um M4A de 4 canais**: a banda (a gravação menos a voz) e a voz
+  (`servidor-ia/karaoke.py`). O app guarda o arquivo no aparelho (`song.karaoke`, como os downloads) e toca num `<audio>`
+  só dele, ligado ao **Web Audio**: os canais 1-2 vão inteiros para a saída e os 3-4 passam pelo volume da voz. Como a
+  voz e a banda são as mesmas amostras do mesmo arquivo, nunca se desencontram, e banda + voz = a gravação. Uma vez por
+  navegador o app confere, sem som, se os 4 canais chegam cada um no seu lugar (`public/karaoke-teste.m4a`, um tom por
+  canal). Com o karaokê ligado, a próxima música já começa sem a voz (ou o servidor prepara a dela).
 - **Tirar dúvidas** (✨ no Início): pergunte sobre liturgia e canto; a IA responde primeiro pelos **arquivos do
   acervo** (citando cada um, que abre no app) e, se não achar, **pela internet**, mostrando as páginas.
 - **Celular sempre em pé**: no celular a tela não deita (o vídeo em tela cheia pode); tablet e computador giram.

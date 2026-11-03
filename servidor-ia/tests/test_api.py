@@ -143,7 +143,7 @@ def test_letra_do_arquivo_enviado(monkeypatch):
 def test_baixar_para_o_app_e_entregar_o_arquivo(monkeypatch, tmp_path):
     import youtube
 
-    def baixar_midia(video, pasta, progresso=lambda p: None, com_video=False):
+    def baixar_midia(video, pasta, progresso=lambda p: None, com_video=False, qualidade="alta"):
         progresso(1.0)
         caminho = os.path.join(pasta, "audio.mp4" if com_video else "audio.m4a")
         with open(caminho, "wb") as f:

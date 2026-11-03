@@ -735,7 +735,9 @@ const versoesDe = (song) => {
 // o vídeo em que a letra sincronizada acompanha: o áudio oficial, quando a música tem as duas versões
 const videoDaLetra = (song) => versoesDe(song)?.audio || song?.youtube || '';
 // os áudios das músicas que saíram da biblioteca (e os downloads delas) saem do aparelho (um pouco depois de abrir o app)
-setTimeout(() => limparAudios(new Set(db.songs().flatMap((s) => [...(s.audioProprio ? [s.id] : []), ...Object.keys(s.baixado?.arquivos || {}).map(chaveBaixada)]))).catch(() => {}), 30000);
+setTimeout(() => limparAudios(new Set(db.songs().flatMap((s) => [...(s.audioProprio ? [s.id] : []), ...Object.keys(s.baixado?.arquivos || {}).map(chaveBaixada),
+  // (e os karaokês prontos: o arquivo de 4 canais, com a voz e a banda separadas)
+  ...Object.keys(s.karaoke || {}).map((f) => chaveKaraoke(f))]))).catch(() => {}), 30000);
 
 // ---------------------------------------------------------------- downloads (como no Spotify)
 // A música baixada fica inteira no aparelho, para tocar sem internet: a letra, a cifra e a partitura (já ficam na
@@ -997,6 +999,112 @@ function botaoBaixar(song, cls = '') {
   const estado = completa ? 'baixada' : b ? 'baixando' : '';
   const titulo = completa ? 'Baixada: toca sem internet (tocar para remover)' : estado === 'baixando' ? `Baixando… ${b.pct}%` : s?.baixado ? 'Completar download (arquivo que faltou)' : 'Baixar para ouvir sem internet';
   return `<button class="icon-btn btn-baixar ${estado} ${cls}" data-baixar="${esc(song.id)}" aria-label="${titulo}" title="${titulo}" style="--pct:${b?.pct || 0}">${icon(estado === 'baixada' ? 'baixada' : 'baixar', 22)}</button>`;
+}
+
+// ---------------------------------------------------------------- karaokê (como o "Sing" do Apple Music)
+// O microfone da letra tira a voz da música e deixa a banda, com o volume da voz num controle deslizante. O servidor da
+// IA separa a voz da banda (Demucs, em estéreo e qualidade cheia) e manda um arquivo só, de 4 canais: a banda (a
+// gravação menos a voz) e a voz. O app guarda o arquivo no aparelho (como os downloads) e o player toca ele pelo Web
+// Audio, que dá a cada par de canais o seu volume. A voz e a banda são as mesmas amostras do mesmo arquivo: nunca se
+// desencontram, e com a voz em 100% o som é a gravação original. Fica pronto uma vez por música, e toca sem internet.
+// song.karaoke: { [fonte]: { tipo, tamanho, em, versao, duracao } }. A fonte é a gravação em que a letra acompanha (o
+// áudio oficial, o vídeo da música ou o áudio da pessoa, "arq:" + id); o arquivo fica guardado em "kar:" + fonte
+const KARAOKE_VERSAO = 1;
+const chaveKaraoke = (fonte) => `kar:${fonte}`;
+const fonteDoKaraoke = (song) => (song ? videoDaLetra(song) : '');
+// o da música ainda não salva (a prévia da busca): só enquanto o app está aberto
+const karaokesAvulsos = new Map();
+function karaokeDe(fonte) {
+  if (!fonte) return null;
+  for (const s of db.songs()) { const k = s.karaoke?.[fonte]; if (k && (k.versao || 1) >= KARAOKE_VERSAO) return k; }
+  return karaokesAvulsos.get(fonte) || null;
+}
+const preparandoKaraoke = new Map(); // fonte → { pct, etapa, promessa }
+const avisarKaraoke = () => window.dispatchEvent(new CustomEvent('songbook:karaoke'));
+// o karaokê da música: o já pronto ou, se não houver, o servidor separa agora (de 1 a 3 minutos, com a porcentagem)
+function prepararKaraoke(song) {
+  const fonte = fonteDoKaraoke(song);
+  if (!fonte) return Promise.reject(new Error('Esta música não tem áudio para o karaokê'));
+  const pronto = karaokeDe(fonte);
+  if (pronto) return Promise.resolve(pronto);
+  if (preparandoKaraoke.has(fonte)) return preparandoKaraoke.get(fonte).promessa;
+  const estado = { pct: 0, etapa: 'Preparando' };
+  const passo = (pct, etapa) => {
+    estado.pct = Math.max(estado.pct, Math.min(99, Math.round(pct)));
+    if (etapa) estado.etapa = etapa;
+    avisarKaraoke();
+  };
+  estado.promessa = (async () => {
+    await carregarServidor().catch(() => {});
+    if (!servidorIA().url) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
+    // o envio (ou o download do áudio pelo servidor) até 10%, a separação até 90% e a vinda do arquivo até 99%
+    const aoEtapa = (etapa, p) => {
+      if (etapa === 'enviando') passo(10 * (p ?? 0), 'Enviando o áudio');
+      else if (etapa === 'baixando') passo(10 * (p ?? 0), 'Baixando a música');
+      else if (etapa === 'fila') passo(estado.pct, 'Esperando outra música no servidor');
+      else if (etapa === 'separando') passo(10 + 80 * (p ?? 0), 'Separando a voz da banda');
+      else if (etapa === 'gravando') passo(91, 'Quase pronto');
+    };
+    let r;
+    try {
+      if (ehArquivo(fonte)) {
+        const arquivo = await lerAudio(fonte.slice(ARQ.length));
+        if (!arquivo) throw new Error('O áudio desta música não está neste aparelho');
+        const form = new FormData();
+        form.append('arquivo', arquivo, song.audioProprio?.nome || 'audio');
+        r = await chamarComEtapas(servidorIA(), '/karaoke/arquivo', { form }, aoEtapa);
+      } else {
+        r = await chamarComEtapas(servidorIA(), '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+      }
+    } catch (e) {
+      // (o servidor de antes do karaokê: ele se atualiza sozinho quando liga de novo)
+      if (e.status === 404 || e.status === 405) throw new Error('O servidor da IA ainda não tem o karaokê. Ele se atualiza sozinho quando liga de novo: desligue e ligue o Codespace (Ajustes → Avançado → Servidor da IA)');
+      throw new Error(erroExplicado(e));
+    }
+    passo(92, 'Trazendo para o aparelho');
+    const resp = await baixarArquivoDoServidor(servidorIA(), r.arquivo);
+    let blob;
+    const total = Number(resp.headers.get('content-length')) || 0;
+    if (resp.body?.getReader && total) {
+      const leitor = resp.body.getReader();
+      const blocos = [];
+      let recebido = 0;
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        blocos.push(value);
+        recebido += value.byteLength;
+        passo(92 + 7 * Math.min(1, recebido / total));
+      }
+      blob = new Blob(blocos, { type: r.tipo || 'audio/mp4' });
+    } else blob = await resp.blob();
+    await guardarAudio(chaveKaraoke(fonte), blob);
+    const info = { tipo: r.tipo || blob.type || 'audio/mp4', tamanho: blob.size, em: Date.now(), versao: r.versao || 1, ...(r.duracao ? { duracao: r.duracao } : {}) };
+    // na música salva (e nas outras da biblioteca com a mesma gravação); a da busca, só enquanto o app está aberto
+    const donas = db.songs().filter((s) => fonteDoKaraoke(s) === fonte);
+    if (donas.length) donas.forEach((s) => db.updateSong(s.id, { karaoke: { ...(s.karaoke || {}), [fonte]: info } }));
+    else karaokesAvulsos.set(fonte, info);
+    return info;
+  })().finally(() => { preparandoKaraoke.delete(fonte); avisarKaraoke(); });
+  preparandoKaraoke.set(fonte, estado);
+  avisarKaraoke();
+  return estado.promessa;
+}
+// o karaokê desta gravação sai das músicas (o arquivo sumiu do aparelho, ou vai ser apagado)
+function esquecerKaraoke(fonte, songs = db.songs().filter((s) => s.karaoke?.[fonte])) {
+  for (const s of songs) {
+    const resto = { ...(s.karaoke || {}) };
+    delete resto[fonte];
+    db.updateSong(s.id, { karaoke: Object.keys(resto).length ? resto : undefined });
+  }
+  karaokesAvulsos.delete(fonte);
+  avisarKaraoke();
+}
+// tira o karaokê da música do aparelho (o arquivo fica se outra música da biblioteca usa a mesma gravação)
+async function apagarKaraoke(song, fonte = fonteDoKaraoke(song)) {
+  const s = song?.id && db.song(song.id);
+  esquecerKaraoke(fonte, s?.karaoke?.[fonte] ? [s] : []);
+  if (!db.songs().some((x) => x.karaoke?.[fonte])) await apagarAudio(chaveKaraoke(fonte)).catch(() => {});
 }
 // o botão de baixar o repertório ou a playlist inteira (como no Spotify): verde com todas baixadas; baixando, o anel
 // com o andamento do conjunto
@@ -1611,7 +1719,7 @@ const player = (() => {
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
       <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
-      <div class="pl-letra-pe"><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
+      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${icon('mic', 18)}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
     <div class="pl-extra" hidden></div>`;
@@ -1819,6 +1927,7 @@ const player = (() => {
     porTexto($('.pl-cab-meio b', el), atual.setId ? db.set(atual.setId)?.name || '' : atual.parte || '');
     desenharLetra();
     desenharExtra();
+    acompanharKaraoke();
     medirFundo();
   };
   // o vídeo do YouTube das imagens (a capa, os quadros): o clipe, quando há; nunca o áudio da pessoa
@@ -2685,7 +2794,7 @@ const semLinhasDeAcordes = (sinc) => {
       // outra música: a de antes para na hora (o tocarLocal deixa a anterior tocando até a nova começar, para a troca
       // entre o áudio e o clipe da mesma música; entre músicas, a anterior seguia tocando enquanto a baixada abria),
       // e a outra versão dela que esperava por baixo sai
-      [som, somAudio, somVideo].forEach((m) => { if (m && !m.paused) m.pause(); });
+      [som, somAudio, somVideo, somKaraoke].forEach((m) => { if (m && !m.paused) m.pause(); });
       reservaDe()?.remove();
       tocarLocal(l, 0, autoplay);
       mostrarBarra();
@@ -2754,10 +2863,70 @@ const semLinhasDeAcordes = (sinc) => {
   let somAudio = null;
   let somVideo = null;
   let som = null;
+  // O karaokê (o microfone da letra): o arquivo de 4 canais toca num <audio> só dele, ligado ao Web Audio. Os canais 1 e
+  // 2 (a banda) vão inteiros para a saída; os 3 e 4 (a voz), com o volume do controle do microfone. Os outros arquivos
+  // continuam tocando direto, sem o Web Audio (no iPhone, o som que passa por ele para com a tela apagada)
+  let somKaraoke = null;
+  let grafoKaraoke = null; // { ctx, voz: o volume da voz (GainNode) }
+  let karaokeLigado = false;
+  // o controle vai de 0 (sem a voz) a 1 (a gravação inteira); o volume é o quadrado dele: no meio do controle a voz já
+  // fica bem baixinha, só de guia, como no Apple Music
+  const nivelDaVoz = () => { const v = Number(db.prefs().karaokeVoz); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; };
+  const ganhoDaVoz = (n) => n * n;
+  // (criado no toque do microfone: fora de um toque, o navegador deixa o Web Audio mudo)
+  const criarGrafoKaraoke = () => {
+    if (grafoKaraoke) return grafoKaraoke;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    // (no iPhone o Web Audio obedece à chave do silencioso, e o <audio> comum não: o karaokê tocaria mudo. "playback"
+    // faz ele tocar como música)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* sem a sessão de áudio */ }
+    try {
+      const ctx = new Ctx();
+      const voz = ctx.createGain();
+      voz.gain.value = 1;
+      voz.connect(ctx.destination);
+      grafoKaraoke = { ctx, voz };
+    } catch { return null; }
+    return grafoKaraoke;
+  };
+  const elementoKaraoke = () => {
+    if (somKaraoke) return somKaraoke;
+    const g = criarGrafoKaraoke();
+    const m = criarSom(new Audio());
+    const fonte = g.ctx.createMediaElementSource(m);
+    const canais = g.ctx.createChannelSplitter(4);
+    const banda = g.ctx.createChannelMerger(2);
+    const voz = g.ctx.createChannelMerger(2);
+    fonte.connect(canais);
+    canais.connect(banda, 0, 0);
+    canais.connect(banda, 1, 1);
+    canais.connect(voz, 2, 0);
+    canais.connect(voz, 3, 1);
+    banda.connect(g.ctx.destination);
+    voz.connect(g.voz);
+    // (o Web Audio parado pelo navegador — o app em segundo plano, uma ligação — volta junto com o play)
+    const tocarElemento = m.play.bind(m);
+    m.play = () => { g.ctx.resume().catch(() => {}); return tocarElemento(); };
+    somKaraoke = m;
+    return m;
+  };
+  // o volume da voz vai até o alvo em `segundos` (sem estalo; arrastando o controle, quase na hora)
+  const rampaDaVoz = (alvo, segundos = 0.06) => {
+    const g = grafoKaraoke;
+    if (!g) return;
+    const p = g.voz.gain;
+    const agora = g.ctx.currentTime;
+    p.cancelScheduledValues(agora);
+    p.setValueAtTime(p.value, agora);
+    p.linearRampToValueAtTime(alvo, agora + segundos);
+  };
   // tocar do aparelho: o áudio da pessoa, sempre; um download, quando é o vídeo, no modo música ou sem internet (o
   // download só do áudio, no modo vídeo e com internet, deixa o clipe tocar pelo YouTube)
   // (noModoMusica: como fica depois de trocar para o modo música, para deixar o arquivo da outra versão já aberto)
   const localDe = (id, noModoMusica = comCapa) => {
+    // o karaokê ligado, pronto e na gravação em que a letra acompanha: o arquivo dele (tocando ou não da internet)
+    if (karaokeLigado && grafoKaraoke && id && id === fonteDoKaraoke(musicaTocando()) && karaokeDe(id)) return { chave: chaveKaraoke(id), video: false, karaoke: true };
     if (ehArquivo(id)) return { chave: id.slice(ARQ.length), video: false };
     const b = id && baixadoDe(id);
     if (!b) return null;
@@ -2813,7 +2982,7 @@ const semLinhasDeAcordes = (sinc) => {
     else v.webkitEnterFullscreen?.(); // (iPhone: só o próprio vídeo vai para a tela cheia)
     v.addEventListener('webkitendfullscreen', () => { v.controls = false; }, { once: true });
   });
-  const elementoDe = (l) => (l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local' })))
+  const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local' })))
     : (somAudio ||= criarSom(new Audio())));
   // o arquivo no elemento (uma vez só: trocar de versão de novo não abre outra vez); false se ele não está no aparelho
   const abrindo = new Map();
@@ -2845,8 +3014,9 @@ const semLinhasDeAcordes = (sinc) => {
         velho.volume = Math.max(0, 1 - k / 8);
         if (k < 8) return;
         clearInterval(passo);
-        // (a de antes vira a sombra: continua tocando sem volume, pronta para a próxima troca; no iPhone, para)
-        if (som !== velho && (!sombraTocando() || velho.tagName !== 'AUDIO')) { velho.pause(); velho.volume = 1; }
+        // (a de antes vira a sombra: continua tocando sem volume, pronta para a próxima troca; no iPhone, para. Entre o
+        // karaokê e a mesma gravação sem ele, não há outra versão para esperar: a de antes para)
+        if (som !== velho && (!sombraTocando() || velho.tagName !== 'AUDIO' || velho === somKaraoke || novo === somKaraoke)) { velho.pause(); velho.volume = 1; }
       }, 25);
     };
     if (jaNoPonto) { feito = true; subir(); return; }
@@ -2911,6 +3081,15 @@ const semLinhasDeAcordes = (sinc) => {
       if (local !== l) { velho?.pause(); return; } // trocou de música enquanto abria
       if (!ok) {
         velho?.pause();
+        // o karaokê sumiu do aparelho (a biblioteca veio de um backup, ou o navegador apagou): a música toca como
+        // sempre, no mesmo ponto, e o servidor separa de novo
+        if (l.karaoke) {
+          esquecerKaraoke(l.chave.slice(chaveKaraoke('').length));
+          local = null;
+          trocarVersao(atual.youtube, t, true);
+          if (karaokeLigado) prepararAgora(musicaTocando());
+          return;
+        }
         // o download sumiu (o navegador apagou, ou foi removido): toca pelo YouTube
         if (!l.chave.startsWith('yt:')) { estado = 'parado'; desenhar(); avisar(); toast('O áudio desta música não está neste aparelho: importe de novo pelo ⋯ da música'); return; }
         local = null;
@@ -2936,7 +3115,7 @@ const semLinhasDeAcordes = (sinc) => {
   const pararLocal = () => {
     som?.pause();
     // (e a sombra do arquivo, se tocava junto)
-    [somAudio, somVideo].forEach((m) => { if (m && m !== som && !m.paused) m.pause(); });
+    [somAudio, somVideo, somKaraoke].forEach((m) => { if (m && m !== som && !m.paused) m.pause(); });
     if (somVideo) somVideo.style.display = 'none';
     tela.classList.remove('com-local');
     local = null;
@@ -3154,6 +3333,244 @@ const semLinhasDeAcordes = (sinc) => {
   let foiProClipe = -Infinity; // quando trocou para o clipe pela última vez (performance.now)
   // o modo vídeo (o "Mudar para vídeo"): o clipe das duas versões ou, com um vídeo só, o vídeo no lugar da capa
   const emVideo = () => !atual?.soMusica && (noClipe() || Boolean(atual?.youtube && !comCapa && !atual.semVideo && !(ehArquivo(atual.youtube) && !atual.video)));
+  // ---- o karaokê: o microfone na letra na tela toda, como o "Sing" do Apple Music. Um toque tira a voz (ela desce
+  // devagar) e mostra o controle; arrastando para cima ou para baixo, a voz volta um pouco, de guia; outro toque, a
+  // música volta a ser a gravação inteira. Na primeira vez de cada música o servidor separa a voz (de 1 a 3 minutos,
+  // com a música tocando normal enquanto isso); depois o karaokê fica no aparelho e liga na hora, até sem internet
+  const kEl = $('.pl-karaoke', el);
+  let nivelVoz = nivelDaVoz(); // o volume da voz no controle (0 a 1), guardado ao soltar
+  let karaokeAberto = 0; // o relógio que recolhe o controle
+  let ignorarClique = false; // (o toque que arrastou o controle não liga nem desliga o karaokê)
+  // a gravação do karaokê da música tocando ('' quando não dá: nada tocando, música sem vídeo ou vídeo solto da busca)
+  const fonteKaraokeAgora = () => (atual && !atual.semVideo ? fonteDoKaraoke(musicaTocando()) : '');
+  const desenharKaraoke = () => {
+    if (!kEl) return;
+    const fonte = fonteKaraokeAgora();
+    const prep = fonte ? preparandoKaraoke.get(fonte) : null;
+    const est = !karaokeLigado ? 'desligado' : prep ? 'preparando' : karaokeDe(fonte) ? 'ligado' : 'preparando';
+    kEl.hidden = !fonte;
+    kEl.dataset.estado = est;
+    kEl.style.setProperty('--pct', String(prep?.pct || 0));
+    kEl.style.setProperty('--nivel', String(nivelVoz));
+    // (o microfone fica escuro quando o branco do volume passa por baixo dele)
+    kEl.classList.toggle('sobre-branco', nivelVoz >= 0.24);
+    const bt = $('.pl-karaoke-bt', kEl);
+    bt.setAttribute('aria-pressed', String(karaokeLigado));
+    const titulo = !karaokeLigado ? 'Karaokê: tirar a voz' : prep ? `Preparando o karaokê: ${prep.etapa} (${prep.pct}%)` : 'Karaokê ligado: toque para a voz voltar';
+    bt.setAttribute('aria-label', titulo);
+    bt.title = titulo;
+    const trilho = $('.pl-karaoke-trilho', kEl);
+    trilho.setAttribute('aria-valuenow', String(Math.round(nivelVoz * 100)));
+    trilho.setAttribute('aria-valuetext', nivelVoz <= 0 ? 'Sem a voz' : nivelVoz >= 1 ? 'A voz inteira' : `Voz em ${Math.round(nivelVoz * 100)}%`);
+    trilho.tabIndex = est === 'ligado' ? 0 : -1;
+    // ("Karaokê" embaixo da barra do tempo, como o "Sing" do Apple Music)
+    el.classList.toggle('karaoke-on', est === 'ligado');
+  };
+  window.addEventListener('songbook:karaoke', () => desenharKaraoke());
+  const abrirControle = () => {
+    kEl.classList.add('aberto');
+    clearTimeout(karaokeAberto);
+    karaokeAberto = setTimeout(() => kEl.classList.remove('aberto'), 2600);
+  };
+  const mudarVoz = (n, segundos = 0.05) => {
+    nivelVoz = Math.max(0, Math.min(1, Math.round(n * 100) / 100));
+    if (karaokeLigado && local?.karaoke) rampaDaVoz(ganhoDaVoz(nivelVoz), segundos);
+    desenharKaraoke();
+  };
+  const salvarNivel = () => db.setPref('karaokeVoz', nivelVoz);
+  // a voz desce devagar a partir da gravação inteira (como no Apple Music), assim que o karaokê está tocando
+  const descerVoz = (desde = performance.now()) => {
+    if (!karaokeLigado || !grafoKaraoke) return;
+    const tocandoJa = Boolean(local?.karaoke) && somKaraoke && !somKaraoke.paused && somKaraoke.readyState >= 3;
+    if (tocandoJa || estado !== 'tocando' || performance.now() - desde > 4000) { rampaDaVoz(ganhoDaVoz(nivelVoz), tocandoJa ? 0.7 : 0.02); return; }
+    setTimeout(() => descerVoz(desde), 80);
+  };
+  // passa a tocar o karaokê (já pronto) da música tocando, no mesmo ponto
+  const entrarNoKaraoke = async () => {
+    const fonte = fonteKaraokeAgora();
+    if (!karaokeLigado || !fonte || !karaokeDe(fonte) || !criarGrafoKaraoke()) return;
+    if (!local?.karaoke) {
+      // (o arquivo já aberto no elemento: a troca não espera)
+      const aberto = await carregarLocal(elementoKaraoke(), chaveKaraoke(fonte));
+      if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
+      // (sumiu do aparelho — a biblioteca veio de um backup —: o servidor separa de novo)
+      if (!aberto) { esquecerKaraoke(fonte); prepararAgora(musicaTocando()); return; }
+      if (!local?.karaoke) {
+        const g = grafoKaraoke.voz.gain;
+        g.cancelScheduledValues(0);
+        g.value = 1;
+      }
+      // no clipe (o modo vídeo) não há letra: o karaokê é a gravação em que a letra acompanha (o modo música)
+      if (emVideo() && !comCapa) mudarModoAgora();
+      else api.reavaliarFonte();
+    }
+    descerVoz();
+    desenharKaraoke();
+  };
+  // Confere uma vez (por navegador) se o Web Audio recebe os 4 canais do arquivo, cada um no seu lugar: toca, sem som,
+  // o arquivo de teste gravado do mesmo jeito que o karaokê (karaoke-teste.m4a: 500, 1000, 2000 e 4000 Hz, um tom em
+  // cada canal). true: certo; false: o navegador mistura os canais (o karaokê não funcionaria); null: não deu para conferir
+  let conferindoCanais = null;
+  const conferirCanais = () => {
+    if (db.prefs().karaokeCanais === navigator.userAgent) return Promise.resolve(true);
+    if (conferindoCanais) return conferindoCanais;
+    const g = grafoKaraoke;
+    conferindoCanais = new Promise((ok) => {
+      const a = new Audio();
+      a.loop = true;
+      let fonte = null;
+      let fim = false;
+      const acabar = (r) => {
+        if (fim) return;
+        fim = true;
+        a.pause();
+        try { fonte?.disconnect(); } catch { /* já solto */ }
+        a.removeAttribute('src');
+        ok(r);
+      };
+      try {
+        fonte = g.ctx.createMediaElementSource(a);
+        const canais = g.ctx.createChannelSplitter(4);
+        const mudo = g.ctx.createGain();
+        mudo.gain.value = 0;
+        mudo.connect(g.ctx.destination);
+        fonte.connect(canais);
+        const medidores = [0, 1, 2, 3].map((i) => { const m = g.ctx.createAnalyser(); m.fftSize = 2048; canais.connect(m, i); m.connect(mudo); return m; });
+        const ESPERADO = [500, 1000, 2000, 4000];
+        const pico = (m) => {
+          const d = new Float32Array(m.frequencyBinCount);
+          m.getFloatFrequencyData(d);
+          let k = 1;
+          for (let i = 2; i < d.length; i++) if (d[i] > d[k]) k = i;
+          return { hz: (k * g.ctx.sampleRate) / m.fftSize, db: d[k] };
+        };
+        let vezes = 0;
+        const medir = () => {
+          if (fim) return;
+          const p = medidores.map(pico);
+          const certo = p.every((x, i) => x.db > -75 && Math.abs(x.hz - ESPERADO[i]) < 80);
+          const tocou = p.some((x) => x.db > -75);
+          if (certo) { db.setPref('karaokeCanais', navigator.userAgent); acabar(true); return; }
+          if (++vezes >= 20) { acabar(tocou ? false : null); return; }
+          setTimeout(medir, 100);
+        };
+        a.addEventListener('error', () => acabar(null));
+        a.src = new URL('karaoke-teste.m4a', document.baseURI).href;
+        a.play().then(() => setTimeout(medir, 150)).catch(() => acabar(null));
+        setTimeout(() => acabar(null), 6000);
+      } catch { acabar(null); }
+    }).finally(() => { conferindoCanais = null; });
+    return conferindoCanais;
+  };
+  const prepararAgora = (song, { avisar: avisarPronto = false } = {}) => {
+    const fonte = fonteDoKaraoke(song);
+    desenharKaraoke();
+    prepararKaraoke(song).then(() => {
+      if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
+      entrarNoKaraoke();
+      // (pedido no toque: o controle se abre um instante, para mostrar que dá para arrastar)
+      if (avisarPronto) { abrirControle(); toast('Karaokê pronto. Arraste o microfone para cima para a voz voltar um pouco, de guia'); }
+    }).catch((e) => {
+      if (fonteKaraokeAgora() === fonte) karaokeLigado = false;
+      desenharKaraoke();
+      toast(e?.message || 'Não deu para preparar o karaokê agora');
+    });
+  };
+  const desligarKaraoke = () => {
+    karaokeLigado = false;
+    // a voz volta inteira, devagar, no mesmo arquivo (sem trocar de arquivo, sem engasgo); ele segue até a próxima música
+    if (local?.karaoke) rampaDaVoz(1, 0.5);
+    desenharKaraoke();
+  };
+  const alternarKaraoke = () => {
+    if (karaokeLigado) { desligarKaraoke(); return; }
+    const song = musicaTocando();
+    const fonte = fonteKaraokeAgora();
+    if (!fonte) { toast('Esta música ainda não tem um áudio para o karaokê'); return; }
+    // (o Web Audio nasce e acorda aqui, no toque; a conferência dos canais também começa no toque)
+    const g = criarGrafoKaraoke();
+    if (!g) { toast('Este navegador não tem o Web Audio, e o karaokê não funciona nele'); return; }
+    g.ctx.resume().catch(() => {});
+    const canais = conferirCanais();
+    karaokeLigado = true;
+    // (no clipe não há letra: vai já para o modo música, e a letra aparece enquanto o karaokê fica pronto)
+    if (emVideo() && !comCapa) mudarModoAgora();
+    abrirControle();
+    desenharKaraoke();
+    canais.then((ok) => {
+      if (ok === false) {
+        karaokeLigado = false;
+        desenharKaraoke();
+        toast('Este navegador junta os canais do áudio, e o karaokê não funciona nele. Experimente o Chrome');
+        return;
+      }
+      if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
+      if (karaokeDe(fonte)) { entrarNoKaraoke(); return; }
+      if (!preparandoKaraoke.has(fonte)) toast('Preparando o karaokê: o servidor separa a voz da banda (de 1 a 3 minutos, só na primeira vez). A música continua tocando');
+      prepararAgora(song, { avisar: true });
+    });
+  };
+  // outra música com o karaokê ligado: já começa sem a voz (o arquivo dela, se pronto) ou o servidor prepara o dela
+  let karaokeDaMusica = '';
+  const acompanharKaraoke = () => {
+    const fonte = fonteKaraokeAgora();
+    if (fonte === karaokeDaMusica) return;
+    karaokeDaMusica = fonte;
+    desenharKaraoke();
+    if (!karaokeLigado || !fonte) return;
+    if (karaokeDe(fonte)) entrarNoKaraoke();
+    else prepararAgora(musicaTocando());
+  };
+  if (kEl) {
+    // arrastar no microfone (com o karaokê tocando) muda o volume da voz: para cima, mais voz; tocar liga e desliga
+    let gesto = null;
+    kEl.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      gesto = { y: e.clientY, nivelVoz, moveu: false, id: e.pointerId };
+    });
+    kEl.addEventListener('pointermove', (e) => {
+      if (!gesto || e.pointerId !== gesto.id) return;
+      const dy = e.clientY - gesto.y;
+      if (!gesto.moveu && Math.abs(dy) < 6) return;
+      if (kEl.dataset.estado !== 'ligado') return;
+      // (só arrastando o controle segue o dedo mesmo fora dele; capturado já no toque, o clique do microfone não chegava
+      // ao botão)
+      if (!gesto.moveu) { try { kEl.setPointerCapture(e.pointerId); } catch { /* sem captura */ } }
+      gesto.moveu = true;
+      abrirControle();
+      // (a altura do controle aberto: do fundo ao topo, a voz vai de 0 a 100%)
+      mudarVoz(gesto.nivelVoz - dy / 150);
+    });
+    const soltar = (e) => {
+      if (!gesto || e.pointerId !== gesto.id) return;
+      if (gesto.moveu) { salvarNivel(); ignorarClique = true; setTimeout(() => { ignorarClique = false; }, 400); }
+      // (um toque no controle aberto, acima do microfone: a voz vai para aquela altura)
+      else if (e.type === 'pointerup' && kEl.classList.contains('aberto') && kEl.dataset.estado === 'ligado' && !e.target.closest?.('.pl-karaoke-bt')) {
+        const r = kEl.getBoundingClientRect();
+        abrirControle();
+        mudarVoz(1 - (e.clientY - r.top) / r.height, 0.15);
+        salvarNivel();
+      }
+      gesto = null;
+    };
+    kEl.addEventListener('pointerup', soltar);
+    kEl.addEventListener('pointercancel', soltar);
+    $('.pl-karaoke-bt', kEl).addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (ignorarClique) { ignorarClique = false; return; }
+      alternarKaraoke();
+    });
+    // no teclado: as setas sobem e descem a voz (o controle é um slider)
+    $('.pl-karaoke-trilho', kEl).addEventListener('keydown', (e) => {
+      const d = { ArrowUp: 0.1, ArrowRight: 0.1, ArrowDown: -0.1, ArrowLeft: -0.1, PageUp: 0.25, PageDown: -0.25, Home: -1, End: 1 }[e.key];
+      if (!d || kEl.dataset.estado !== 'ligado') return;
+      e.preventDefault();
+      e.stopPropagation();
+      abrirControle();
+      mudarVoz(nivelVoz + d, 0.15);
+      salvarNivel();
+    });
+  }
   const api = {
     get atual() { return atual; },
     get estado() { return estado; },
@@ -3842,6 +4259,9 @@ const semLinhasDeAcordes = (sinc) => {
       !naLetra && (atual.href || atual.abrir) && !telaDeCelular() && { valor: 'abrir', rotulo: 'Abrir a música', ic: 'music' },
       salva ? { valor: 'add-repertorio', rotulo: 'Adicionar a um repertório', ic: 'plus' } : { valor: 'salva', rotulo: 'Salvar na biblioteca', ic: 'download' },
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
+      // o karaokê (o mesmo microfone da letra na tela toda)
+      fonteKaraokeAgora() && { valor: 'karaoke', rotulo: karaokeLigado ? 'Desligar o karaokê' : 'Karaokê (tirar a voz)', ic: 'mic' },
+      fonteKaraokeAgora() && karaokeDe(fonteKaraokeAgora()) && !karaokeLigado && { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê do aparelho', ic: 'trash' },
       !(song?.content && !temCifra(song.content)) && !noClipe() && { valor: 'ver-cifra', rotulo: naLetra && modoCifra ? 'Ver só a letra' : 'Ver a cifra', ic: naLetra && modoCifra ? 'text' : 'chord' },
       naLetra && atual.youtube && !atual.semVideo && { valor: 'ver-video', rotulo: 'Ver o vídeo', ic: 'videoclipe' },
       naLetra && atual.songId && db.song(atual.songId) && { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
@@ -3912,6 +4332,11 @@ const semLinhasDeAcordes = (sinc) => {
       f.push(`${yt}: ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`);
     }
     if (song) f.push(`falta baixar: ${sim(precisaBaixar(song))} · revisão: ${song.revisao || 0} de ${REVISAO_MUSICAS}`);
+    f.push('', '[Karaokê]');
+    const fk = song ? fonteDoKaraoke(song) : '';
+    const kar = karaokeDe(fk);
+    f.push(`gravação: ${fk || '-'} · pronto: ${kar ? `sim (${fmtBytes(kar.tamanho || 0)}, ${chaves.has(chaveKaraoke(fk)) ? 'no aparelho' : 'NÃO está no aparelho'})` : preparandoKaraoke.has(fk) ? `preparando ${preparandoKaraoke.get(fk).pct}%` : 'não'}`);
+    f.push(`ligado: ${sim(karaokeLigado)} · tocando o karaokê: ${sim(Boolean(local?.karaoke))} · voz: ${Math.round(nivelVoz * 100)}% · canais conferidos neste navegador: ${sim(db.prefs().karaokeCanais === navigator.userAgent)}${grafoKaraoke ? ` · Web Audio: ${grafoKaraoke.ctx.state}` : ''}`);
     f.push('', '[Capa animada]');
     const vids = [...fundo.querySelectorAll('video.pl-canvas')];
     f.push(`fundo: ${fundo.hidden ? 'escondido' : 'aparecendo'} · clipe baixado no fundo: ${sim(canvas.vaiTocarArquivo(ytDaCapa()))} · vídeos: ${vids.length} (${vids.map((x) => `${x.classList.contains('pronto') ? 'visível' : 'oculto'}${x.paused ? ' parado' : ' andando'}`).join(', ') || '-'}) · imagens do YouTube: ${fundo.querySelectorAll('img.q').length}`);
@@ -4047,8 +4472,8 @@ const semLinhasDeAcordes = (sinc) => {
   };
   let toque = null;
   $('.pl-letra', el).addEventListener('touchstart', (e) => {
-    // (arrastar as faixas que rolam de lado, a dos acordes e a das ferramentas, não troca de música)
-    toque = letraDoRepertorio() && e.touches.length === 1 && !e.target.closest('.pl-acordes, .pl-ferr') ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+    // (arrastar as faixas que rolam de lado, a dos acordes e a das ferramentas, e o microfone do karaokê não troca de música)
+    toque = letraDoRepertorio() && e.touches.length === 1 && !e.target.closest('.pl-acordes, .pl-ferr, .pl-karaoke') ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
   }, { passive: true });
   $('.pl-letra', el).addEventListener('touchend', (e) => {
     if (!toque) return;
@@ -4282,6 +4707,25 @@ const semLinhasDeAcordes = (sinc) => {
     if (b.dataset.pl === 'aparelhos' && atual) abrirAparelhos();
     if (b.dataset.pl === 'fila') abrirFila();
     if (b.dataset.pl === 'menu') abrirMenu();
+    // o karaokê pelo ⋯: liga (ou desliga) e abre a letra na tela toda, onde fica o microfone
+    if (b.dataset.pl === 'karaoke') {
+      alternarKaraoke();
+      if (karaokeLigado && !el.classList.contains('letra-cheia') && !emVideo()) letraCheia(true);
+      return;
+    }
+    // apagar o karaokê do aparelho (para liberar espaço, ou para o servidor separar de novo)
+    if (b.dataset.pl === 'karaoke-apagar') {
+      const song = musicaTocando();
+      const fonte = fonteKaraokeAgora();
+      // (tocando o arquivo dele: volta antes para a gravação de sempre, no mesmo ponto)
+      const tocandoArquivo = Boolean(local?.karaoke);
+      if (tocandoArquivo) api.reavaliarFonte();
+      setTimeout(() => {
+        if (somKaraoke && somKaraoke !== som) { somKaraoke.pause(); if (somKaraoke.src) URL.revokeObjectURL(somKaraoke.src); somKaraoke.removeAttribute('src'); delete somKaraoke.dataset.de; }
+        apagarKaraoke(song, fonte).then(() => toast('Karaokê apagado deste aparelho'));
+      }, tocandoArquivo ? 900 : 0);
+      return;
+    }
     if (b.dataset.pl === 'cheio') { letraCheia(true); return; }
     if (b.dataset.pl === 'letra-fechar') { if (letraDaPagina) fecharMusica(); else letraCheia(false); return; }
     if (b.dataset.pl === 'ver-cifra') { definirModoCifra(!modoCifra); if (!el.classList.contains('letra-cheia')) letraCheia(true); return; }
@@ -10900,6 +11344,8 @@ function viewSong(id, ctx = {}) {
       if (!duracao) { statusSinc('erro', 'Não consegui abrir este áudio. Tente outro arquivo (MP3, M4A, WAV…).'); return; }
       try { await guardarAudio(song.id, arquivo); } catch { statusSinc('erro', 'Não deu para guardar o áudio: falta espaço no aparelho?'); return; }
       const tocandoEsta = player.atual?.songId === song.id;
+      // (o karaokê do áudio antigo não vale para o novo: o servidor separa o novo quando pedirem)
+      if (song.karaoke?.[ARQ + song.id]) await apagarKaraoke(song, ARQ + song.id);
       // a sincronia antiga era de outro áudio (ou do vídeo): a do áudio novo vem agora
       db.updateSong(song.id, { audioProprio: { nome: arquivo.name || 'audio', duracao: Math.round(duracao * 10) / 10 }, ...(ehArquivo(song.sincronia?.video) ? { sincronia: null } : {}) });
       Object.assign(song, db.song(song.id));
@@ -10915,6 +11361,7 @@ function viewSong(id, ctx = {}) {
     if (!(await ask({ title: 'Tirar o seu áudio?', text: 'A música volta a tocar pelo vídeo do YouTube (se tiver um).', ok: 'Tirar', danger: true }))) return;
     if (player.atual?.youtube === ARQ + song.id) player.fechar();
     await apagarAudio(song.id).catch(() => {});
+    if (song.karaoke?.[ARQ + song.id]) await apagarKaraoke(song, ARQ + song.id);
     db.updateSong(song.id, { audioProprio: null, ...(ehArquivo(song.sincronia?.video) ? { sincronia: null } : {}) });
     toast('Áudio tirado');
     route();

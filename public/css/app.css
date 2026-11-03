@@ -3165,6 +3165,39 @@ html.pp #player .pl-letra-bts2 .grow { flex: 1; }
 html.pp #player .pl-letra-bts2 .icon-btn { width: 44px; height: 44px; color: #fff; }
 html.pp #player .pl-letra-pe .pl-play { justify-self: center; }
 
+/* o karaokê, como o "Sing" do Apple Music: o microfone à direita, logo acima da barra de baixo da letra na tela toda.
+   Desligado, uma bolinha de vidro; ligado, branca. Ao ligar (ou arrastando), ela cresce para cima e vira o controle do
+   volume da voz: o branco sobe com a voz (embaixo, sem a voz; em cima, a gravação inteira) */
+#player .pl-karaoke { display: none; }
+html.pp #player.letra-cheia .pl-letra-pe { position: relative; }
+html.pp #player.letra-cheia .pl-karaoke:not([hidden]) { display: block; position: absolute; z-index: 2; right: 0; bottom: calc(100% + 14px); width: 46px; height: 46px; border-radius: 23px; overflow: hidden;
+  color: #fff; background: rgb(255 255 255 / 0.14); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14), 0 6px 20px rgb(0 0 0 / 0.25);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: height 0.3s cubic-bezier(0.3, 0.7, 0.3, 1), background 0.2s, color 0.2s; }
+html.pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { height: 150px; }
+#player .pl-karaoke-trilho { position: absolute; inset: 0; outline: none; }
+#player .pl-karaoke-trilho:focus-visible { box-shadow: inset 0 0 0 2px #fff; border-radius: inherit; }
+#player .pl-karaoke-nivel { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--nivel, 0) * 100%); background: #fff; opacity: 0; transition: height 0.08s linear, opacity 0.2s; }
+#player .pl-karaoke.aberto[data-estado="ligado"] .pl-karaoke-nivel { opacity: 1; }
+#player .pl-karaoke-bt { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: grid; place-items: center; height: 46px; padding: 0; border: 0; border-radius: 23px;
+  background: transparent; color: inherit; cursor: pointer; }
+#player .pl-karaoke-bt:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+/* ligado e recolhido: a bolinha branca (o microfone escuro); aberto, o microfone escurece só com o branco por baixo */
+html.pp #player.letra-cheia .pl-karaoke[data-estado="ligado"]:not(.aberto) { background: #fff; color: #111; }
+#player .pl-karaoke.aberto.sobre-branco[data-estado="ligado"] .pl-karaoke-bt { color: #111; }
+/* preparando (o servidor separando a voz): um anel que se completa com a porcentagem, e o microfone pulsando */
+#player .pl-karaoke[data-estado="preparando"]::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(#fff calc(var(--pct, 0) * 1%), rgb(255 255 255 / 0.2) 0);
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 69%); mask: radial-gradient(circle, transparent 66%, #000 69%); }
+#player .pl-karaoke[data-estado="preparando"] .pl-karaoke-bt svg { animation: karaoke-pulsa 1.4s ease-in-out infinite; }
+@keyframes karaoke-pulsa { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  html.pp #player.letra-cheia .pl-karaoke:not([hidden]), #player .pl-karaoke-nivel { transition: none; }
+  #player .pl-karaoke[data-estado="preparando"] .pl-karaoke-bt svg { animation: none; }
+}
+/* "Karaokê" embaixo da barra do tempo, entre os dois tempos (como o "Sing" do Apple Music) */
+html.pp #player.karaoke-on .pl-tempo::after { content: 'Karaokê'; grid-row: 2; grid-column: 1 / -1; justify-self: center; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: rgb(255 255 255 / 0.85); pointer-events: none; }
+
 /* embaixo da letra: os cartões do artista, dos créditos e do vídeo (rolando o painel) */
 html.pp #player .pl-extra { order: 9; display: grid; gap: 12px; flex: none; }
 html.pp #player .pl-extra[hidden] { display: none; }

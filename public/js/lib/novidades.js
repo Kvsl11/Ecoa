@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 460, data: '2026-11-03', titulo: 'Karaokê: tire a voz da música',
+    itens: [
+      { tipo: 'novo', texto: 'Karaokê, como o do Apple Music: na letra na tela toda, toque no microfone (à direita, em cima da barra do tempo) e a voz do cantor some, ficando só a banda, para você cantar no lugar. É um controle deslizante: arraste o microfone para cima e a voz volta um pouco, de guia, para a música que você ainda está aprendendo. Toque de novo e a música volta a ser a gravação inteira, sem parar. Também no ⋯ do Tocando agora.' },
+      { tipo: 'novo', texto: 'Na primeira vez de cada música o servidor da IA separa a voz da banda (de 1 a 3 minutos, com a música tocando normal enquanto isso; o anel do microfone mostra quanto falta). Depois o karaokê fica guardado no aparelho e liga na hora, até sem internet. Com o karaokê ligado, a próxima música da fila já começa sem a voz.' },
+      { tipo: 'melhoria', texto: 'A voz e a banda vêm separadas em estéreo e na qualidade cheia, no mesmo arquivo: nunca se desencontram, e com a voz no máximo o som é exatamente o da gravação. Funciona com o áudio oficial, com o vídeo e com o áudio que você importou.' },
+    ],
+  },
+  {
     versao: 459, data: '2026-11-03', titulo: 'Artista e álbum em todas as músicas',
     itens: [
       { tipo: 'correcao', texto: 'No ⋯ das músicas da biblioteca, das playlists e dos repertórios, “Ir para o artista” e “Ver álbum” aparecem em toda música que tem artista. Antes só apareciam nas cifras que vieram do Cifra Club; as outras (de outros sites, do acervo, importadas) agora acham o artista pelo nome e o álbum pelo título.' },
@@ -59,12 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A barra do alto da partitura ficou mais limpa: à esquerda o Editar e a lixeira, à direita o tom e o tamanho, numa linha só. No celular estreito, o Editar vira só o lápis.' },
       { tipo: 'melhoria', texto: 'Saiu o botão “Cores do app / Preto e branco”: a partitura fica sempre nas cores do app.' },
-    ],
-  },
-  {
-    versao: 450, data: '2026-11-03', titulo: 'Lumen ao vivo já começa ouvindo',
-    itens: [
-      { tipo: 'melhoria', texto: 'Abrindo o Lumen ao vivo, ele não diz mais “Olá, eu sou a Lumen”: já começa ouvindo, e você pode perguntar na hora.' },
     ],
   },
 ];
