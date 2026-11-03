@@ -314,3 +314,40 @@ def test_so_os_trechos_que_importam_e_o_pdf_so_quando_e_livro_liturgico():
     assert duvidas.pdf_do_acervo("tem algum pdf de violão no acervo", achados)[1].id == "v1"
     # a IA é livre para responder o que não é do acervo
     assert "qualquer assunto" in duvidas.SISTEMA and "NÃO TÊM NADA A VER" in duvidas.SISTEMA
+
+
+def test_o_texto_dos_pdfs_vem_do_site_quando_nao_tem(monkeypatch, tmp_path):
+    import gzip
+    import io
+    import urllib.request
+
+    destino = tmp_path / "textos-acervo.jsonl"
+    monkeypatch.setattr(duvidas, "TEXTOS", str(destino))
+    monkeypatch.delenv("IA_TEXTOS", raising=False)
+    linha = b'{"id": "x", "titulo": "Doc", "caminho": "P / Doc.pdf", "texto": "texto do pdf"}\n'
+    pedidos = []
+
+    def abrir(url, timeout=None):
+        pedidos.append(url)
+        return io.BytesIO(gzip.compress(linha))
+
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    duvidas._textos_do_site()
+    assert destino.read_bytes() == linha and pedidos[0].endswith("textos-acervo.jsonl.gz")
+    # já tem e é recente: não baixa de novo
+    duvidas._textos_do_site()
+    assert len(pedidos) == 1
+
+
+def test_sem_o_site_fica_sem_o_texto_dos_pdfs(monkeypatch, tmp_path):
+    import urllib.request
+
+    monkeypatch.setattr(duvidas, "TEXTOS", str(tmp_path / "t.jsonl"))
+    monkeypatch.delenv("IA_TEXTOS", raising=False)
+
+    def falha(url, timeout=None):
+        raise OSError("sem internet")
+
+    monkeypatch.setattr(urllib.request, "urlopen", falha)
+    duvidas._textos_do_site()
+    assert not (tmp_path / "t.jsonl").exists()

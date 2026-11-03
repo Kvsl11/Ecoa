@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
+    itens: [
+      { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
+    ],
+  },
+  {
     versao: 454, data: '2026-11-03', titulo: 'Coral pela IA com vozes de verdade',
     itens: [
       { tipo: 'melhoria', texto: 'No coral feito pela IA, o Contralto, o Tenor e o Baixo agora são escritos pela cifra da música, como num hinário: cada voz canta uma nota do acorde, sem cruzar com as outras, perto da nota de antes e no mesmo ritmo e com a mesma letra do Soprano. Antes essas vozes saíam das notas do violão e do teclado, e ficavam emboladas. Se a gravação tem mesmo as 4 vozes, escolha “Coral do áudio” em Ajustar → Vozes.' },
@@ -63,14 +69,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Pedindo para o Lumen tocar uma música, ela toca e a tela da música abre, como quando você toca nela na lista.' },
       { tipo: 'correcao', texto: 'As perguntas faladas ganham o ponto de interrogação também quando começam chamando o Lumen (“Lumen, você pode…?”, “Olá Lumen, no que você pode me ajudar?”), e o “?” já aparece enquanto você fala.' },
       { tipo: 'melhoria', texto: 'O Lumen entende melhor o nome da música mesmo quando o reconhecimento de voz escreve errado: “never hinder” e “never ranger” acham “Neverender”.' },
-    ],
-  },
-  {
-    versao: 445, data: '2026-11-02', titulo: 'Lumen responde com o Gemini e não pisca mais',
-    itens: [
-      { tipo: 'correcao', texto: 'O Lumen respondia coisas sem nada a ver (como um texto de eucaristia para “o que você faz?”). O Gemini recusava as perguntas porque a cota grátis da pesquisa no Google tinha acabado, e o Lumen caía na busca simples. Agora, quando essa cota acaba, a pergunta vai de novo ao Gemini sem a pesquisa no Google, e ele responde.' },
-      { tipo: 'melhoria', texto: '“Oi”, “o que você faz?”, “no que você pode me ajudar?” têm resposta na hora: a Lumen conta o que sabe fazer (tocar, buscar e adicionar músicas, a biblioteca, a liturgia, os cantos, as dúvidas, os arquivos).' },
-      { tipo: 'correcao', texto: 'Na conversa por texto, enquanto o Lumen procura a resposta, os balões da conversa não piscam mais: só o aviso do que ele está fazendo muda, e só a resposta nova aparece com a animação.' },
     ],
   },
 ];

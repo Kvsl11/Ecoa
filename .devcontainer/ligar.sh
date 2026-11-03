@@ -6,6 +6,21 @@ cd "$(dirname "$0")/../servidor-ia"
 mkdir -p dados
 # a porta pública: pelo gh do próprio Codespace (se não der, a pessoa muda na aba Portas)
 (sleep 20; gh codespace ports visibility 7860:public -c "$CODESPACE_NAME" >/dev/null 2>&1) &
+# o endereço deste servidor, que não muda enquanto o Codespace existir: o site (GitHub Pages) o entrega a todos os
+# aparelhos pela variável SERVIDOR_IA_URL do repositório. Tenta gravar sozinho (o token do Codespace pode não ter
+# permissão: aí a pessoa grava uma vez, em Settings → Secrets and variables → Actions → Variables)
+ENDERECO="https://${CODESPACE_NAME}-7860.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
+if [ -n "$CODESPACE_NAME" ]; then
+  echo "$ENDERECO" > dados/endereco.txt
+  if [ "$(gh variable get SERVIDOR_IA_URL 2>/dev/null)" != "$ENDERECO" ]; then
+    if gh variable set SERVIDOR_IA_URL --body "$ENDERECO" >/dev/null 2>&1; then
+      gh workflow run pages.yml >/dev/null 2>&1 && echo "Endereço do servidor gravado no site; o app publica de novo com ele."
+    else
+      echo "Para o site achar este servidor em qualquer aparelho, grave uma vez a variável SERVIDOR_IA_URL = $ENDERECO"
+      echo "(GitHub → Settings → Secrets and variables → Actions → Variables → New repository variable)"
+    fi
+  fi
+fi
 # setsid: o servidor fica de pé depois que este comando termina (sem ele, o Codespace derrubava o servidor junto).
 # Antes de ligar:
 # 1. a versão nova do GitHub: o Codespace guarda o código de quando foi criado, e o que entrava no GitHub depois
