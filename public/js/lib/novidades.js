@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 448, data: '2026-11-03', titulo: 'Ecoa de logo nova',
+    itens: [
+      { tipo: 'melhoria', texto: 'O Ecoa ganhou uma logo nova: um “e” com as ondas de eco saindo dele, em branco sobre o degradê ciano e azul do app. Ela aparece no menu, nos Ajustes, no ícone da tela inicial e nas notificações.' },
+    ],
+  },
+  {
     versao: 447, data: '2026-11-03', titulo: 'Permissões: notificações e microfone num lugar só',
     itens: [
       { tipo: 'novo', texto: 'Ajustes → Permissões mostra se as notificações e o microfone estão permitidos, ainda não pedidos ou bloqueados. Dá para permitir dali, e, quando o navegador bloqueou, a tela explica como liberar. Com as notificações ligadas, o botão “Testar” manda uma notificação de teste.' },
@@ -86,13 +92,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O teclado do tablet e do celular não abre mais sozinho a cada resposta do Lumen.' },
       { tipo: 'correcao', texto: 'O que você fala começa com letra maiúscula, no ao vivo e no ditado.' },
       { tipo: 'correcao', texto: 'A pílula colorida do ao vivo não tem mais as bordinhas pretas quando se mexe.' },
-    ],
-  },
-  {
-    versao: 438, data: '2026-11-02', titulo: 'Tela cheia no mini player e o x da busca',
-    itens: [
-      { tipo: 'correcao', texto: 'No mini player aumentado, o botão de tela cheia do vídeo abria o Tocando agora em vez de pôr o vídeo na tela inteira. Agora ele leva o vídeo para a tela cheia, no celular e no tablet, também nos vídeos do YouTube.' },
-      { tipo: 'novo', texto: 'Na Busca, a barra branca tem um x no fim para apagar tudo o que foi escrito de uma vez. Ele aparece quando você toca na barra ou escreve algo, e some quando a barra está vazia e fora de uso.' },
     ],
   },
 ];
