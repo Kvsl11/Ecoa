@@ -1056,11 +1056,11 @@ function karaokeDe(fonte) {
 }
 // o karaokê é das músicas com a letra sincronizada (a letra acompanha a gravação, e é nela que se canta junto)
 const letraSincronizadaDe = (s) => Boolean(s?.sincronia?.fonte === 'lrclib' && s.sincronia.video === videoDaLetra(s) && s.sincronia.tempos?.length);
-// o microfone do karaokê, como o do Apple Music: o microfone de mão deitado (a cabeça com a grade, o anel e o cabo que
+// o microfone do karaokê, como o do Apple Music: o microfone de mão deitado (a cabeça cheia, o anel e o cabo que
 // afina) e três estrelinhas, que piscam (cada uma é um desenho à parte, para o CSS animar)
 const brilho = (x, y, r, k) => `<path class="mk-brilho mk-b${k}" d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="currentColor" stroke="none"/>`;
 const MICROFONE_KARAOKE = `<svg class="ic mk" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <g class="mk-mic"><g transform="rotate(45 13 11)"><circle cx="13" cy="5.6" r="4.3" stroke-width="1.7"/><path d="M8.9 5.1h8.2M13 1.6v8M9.8 3h6.4M9.8 8.2h6.4" stroke-width="0.9" opacity=".75"/><rect x="10.4" y="10" width="5.2" height="2.1" rx="0.7" fill="currentColor" stroke="none"/><path d="M10.9 12.4h4.2l-0.75 8.2a1.35 1.35 0 0 1-2.7 0z" fill="currentColor" stroke="none"/></g></g>
+  <g class="mk-mic"><g transform="rotate(45 13 11)"><circle cx="13" cy="5.6" r="4.5" fill="currentColor" stroke="none"/><rect x="10.4" y="10.6" width="5.2" height="1.9" rx="0.7" fill="currentColor" stroke="none"/><path d="M10.9 12.9h4.2l-0.75 7.7a1.35 1.35 0 0 1-2.7 0z" fill="currentColor" stroke="none"/></g></g>
   ${brilho(5.6, 7.4, 3.1, 1)}${brilho(3.4, 13.4, 1.6, 2)}${brilho(19.6, 17.6, 2, 3)}</svg>`;
 // Baixar a música com a letra sincronizada também prepara o karaokê dela (Ajustes → Downloads: "Baixar também o
 // karaokê"): o microfone liga na hora, até sem internet. Um por vez, para não ocupar o servidor com várias de uma vez

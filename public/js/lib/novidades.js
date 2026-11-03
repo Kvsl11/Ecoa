@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 463, data: '2026-11-03', titulo: 'Microfone do karaokê redesenhado',
     itens: [
-      { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade: a cabeça com a grade, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
+      { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade, simples: a cabeça, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
     ],
   },
   {
