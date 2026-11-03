@@ -140,6 +140,25 @@ def _ler_dados(nome: str):
         raise FileNotFoundError(nome) from e
 
 
+def limpar_texto_pdf(texto: str) -> str:
+    """O texto tirado do PDF arrumado: a palavra cortada no fim da linha volta inteira ("cele-\nbração"), a linha
+    quebrada no meio da frase vira uma linha só, os espaços repetidos somem e os números de página soltos saem."""
+    t = (texto or "").replace("\r", "\n").replace("\u00ad", "")
+    t = re.sub(r"(\w)-\n\s*(\w)", r"\1\2", t)
+    t = re.sub(r"[ \t\f\v]+", " ", t)
+    t = re.sub(r"(?m)^[ \t]*\d{1,4}[ \t]*(\n|$)", "", t)  # número de página sozinho na linha
+    # a quebra no meio da frase (a linha seguinte começa minúscula ou a anterior não termina a frase)
+    t = re.sub(r"(?<![.!?:;])\s*\n\s*(?=[a-zà-ú0-9(\"“])", " ", t)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    return re.sub(r" *\n *", "\n", t).strip()
+
+
+def _frase_boa(f: str) -> bool:
+    """Frase que dá para ler em voz alta: com tamanho de frase e que não é um título em maiúsculas."""
+    letras = [c for c in f if c.isalpha()]
+    return len(f) >= 30 and len(letras) >= 20 and sum(c.isupper() for c in letras) / len(letras) < 0.5
+
+
 def carregar_trechos() -> list[Trecho]:
     trechos: list[Trecho] = []
     ler = _ler_dados
@@ -175,7 +194,7 @@ def carregar_trechos() -> list[Trecho]:
         with open(TEXTOS, encoding="utf-8") as f:
             for linha in f:
                 d = json.loads(linha)
-                for p in pedacos(d.get("texto", "")):
+                for p in pedacos(limpar_texto_pdf(d.get("texto", ""))):
                     trechos.append(Trecho(d.get("titulo", ""), d.get("caminho", ""), p, d.get("id", ""), "documento"))
     return trechos
 
@@ -254,7 +273,10 @@ def buscar_trechos(pergunta: str, quantos: int = 8) -> list[dict]:
         termos |= _SINONIMO.get(p, set())
     out = []
     for nota, t in indice().buscar(pergunta, quantos * 2):
-        frases = [f.strip() for f in re.split(r"(?<=[.!?;])\s+|\n+", t.texto) if len(f.strip()) > 3]
+        texto = limpar_texto_pdf(t.texto) if t.tipo == "documento" else t.texto
+        frases = [f.strip() for f in re.split(r"(?<=[.!?;])\s+|\n+", texto) if len(f.strip()) > 3]
+        if t.tipo == "documento":
+            frases = [f for f in frases if _frase_boa(f)]
         boas = sorted(((len(set(palavras(f)) & termos), i, f) for i, f in enumerate(frases)), key=lambda x: (-x[0], x[1]))
         escolhidas = [f for n, i, f in sorted((b for b in boas[:3] if b[0] > 0), key=lambda x: x[1])]
         out.append({"titulo": t.titulo, "caminho": t.caminho, "id": t.id, "tipo": t.tipo, "nota": round(nota, 3),
@@ -292,9 +314,10 @@ exéquias, crisma…), prefira os do acervo e explique em que parte da celebraç
 # na conversa ao vivo a resposta é falada: curta, em frases, sem lista nem marcação
 SISTEMA_VOZ = """
 
-A resposta será LIDA EM VOZ ALTA numa conversa ao vivo. Responda como numa conversa: de 2 a 5 frases curtas, sem \
+A resposta será LIDA EM VOZ ALTA numa conversa ao vivo. Responda como numa conversa: de 2 a 6 frases curtas, sem \
 listas, sem títulos, sem negrito, sem citações entre colchetes e sem endereços de sites. Se for uma lista de cantos \
-ou leituras, diga os principais numa frase. Se a resposta veio da internet, diga só o nome da fonte ("segundo a \
+ou leituras, diga os principais numa frase. Se pedirem uma estrutura ou um passo a passo (os ritos de uma \
+celebração), diga as etapas em ordem, numa sequência falada ("primeiro…, depois…, por fim…"), em até 8 frases. Se a resposta veio da internet, diga só o nome da fonte ("segundo a \
 CNBB…")."""
 
 
@@ -319,7 +342,7 @@ def texto_do_anexo(nome: str, tipo: str, dados: bytes) -> str:
         if tipo == "application/pdf" or nome.endswith(".pdf"):
             from pypdf import PdfReader
 
-            return "\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(dados)).pages[:300])
+            return limpar_texto_pdf("\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(dados)).pages[:300]))
         if nome.endswith(".docx"):
             with zipfile.ZipFile(io.BytesIO(dados)) as z:
                 xml = z.read("word/document.xml").decode("utf-8", "ignore")
@@ -354,6 +377,63 @@ arquivo com atenção e responda com base nele primeiro (cite a página ou o tre
 "o que é isso?" ou vier vazia, resuma o arquivo e diga o que dá para fazer com ele na liturgia."""
 
 
+# ---- o PDF do acervo que trata do assunto (o Ritual do Matrimônio para "a estrutura do casamento"): baixado do Drive
+# e entregue inteiro à IA, que lê o que está escrito nele (os trechos da busca são só pedaços soltos)
+GENERICAS = set("""liturgia liturgica liturgico liturgicos catolica catolico igreja missa missas celebracao cerimonia
+canto cantos musica musicas cnbb estrutura parte partes como fazer ordem rito ritos texto livro""".split())
+PASTAS_DE_MUSICA = re.compile(r"cifra|canto|partitura|hinario|album|audio|musica|salmos responsoriais|melodia")
+_pdfs: dict[str, bytes] = {}
+
+
+def pdf_do_acervo(pergunta: str, achados: list[tuple[float, Trecho]]) -> tuple[int, Trecho] | None:
+    """O arquivo PDF (o número dele nos achados e o trecho) cujo nome fala do assunto da pergunta; None se não há."""
+    grupos = []
+    for p in palavras(pergunta):
+        if p in GENERICAS:
+            continue
+        grupos.append({p} | _SINONIMO.get(p, set()))
+    if not grupos:
+        return None
+    quer_canto = bool(re.search(r"\b(canto|cantos|musica|musicas|hino|cifra|partitura)\b", normalizar(pergunta)))
+    melhor, nota_melhor = None, 0.0
+    for k, (_, t) in enumerate(achados, 1):
+        if t.tipo not in ("arquivo", "documento") or not t.id or not t.titulo.lower().endswith(".pdf"):
+            continue
+        # (os PDFs de canto — cifras, partituras, salmos musicados — só quando a pergunta é sobre canto: "estrutura
+        # perfeita" não é "A lei do Senhor é perfeita")
+        lugar = normalizar(f"{t.caminho} {t.titulo}")
+        if PASTAS_DE_MUSICA.search(lugar) and not quer_canto:
+            continue
+        nome = set(palavras(t.titulo))
+        nota = sum(1 for g in grupos if g & nome)
+        if not nota:
+            continue
+        if re.search(r"ritua|document|lecion|missal|cerimonial|diretorio|instrucao", lugar):
+            nota += 0.5
+        if nota > nota_melhor:
+            melhor, nota_melhor = (k, t), nota
+    return melhor if nota_melhor >= 1 else None
+
+
+def baixar_pdf(fid: str) -> bytes | None:
+    if fid in _pdfs:
+        return _pdfs[fid]
+    import urllib.request
+
+    url = f"https://drive.usercontent.google.com/download?id={fid}&export=download&confirm=t"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Songbook/1.0"}), timeout=30) as r:
+            dados = r.read(MAX_ANEXO + 1)
+    except Exception:
+        return None
+    if len(dados) > MAX_ANEXO or not dados.startswith(b"%PDF"):
+        return None
+    if len(_pdfs) >= 4:
+        _pdfs.pop(next(iter(_pdfs)))
+    _pdfs[fid] = dados
+    return dados
+
+
 def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False,
               anexos: list[dict] | None = None) -> dict:
     pergunta = pergunta.strip()[:1000]
@@ -368,6 +448,16 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
     arquivos = _decodificar(anexos)
     sistema = SISTEMA + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
+    # sem arquivo da pessoa: o PDF do acervo que trata do assunto vai inteiro (a IA lê o que ele diz de verdade)
+    if not arquivos and os.environ.get("IA_PDF_DO_ACERVO", "1") != "0":
+        escolhido = pdf_do_acervo(pergunta, achados)
+        dados = escolhido and baixar_pdf(escolhido[1].id)
+        if dados:
+            k, t = escolhido
+            arquivos = [{"nome": t.titulo, "tipo": "application/pdf", "dados": dados}]
+            sistema += (f"\n\nVai junto, inteiro, o arquivo do acervo [{k}] \"{t.titulo}\". Se ele trata da pergunta, "
+                        f"responda pelo que está ESCRITO nele (a ordem, os ritos, as palavras), citando [{k}]; não "
+                        "resuma de memória o que o arquivo diz de outro jeito.")
     if provedor() == "gemini":
         texto, web, usou_web = _gemini(mensagens, sistema, arquivos)
     else:

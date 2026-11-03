@@ -144,3 +144,13 @@ def test_anexo_vai_para_a_ia_e_o_texto_sai_sem_ia(monkeypatch):
     r = duvidas.responder("qual o salmo?", anexos=[{"nome": "foto.jpg", "tipo": "image/jpeg", "dados": base64.b64encode(b"\xff\xd8").decode()}])
     assert r["resposta"] == "É o Salmo 127."
     assert enviado["contents"][-1]["parts"][0]["inline_data"]["mime_type"] == "image/jpeg"
+
+
+def test_texto_do_pdf_limpo_e_o_pdf_do_acervo_para_a_ia(monkeypatch):
+    sujo = "A cele-\nbração do matri-\nmônio começa\ncom a acolhida dos noivos.\n12\nRITOS INICIAIS"
+    assert duvidas.limpar_texto_pdf(sujo) == "A celebração do matrimônio começa com a acolhida dos noivos.\nRITOS INICIAIS"
+    achados = [(9.0, Trecho("O casal foi unido por Deus.pdf", "OUTROS SUBSÍDIOS DE MÚSICA LITÚRGICA/0. Cantos de Comunhão", "x", "c1", "arquivo")),
+               (8.0, Trecho("RITUAL DO MATRIMÔNIO - CNBB.pdf", "COLETÂNEA RITUAIS CNBB", "x", "m1", "arquivo"))]
+    k, t = duvidas.pdf_do_acervo("qual a estrutura da cerimônia de um casamento católico", achados)
+    assert (k, t.id) == (2, "m1")
+    assert duvidas.pdf_do_acervo("o que é liturgia", achados) is None
