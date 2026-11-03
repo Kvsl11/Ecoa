@@ -34,13 +34,59 @@ MODELO_GEMINI = os.environ.get("IA_GEMINI_MODELO", "gemini-3.6-flash")
 API_GEMINI = "https://generativelanguage.googleapis.com/v1beta"
 
 
+# as chaves da IA: das variáveis do servidor ou, no Codespace, dos secrets que chegaram depois de o servidor ligar
+# (a pessoa grava a chave com o servidor já de pé: as variáveis dele não mudam). Lidas a cada pergunta:
+# - o arquivo de secrets do Codespace (/workspaces/.codespaces/shared/.env-secrets, NOME=valor em base64);
+# - dados/chaves.env (NOME=valor), que o .devcontainer/ligar.sh grava com as chaves do Codespace a cada vez que ele
+#   liga ou que o editor abre.
+SEGREDOS_CODESPACE = "/workspaces/.codespaces/shared/.env-secrets"
+CHAVES_LOCAIS = os.path.join(PASTA, "dados", "chaves.env")
+
+
+def _ler_segredos(caminho: str, base64_valor: bool) -> dict:
+    import base64
+
+    saida = {}
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            for linha in f:
+                nome, _, valor = linha.strip().partition("=")
+                if not nome or not valor or nome.startswith("#"):
+                    continue
+                valor = valor.strip().strip('"').strip("'")
+                if base64_valor:
+                    try:
+                        texto = base64.b64decode(valor, validate=True).decode("utf-8")
+                        if texto.isprintable():
+                            valor = texto
+                    except Exception:
+                        pass
+                saida[nome.strip()] = valor
+    except OSError:
+        pass
+    return saida
+
+
+def segredo(nome: str) -> str:
+    """A chave: a variável do servidor, ou a que o Codespace recebeu depois (e passa a valer como variável)."""
+    valor = os.environ.get(nome, "")
+    if valor:
+        return valor
+    for caminho, b64 in ((CHAVES_LOCAIS, False), (SEGREDOS_CODESPACE, True)):
+        valor = _ler_segredos(caminho, b64).get(nome, "")
+        if valor:
+            os.environ[nome] = valor  # o cliente do Claude lê da variável
+            return valor
+    return ""
+
+
 def chave_gemini() -> str:
-    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+    return segredo("GEMINI_API_KEY") or segredo("GOOGLE_API_KEY")
 
 
 def provedor() -> str | None:
     """Qual IA responde: "claude", "gemini" ou None (sem chave nenhuma)."""
-    tem_claude, tem_gemini = bool(os.environ.get("ANTHROPIC_API_KEY")), bool(chave_gemini())
+    tem_claude, tem_gemini = bool(segredo("ANTHROPIC_API_KEY")), bool(chave_gemini())
     if tem_gemini and (not tem_claude or os.environ.get("IA_PROVEDOR", "").lower() == "gemini"):
         return "gemini"
     return "claude" if tem_claude else None
