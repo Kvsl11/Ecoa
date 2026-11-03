@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 461, data: '2026-11-03', titulo: 'Karaokê sem depender do YouTube no servidor',
+    itens: [
+      { tipo: 'melhoria', texto: 'Nas músicas baixadas, o karaokê usa o próprio áudio do aparelho: ele vai para o servidor da IA, que só separa a voz da banda, sem precisar baixar a música do YouTube (que costuma recusar os servidores na nuvem). Funciona com o servidor no seu computador, no Codespace ou no Modal.' },
+    ],
+  },
+  {
     versao: 460, data: '2026-11-03', titulo: 'Karaokê: tire a voz da música',
     itens: [
       { tipo: 'novo', texto: 'Karaokê, como o do Apple Music, nas músicas com a letra sincronizada: na letra na tela toda, toque no microfone com as estrelinhas (à direita, em cima da barra do tempo) e a voz do cantor some, ficando só a banda, para você cantar no lugar. É um controle deslizante: arraste o microfone para cima e a voz volta um pouco, de guia, para a música que você ainda está aprendendo (a letra atrás se apaga enquanto você arrasta). Toque de novo e a música volta a ser a gravação inteira, sem parar. Também no ⋯ do Tocando agora.' },
@@ -60,13 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A partitura feita pela IA erra menos o tempo das notas: o servidor ouve as batidas na banda (bateria, violão), sem a voz, e a partitura usa essas batidas como a grade dos tempos. O cantor que adianta ou atrasa um pouco não faz mais a nota cair na figura errada.' },
       { tipo: 'melhoria', texto: 'E erra menos as notas: a altura de cada nota é medida na parte firme dela (sem o deslize da voz chegando na nota), as duas notas ligadas que a IA ouvia como uma só são separadas, e o começo de cada nota vai para o ataque de verdade da voz.' },
-    ],
-  },
-  {
-    versao: 451, data: '2026-11-03', titulo: 'Partitura com a barra arrumada',
-    itens: [
-      { tipo: 'melhoria', texto: 'A barra do alto da partitura ficou mais limpa: à esquerda o Editar e a lixeira, à direita o tom e o tamanho, numa linha só. No celular estreito, o Editar vira só o lápis.' },
-      { tipo: 'melhoria', texto: 'Saiu o botão “Cores do app / Preto e branco”: a partitura fica sempre nas cores do app.' },
     ],
   },
 ];

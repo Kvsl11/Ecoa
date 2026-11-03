@@ -1074,13 +1074,27 @@ function prepararKaraoke(song) {
       else if (etapa === 'separando') passo(10 + 80 * (p ?? 0), 'Separando a voz da banda');
       else if (etapa === 'gravando') passo(91, 'Quase pronto');
     };
+    // o áudio que já está no aparelho vai ele mesmo: o da pessoa e o da música baixada (só o áudio: o vídeo baixado é
+    // grande demais para mandar). Assim o servidor não precisa baixar do YouTube, que costuma recusar os servidores na
+    // nuvem; e é a mesma gravação que o player toca
+    let arquivo = null;
+    let nome = 'audio';
+    if (ehArquivo(fonte)) {
+      arquivo = await lerAudio(fonte.slice(ARQ.length)).catch(() => null);
+      if (!arquivo) throw new Error('O áudio desta música não está neste aparelho');
+      nome = song.audioProprio?.nome || 'audio';
+    } else {
+      const b = baixadoDe(fonte);
+      if (b && String(b.tipo || '').startsWith('audio') && (b.tamanho || 0) < 55e6) {
+        arquivo = await lerAudio(chaveBaixada(fonte)).catch(() => null);
+        nome = String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
+      }
+    }
     let r;
     try {
-      if (ehArquivo(fonte)) {
-        const arquivo = await lerAudio(fonte.slice(ARQ.length));
-        if (!arquivo) throw new Error('O áudio desta música não está neste aparelho');
+      if (arquivo) {
         const form = new FormData();
-        form.append('arquivo', arquivo, song.audioProprio?.nome || 'audio');
+        form.append('arquivo', arquivo, nome);
         r = await chamarComEtapas(servidorIA(), '/karaoke/arquivo', { form }, aoEtapa);
       } else {
         r = await chamarComEtapas(servidorIA(), '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
