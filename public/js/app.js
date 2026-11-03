@@ -1097,6 +1097,10 @@ const REVISOES = [
   // v412: a foto do artista que era a de outra pessoa com o nome parecido (o Justice com a foto da Victoria Justice):
   // sai, e a do artista certo é procurada de novo
   { rev: 5, fotoOutroArtista: true, quais: (s) => Boolean(s.fotoArtista && s.artist) && /sscdn\.co\/letras\/[^/]+\/fotos\//.test(s.fotoArtista) },
+  // v448: nos cantos da missa (Cindy, Músicas para Missa e acervo) o vídeo e a música são o mesmo áudio. O "áudio
+  // oficial" que a busca tinha achado (outra gravação do canto) sai, com o download dele; a letra e o download passam
+  // para o vídeo. O áudio escolhido à mão pela pessoa fica
+  { rev: 6, mesmoAudio: true, letra: true, arquivos: true, quais: (s) => mesmoAudioQueOVideo(s) && !s.audioProprio && Boolean(s.versoes?.audio) && s.versoes.audio !== s.youtube && !s.versoes.escolhida },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1156,6 +1160,22 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   if (quer('fotosLiturgia') && s.fotoArtista) { db.updateSong(id, { fotoArtista: undefined }); s = db.song(id); }
   if (quer('soNoRepertorio')) { db.updateSong(id, { soNoRepertorio: true }); s = db.song(id); }
+  // o canto da missa toca o vídeo também no modo música: o áudio separado sai (e o download dele, se só ele o usa)
+  if (quer('mesmoAudio') && s.versoes?.audio && !s.versoes.escolhida) {
+    const velho = s.versoes.audio;
+    const mud = { versoes: undefined, versoesConferidas: undefined };
+    if (s.sincronia?.fonte === 'lrclib' && s.sincronia.video === velho) mud.sincronia = undefined;
+    if (s.baixado?.arquivos?.[velho]) {
+      const arquivos = { ...s.baixado.arquivos };
+      delete arquivos[velho];
+      mud.baixado = Object.keys(arquivos).length ? { ...s.baixado, arquivos, tamanho: Object.values(arquivos).reduce((a, f) => a + (f.tamanho || 0), 0) } : null;
+      if (!Object.keys(arquivos).length) mud.rebaixar = true;
+    }
+    db.updateSong(id, mud);
+    if (!velho.startsWith(ARQ) && !db.songs().some((x) => x.baixado?.arquivos?.[velho])) await apagarAudio(chaveBaixada(velho)).catch(() => {});
+    s = db.song(id);
+    player.versoes(s);
+  }
   // a foto do artista que veio de outro artista da busca do Cifra Club (de nome parecido): sai, e também a guardada
   // para o nome, para a do artista certo ser procurada de novo
   if (quer('fotoOutroArtista')) {
@@ -1406,7 +1426,7 @@ function trocarNaPrevia(tipo, url) {
   if (tipo === 'audio') {
     const durA = duracoesDaBusca.get(novo) || 0;
     const durV = duracoesDaBusca.get(preview.youtube) || 0;
-    preview.versoes = novo ? { video: preview.youtube || '', audio: novo, duracao: durA, pares: durA && durV ? paresPelaDuracao(durV, durA) : [[0, 0]] } : undefined;
+    preview.versoes = novo ? { video: preview.youtube || '', audio: novo, duracao: durA, pares: durA && durV ? paresPelaDuracao(durV, durA) : [[0, 0]], escolhida: true } : undefined;
   } else {
     preview.content = definirMeta(preview.content, 'youtube', url);
     preview.youtube = novo;
@@ -1437,6 +1457,7 @@ function trocarAudioDaMusica(song, url) {
       audio: novo,
       duracao: durAudio || versoesDe(s)?.duracao || 0,
       pares: durVideo && durAudio ? paresPelaDuracao(durVideo, durAudio) : [[0, 0]],
+      escolhida: true, // (escolhida à mão: a revisão dos cantos da missa não tira)
     };
   } else {
     delete mud.versoes;
@@ -5972,6 +5993,10 @@ const ehDaLiturgia = (x) => {
   const s = typeof x === 'string' ? x : [x?.source, x?.fonte, x?.cifra, x?.url].find((v) => typeof v === 'string' && v) || '';
   return /^(acervo|hinario|cnbb):/.test(s) || /cindyferrarezi\.com|musicasparamissa\.com/.test(s) || ['acervo', 'hinario', 'cnbb', 'mpm', 'cindy'].includes(x?.fonte);
 };
+// A única exceção às duas versões (o áudio oficial e o clipe): nos cantos da liturgia (Cindy, Músicas para Missa e
+// acervo) o vídeo e a música são a mesma gravação. O app não procura outro áudio para eles: o modo música e o modo
+// vídeo tocam o mesmo, e o download é um arquivo só. (O áudio que a pessoa escolher à mão continua valendo)
+const mesmoAudioQueOVideo = (song) => ehDaLiturgia(song);
 const TITULO_RELIGIOSO = /^(padre|pe\.?|frei|fr\.|irm[ãa]o?|ir\.|dom|di[áa]cono|monsenhor|mons\.|cardeal|minist[ée]rio|comunidade)\s+\S/i;
 const nomeReligioso = (n) => String(n || '').trim().replace(/^pe\.?\s+/i, 'Padre ').replace(/^fr\.\s+/i, 'Frei ').replace(/^mons\.\s+/i, 'Monsenhor ');
 // (além dos católicos mais ouvidos da Busca, autores de cantos de missa conhecidos sem título religioso)
@@ -13345,6 +13370,9 @@ function prepararMusicaAoAbrir(song) {
 // ela ficava só com o clipe, e a letra fora do tempo)
 const buscaDeAudioFalhou = new Set();
 async function procurarAudio(song, duracao) {
+  // (os cantos da missa, da Cindy, do Músicas para Missa e do acervo, não têm outra gravação: o vídeo é o áudio, e o
+  // modo música toca o mesmo que o vídeo. A busca achava outra versão do canto e a punha como o "áudio oficial")
+  if (mesmoAudioQueOVideo(song)) return null;
   const titulo = tituloLimpo(song.title);
   const termo = `${titulo} ${song.artist || ''}`.trim();
   let respondeu = false;
@@ -13378,7 +13406,7 @@ async function procurarAudio(song, duracao) {
 const descobrindoVersoes = new Map();
 async function descobrirVersoes(song) {
   const video = song?.youtube;
-  if (!song?.id || !video || song.audioProprio || versoesDe(song)?.audio) return null;
+  if (!song?.id || !video || song.audioProprio || versoesDe(song)?.audio || mesmoAudioQueOVideo(song)) return null;
   const chave = `${song.id}|${video}`;
   if (descobrindoVersoes.has(chave)) return descobrindoVersoes.get(chave);
   const previaOriginal = song.id === 'previa' ? preview : null;
