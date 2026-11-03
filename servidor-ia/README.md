@@ -47,7 +47,11 @@ hora ligada); parado 30 minutos, ele desliga sozinho.
    navegador; a primeira vez instala tudo sozinha (uns 10 minutos, aparece "Servidor da IA instalado").
 2. Embaixo, na aba **Portas**: a porta **7860** tem de estar **Pública** (botão direito → Visibilidade da porta →
    Pública; o Codespace já tenta mudar sozinho). Clique no globo do endereço: abre a página com o QR code.
-3. Leia o QR code com o celular. Pronto.
+3. Pronto: não precisa ler QR code nem colar endereço. Cada vez que o Codespace liga, ele puxa a versão nova, liga o
+   servidor (os pacotes novos instalam por trás), deixa a porta 7860 pública (ou, se o GitHub não deixar, abre o túnel
+   da Cloudflare) e publica o endereço no site, e os aparelhos acham o servidor sozinhos em uns 2 minutos
+   (`.devcontainer/servidor.sh` e `servidor-ia/codespace.py`). Opcional: para a porta pública valer sempre (endereço que
+   não muda), crie um token pessoal com o escopo `codespace` e guarde nos secrets do Codespaces como `CODESPACE_TOKEN`.
 4. Para o site achar este servidor em **qualquer aparelho** (sem ler o QR code em cada um): no GitHub do projeto,
    **Settings → Secrets and variables → Actions → Variables → New repository variable**, nome `SERVIDOR_IA_URL`,
    valor o endereço do Codespace (`https://<nome>-7860.app.github.dev`; ele aparece em `servidor-ia/dados/endereco.txt`

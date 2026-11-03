@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 457, data: '2026-11-03', titulo: 'Codespace liga o servidor sozinho',
+    itens: [
+      { tipo: 'correcao', texto: 'O Codespace não ligava o servidor sozinho, nem deixava a porta pública. Agora, ao ligar, o servidor sobe na hora (os pacotes novos instalam por trás e ele reinicia sozinho no fim) e, quando o GitHub não deixa a porta pública, o Codespace abre um túnel seguro e publica esse endereço no site. Os aparelhos acham o servidor sozinhos em uns 2 minutos, sem QR code.' },
+    ],
+  },
+  {
     versao: 456, data: '2026-11-03', titulo: 'Servidor da IA sem nada para configurar',
     itens: [
       { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
@@ -60,13 +66,6 @@ export const NOVIDADES = [
     versao: 448, data: '2026-11-03', titulo: 'Ecoa de logo nova',
     itens: [
       { tipo: 'melhoria', texto: 'O Ecoa ganhou uma logo nova: um “e” com as ondas de eco saindo dele, em branco sobre o degradê ciano e azul do app. Ela aparece no menu, nos Ajustes, no ícone da tela inicial e nas notificações.' },
-    ],
-  },
-  {
-    versao: 447, data: '2026-11-03', titulo: 'Permissões: notificações e microfone num lugar só',
-    itens: [
-      { tipo: 'novo', texto: 'Ajustes → Permissões mostra se as notificações e o microfone estão permitidos, ainda não pedidos ou bloqueados. Dá para permitir dali, e, quando o navegador bloqueou, a tela explica como liberar. Com as notificações ligadas, o botão “Testar” manda uma notificação de teste.' },
-      { tipo: 'melhoria', texto: 'O app não pede mais as notificações no primeiro toque na tela, sem explicar nada. Agora um cartão no Início conta para que servem (os avisos dos downloads) e pergunta uma vez; “Agora não” não pergunta de novo, e dá para permitir depois em Ajustes → Permissões.' },
     ],
   },
 ];
