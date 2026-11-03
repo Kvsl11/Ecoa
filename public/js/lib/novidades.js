@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 451, data: '2026-11-03', titulo: 'Partitura com a barra arrumada',
+    itens: [
+      { tipo: 'melhoria', texto: 'A barra do alto da partitura ficou mais limpa: à esquerda o Editar e a lixeira, à direita o tom e o tamanho, numa linha só. No celular estreito, o Editar vira só o lápis.' },
+      { tipo: 'melhoria', texto: 'Saiu o botão “Cores do app / Preto e branco”: a partitura fica sempre nas cores do app.' },
+    ],
+  },
+  {
     versao: 450, data: '2026-11-03', titulo: 'Lumen ao vivo já começa ouvindo',
     itens: [
       { tipo: 'melhoria', texto: 'Abrindo o Lumen ao vivo, ele não diz mais “Olá, eu sou a Lumen”: já começa ouvindo, e você pode perguntar na hora.' },
@@ -77,13 +84,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O texto do alto do Lumen ao vivo vinha bagunçado: o nome do arquivo com “.pdf.pdf”, palavras partidas, títulos em maiúsculas no meio da frase e pedaços começando pela metade. Agora os nomes aparecem limpos (“Cerimonial dos Bispos”), o texto dos PDFs vem arrumado e só frases inteiras são lidas.' },
       { tipo: 'correcao', texto: 'No ao vivo, a caixa com o que você fala não corta mais na terceira linha: ela mostra até cinco linhas e acompanha o fim do que você está falando.' },
       { tipo: 'melhoria', texto: 'Na conversa por texto, quando a pergunta passa de uma linha, ela ocupa a largura toda da caixa e os botões (enviar arquivo, microfone e enviar) descem para a linha de baixo, como no Gemini. Antes o texto ficava espremido no meio, no celular. Vale no celular, no tablet em pé e deitado e no computador.' },
-    ],
-  },
-  {
-    versao: 441, data: '2026-11-02', titulo: 'Lumen: o anexar e o microfone do chat voltam a funcionar',
-    itens: [
-      { tipo: 'correcao', texto: 'Na conversa por texto do Lumen, o botão de enviar arquivo ligava a gravação da voz (“Ouvindo…”), e o botão do microfone não fazia nada. Agora o de anexar abre a escolha do arquivo, e o microfone liga o ditado.' },
-      { tipo: 'correcao', texto: 'Dúvidas como “como o salmista deve proclamar o salmo?” não viram mais uma lista de cantos repetidos com versos de antífona: sem a IA, a resposta vem dos documentos do acervo e da internet.' },
     ],
   },
 ];

@@ -10162,18 +10162,17 @@ async function viewPartitura(id) {
   if (!view.querySelector('.partitura')) return;
   const prefs = db.prefs();
   let modo = temDesenho && (prefs.partituraModo !== 'original' || !paginas.length) ? 'desenhada' : 'original';
-  let cores = prefs.partituraCores === 'pb' ? 'pb' : 'app';
   let tom = 0;
   let zoom = Number(sessionStorage.getItem('zoomPartitura')) || 1;
   view.innerHTML = `<div class="partitura">
     <div class="partitura-barra">
-      ${temDesenho && paginas.length ? `<div class="seg"><button data-modo="desenhada">${icon('score', 15)} ${propria ? 'Do app' : 'Desenhada'}</button><button data-modo="original">${icon('file', 15)} Original</button></div>` : ''}
-      <a class="btn small cp-editar" href="#/musica/${id}/compor${!propria && temDesenho ? '/desenhada' : ''}" title="${propria ? 'Editar a partitura feita no app' : temDesenho ? 'Abrir esta partitura no editor para corrigir notas, letra e cifras' : 'Escrever a partitura aqui no app, nota por nota'}">${icon('edit', 15)} ${propria || temDesenho ? 'Editar' : 'Criar no app'}</a>
-      ${propria && id !== 'previa' ? `<button class="icon-btn" id="part-apagar" aria-label="Apagar a partitura" title="Apagar a partitura">${icon('trash', 18)}</button>` : ''}
-      <div class="seg so-desenhada"><button data-cor="app">Cores do app</button><button data-cor="pb">Preto e branco</button></div>
-      <div class="seg so-desenhada"><button data-tom="-1" aria-label="Meio tom abaixo">${icon('minus', 15)}</button><span class="val" id="tom-part"><small>Tom</small>0</span><button data-tom="1" aria-label="Meio tom acima">${icon('plus', 15)}</button></div>
-      <span class="spacer"></span>
-      <div class="seg"><button data-z="-1" aria-label="Diminuir">A−</button><button data-z="1" aria-label="Aumentar">A+</button></div>
+      ${temDesenho && paginas.length ? `<div class="part-modo"><div class="seg"><button data-modo="desenhada">${icon('score', 15)} ${propria ? 'Do app' : 'Desenhada'}</button><button data-modo="original">${icon('file', 15)} Original</button></div></div>` : ''}
+      <div class="part-acoes"><a class="btn small cp-editar" href="#/musica/${id}/compor${!propria && temDesenho ? '/desenhada' : ''}" aria-label="${propria || temDesenho ? 'Editar' : 'Criar no app'}" title="${propria ? 'Editar a partitura feita no app' : temDesenho ? 'Abrir esta partitura no editor para corrigir notas, letra e cifras' : 'Escrever a partitura aqui no app, nota por nota'}">${icon('edit', 15)} <span class="cp-editar-txt">${propria || temDesenho ? 'Editar' : 'Criar no app'}</span></a>
+      ${propria && id !== 'previa' ? `<button class="icon-btn" id="part-apagar" aria-label="Apagar a partitura" title="Apagar a partitura">${icon('trash', 18)}</button>` : ''}</div>
+      <div class="part-ajustes">
+        <div class="seg so-desenhada"><button data-tom="-1" aria-label="Meio tom abaixo">${icon('minus', 15)}</button><span class="val" id="tom-part"><small>Tom</small>0</span><button data-tom="1" aria-label="Meio tom acima">${icon('plus', 15)}</button></div>
+        <div class="seg"><button data-z="-1" aria-label="Diminuir">A−</button><button data-z="1" aria-label="Aumentar">A+</button></div>
+      </div>
     </div>
     <div id="part-desenhada" class="osmd-box"></div>
     <div class="ensaio so-desenhada" id="ensaio" hidden></div>
@@ -10183,9 +10182,8 @@ async function viewPartitura(id) {
   let ensaio = null;
   aoSair(() => ensaio?.parar());
   const caixa = $('#part-desenhada');
-  // cores: o desenho sai sempre nas do tema do app (notas e letra no tom do texto, cifras na cor de destaque); o preto
-  // e branco é só o CSS pintando tudo de preto na folha branca (.osmd-box.pb), sem desenhar de novo: antes cada troca
-  // refazia a partitura inteira e a tela travava
+  // cores: o desenho sai sempre nas do tema do app (notas e letra no tom do texto, cifras na cor de destaque). (O botão
+  // "Preto e branco" saiu: a partitura fica sempre nas cores do app)
   const coresDoTema = () => {
     const css = getComputedStyle(document.documentElement);
     const v = (n, d) => css.getPropertyValue(n).trim() || d;
@@ -10193,7 +10191,6 @@ async function viewPartitura(id) {
   };
   let desenhado = ''; // o tom, o zoom e a largura do último desenho: igual, não desenha de novo
   const desenhar = async () => {
-    caixa.classList.toggle('pb', cores === 'pb');
     if (modo !== 'desenhada') return;
     const chave = `${tom}|${zoom}|${innerWidth}`;
     if (osmd && chave === desenhado) return;
@@ -10245,7 +10242,6 @@ async function viewPartitura(id) {
   aoSair(() => { removeEventListener('resize', aoRedimensionar); clearTimeout(timerLargura); });
   const aplicar = () => {
     view.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
-    view.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cor === cores)));
     view.querySelectorAll('.so-desenhada').forEach((x) => (x.hidden = modo !== 'desenhada'));
     if (modo !== 'desenhada') ensaio?.pausar();
     caixa.hidden = modo !== 'desenhada';
@@ -10268,7 +10264,6 @@ async function viewPartitura(id) {
   };
   aoSair(() => clearTimeout(timerDesenho));
   view.querySelectorAll('[data-modo]').forEach((b) => (b.onclick = () => { modo = b.dataset.modo; db.setPref('partituraModo', modo); aplicar(); }));
-  view.querySelectorAll('[data-cor]').forEach((b) => (b.onclick = () => { cores = b.dataset.cor; db.setPref('partituraCores', cores); aplicar(); }));
   view.querySelectorAll('[data-tom]').forEach((b) => (b.onclick = () => { tom = Math.max(-11, Math.min(11, tom + Number(b.dataset.tom))); aplicar(); }));
   view.querySelectorAll('[data-z]').forEach((b) => (b.onclick = () => { zoom = Math.min(3, Math.max(0.6, +(zoom + Number(b.dataset.z) * 0.15).toFixed(2))); aplicar(); }));
   $('#part-apagar')?.addEventListener('click', async () => { if (await apagarPartitura(id)) route(); });

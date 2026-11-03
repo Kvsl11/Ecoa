@@ -1635,7 +1635,15 @@ a.source { text-decoration: none; color: inherit; }
 /* (cinza, como os outros ícones das listas: cifra, vídeo, música) */
 .tag-partitura { display: inline-grid; place-items: center; color: var(--muted); font-weight: 600; }
 .tag-partitura svg { width: 14px; height: 14px; }
-.partitura-barra { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.partitura-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 8px; margin: 4px 0 14px; }
+/* em cima, Desenhada/Original (quando tem as duas); embaixo, à esquerda o que mexe na partitura (editar, apagar) e à
+   direita o que muda só a vista (tom, tamanho) */
+.partitura-barra .part-modo { flex-basis: 100%; }
+.partitura-barra .part-acoes, .partitura-barra .part-ajustes { display: flex; align-items: center; gap: 6px; }
+.partitura-barra .part-ajustes { margin-left: auto; }
+.partitura-barra .part-acoes .btn { height: 40px; }
+/* (no celular estreito, com a lixeira junto, o "Editar" vira só o lápis: tudo cabe numa linha) */
+@media (max-width: 400px) { .partitura-barra .part-acoes:has(#part-apagar) .cp-editar-txt { display: none; } .partitura-barra .part-acoes:has(#part-apagar) .btn { width: 40px; padding: 0; justify-content: center; } }
 .partitura-barra b { display: inline-flex; align-items: center; gap: 8px; }
 .partitura-paginas { --zoom: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow-x: auto; padding-bottom: 90px; }
 .partitura-paginas img { width: calc(min(100%, 900px) * var(--zoom)); max-width: none; height: auto; background: #fff; border-radius: 6px; box-shadow: 0 6px 24px rgb(0 0 0 / 0.35); }
@@ -1733,14 +1741,9 @@ a.source { text-decoration: none; color: inherit; }
 .aleluia::before, .aleluia::after { content: '❧'; font-size: 0.5em; vertical-align: 0.35em; margin: 0 10px; color: var(--lit-ink); -webkit-text-fill-color: var(--lit-ink); }
 .aleluia::before { display: inline-block; transform: scaleX(-1); }
 .versiculo { font-style: italic; font-size: 1.06em; text-align: center; max-width: 34em; margin: 0 auto 0.6em; }
-.partitura-barra { flex-wrap: wrap; }
 .partitura-barra .seg button { display: inline-flex; align-items: center; gap: 5px; }
 .partitura-barra .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--accent-ink); }
 .osmd-box { margin: 0 -6px 18px; padding: 6px 0 24px; border-radius: 12px; overflow-x: auto; }
-.osmd-box.pb { background: #fff; padding: 14px 6px 28px; box-shadow: 0 6px 24px rgb(0 0 0 / 0.35); }
-/* preto e branco sem desenhar de novo: a partitura é desenhada nas cores do app e aqui tudo vira preto */
-.osmd-box.pb svg [fill]:not([fill="none"]):not([fill="transparent"]) { fill: #000 !important; }
-.osmd-box.pb svg [stroke]:not([stroke="none"]):not([stroke="transparent"]) { stroke: #000 !important; }
 .osmd-box { transition: opacity 0.15s; }
 .osmd-box.redesenhando { opacity: 0.45; pointer-events: none; }
 .osmd-box svg { max-width: none; }
