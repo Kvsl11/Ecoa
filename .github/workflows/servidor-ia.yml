@@ -2,17 +2,23 @@
 # do GitHub Codespaces (.devcontainer/): ele baixa este texto do site publicado (data/textos-acervo.jsonl.gz), que a
 # publicação do app (GitHub Pages) põe junto depois que este workflow termina.
 # Toda semana lê os PDFs novos; dá para rodar na hora em Actions → Publicar o servidor da IA → Run workflow.
-# O Modal (modal.com) ficou opcional: só publica lá rodando à mão com "Também publicar no Modal" marcado (precisa dos
-# secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET; opcionais ANTHROPIC_API_KEY, GEMINI_API_KEY e YT_COOKIES).
+# O Modal (modal.com) é o servidor de reserva: o app usa o Codespace e, com ele desligado (enquanto liga sozinho) ou sem
+# a cota do mês, usa o Modal. Ele é publicado sozinho a cada mudança no servidor (servidor-ia/) e toda semana, com os
+# secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET; CODESPACE_TOKEN (token clássico com o escopo "codespace") deixa o Modal
+# ligar o Codespace sozinho; opcionais ANTHROPIC_API_KEY, GEMINI_API_KEY e YT_COOKIES.
 name: Publicar o servidor da IA
 
 on:
   workflow_dispatch:
     inputs:
       modal:
-        description: Também publicar no Modal (precisa de crédito lá)
+        description: Também publicar no Modal (o servidor de reserva)
         type: boolean
-        default: false
+        default: true
+  # o servidor mudou: o de reserva (Modal) passa a ter a versão nova sozinho
+  push:
+    branches: [main, master, ccr-59dd75f2-oirnca]
+    paths: ['servidor-ia/**', '.github/workflows/servidor-ia.yml']
   # toda semana: lê os PDFs novos do acervo (o Lumen passa a saber o que entrou no Drive)
   schedule:
     - cron: '23 6 * * 1'
@@ -31,7 +37,9 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       YT_COOKIES: ${{ secrets.YT_COOKIES }}
-      PUBLICAR_MODAL: ${{ github.event_name == 'workflow_dispatch' && inputs.modal && 'sim' || '' }}
+      CODESPACE_TOKEN: ${{ secrets.CODESPACE_TOKEN }}
+      # (à mão, só com "Também publicar no Modal" marcado; na mudança do servidor e toda semana, sempre)
+      PUBLICAR_MODAL: ${{ (github.event_name != 'workflow_dispatch' || inputs.modal) && 'sim' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,7 +54,9 @@ jobs:
           key: textos-acervo-${{ github.run_id }}
           restore-keys: textos-acervo-
       - name: Ler o texto dos PDFs do acervo (Drive)
-        # (lê mesmo sem a chave da IA: a busca do Lumen no acervo, sem IA, também usa o texto dos PDFs)
+        # (lê mesmo sem a chave da IA: a busca do Lumen no acervo, sem IA, também usa o texto dos PDFs; na mudança do
+        # servidor, não: fica para a leitura da semana)
+        if: github.event_name != 'push'
         continue-on-error: true
         timeout-minutes: 30
         working-directory: servidor-ia
@@ -56,7 +66,7 @@ jobs:
           [ -f textos-acervo.jsonl ] && echo "::notice::$(wc -l < textos-acervo.jsonl) arquivos do acervo com o texto lido"
       - name: Sem o token do Modal
         if: env.PUBLICAR_MODAL == 'sim' && (env.MODAL_TOKEN_ID == '' || env.MODAL_TOKEN_SECRET == '')
-        run: echo "::warning::Para publicar no Modal, guarde o token nos secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET."
+        run: echo "::warning::Para o servidor de reserva (Modal), guarde o token nos secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET."
       - name: Publicar no Modal
         if: env.PUBLICAR_MODAL == 'sim' && env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         working-directory: servidor-ia
@@ -67,6 +77,12 @@ jobs:
           [ -n "$ANTHROPIC_API_KEY" ] && args+=("ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
           [ -n "$GEMINI_API_KEY" ] && args+=("GEMINI_API_KEY=$GEMINI_API_KEY")
           [ -n "$YT_COOKIES" ] && args+=("YT_COOKIES=$YT_COOKIES")
+          # o Modal liga o Codespace sozinho quando o app não o acha ligado (POST /codespace/ligar)
+          if [ -n "$CODESPACE_TOKEN" ]; then
+            args+=("IA_GITHUB_TOKEN=$CODESPACE_TOKEN" "IA_REPO=$GITHUB_REPOSITORY")
+          else
+            echo "::notice::Sem o secret CODESPACE_TOKEN: o Modal não liga o Codespace sozinho (o app usa o Modal enquanto o Codespace estiver desligado)."
+          fi
           # o Modal é a reserva: o app usa primeiro o servidor do Codespace (ou do computador). Sem crédito no Modal
           # (o limite de gasto do mês, a conta desativada), a publicação fica para depois com um aviso, sem falhar;
           # qualquer outro erro falha como antes

@@ -94,6 +94,29 @@ const responde = (url) => fetch(url + '/saude', {
 }).then((r) => r.ok).catch(() => false);
 let carregamentoServidor = null;
 let servidorVerificadoEm = 0;
+// O Codespace é o servidor principal e o Modal, o de reserva (data/servidor-ia.json: "url" e "reserva"). Tudo sozinho:
+// com o Codespace de pé, ele atende; desligado, o Modal atende na hora e manda o GitHub ligar o Codespace
+// (POST /codespace/ligar, na máquina pequena do Modal), e quando ele responder o app volta para ele. Sem a cota do mês
+// no Codespace, fica no Modal (e só pergunta de novo meia hora depois). Ninguém liga nada, lê QR code nem cola endereço
+let estadoCodespace = ''; // o que o Modal disse por último: ligado | ligando | criando | sem-cota | sem-token | erro
+let acordandoEm = 0;
+const CODESPACE_SEM_COTA = 'songbook.codespaceSemCota';
+async function acordarCodespace(reserva) {
+  if (!reserva?.url || Date.now() - acordandoEm < 60e3) return;
+  let semCota = 0;
+  try { semCota = Number(localStorage.getItem(CODESPACE_SEM_COTA)) || 0; } catch { /* sem armazenamento */ }
+  if (Date.now() - semCota < 30 * 60e3) { estadoCodespace = 'sem-cota'; return; }
+  acordandoEm = Date.now();
+  try {
+    const r = await chamar({ url: reserva.lumen || reserva.url, chave: reserva.chave }, '/codespace/ligar', { json: { codespace: servidorDoSite }, tempo: 40e3 });
+    estadoCodespace = r?.estado || 'erro';
+    try {
+      if (estadoCodespace === 'sem-cota') localStorage.setItem(CODESPACE_SEM_COTA, String(Date.now()));
+      else localStorage.removeItem(CODESPACE_SEM_COTA);
+    } catch { /* sem armazenamento */ }
+  } catch { estadoCodespace = 'erro'; } // (o Modal de antes, sem a rota: fica no Modal)
+  window.dispatchEvent(new CustomEvent('songbook:servidor'));
+}
 // O servidor pode dormir, reiniciar ou demorar para acordar. A descoberta é compartilhada entre chamadas,
 // mas nunca fica presa para sempre ao primeiro resultado: revalida periodicamente e tenta de novo após falhas.
 function carregarServidor({ forcar = false } = {}) {
@@ -108,18 +131,23 @@ function carregarServidor({ forcar = false } = {}) {
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
-    if (url) {
-      let host = '';
-      try { host = new URL(url).host; } catch { /* endereço inválido */ }
-      if (doCodespace(host)) {
-        // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, fica sem servidor e a
-        // partitura sai no aparelho (a tela pede para ligar o Codespace)
-        servidorDoSite = url;
-        if (url !== pc && await responde(url)) SERVIDOR_IA = { url, chave: d.chave || '', pc: true, lumen: url };
-        else SERVIDOR_IA = { url: '', chave: '' };
-      } else {
-        SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
-      }
+    // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
+    const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
+    let host = '';
+    try { host = url ? new URL(url).host : ''; } catch { /* endereço inválido */ }
+    if (url && doCodespace(host)) {
+      // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, o Modal atende enquanto ele
+      // liga sozinho; sem o Modal, fica sem servidor e a partitura sai no aparelho (a tela pede para ligar o Codespace)
+      servidorDoSite = url;
+      if (url !== pc && await responde(url)) { SERVIDOR_IA = { url, chave: d.chave || '', pc: true, lumen: url }; estadoCodespace = 'ligado'; }
+      else if (reserva) { SERVIDOR_IA = reserva; void acordarCodespace(reserva); }
+      else SERVIDOR_IA = { url: '', chave: '' };
+    } else if (url) {
+      SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
+    } else if (reserva) {
+      // (nenhum Codespace publicado ainda: o Modal atende e cria um, que publica o endereço sozinho)
+      SERVIDOR_IA = reserva;
+      void acordarCodespace(reserva);
     }
     // o YouTube conectado de novo sozinho, se o servidor perdeu a conexão (ver reconectarYoutube)
     if (SERVIDOR_IA.url) setTimeout(() => reconectarYoutube(SERVIDOR_IA), 0);
@@ -885,11 +913,13 @@ async function baixarAgora(id) {
     }
     try {
       if (!/^[\w-]{11}$/.test(yt || '')) throw new Error('o vídeo desta versão não é do YouTube');
-      const r = await chamarComEtapas(servidorIA(), '/baixar', {
+      // (o mesmo servidor do começo ao fim: o arquivo baixado fica no que baixou, e o Codespace pode ligar no meio)
+      const cfg = servidorIA();
+      const r = await chamarComEtapas(cfg, '/baixar', {
         json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidadeDoDownload(video) },
       }, (etapa, p) => { if (etapa === 'baixando' && p !== null) atualizarProgresso(yt, p * 0.8); });
 
-      const resp = await baixarArquivoDoServidor(servidorIA(), r.arquivo);
+      const resp = await baixarArquivoDoServidor(cfg, r.arquivo);
 
       // Lê o arquivo em blocos para a barra continuar avançando enquanto ele
       // atravessa a rede do servidor até o celular (não ficar parada em 80%).
@@ -1090,14 +1120,16 @@ function prepararKaraoke(song) {
         nome = String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
       }
     }
+    // (o mesmo servidor do começo ao fim: o Codespace pode ligar no meio, e o arquivo pronto está no que separou)
+    const cfg = servidorIA();
     let r;
     try {
       if (arquivo) {
         const form = new FormData();
         form.append('arquivo', arquivo, nome);
-        r = await chamarComEtapas(servidorIA(), '/karaoke/arquivo', { form }, aoEtapa);
+        r = await chamarComEtapas(cfg, '/karaoke/arquivo', { form }, aoEtapa);
       } else {
-        r = await chamarComEtapas(servidorIA(), '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+        r = await chamarComEtapas(cfg, '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
       }
     } catch (e) {
       // (o servidor de antes do karaokê: ele se atualiza sozinho quando liga de novo)
@@ -1105,7 +1137,7 @@ function prepararKaraoke(song) {
       throw new Error(erroExplicado(e));
     }
     passo(92, 'Trazendo para o aparelho');
-    const resp = await baixarArquivoDoServidor(servidorIA(), r.arquivo);
+    const resp = await baixarArquivoDoServidor(cfg, r.arquivo);
     let blob;
     const total = Number(resp.headers.get('content-length')) || 0;
     if (resp.body?.getReader && total) {
@@ -10159,7 +10191,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // o servidor no GitHub Codespaces (.devcontainer/) dorme quando ninguém usa: o endereço não muda, então basta
   // ligar o Codespace (github.com/codespaces, até pelo celular) e tocar em "Já liguei"
   const pcGuardado = baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
-  const noGithub = !noPc && doCodespace(pcGuardado ? new URL(pcGuardado).host : '');
+  const noGithub = !temServidor && !noPc && doCodespace(pcGuardado ? new URL(pcGuardado).host : '');
   // o áudio da própria música, para a IA do servidor ouvir sozinha: o áudio da pessoa, o áudio oficial (sem as cenas do
   // clipe) ou o vídeo. Só se ele não der certo é que a tela pede um arquivo
   let fonte = fonteDaPartitura(song);
@@ -13604,7 +13636,7 @@ function viewServidorIA() {
     <div class="sv-item-txt"><b>${t}</b><small>Verificando…</small></div><span class="cy-ponto"></span></div>`;
   view.innerHTML = `<div class="conectar-yt servidor-ia">
     <section class="cy-topo"><span class="cy-ic sv-ic">${icon('sparkles', 26)}</span>
-      <div><h2>Servidor da IA</h2><p>Partitura, letra sincronizada e Lumen. Tudo automático: você só liga o Codespace.</p></div></section>
+      <div><h2>Servidor da IA</h2><p>Partitura, karaokê e Lumen. Tudo automático: o Codespace liga sozinho e, enquanto ele liga ou sem a cota do mês, o Modal atende.</p></div></section>
     <section class="cy-card cy-status" id="sv-status" data-estado="verificando">
       <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small><small class="sv-vivo" id="sv-quando"></small></div>
       <button class="btn small" id="sv-verificar" type="button" aria-label="Verificar de novo">${icon('refresh', 16)}</button></section>
@@ -13672,7 +13704,11 @@ function viewServidorIA() {
     const host = new URL(cfg.url).host;
     const github = doCodespace(host);
     $('#sv-estado-t').textContent = 'Ligado';
-    $('#sv-estado-d').textContent = github ? `Codespace ${hostCurto(cfg.url)} · encontrado sozinho` : host;
+    // no Modal (a reserva): por que não é o Codespace agora
+    const porque = { ligando: 'o Codespace está ligando sozinho (uns 2 minutos) e assume quando ficar pronto', criando: 'um Codespace novo está sendo criado sozinho',
+      'sem-cota': 'o Codespace está sem a cota grátis do mês', 'sem-token': 'o Codespace não liga sozinho: falta o secret CODESPACE_TOKEN no GitHub',
+      ligado: 'o Codespace acabou de ligar e assume em instantes' }[estadoCodespace] || 'o Codespace não respondeu';
+    $('#sv-estado-d').textContent = cfg.reserva ? `Modal (reserva) · ${porque}` : github ? `Codespace ${hostCurto(cfg.url)} · encontrado sozinho` : host;
     // o YouTube: conectado (e volta sozinho) ou o que fazer
     const c = cookiesSalvos();
     if (saude.cookies) item('youtube', 'ok', 'Conectado · volta sozinho se o servidor mudar');
@@ -13727,6 +13763,10 @@ function viewServidorIA() {
     });
   };
   $('#servidor-pc-tirar')?.addEventListener('click', () => { db.setPref('servidorPc', ''); location.reload(); });
+  // (o Modal respondeu sobre o Codespace — ligando, sem cota —: a tela mostra na hora)
+  const aoServidor = () => verificar({ silencioso: true });
+  window.addEventListener('songbook:servidor', aoServidor);
+  aoSair(() => window.removeEventListener('songbook:servidor', aoServidor));
 }
 
 // sem precisar abrir esta tela: o servidor que perdeu a conexão (um Codespace novo, a pasta de dados apagada) recebe

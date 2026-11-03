@@ -66,7 +66,10 @@ test('download: redescobre o servidor antes de iniciar cada fila e usa recupera�
   const fim = app.indexOf('async function baixarAgora(id)', inicio);
   const rotina = app.slice(inicio, fim);
   assert.ok(rotina.indexOf('await carregarServidor()') < rotina.indexOf('!servidorIA().url'));
-  assert.match(app, /baixarArquivoDoServidor\(servidorIA\(\), r\.arquivo\)/);
+  // (o arquivo vem do mesmo servidor que baixou: com o Modal de reserva, o Codespace pode ligar no meio do download)
+  const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id)')));
+  assert.match(baixar, /const cfg = servidorIA\(\);\s*const r = await chamarComEtapas\(cfg, '\/baixar'/);
+  assert.match(baixar, /baixarArquivoDoServidor\(cfg, r\.arquivo\)/);
 });
 test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravação', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');

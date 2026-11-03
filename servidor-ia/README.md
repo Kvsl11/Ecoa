@@ -81,6 +81,23 @@ Das outras vezes: o endereço não muda, então não precisa ler o QR code de no
 tela Importar o áudio, com ele desligado, aparecem os botões **Ligar no GitHub** e **Já liguei**. Para ele demorar mais
 a dormir: <https://github.com/settings/codespaces> → **Default idle timeout** (até 240 minutos; gasta mais da cota). O que o servidor está fazendo: `servidor-ia/dados/servidor.log`.
 
+### Sempre ligado, sozinho: o Codespace e o Modal de reserva
+
+O app usa o **Codespace** quando ele está de pé. Desligado, o **Modal** (o servidor de reserva) atende na hora e manda
+o GitHub ligar o Codespace (`POST /codespace/ligar`, `ligar_codespace.py`), que assume em uns 2 minutos; sem nenhum
+Codespace do projeto, ele cria um. Sem a cota do mês no Codespace, tudo fica no Modal (o app só pergunta de novo meia
+hora depois). Ninguém liga nada, lê QR code ou cola endereço. Para isso, uma vez, nos **secrets das Actions** (Settings
+→ Secrets and variables → **Actions** → New repository secret):
+
+- `MODAL_TOKEN_ID` e `MODAL_TOKEN_SECRET` (o token do Modal, veja "Publicar no Modal" abaixo);
+- `CODESPACE_TOKEN`: um token clássico do GitHub (<https://github.com/settings/tokens/new>, **Generate new token
+  (classic)**) com o escopo **codespace** e sem data de validade (ou renove quando vencer). Ele fica só no Modal (vai no
+  secret `songbook-ia` de lá como `IA_GITHUB_TOKEN`), nunca no site.
+
+O workflow **Publicar o servidor da IA** publica o Modal sozinho a cada mudança em `servidor-ia/` e toda semana, e a
+publicação do site grava os dois endereços em `data/servidor-ia.json` (`url`, o Codespace; `reserva` e
+`reservaLumen`, o Modal). Ajustes → Avançado → Servidor da IA mostra qual dos dois atende e por quê.
+
 ### No notebook da empresa, pelo VS Code (sem administrador)
 
 1. Abra a pasta do projeto no VS Code. Precisa de algum Python instalado (o da loja da empresa ou o do python.org
@@ -101,19 +118,20 @@ Deixe o PC ligado enquanto usa. O servidor volta sozinho quando o Docker Desktop
 cada vez: abra <http://localhost:7860> e leia o QR code de novo. Com o PC desligado, o app volta para o servidor da
 nuvem (abaixo), se houver. Parar: `docker compose down` nesta pasta. Ver o que está fazendo: `docker compose logs -f ia`.
 
-## Publicar no Modal (opcional)
+## Publicar no Modal (o servidor de reserva)
 
 O servidor principal é o do Codespaces (acima). O [Modal](https://modal.com) (US$ 30 de uso grátis por mês, https,
-liga só quando alguém usa) ficou opcional: o workflow `.github/workflows/servidor-ia.yml` só publica lá rodando à mão
-(**Actions → Publicar o servidor da IA → Run workflow**, com **Também publicar no Modal** marcado). Para isso, uma vez:
+liga só quando alguém usa) é a reserva: o workflow `.github/workflows/servidor-ia.yml` publica lá sozinho a cada mudança
+no servidor e toda semana (e à mão: **Actions → Publicar o servidor da IA → Run workflow**). Para isso, uma vez:
 
 1. Entre em <https://modal.com/signup> com a conta do GitHub.
 2. Crie um token em <https://modal.com/settings/tokens> → **New token** (aparecem dois valores: ID e Secret).
 3. No GitHub do app: **Settings → Secrets and variables → Actions → New repository secret**:
    `MODAL_TOKEN_ID` (o ID) e `MODAL_TOKEN_SECRET` (o Secret). Opcionais: `ANTHROPIC_API_KEY` ("Tirar dúvidas") e
    `YT_COOKIES` (o conteúdo do cookies.txt).
-4. Em **Actions**, rode **Publicar o servidor da IA** com **Também publicar no Modal** marcado (a primeira montagem
-   leva uns 15 minutos). Para o app usar o Modal, ponha o endereço dele na variável `SERVIDOR_IA_URL`.
+4. Em **Actions**, rode **Publicar o servidor da IA** (a primeira montagem leva uns 15 minutos). A publicação do site
+   que vem em seguida grava o endereço do Modal como a reserva (`data/servidor-ia.json`): não precisa da variável
+   `SERVIDOR_IA_URL` (ela é só para fixar o endereço do Codespace).
 
 ### Lumen com IA (`ANTHROPIC_API_KEY`)
 
