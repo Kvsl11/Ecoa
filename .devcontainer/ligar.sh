@@ -5,6 +5,16 @@
 # (no Terminal: tail -f servidor-ia/dados/servidor.log)
 cd "$(dirname "$0")/../servidor-ia" || exit 1
 mkdir -p dados
+# as chaves da IA (os secrets do Codespaces: GEMINI_API_KEY, ANTHROPIC_API_KEY) para o servidor que já está ligado:
+# ele lê este arquivo a cada pergunta, então a chave gravada depois vale sem religar (duvidas.segredo)
+# (só regrava quando há alguma chave aqui: rodado sem os secrets, fica a que já estava)
+(
+  umask 077
+  novo=$(for nome in GEMINI_API_KEY GOOGLE_API_KEY ANTHROPIC_API_KEY; do
+    [ -n "${!nome}" ] && printf '%s=%s\n' "$nome" "${!nome}"
+  done)
+  if [ -n "$novo" ]; then printf '%s\n' "$novo" > dados/chaves.env; fi
+)
 # já ligado (o ligar.sh rodado de novo à mão): não liga outro
 if pgrep -f "^bash \.\./\.devcontainer/servidor\.sh" >/dev/null 2>&1; then
   # ligado, mas o ajudante do endereço público parou (ou é de uma versão antiga): só ele liga de novo

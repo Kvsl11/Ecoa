@@ -351,3 +351,27 @@ def test_sem_o_site_fica_sem_o_texto_dos_pdfs(monkeypatch, tmp_path):
     monkeypatch.setattr(urllib.request, "urlopen", falha)
     duvidas._textos_do_site()
     assert not (tmp_path / "t.jsonl").exists()
+
+
+def test_a_chave_gravada_depois_vale_sem_religar(monkeypatch, tmp_path):
+    import base64
+
+    for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setattr(duvidas, "CHAVES_LOCAIS", str(tmp_path / "chaves.env"))
+    monkeypatch.setattr(duvidas, "SEGREDOS_CODESPACE", str(tmp_path / ".env-secrets"))
+    assert duvidas.provedor() is None
+    # o secret do Codespace (em base64) chega com o servidor já ligado
+    (tmp_path / ".env-secrets").write_text("GEMINI_API_KEY=" + base64.b64encode(b"AIza-teste").decode() + "\n")
+    assert duvidas.chave_gemini() == "AIza-teste" and duvidas.provedor() == "gemini"
+
+
+def test_a_chave_do_arquivo_do_ligar(monkeypatch, tmp_path):
+    for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setattr(duvidas, "CHAVES_LOCAIS", str(tmp_path / "chaves.env"))
+    monkeypatch.setattr(duvidas, "SEGREDOS_CODESPACE", str(tmp_path / "nao-existe"))
+    (tmp_path / "chaves.env").write_text("ANTHROPIC_API_KEY=sk-ant-teste\n")
+    assert duvidas.provedor() == "claude"
+    import os
+    assert os.environ["ANTHROPIC_API_KEY"] == "sk-ant-teste"
