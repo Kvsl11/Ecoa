@@ -116,7 +116,10 @@ jobs:
         env:
           SERVIDOR_IA_URL: ${{ vars.SERVIDOR_IA_URL }}
         run: |
-          [ -n "$SERVIDOR_IA_URL" ] || SERVIDOR_IA_URL=$(tr -d '[:space:]' < .devcontainer/endereco.txt 2>/dev/null)
+          # (o arquivo só existe depois que o Codespace liga a primeira vez com esta versão)
+          if [ -z "$SERVIDOR_IA_URL" ] && [ -f .devcontainer/endereco.txt ]; then
+            SERVIDOR_IA_URL=$(tr -d '[:space:]' < .devcontainer/endereco.txt)
+          fi
           if [ -z "$SERVIDOR_IA_URL" ]; then
             echo "::notice::Sem o endereço do Codespace ainda: ele é gravado sozinho quando o Codespace liga."
             exit 0
