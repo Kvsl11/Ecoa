@@ -15,11 +15,27 @@ VOZES = {
     "masculina": os.environ.get("IA_VOZ_MASCULINA", "pt-BR-AntonioNeural"),
 }
 MAX_CARACTERES = 2500
-# as vozes do próprio Gemini (as da conversa ao vivo do app do Gemini), quando o servidor tem a chave do Gemini
+# as vozes do próprio Gemini (o app escolhe pelo nome), com o gênero de cada uma: a voz de reserva (Microsoft) usa o
+# mesmo gênero quando a do Gemini não responde
+FEMININAS_GEMINI = {"Kore", "Aoede", "Zephyr", "Leda", "Callirrhoe", "Autonoe", "Despina", "Erinome", "Laomedeia",
+                    "Achernar", "Gacrux", "Pulcherrima", "Vindemiatrix", "Sulafat"}
+MASCULINAS_GEMINI = {"Charon", "Puck", "Fenrir", "Orus", "Enceladus", "Iapetus", "Umbriel", "Algieba", "Algenib",
+                     "Rasalgethi", "Alnilam", "Schedar", "Achird", "Zubenelgenubi", "Sadachbia", "Sadaltager"}
 VOZES_GEMINI = {
-    "feminina": os.environ.get("IA_VOZ_GEMINI", "Aoede"),
+    "feminina": os.environ.get("IA_VOZ_GEMINI", "Kore"),
     "masculina": os.environ.get("IA_VOZ_GEMINI_MASCULINA", "Charon"),
 }
+
+
+def voz_do_gemini(voz: str) -> str:
+    """O nome da voz do Gemini: o que o app mandou (Kore, Puck…) ou a padrão do gênero ("feminina"/"masculina")."""
+    nome = str(voz or "").strip().capitalize()
+    return nome if nome in FEMININAS_GEMINI | MASCULINAS_GEMINI else VOZES_GEMINI.get(voz, VOZES_GEMINI["feminina"])
+
+
+def genero_da_voz(voz: str) -> str:
+    nome = str(voz or "").strip().capitalize()
+    return "masculina" if voz == "masculina" or nome in MASCULINAS_GEMINI else "feminina"
 # (o limite grátis do Gemini para a fala acabou: volta a tentar depois de 10 minutos; antes disso, a voz de reserva)
 _gemini_sem_ate = 0.0
 
@@ -48,7 +64,8 @@ async def falar(texto: str, voz: str = "feminina", velocidade: str = "+4%") -> b
     texto = limpar(texto)
     if not texto:
         raise ValueError("nada para falar")
-    nome = VOZES.get(voz, voz if re.fullmatch(r"[a-z]{2}-[A-Z]{2}-\w+Neural", voz or "") else VOZES["feminina"])
+    # (o nome de uma voz do Gemini vira a voz de reserva do mesmo gênero)
+    nome = voz if re.fullmatch(r"[a-z]{2}-[A-Z]{2}-\w+Neural", voz or "") else VOZES[genero_da_voz(voz)]
     audio = bytearray()
     async for parte in edge_tts.Communicate(texto, nome, rate=velocidade).stream():
         if parte.get("type") == "audio":
@@ -82,7 +99,7 @@ def falar_gemini(texto: str, voz: str = "feminina") -> bytes:
     corpo = {
         "contents": [{"parts": [{"text": texto}]}],
         "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {
-            "prebuiltVoiceConfig": {"voiceName": VOZES_GEMINI.get(voz, VOZES_GEMINI["feminina"])}}}},
+            "prebuiltVoiceConfig": {"voiceName": voz_do_gemini(voz)}}}},
     }
     try:
         dados, _ = duvidas.chamar_gemini(corpo, "voz", timeout=40)

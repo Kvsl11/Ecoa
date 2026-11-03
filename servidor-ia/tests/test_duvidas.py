@@ -194,15 +194,15 @@ def test_escolhe_o_flash_mais_novo_e_troca_quando_um_sumiu(monkeypatch):
         if "/models?" in url:
             return Resp(lista)
         pedidos.append(url.split("/models/")[1].split(":")[0])
-        if "gemini-3.5-flash:" in url:  # o primeiro sumiu (404): vai para o próximo
+        if "gemini-3.8-flash-preview:" in url:  # o primeiro sumiu (404): vai para o próximo
             raise urllib.error.HTTPError(url, 404, "não existe", {}, None)
         return Resp({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
 
     monkeypatch.setattr(urllib.request, "urlopen", abrir)
-    assert duvidas.candidatos_gemini("texto")[:3] == ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.8-flash-preview"]
+    assert duvidas.candidatos_gemini("texto")[:3] == ["gemini-3.8-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
     assert duvidas.candidatos_gemini("voz")[0] == "gemini-3.8-flash-tts"
     dados, modelo = duvidas.chamar_gemini({"contents": []})
-    assert modelo == "gemini-2.5-flash" and pedidos == ["gemini-3.5-flash", "gemini-2.5-flash"]
+    assert modelo == "gemini-3.5-flash" and pedidos == ["gemini-3.8-flash-preview", "gemini-3.5-flash"]
 
 
 def test_wav_do_audio_do_gemini():
@@ -210,3 +210,10 @@ def test_wav_do_audio_do_gemini():
 
     w = falar.wav(b"\x00\x01" * 10)
     assert w[:4] == b"RIFF" and w[8:12] == b"WAVE" and len(w) == 44 + 20
+
+
+def test_vozes_do_gemini_pelo_nome():
+    import falar
+
+    assert falar.voz_do_gemini("Puck") == "Puck" and falar.voz_do_gemini("feminina") == "Kore"
+    assert falar.genero_da_voz("Puck") == "masculina" and falar.genero_da_voz("Aoede") == "feminina"

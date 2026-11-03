@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 442, data: '2026-11-02', titulo: 'Lumen com o Gemini de verdade, a voz dele e o PDF certo',
     itens: [
-      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o servidor pergunta ao Google quais modelos a sua chave pode usar e escolhe o Gemini Flash mais novo (se um falhar, tenta o próximo).' },
+      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o servidor pergunta ao Google quais modelos a sua chave pode usar e usa sempre o Gemini Flash da versão mais alta (se ele falhar, tenta o anterior).' },
       { tipo: 'novo', texto: 'Lumen ao vivo com a voz do próprio Gemini. Se a voz do Gemini não responder (ou acabar o limite grátis do dia), entra a voz de antes, sem parar a conversa.' },
       { tipo: 'melhoria', texto: 'Quando a IA não responde, o Lumen avisa (“a inteligência artificial não respondeu agora, então fiz uma busca simples”), em vez de responder calado pela busca simples.' },
       { tipo: 'melhoria', texto: 'O Lumen lê de verdade o arquivo do acervo que trata da sua pergunta: em “qual a estrutura da cerimônia do casamento?”, ele abre o Ritual do Matrimônio inteiro e responde pelo que está escrito nele (o mesmo com o batismo, a unção dos enfermos e os outros rituais). Antes ele via só pedaços soltos do texto.' },
@@ -14,7 +14,7 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No ao vivo, a caixa com o que você fala não corta mais na terceira linha: ela mostra até cinco linhas e acompanha o fim do que você está falando.' },
       { tipo: 'melhoria', texto: 'O Lumen ao vivo espera você terminar: ele só responde depois de uns 5 segundos sem você falar. Dá para parar, pensar e continuar a frase. Para ele responder na hora, toque na pílula do meio.' },
       { tipo: 'melhoria', texto: 'A pergunta falada ganha a pontuação: o ponto de interrogação nas perguntas, a exclamação nos cumprimentos e agradecimentos e o ponto final no resto, no ao vivo e no ditado da conversa por texto.' },
-      { tipo: 'novo', texto: 'As vozes do Lumen têm nome: Francisca (feminina) e Antônio (masculina), no “⋯” do ao vivo. Com a Francisca, ela é “a Lumen” e fala de si no feminino (“eu sou a Lumen”, “estou pronta”); com o Antônio, ele é “o Lumen”. Ao trocar, a voz nova se apresenta.' },
+      { tipo: 'novo', texto: 'As vozes do Lumen são as do Gemini, com os nomes de lá: 30 vozes (14 femininas e 16 masculinas), como Kore, Aoede, Zephyr, Charon e Puck, cada uma com o seu jeito (firme, leve, animada, tranquila…). Escolha no “⋯” do ao vivo: a voz nova se apresenta na hora. Com voz feminina, ela é “a Lumen” e fala de si no feminino; com voz masculina, ele é “o Lumen”.' },
       { tipo: 'melhoria', texto: 'Na conversa por texto, quando a pergunta passa de uma linha, ela ocupa a largura toda da caixa e os botões (enviar arquivo, microfone e enviar) descem para a linha de baixo, como no Gemini. Antes o texto ficava espremido no meio, no celular. Vale no celular, no tablet em pé e deitado e no computador.' },
     ],
   },

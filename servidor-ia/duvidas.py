@@ -578,11 +578,13 @@ def candidatos_gemini(tipo: str = "texto") -> list[str]:
         return ([fixo] if fixo else []) + voz or ["gemini-flash-latest-tts"]
     fora = re.compile(r"tts|image|live|audio|embedding|vision|learnlm|gemma|robotics|computer|thinking|exp|8b")
     texto = [n for n in nomes if n.startswith("gemini") and "flash" in n and not fora.search(n)]
-    estaveis = sorted((n for n in texto if "preview" not in n and "lite" not in n and n != "gemini-flash-latest"), key=_versao, reverse=True)
-    previas = sorted((n for n in texto if "preview" in n and "lite" not in n), key=_versao, reverse=True)
-    lites = sorted((n for n in texto if "lite" in n and "preview" not in n), key=_versao, reverse=True)
-    ordem = ([MODELO_GEMINI] if MODELO_GEMINI else []) + (["gemini-flash-latest"] if "gemini-flash-latest" in nomes or not nomes else []) \
-        + estaveis[:2] + previas[:1] + (["gemini-flash-lite-latest"] if "gemini-flash-lite-latest" in nomes else []) + lites[:1]
+    # o Flash da versão mais alta, mesmo que ainda seja prévia (na mesma versão, o estável antes); depois o anterior,
+    # o "gemini-flash-latest" e o Flash-Lite mais novo, de reserva
+    flash = sorted((n for n in texto if "lite" not in n and not n.endswith("-latest")),
+                   key=lambda n: (_versao(n), "preview" not in n), reverse=True)
+    lites = sorted((n for n in texto if "lite" in n and not n.endswith("-latest")), key=lambda n: (_versao(n), "preview" not in n), reverse=True)
+    ordem = ([MODELO_GEMINI] if MODELO_GEMINI else []) + flash[:2] \
+        + (["gemini-flash-latest"] if "gemini-flash-latest" in nomes or not nomes else []) + lites[:1]
     vistos: list[str] = []
     for n in ordem:
         if n and n not in vistos:

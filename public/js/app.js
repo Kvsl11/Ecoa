@@ -13677,7 +13677,7 @@ async function audioDaVoz(cfg, texto) {
   const base = baseDoServidor(cfg.url);
   const r = await fetch(`${base}/falar`, {
     method: 'POST', headers: { ...cabecalhos(base, cfg.chave), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ texto, voz: db.prefs().vozLumen === 'masculina' ? 'masculina' : 'feminina' }), signal: AbortSignal.timeout(25000),
+    body: JSON.stringify({ texto, voz: vozDoLumen().nome, genero: generoLumen() }), signal: AbortSignal.timeout(40000),
   });
   if (!r.ok) throw Object.assign(new Error('a voz não respondeu'), { status: r.status });
   return r.blob();
@@ -13753,10 +13753,24 @@ async function pedirMicrofone() {
   } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
 }
 const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Songbook → Informações do app → Permissões → Microfone.';
-// A voz do Lumen tem nome e gênero: Francisca (feminina, "a Lumen") e Antônio (masculina, "o Lumen"). A IA também
-// fala de si nesse gênero
-const NOMES_VOZ = { feminina: 'Francisca', masculina: 'Antônio' };
-const generoLumen = () => (db.prefs().vozLumen === 'masculina' ? 'masculina' : 'feminina');
+// As vozes do Lumen são as do Gemini, com os nomes de lá (e o jeito de cada uma). A voz escolhida dá o gênero: voz
+// feminina, "a Lumen"; masculina, "o Lumen" (a IA também fala de si nesse gênero)
+const VOZES_GEMINI = [
+  ['Kore', 'f', 'firme'], ['Aoede', 'f', 'leve'], ['Zephyr', 'f', 'clara e animada'], ['Leda', 'f', 'jovem'],
+  ['Callirrhoe', 'f', 'tranquila'], ['Autonoe', 'f', 'clara'], ['Despina', 'f', 'suave'], ['Erinome', 'f', 'nítida'],
+  ['Laomedeia', 'f', 'alegre'], ['Achernar', 'f', 'delicada'], ['Gacrux', 'f', 'madura'], ['Pulcherrima', 'f', 'direta'],
+  ['Vindemiatrix', 'f', 'gentil'], ['Sulafat', 'f', 'calorosa'],
+  ['Charon', 'm', 'informativa'], ['Puck', 'm', 'animada'], ['Fenrir', 'm', 'empolgada'], ['Orus', 'm', 'firme'],
+  ['Enceladus', 'm', 'sussurrada'], ['Iapetus', 'm', 'clara'], ['Umbriel', 'm', 'tranquila'], ['Algieba', 'm', 'suave'],
+  ['Algenib', 'm', 'grave'], ['Rasalgethi', 'm', 'explicativa'], ['Alnilam', 'm', 'firme'], ['Schedar', 'm', 'equilibrada'],
+  ['Achird', 'm', 'amigável'], ['Zubenelgenubi', 'm', 'descontraída'], ['Sadachbia', 'm', 'viva'], ['Sadaltager', 'm', 'experiente'],
+].map(([nome, g, estilo]) => ({ nome, genero: g === 'f' ? 'feminina' : 'masculina', estilo }));
+// a voz escolhida (a de antes, só "feminina"/"masculina", vira a primeira voz do Gemini daquele gênero)
+const vozDoLumen = () => {
+  const p = db.prefs();
+  return VOZES_GEMINI.find((v) => v.nome === p.vozGemini) || VOZES_GEMINI.find((v) => v.genero === (p.vozLumen === 'masculina' ? 'masculina' : 'feminina'));
+};
+const generoLumen = () => vozDoLumen().genero;
 const oLumen = () => (generoLumen() === 'masculina' ? 'o Lumen' : 'a Lumen');
 // O reconhecimento de voz não põe pontuação: a pergunta ganha o "?" (pelas palavras de pergunta), o cumprimento e o
 // agradecimento ganham o "!" e o resto, o ponto final
@@ -14353,9 +14367,10 @@ function viewDuvidas() {
           <button type="button" class="dv-vivo-ic dv-vivo-mais" aria-haspopup="menu" aria-expanded="false" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button>
           <div class="dv-vivo-menu" role="menu" hidden>
             <div class="dv-vivo-menu-vozes" hidden>
-              <small>Voz do Lumen</small>
-              <button type="button" role="menuitemradio" data-voz="feminina">${icon('som', 18)}<span>${NOMES_VOZ.feminina}<small>voz feminina</small></span>${icon('check', 18)}</button>
-              <button type="button" role="menuitemradio" data-voz="masculina">${icon('som', 18)}<span>${NOMES_VOZ.masculina}<small>voz masculina</small></span>${icon('check', 18)}</button>
+              <small>Vozes do Gemini · femininas</small>
+              ${VOZES_GEMINI.filter((v) => v.genero === 'feminina').map((v) => `<button type="button" role="menuitemradio" data-voz="${v.nome}">${icon('som', 18)}<span>${v.nome}<small>${v.estilo}</small></span>${icon('check', 18)}</button>`).join('')}
+              <small>Vozes do Gemini · masculinas</small>
+              ${VOZES_GEMINI.filter((v) => v.genero === 'masculina').map((v) => `<button type="button" role="menuitemradio" data-voz="${v.nome}">${icon('som', 18)}<span>${v.nome}<small>${v.estilo}</small></span>${icon('check', 18)}</button>`).join('')}
             </div>
             <button type="button" role="menuitemcheckbox" data-interromper>${icon('mic', 18)}<span>Parar quando eu falar</span>${icon('check', 18)}</button>
           </div>
@@ -14482,7 +14497,7 @@ function viewDuvidas() {
     }
     // ---- os botões do alto: o menu (a voz e o interromper falando)
     const desenharMenu = () => {
-      const voz = db.prefs().vozLumen === 'masculina' ? 'masculina' : 'feminina';
+      const voz = vozDoLumen().nome;
       menu.querySelectorAll('[data-voz]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.voz === voz)));
       menu.querySelector('[data-interromper]').setAttribute('aria-checked', String(comInterrupcao()));
     };
@@ -14492,14 +14507,18 @@ function viewDuvidas() {
       e.stopPropagation();
       const b = e.target.closest('button');
       if (!b) return;
-      // a voz do Lumen: feminina (Francisca) ou masculina (Antonio); vale a partir da próxima fala
-      // (a voz nova se apresenta, já no gênero dela, se o Lumen não estiver no meio de uma resposta)
-      if (b.dataset.voz && b.dataset.voz !== generoLumen()) {
-        db.setPref('vozLumen', b.dataset.voz);
+      // a voz do Gemini escolhida; vale a partir da próxima fala. A voz nova se apresenta (já no gênero dela), se o
+      // Lumen não estiver no meio de uma resposta
+      const nova = b.dataset.voz && VOZES_GEMINI.find((v) => v.nome === b.dataset.voz);
+      if (nova && nova.nome !== vozDoLumen().nome) {
+        db.setPref('vozGemini', nova.nome);
+        db.setPref('vozLumen', nova.genero);
         if (['ouvindo', 'parado'].includes(el.dataset.estado) && permissaoEl.hidden) {
           estado('falando');
-          falar(`Oi! Agora quem fala é ${b.dataset.voz === 'masculina' ? 'o Antônio' : 'a Francisca'}. Pode continuar.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+          falar(`Oi! Agora eu falo com a voz ${nova.nome}. Pode continuar.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
         }
+        desenharMenu();
+        return; // (o menu fica aberto: dá para ouvir e escolher outra)
       }
       if (b.hasAttribute('data-interromper')) { db.setPref('interromperLumen', !comInterrupcao()); if (!comInterrupcao()) desligarVigia(); else if (el.dataset.estado === 'falando') ligarVigia(); }
       desenharMenu();
