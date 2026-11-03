@@ -13879,7 +13879,6 @@ const falaDaResposta = (m) => {
     ].filter(Boolean).join(' '))].join(' ');
   }
   const partes = [];
-  if (m.semIA) partes.push('A inteligência artificial não respondeu agora, então fiz uma busca simples.');
   if (pedeLiturgiaDoDia(m.pergunta)) partes.push('A liturgia de hoje está na página da Liturgia. Deixei o atalho aqui na tela.');
   const [a] = m.acervo || [];
   const trechoA = a && trechoLimpo(a.frases);
@@ -14015,7 +14014,8 @@ function viewDuvidas() {
         <div class="dv-lit-fontes">${L.fontes.map((f) => { const [site, nome, url] = fonteLit[f]; return `<a class="dv-fonte" href="${url}" target="_blank" rel="noopener"><span class="dv-favicon"><img src="https://external-content.duckduckgo.com/ip3/${site}.ico" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('sem')">${icon('external', 14)}</span><span><b>${nome}</b><small>${site}</small></span></a>`; }).join('')}</div>
       </div>`;
     }
-    if (m.semIA) partes.push(`<p class="dv-aviso">A IA não respondeu agora (tente de novo em instantes). Esta resposta veio da busca simples no acervo e na internet.</p>`);
+    // (a IA não respondeu: um aviso pequeno, só escrito — antes ele era falado em toda resposta)
+    if (m.semIA) partes.push(`<p class="dv-aviso-ia">${icon('info', 14)} Resposta da busca simples: a IA não respondeu desta vez.</p>`);
     if (pedeLiturgiaDoDia(m.pergunta)) {
       partes.push(`<a class="dv-atalho" href="#/liturgia">${icon('cross', 20)}<span><b>Liturgia de hoje</b><small>Leituras, salmo, evangelho e orações do dia</small></span>${icon('next', 18)}</a>`);
     }
