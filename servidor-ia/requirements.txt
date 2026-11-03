@@ -5,7 +5,8 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 python-multipart>=0.0.9
 numpy<2
-setuptools<70          # o resampy (do basic-pitch) ainda importa pkg_resources
+setuptools>=77,<81     # o resampy (do basic-pitch) ainda importa pkg_resources (sai no 81); o torch 2.15 pede o 77 ou mais
+                       # (com "<70", o pip trocava o torch de CPU por um antigo com CUDA, de vários GB, e travava)
 onnxruntime>=1.17
 librosa>=0.10
 soundfile>=0.12
@@ -19,7 +20,8 @@ yt-dlp[default]>=2026.10.21  # mantenha atualizado (pip install -U yt-dlp): o Yo
 deno>=2
 
 # Fidelidade (recomendado): separação da voz (Demucs), afinação da voz (CREPE) e letra sincronizada (Whisper).
-# O torch para CPU: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# O torch para CPU (o torchvision junto, senão o pip troca o torch pelo com CUDA, de vários GB):
+# pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
 demucs==4.0.1
 torchcrepe>=0.0.23
 faster-whisper>=1.0

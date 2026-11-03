@@ -15,7 +15,7 @@ WORKDIR /home/user/app
 RUN mkdir -p /home/user/dados
 
 COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir --user torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+RUN pip install --no-cache-dir --user torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir --user -r requirements.txt \
     && pip install --no-cache-dir --user --no-deps basic-pitch==0.4.0
 

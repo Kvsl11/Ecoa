@@ -74,6 +74,8 @@ def main() -> None:
     os.environ.setdefault("IA_AQUECER", "1")  # os modelos carregam assim que o servidor liga (app.aquecer)
     os.environ.setdefault("IA_THREADS", str(os.cpu_count() or 0))  # todos os núcleos para os modelos
     os.environ.setdefault("IA_CACHE", os.path.join(dados, "cache"))
+    # os modelos do audio-separator (o solista longe do backing vocal) na pasta de dados: ficam entre uma vez e outra
+    os.environ.setdefault("IA_MODELOS_SEPARACAO", os.path.join(dados, "modelos-separacao"))
     os.environ.setdefault("IA_COOKIES", os.path.join(dados, "cookies.txt"))
     # a rede da empresa pode bloquear o download ou o próprio túnel da Cloudflare: o servidor liga mesmo assim, e o
     # endereço vem das Portas do VS Code (IA_SEM_TUNEL=1 nem tenta a Cloudflare)

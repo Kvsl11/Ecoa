@@ -35,7 +35,7 @@ echo ok> "%~dp0python311\pip-ok"
 if exist "%~dp0pronto.txt" goto ligar
 echo Primeira vez: instalando o servidor da IA. Demora uns 15 minutos, deixe a janela aberta...
 "%PY%" -m pip install --no-warn-script-location -U pip || goto erro
-"%PY%" -m pip install --no-warn-script-location torch torchaudio --index-url https://download.pytorch.org/whl/cpu || goto erro
+"%PY%" -m pip install --no-warn-script-location torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu || goto erro
 "%PY%" -m pip install --no-warn-script-location -r requirements.txt static-ffmpeg uvicorn truststore || goto erro
 "%PY%" -m pip install --no-warn-script-location --no-deps basic-pitch==0.4.0 || goto erro
 echo Baixando os modelos de IA...
