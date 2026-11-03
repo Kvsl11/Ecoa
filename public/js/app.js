@@ -15148,7 +15148,8 @@ function viewDuvidas() {
             if (vale()) { avancarLegenda(n, n); fimFala = null; pronto(); }
             return;
           }
-          await comPrazo(servidorPronto, 6000);
+          // (o servidor acordando pode passar de 6 s: sem ele, a fala ia toda na voz do aparelho)
+          await comPrazo(servidorPronto, 15000);
           if (!vale()) return;
           const cfg = servidorVoz();
           const pedacos = pedacosDaFala(texto);
@@ -15160,6 +15161,12 @@ function viewDuvidas() {
               let blob = null;
               try { blob = await proximo; } catch (e) { if (e.status === 501 || e.status === 404) vozNeuralSem = true; }
               if (!vale()) return;
+              // (uma falha de rede ou do servidor: tenta o mesmo pedaço mais uma vez antes de cair na voz robótica do
+              // aparelho; antes um tropeço só já trocava a voz do resto da resposta)
+              if (!blob && !vozNeuralSem) {
+                try { blob = await audioDaVoz(cfg, pedacos[feito]); } catch (e) { if (e.status === 501 || e.status === 404) vozNeuralSem = true; }
+                if (!vale()) return;
+              }
               if (!blob) break;
               if (feito + 1 < pedacos.length) { proximo = audioDaVoz(cfg, pedacos[feito + 1]); proximo.catch(() => {}); }
               const n = contarPalavras(pedacos[feito]);

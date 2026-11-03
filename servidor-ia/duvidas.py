@@ -290,32 +290,39 @@ def buscar_trechos(pergunta: str, quantos: int = 8) -> list[dict]:
     return out
 
 
-SISTEMA = """Você é o Lumen, o assistente do app Songbook Litúrgico inteiro: as músicas da biblioteca, os repertórios, o \
-player, a liturgia, o acervo litúrgico e o que mais a pessoa precisar (e a internet, quando o app não tem). Você ajuda \
-ministérios de música católica (cantores, instrumentistas, equipes de liturgia) com liturgia, canto litúrgico, a \
-missa e o próprio app. \
-Responda em português do Brasil, claro e direto, como quem explica para o grupo antes do ensaio. Use listas curtas \
-quando ajudarem; nada de enrolação.
+SISTEMA = """Você é o Lumen, o assistente do app Songbook Litúrgico. Você é um assistente de verdade, livre: responde \
+o que a pessoa perguntar, sobre qualquer assunto (liturgia, música, canto, teoria musical, ensaio, a Bíblia, a fé, o \
+app, ou qualquer outra coisa do dia a dia), com o que você sabe e com a busca na web quando precisar de algo atual. \
+Você conhece muito bem a liturgia católica e ajuda ministérios de música (cantores, instrumentistas, equipes de \
+liturgia), mas não se limita a isso. \
+Responda em português do Brasil, claro e direto, como quem conversa com um amigo do grupo. Use listas curtas quando \
+ajudarem; nada de enrolação.
+
+O MAIS IMPORTANTE: responda exatamente ao que foi perguntado. Não puxe assunto que a pessoa não pediu, não fale do \
+acervo, da biblioteca ou da liturgia do dia se a pergunta não é sobre isso, e não termine com "no acervo há…".
 
 A mensagem pode trazer, em <app>, o que está no app de quem pergunta: a data de hoje, a liturgia do dia pedido \
-(CNBB), as músicas da biblioteca e os repertórios. Use isso para responder sobre "hoje", "domingo", "minhas \
-músicas", "meu repertório" etc.
+(CNBB), as músicas da biblioteca e os repertórios. Use isso só quando a pergunta for sobre "hoje", "domingo", \
+"minhas músicas", "meu repertório" etc.
 
-Primeiro use os trechos do acervo litúrgico do grupo que vêm na mensagem (arquivos do Google Drive: hinários e \
-subsídios da CNBB, cantos, documentos). Cite cada informação tirada deles com o número do trecho entre colchetes, \
-como [2]. Se os trechos não respondem à pergunta (ou só em parte), use a busca na web, prefira fontes da Igreja \
-(CNBB, Vaticano, Instrução Geral do Missal Romano, documentos litúrgicos) e diga com clareza que essa parte veio da \
-internet. Os trechos também trazem os NOMES dos arquivos e das pastas do acervo (PDFs, áudios, cifras): quando a \
-pessoa pergunta "tem algo no acervo sobre X?", liste os arquivos que tratam de X, citando cada um. Seja útil de \
-verdade: antes de dizer que não achou, procure na web e use o que você sabe da liturgia; só diga que não achou \
-quando nem o acervo, nem a web, nem o seu conhecimento trazem a resposta. Não invente referências.
+A mensagem também traz, em <acervo>, trechos do acervo litúrgico do grupo (arquivos do Google Drive: hinários e \
+subsídios da CNBB, cantos, documentos), achados por uma busca automática de palavras: MUITOS NÃO TÊM NADA A VER com \
+a pergunta. Eles são material de consulta, não o assunto da conversa. Use um trecho só quando ele responde de fato ao \
+que foi perguntado e, aí, cite-o com o número entre colchetes, como [2]. Ignore em silêncio os que não têm relação \
+(não diga que não achou no acervo, não comente os trechos). Quando a pessoa pergunta do acervo ("tem algo no acervo \
+sobre X?", "tem o PDF de…?"), aí sim: os trechos trazem os NOMES dos arquivos e das pastas (PDFs, áudios, cifras); \
+liste os que tratam de X, citando cada um.
 
-Você conhece bem a liturgia católica (Missal Romano, IGMR, Ano Litúrgico, Liturgia das Horas, o Diretório da CNBB) e \
-responde dúvidas como: quando não há missa (Sexta-feira Santa, Sábado Santo antes da Vigília), como é a missa de \
-Finados ou do Tríduo Pascal, o que se canta em cada parte da missa, cores e tempos litúrgicos, solenidades e festas. \
-Para a liturgia de uma data (leituras, salmo, evangelho), use a que vem em <app>; se ela não veio, procure na web \
-(liturgia diária da CNBB, Canção Nova, Paulus) e diga a fonte. Para cantos de uma celebração (casamento, batismo, \
-exéquias, crisma…), prefira os do acervo e explique em que parte da celebração cada um entra.
+Para o que não está nos trechos, responda pelo seu conhecimento e, quando precisar (fatos atuais, datas, \
+documentos), pela busca na web; nas questões de liturgia, prefira fontes da Igreja (CNBB, Vaticano, Instrução Geral \
+do Missal Romano) e diga quando algo veio da internet. Só diga que não sabe quando nem o seu conhecimento nem a web \
+trazem a resposta. Não invente referências.
+
+Na liturgia você responde dúvidas como: quando não há missa (Sexta-feira Santa, Sábado Santo antes da Vigília), como \
+é a missa de Finados ou do Tríduo Pascal, o que se canta em cada parte da missa, cores e tempos litúrgicos, \
+solenidades e festas. Para a liturgia de uma data (leituras, salmo, evangelho), use a que vem em <app>; se ela não \
+veio, procure na web (liturgia diária da CNBB, Canção Nova, Paulus) e diga a fonte. Para cantos de uma celebração \
+(casamento, batismo, exéquias, crisma…), prefira os do acervo e explique em que parte da celebração cada um entra.
 
 Você também MEXE NO APP. Quando a pessoa pedir uma ação, responda curto confirmando e ponha no fim da resposta o \
 comando, exatamente assim (o app executa e tira o comando do texto):
@@ -340,7 +347,9 @@ def montar_pergunta(pergunta: str, achados: list[tuple[float, Trecho]], contexto
     blocos = [f"[{k}] {t.titulo} — {t.caminho}\n{t.texto}" for k, (_, t) in enumerate(achados, 1)]
     acervo = "\n\n".join(blocos) if blocos else "(nenhum trecho do acervo tem as palavras da pergunta)"
     app = f"<app>\n{contexto.strip()}\n</app>\n\n" if contexto.strip() else ""
-    return f"{app}<acervo>\n{acervo}\n</acervo>\n\nPergunta: {pergunta}"
+    # (os trechos vêm de uma busca de palavras: são consulta, e a pergunta é o que manda na resposta)
+    return (f"{app}<acervo>\n(trechos achados pela busca de palavras; use só os que respondem à pergunta)\n{acervo}\n"
+            f"</acervo>\n\nPergunta: {pergunta}")
 
 
 # ---- arquivos enviados pela pessoa (PDF, foto, vídeo, áudio, texto): a IA lê junto com a pergunta
@@ -427,7 +436,10 @@ def pdf_do_acervo(pergunta: str, achados: list[tuple[float, Trecho]]) -> tuple[i
             nota += 0.5
         if nota > nota_melhor:
             melhor, nota_melhor = (k, t), nota
-    return melhor if nota_melhor >= 1 else None
+    # (o PDF inteiro só vai quando é um livro litúrgico — ritual, missal, documento — ou a pessoa pede do acervo; um
+    # PDF qualquer com uma palavra da pergunta no nome fazia a IA responder sobre ele)
+    pede_acervo = bool(re.search(r"\b(acervo|pdf|pdfs|arquivo|arquivos|documento|documentos|ritual|rituais|livro)\b", normalizar(pergunta)))
+    return melhor if nota_melhor >= (1 if pede_acervo else 1.5) else None
 
 
 def baixar_pdf(fid: str) -> bytes | None:
@@ -449,6 +461,15 @@ def baixar_pdf(fid: str) -> bytes | None:
     return dados
 
 
+def trechos_que_importam(achados: list[tuple[float, Trecho]], fracao: float = 0.35, quantos: int = 10) -> list[tuple[float, Trecho]]:
+    """Só os trechos que pesam perto do melhor: os de uma palavra solta em comum com a pergunta ("Senhor", "dia") ficam
+    de fora (antes iam todos, e a IA puxava do acervo coisas que a pessoa nem perguntou)."""
+    if not achados:
+        return []
+    corte = achados[0][0] * fracao
+    return [a for a in achados if a[0] >= corte][:quantos]
+
+
 def sistema_do_genero(genero: str) -> str:
     """A voz escolhida no app dá o gênero do Lumen: a Francisca é "a Lumen", o Antônio é "o Lumen"."""
     if genero == "masculina":
@@ -463,7 +484,7 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
     pergunta = pergunta.strip()[:1000]
     if not pergunta:
         raise ValueError("escreva a pergunta")
-    achados = indice().buscar(pergunta, 14)
+    achados = trechos_que_importam(indice().buscar(pergunta, 14))
     mensagens = []
     for m in (historico or [])[-6:]:  # as últimas perguntas e respostas: dá para perguntar "e no ofertório?"
         if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str):
@@ -483,7 +504,8 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
             pdf_junto = True
             sistema += (f"\n\nVai junto, inteiro, o arquivo do acervo [{k}] \"{t.titulo}\". Se ele trata da pergunta, "
                         f"responda pelo que está ESCRITO nele (a ordem, os ritos, as palavras), citando [{k}]; não "
-                        "resuma de memória o que o arquivo diz de outro jeito.")
+                        "resuma de memória o que o arquivo diz de outro jeito. Se ele não trata do que foi perguntado, "
+                        "ignore o arquivo e responda à pergunta normalmente.")
     if provedor() == "gemini":
         try:
             texto, web, usou_web = _gemini(mensagens, sistema, arquivos)
@@ -617,9 +639,12 @@ def candidatos_gemini(tipo: str = "texto") -> list[str]:
     return vistos
 
 
-def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple[dict, str]:
+def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120, modelos: int = 7,
+                  esperar: bool = True) -> tuple[dict, str]:
     """generateContent no melhor modelo que responder: o que deu certo da última vez primeiro; se um não existe mais
-    (404), está ocupado (429/503) ou não aceita a ferramenta, tenta o próximo. Devolve (resposta, modelo)."""
+    (404), está ocupado (429/503) ou não aceita a ferramenta, tenta o próximo. Devolve (resposta, modelo).
+    (modelos: quantos tentar; esperar: se espera o limite por minuto passar. A voz tenta poucos e não espera: quem
+    chama tem a voz de reserva, e o app não pode ficar esperando)"""
     import urllib.error
     import urllib.request
 
@@ -633,7 +658,7 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
     erros: list[str] = []
     if "tools" in corpo and time.time() < _sem_busca_ate["t"]:
         corpo = {c: v for c, v in corpo.items() if c != "tools"}
-    for k, modelo in enumerate(lista[:7]):
+    for k, modelo in enumerate(lista[:modelos]):
         tentativa = dict(corpo)
         esperou = False
         for _ in range(3):  # (de novo sem a busca do Google, se o modelo não aceitar a ferramenta; ou depois da espera)
@@ -660,7 +685,7 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
             # modelo fora do plano grátis, "limit: 0"): vai direto para o próximo modelo
             espera = re.search(r"retry in ([\d.]+)s|\"retryDelay\": ?\"(\d+)", str(ultimo))
             segundos = float(next(g for g in espera.groups() if g)) if espera else 0
-            if ultimo.status == 429 and not esperou and 0 < segundos <= 8 and "limit: 0" not in str(ultimo) and "PerDay" not in str(ultimo):
+            if esperar and ultimo.status == 429 and not esperou and 0 < segundos <= 8 and "limit: 0" not in str(ultimo) and "PerDay" not in str(ultimo):
                 esperou = True
                 time.sleep(segundos + 0.3)
                 continue

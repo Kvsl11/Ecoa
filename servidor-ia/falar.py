@@ -66,13 +66,19 @@ async def falar(texto: str, voz: str = "feminina", velocidade: str = "+4%") -> b
         raise ValueError("nada para falar")
     # (o nome de uma voz do Gemini vira a voz de reserva do mesmo gênero)
     nome = voz if re.fullmatch(r"[a-z]{2}-[A-Z]{2}-\w+Neural", voz or "") else VOZES[genero_da_voz(voz)]
-    audio = bytearray()
-    async for parte in edge_tts.Communicate(texto, nome, rate=velocidade).stream():
-        if parte.get("type") == "audio":
-            audio.extend(parte["data"])
-    if not audio:
-        raise RuntimeError("a voz não respondeu")
-    return bytes(audio)
+    erro: Exception | None = None
+    for _ in range(2):  # (o serviço da Microsoft às vezes corta a ligação: uma segunda tentativa costuma passar)
+        audio = bytearray()
+        try:
+            async for parte in edge_tts.Communicate(texto, nome, rate=velocidade).stream():
+                if parte.get("type") == "audio":
+                    audio.extend(parte["data"])
+        except Exception as e:
+            erro = e
+            continue
+        if audio:
+            return bytes(audio)
+    raise RuntimeError(f"a voz não respondeu ({erro})" if erro else "a voz não respondeu")
 
 
 def wav(pcm: bytes, taxa: int = 24000) -> bytes:
@@ -102,10 +108,13 @@ def falar_gemini(texto: str, voz: str = "feminina") -> bytes:
             "prebuiltVoiceConfig": {"voiceName": voz_do_gemini(voz)}}}},
     }
     try:
-        dados, _ = duvidas.chamar_gemini(corpo, "voz", timeout=40)
+        # (poucos modelos, sem esperar e com prazo curto: se a voz do Gemini não vem logo, a de reserva ainda chega a
+        # tempo; antes o servidor passava de 40 s tentando e o app desistia e falava com a voz robótica do aparelho)
+        dados, _ = duvidas.chamar_gemini(corpo, "voz", timeout=18, modelos=2, esperar=False)
     except duvidas.ErroGemini as e:
         if e.status == 429:
-            _gemini_sem_ate = time.time() + 600
+            # (o limite do dia não volta em 10 minutos: aí a reserva fica por 1 hora)
+            _gemini_sem_ate = time.time() + (3600 if re.search(r"PerDay|per day|limit: 0", str(e), re.I) else 600)
         raise
     for parte in ((dados.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
         dado = parte.get("inlineData") or parte.get("inline_data")

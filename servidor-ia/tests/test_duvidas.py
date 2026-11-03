@@ -302,3 +302,15 @@ def test_sem_cota_da_busca_do_google_pergunta_de_novo_sem_ela(monkeypatch):
     assert modelo == "gemini-3.6-flash" and enviados == [True, False]
     duvidas.chamar_gemini({"contents": [], "tools": [{"google_search": {}}]})
     assert enviados[-1] is False  # (na hora seguinte, já vai sem a busca)
+
+
+def test_so_os_trechos_que_importam_e_o_pdf_so_quando_e_livro_liturgico():
+    a, b, c = (Trecho(f"t{n}", "p", "x", f"i{n}", "documento") for n in range(3))
+    assert [t.id for _, t in duvidas.trechos_que_importam([(10.0, a), (5.0, b), (2.0, c)])] == ["i0", "i1"]
+    assert duvidas.trechos_que_importam([]) == []
+    # um PDF qualquer com uma palavra da pergunta no nome não vai inteiro; pedindo do acervo, vai
+    achados = [(9.0, Trecho("Guia de violão para iniciantes.pdf", "Apostilas", "x", "v1", "arquivo"))]
+    assert duvidas.pdf_do_acervo("como afinar o violão", achados) is None
+    assert duvidas.pdf_do_acervo("tem algum pdf de violão no acervo", achados)[1].id == "v1"
+    # a IA é livre para responder o que não é do acervo
+    assert "qualquer assunto" in duvidas.SISTEMA and "NÃO TÊM NADA A VER" in duvidas.SISTEMA
