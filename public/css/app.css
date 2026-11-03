@@ -3377,6 +3377,26 @@ html.tablet body.na-musica.com-player.painel-recolhido .main-col { margin-bottom
 .cy-card[hidden] { display: none; }
 .cy-status .btn { min-height: 0; flex: none; }
 /* como pegar o arquivo: os passos, recolhidos depois de conectar */
+/* ---------------------------------------------------------------- Servidor da IA (o Codespace: tudo automático) */
+.sv-ic { background: linear-gradient(135deg, #2f6bff, #7c4dff); box-shadow: 0 8px 20px rgb(79 93 255 / 0.32); }
+.sv-ligar[hidden] { display: none; }
+.sv-ligar p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.sv-lista { display: flex; flex-direction: column; border-radius: 18px; background: var(--surface); overflow: hidden; }
+.sv-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.sv-item + .sv-item { border-top: 1px solid var(--border); }
+.sv-item-ic { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.sv-item-txt { flex: 1; min-width: 0; }
+.sv-item-txt b { display: block; font-size: 15px; }
+.sv-item-txt small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.sv-item-txt small a { color: var(--accent); font-weight: 600; }
+.sv-item[data-estado="ok"] .cy-ponto, .sv-ponto[data-estado="ok"] { background: #3ddc84; box-shadow: 0 0 0 4px rgb(61 220 132 / 0.2); }
+.sv-item[data-estado="nao"] .cy-ponto, .sv-ponto[data-estado="nao"] { background: #ffb020; box-shadow: 0 0 0 4px rgb(255 176 32 / 0.2); }
+.sv-item[data-estado="off"] .cy-ponto { background: var(--subtle); }
+.sv-item[data-estado="verificando"] .cy-ponto { animation: cy-pulsa 1s ease-in-out infinite alternate; }
+.sv-ponto { flex: none; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--subtle); }
+.sv-manual-corpo { display: flex; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
+.sv-manual-corpo p { margin: 0; font-size: 13.5px; line-height: 1.45; }
+.sv-manual-corpo small:empty { display: none; }
 .cy-como { border-radius: 18px; background: var(--surface); }
 .cy-como summary { display: flex; align-items: center; gap: 10px; padding: 16px 18px; cursor: pointer; list-style: none; }
 .cy-como summary::-webkit-details-marker { display: none; }
