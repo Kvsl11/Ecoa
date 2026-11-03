@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 446, data: '2026-11-02', titulo: 'Lumen: voz do Gemini desde o “olá” e a música na tela',
+    itens: [
+      { tipo: 'correcao', texto: 'A saudação do Lumen saía numa voz robótica (a do aparelho) na primeira vez. Agora ela espera a voz do Gemini, que o app já prepara quando abre e guarda no aparelho. A voz do aparelho só entra se o servidor estiver fora do ar.' },
+      { tipo: 'melhoria', texto: 'Pedindo para o Lumen tocar uma música, ela toca e a tela da música abre, como quando você toca nela na lista.' },
+      { tipo: 'correcao', texto: 'As perguntas faladas ganham o ponto de interrogação também quando começam chamando o Lumen (“Lumen, você pode…?”, “Olá Lumen, no que você pode me ajudar?”), e o “?” já aparece enquanto você fala.' },
+      { tipo: 'melhoria', texto: 'O Lumen entende melhor o nome da música mesmo quando o reconhecimento de voz escreve errado: “never hinder” e “never ranger” acham “Neverender”.' },
+    ],
+  },
+  {
     versao: 445, data: '2026-11-02', titulo: 'Lumen responde com o Gemini e não pisca mais',
     itens: [
       { tipo: 'correcao', texto: 'O Lumen respondia coisas sem nada a ver (como um texto de eucaristia para “o que você faz?”). O Gemini recusava as perguntas porque a cota grátis da pesquisa no Google tinha acabado, e o Lumen caía na busca simples. Agora, quando essa cota acaba, a pergunta vai de novo ao Gemini sem a pesquisa no Google, e ele responde.' },
@@ -85,12 +94,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Passar o dedo para o lado no mini player voltou a trocar de música (para a próxima ou para a anterior), no celular e no tablet. Desde que o vídeo passou a crescer com o dedo, o deslizar para o lado tinha parado. Agora funciona também em cima do vídeo, em qualquer tamanho do cartão.' },
       { tipo: 'correcao', texto: 'O ✓ da biblioteca ficava mais baixo que o tocar/pausar no mini player aumentado (no médio do celular e no médio e no grande do tablet). Agora os botões ficam na mesma altura.' },
       { tipo: 'correcao', texto: 'No modo música (com a capa), o mini player não fica mais grande com a capa cortada: ele volta ao compacto, com a capinha. Voltando para o vídeo, o tamanho que você escolheu volta junto.' },
-    ],
-  },
-  {
-    versao: 436, data: '2026-11-02', titulo: 'O vídeo volta ao Tocando agora',
-    itens: [
-      { tipo: 'correcao', texto: 'Depois de aumentar o vídeo do mini player até o tamanho grande, o Tocando agora (no tablet, deitado ou em pé, e na tela toda) abria sem o vídeo: só o nome, a barra do tempo e os botões. O tamanho grande do mini player levava o vídeo para fora da tela. Agora os tamanhos valem só no mini player, e o Tocando agora mostra o vídeo como sempre.' },
     ],
   },
 ];

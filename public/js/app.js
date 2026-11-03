@@ -230,6 +230,14 @@ function tocarNoPlayer(song, set = null, i = -1) {
   player.tocar(itemDoPlayer(song, set, set ? i : -1));
   return true;
 }
+// abre a tela da música já tocando (mesmo com o player aberto)
+function abrirTocando(id) {
+  const song = db.song(id);
+  if (!song) return;
+  abrirNoTocando = true;
+  if (location.hash === `#/musica/${id}`) { if (midiaDe(song)) player.tocar(itemDoPlayer(song)); return; }
+  location.hash = `#/musica/${id}`;
+}
 function irParaMusica(id) {
   if (tocarNoPlayer(db.song(id))) return;
   // abre a tela da música (a letra na tela toda) e já toca
@@ -5584,12 +5592,13 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
 }
 
 // abre a música da busca já com cifra, letra e vídeo
-async function abrirMusica(dados, back, el) {
+// (tela: abre sempre a tela da música, tocando — o Lumen leva a pessoa até a música que ela pediu)
+async function abrirMusica(dados, back, el, { tela = false } = {}) {
   // já está na biblioteca: abre a música salva (com o botão marcado), sem trazer de novo
   const ja = (!dados.video || dados.cifra || dados.letra) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
-  if (ja) { irParaMusica(ja.id); return; }
+  if (ja) { if (tela) abrirTocando(ja.id); else irParaMusica(ja.id); return; }
   // (com o player aberto: a música é preparada e só passa a tocar nele, sem abrir a tela)
-  const noPlayer = playerAberto();
+  const noPlayer = !tela && playerAberto();
   abrirNoTocando = true;
   const acts = el?.querySelector('.acts');
   const antes = acts?.innerHTML;
@@ -13778,13 +13787,17 @@ const generoLumen = () => vozDoLumen().genero;
 const oLumen = () => (generoLumen() === 'masculina' ? 'o Lumen' : 'a Lumen');
 // O reconhecimento de voz não põe pontuação: a pergunta ganha o "?" (pelas palavras de pergunta), o cumprimento e o
 // agradecimento ganham o "!" e o resto, o ponto final
-function pontuar(texto) {
+// (parcial: enquanto a pessoa ainda fala — só o "?" aparece, o ponto final espera ela terminar)
+function pontuar(texto, { parcial = false } = {}) {
   const t = String(texto || '').trim();
   if (!t || /[.!?…]$/.test(t)) return t;
-  const n = normalizar(t);
-  if (/^(ola|oi|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|que bom|que legal|que lindo|nossa|amem|gloria a deus|parabens)\b/.test(n)) return `${t}!`;
-  if (/^(sera|sera que|pode|poderia|voce (pode|poderia|sabe|tem|consegue|acha|conhece)|tem como|tem algum|tem alguma|existe|ha|e verdade|da pra|da para|e (o|a|os|as|no|na|nos|nas|quando|se)) /.test(n)
-    || /\b(qual|quais|quando|como|onde|aonde|quem|quanto|quantos|quantas|por que|porque|pra que|para que|o que)\b/.test(n)) return `${t}?`;
+  // (o chamado do começo não conta: "Lumen, você pode tocar…?" é pergunta)
+  const n = normalizar(t).replace(/^((oi|ola|ei|e ai|hey|olha|escuta|por favor|bom dia|boa tarde|boa noite) )*(lumen )?/, '');
+  const pergunta = /^(sera|pode|poderia|podes|consegue|conseguiria|sabe|sabia|tem|teria|existe|existem|ha|e verdade|da pra|da para|vai|vamos|quer|queria saber|posso|devo|precisa|preciso saber|e (o|a|os|as|no|na|nos|nas|quando|se|possivel)|voce|vc|tu)\b/.test(n)
+    || /\b(qual|quais|quando|como|onde|aonde|quem|quanto|quantos|quantas|por que|porque|pra que|para que|o que|no que|em que|de que|com que|sera que|sabe me dizer|me (diz|diga|fala|explica|conta) (se|qual|quais|quando|como|onde|quem|o que|por que))\b/.test(n);
+  if (pergunta && !/^(toque|toca|coloca|coloque|abra|abre|pausa|pare|adiciona|adicione|busque|procure|salva|salve|me (mostra|mostre|traga|traz))\b/.test(n)) return `${t}?`;
+  if (parcial) return t;
+  if (/^(ola|oi|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|que bom|que legal|que lindo|nossa|amem|gloria a deus|parabens)\b/.test(normalizar(t))) return `${t}!`;
   return `${t}.`;
 }
 // A saudação do ao vivo ("Olá, eu sou a Lumen."), na voz escolhida, guardada no aparelho: ao abrir, ela toca na hora
@@ -13794,15 +13807,26 @@ const chaveSaudacao = () => new URL(`lumen-saudacao/${encodeURIComponent(vozDoLu
 async function saudacaoGuardada() {
   try { const r = await (await caches.open('lumen-voz')).match(chaveSaudacao()); return r ? await r.blob() : null; } catch { return null; }
 }
-async function prepararSaudacao() {
-  if (await saudacaoGuardada()) return;
-  await comPrazo(carregarServidor().catch(() => {}), 12000);
-  const cfg = servidorVoz();
-  if (!cfg) return;
-  const chave = chaveSaudacao();
-  const blob = await audioDaVoz(cfg, saudacaoLumen()).catch(() => null);
-  if (blob?.size) { try { await (await caches.open('lumen-voz')).put(chave, new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/mpeg' } })); } catch { /* sem guardar */ } }
+// o áudio da saudação: o guardado, ou feito agora pelo servidor. Só a voz do Gemini (WAV) fica guardada: a de reserva
+// (MP3) serve desta vez e a próxima abertura tenta de novo a do Gemini
+let saudacaoFazendo = null;
+function prepararSaudacao() {
+  if (saudacaoFazendo) return saudacaoFazendo;
+  saudacaoFazendo = (async () => {
+    const ja = await saudacaoGuardada();
+    if (ja) return ja;
+    await comPrazo(carregarServidor().catch(() => {}), 12000);
+    const cfg = servidorVoz();
+    if (!cfg) return null;
+    const chave = chaveSaudacao();
+    const blob = await audioDaVoz(cfg, saudacaoLumen()).catch(() => null);
+    if (blob?.size && /wav/.test(blob.type)) { try { await (await caches.open('lumen-voz')).put(chave, new Response(blob, { headers: { 'Content-Type': blob.type } })); } catch { /* sem guardar */ } }
+    return blob?.size ? blob : null;
+  })().finally(() => { saudacaoFazendo = null; });
+  return saudacaoFazendo;
 }
+// (a saudação fica pronta logo que o app abre, e não só ao entrar no Lumen: a primeira conversa já começa na voz certa)
+setTimeout(() => { if (navigator.onLine && !db.prefs().economiaDados) void prepararSaudacao().catch(() => {}); }, 8000);
 // o começo da fala com letra maiúscula (o reconhecimento de voz entrega tudo em minúscula)
 const comMaiuscula = (t) => { const s = String(t || '').trimStart(); return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1); };
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
@@ -13900,6 +13924,10 @@ function distancia(a, b) {
   }
   return ant[b.length];
 }
+// o nome pelo som: o reconhecimento de voz escreve "never hinder" ou "never ranger" para "Neverender" (sem h, letras
+// repetidas viram uma, sons parecidos ficam iguais)
+const pelooSom = (t) => t.replace(/ /g, '').replace(/ph/g, 'f').replace(/h/g, '').replace(/y/g, 'i').replace(/w/g, 'u').replace(/k/g, 'c')
+  .replace(/qu/g, 'c').replace(/ç/g, 's').replace(/z/g, 's').replace(/(.)\1+/g, '$1');
 function acharMusica(nome) {
   const alvo = normalizar(nome).replace(/^(a|o|as|os) /, '').replace(/^(musica|cancao|faixa) /, '').trim();
   if (!alvo) return null;
@@ -13911,7 +13939,8 @@ function acharMusica(nome) {
     const com = normalizar(`${tituloLimpo(s.title || '')} ${s.artist || ''}`);
     if (!t) continue;
     let n = 0;
-    const quase = (x) => x.length >= 5 && distancia(junto(x), junto(alvo)) <= Math.max(1, Math.floor(junto(x).length * 0.15));
+    const quase = (x) => x.length >= 5 && (distancia(junto(x), junto(alvo)) <= Math.max(1, Math.floor(junto(x).length * 0.15))
+      || distancia(pelooSom(x), pelooSom(alvo)) <= Math.max(1, Math.floor(pelooSom(x).length * 0.22)));
     if (t === alvo || junto(t) === junto(alvo)) n = 100;
     else if (quase(t) || quase(com)) n = 85;
     else if (com === alvo || junto(com) === junto(alvo) || alvo.startsWith(`${t} d`) || junto(alvo).startsWith(junto(t)) && t.length >= 4) n = 90;
@@ -13930,9 +13959,9 @@ function acharMusica(nome) {
 }
 const nomeDaMusica = (s) => `${tituloLimpo(s.title)}${s.artist ? `, ${s.artist.split(/\s*[,&]\s*/)[0]}` : ''}`;
 // toca a música (com vídeo ou áudio); sem nenhum, abre a página dela
+// (e leva para a tela dela, como quem tocou na música: mais natural do que só tocar escondido no player)
 function tocarDoLumen(song) {
-  if (midiaDe(song)) player.tocar(itemDoPlayer(song));
-  else location.hash = `#/musica/${song.id}`;
+  abrirTocando(song.id);
 }
 const TELAS_LUMEN = [
   [/\bliturgia\b/, '#/liturgia', 'a Liturgia'], [/\bbiblioteca\b/, '#/biblioteca', 'a Biblioteca'],
@@ -14055,7 +14084,7 @@ async function acaoDoLumen(pergunta) {
       else if (tocarDepois) {
         const r = busca[0];
         falas.push(`Achei ${r.titulo}${r.artista ? `, de ${r.artista}` : ''}. Tocando.`);
-        depois.push(() => abrirMusica(r, '#/duvidas', null));
+        depois.push(() => abrirMusica(r, '#/duvidas', null, { tela: true }));
       } else {
         falas.push(`Achei ${busca.length === 1 ? 'esta' : 'estas'}: ${busca.slice(0, 3).map((r) => `${r.titulo}${r.artista ? `, de ${r.artista}` : ''}`).join('; ')}. Toque numa para abrir, ou me peça para tocar.`);
       }
@@ -14076,7 +14105,7 @@ async function acaoDoLumen(pergunta) {
         const r = busca[0];
         if (r) {
           falas.push(`Não está na sua biblioteca, mas achei ${r.titulo}${r.artista ? `, de ${r.artista}` : ''}. Tocando.`);
-          depois.push(() => abrirMusica(r, '#/duvidas', null));
+          depois.push(() => abrirMusica(r, '#/duvidas', null, { tela: true }));
         } else falas.push(`Não achei “${nome}”, nem na biblioteca nem na internet.`);
       }
     }
@@ -14114,7 +14143,7 @@ function acoesDaIA(texto) {
     if (a === 'tocar') {
       const s = acharMusica(arg);
       if (s) depois.push(() => tocarDoLumen(s));
-      else if (arg.trim()) depois.push(() => buscarTudo(arg.trim(), 3, 3).then((l) => { if (l[0]) abrirMusica(l[0], '#/duvidas', null); }).catch(() => {}));
+      else if (arg.trim()) depois.push(() => buscarTudo(arg.trim(), 3, 3).then((l) => { if (l[0]) abrirMusica(l[0], '#/duvidas', null, { tela: true }); }).catch(() => {}));
     }
     else if (a === 'pausar') depois.push(() => { if (player.tocandoAlgo()) player.alternar(); });
     else if (a === 'continuar') depois.push(() => { if (player.atual && !player.tocandoAlgo()) player.alternar(); });
@@ -14405,7 +14434,7 @@ function viewDuvidas() {
       Object.assign(resp, { acao: { fala: acao.fala, html: acao.html, musicas: acao.musicas, busca: acao.busca }, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
       Object.defineProperty(resp, 'depois', { value: acao.depois, enumerable: false, writable: true });
       guardarConversa();
-      if (!voz) { acao.depois?.(); if (acao.depois && player.atual) toast(acao.fala); }
+      if (!voz) acao.depois?.();
       if (location.hash === '#/duvidas') viewDuvidas();
       return resp;
     }
@@ -14602,12 +14631,12 @@ function viewDuvidas() {
   const tocarResposta = async (e) => {
     // as músicas da resposta: a da biblioteca toca; a da internet abre (como na Busca); a lista abre o repertório
     const lb = e.target.closest('li[data-id]');
-    if (lb) { const s = db.song(lb.dataset.id); if (s) { tocarDoLumen(s); toast(`Tocando: ${tituloLimpo(s.title)}`); } return; }
+    if (lb) { const s = db.song(lb.dataset.id); if (s) tocarDoLumen(s); return; }
     const lw = e.target.closest('[data-busca-k] [data-web]');
     if (lw) {
       e.preventDefault();
       const r = conversaDuvidas[lw.closest('[data-busca-k]').dataset.buscaK]?.acao?.busca?.[Number(lw.dataset.i)];
-      if (r) abrirMusica(r, '#/duvidas', lw);
+      if (r) abrirMusica(r, '#/duvidas', lw, { tela: true });
       return;
     }
     const lr = e.target.closest('li[data-href]');
@@ -15112,7 +15141,7 @@ function viewDuvidas() {
         r.onresult = (e) => {
           if (rec !== r) return;
           ouvido = textoDosResultados(e.results);
-          mostrarFala(juntar());
+          mostrarFala(pontuar(juntar(), { parcial: true }));
           // cada palavra nova recomeça a contagem da pausa
           clearTimeout(fimDaFala);
           fimDaFala = setTimeout(terminar, PAUSA_FALA);
@@ -15204,14 +15233,16 @@ function viewDuvidas() {
     // a saudação curta, na hora: a guardada no aparelho (na voz escolhida); sem ela ainda, a voz do aparelho (e a
     // guardada fica pronta para a próxima vez)
     const saudacaoPronta = saudacaoGuardada();
+    // (sem a guardada, espera a voz do servidor — a do Gemini — em vez da voz robótica do aparelho)
     const comecar = async () => {
       if (!aberto) return;
       permissaoEl.hidden = true;
       estado('falando');
-      const audio = await comPrazo(saudacaoPronta, 400);
+      novaLegenda(saudacaoLumen());
+      avancarLegenda(0, contarPalavras(saudacaoLumen()));
+      const audio = await comPrazo(saudacaoPronta, 400) || await comPrazo(prepararSaudacao().catch(() => null), 12000);
       if (!aberto) return;
-      if (!audio) void prepararSaudacao().catch(() => {});
-      falar(saudacaoLumen(), audio ? { audio } : { soNavegador: true }).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+      falar(saudacaoLumen(), audio ? { audio } : {}).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
     };
     // a permissão do microfone: o Lumen pede antes de começar (um cartão explica e o botão abre a pergunta do navegador)
     const permissaoEl = el.querySelector('.dv-vivo-permissao');
