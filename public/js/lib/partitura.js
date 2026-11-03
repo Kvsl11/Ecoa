@@ -627,7 +627,30 @@ export function estimarTom(notas) {
 
 // andamento pelos intervalos entre os começos das notas: o que melhor encaixa os intervalos em meios tempos (depois,
 // afinado em décimos com todas as notas e conferido se o tempo é dividido em 3: afinarAndamento)
-export function estimarAndamento(notas, { min = 60, max = 140, faixa = [48, 84] } = {}) {
+export function estimarAndamento(notas, { min = 60, max = 140, faixa = [48, 84], batidas = null } = {}) {
+  const bpm0 = estimarAndamentoDasNotas(notas, { min, max, faixa });
+  return andamentoDasBatidas(batidas, bpm0) ?? bpm0;
+}
+// o andamento pelas batidas ouvidas no áudio (o servidor as acha na banda, com a bateria): o intervalo típico entre
+// elas, no nível (metade, igual ou o dobro) mais perto do que as notas dizem. Longe disso (o tempo em 3, por
+// exemplo): null, e fica o das notas
+const intervaloTipico = (batidas) => {
+  if (!Array.isArray(batidas) || batidas.length < 8) return 0;
+  const d = batidas.slice(1).map((t, i) => t - batidas[i]).filter((x) => x > 0.2 && x < 2).sort((a, b) => a - b);
+  return d.length >= 6 ? d[Math.floor(d.length / 2)] : 0;
+};
+export function andamentoDasBatidas(batidas, bpm0) {
+  const iv = intervaloTipico(batidas);
+  if (!iv) return null;
+  let melhor = null;
+  for (const k of [0.5, 1, 2]) {
+    const bpm = (60 / iv) * k;
+    const longe = Math.abs(Math.log(bpm / bpm0));
+    if (!melhor || longe < melhor.longe) melhor = { bpm, longe };
+  }
+  return melhor.longe < Math.log(1.12) ? Math.round(melhor.bpm * 10) / 10 : null;
+}
+function estimarAndamentoDasNotas(notas, { min, max, faixa }) {
   // só a melodia (sem os graves do acompanhamento nem os pedacinhos que a IA acha no ataque das notas)
   const da = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && n.durationSeconds >= 0.2);
   const inicios = [];
@@ -714,7 +737,21 @@ export function claveDaVoz(notas, modo = 'mistura') {
 // semicolcheia: a grade nunca pula uma nota. Onde ela começa: a primeira nota forte cai numa semicolcheia; qual das 4
 // é o tempo, decide a grade que, seguindo a música inteira, põe mais notas fortes, longas e graves (o baixo, a troca
 // de acorde) nos tempos. Música que começa no contratempo não fica toda deslocada
-function gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo }) {
+// As batidas do servidor (ouvidas na banda): quando o andamento é o delas (a pessoa não mudou), elas são a grade
+// dos tempos, e as notas só escolhem em qual das 4 semicolcheias está o tempo. A banda marca o tempo melhor que a voz,
+// que adianta e segura; quando elas não encaixam nas notas, fica a grade que segue o cantor
+function temposDasBatidas(batidas, bpm) {
+  const iv = intervaloTipico(batidas);
+  if (!iv) return null;
+  const r = 60 / bpm / iv;
+  const perto = (x) => Math.abs(r / x - 1) < 0.03;
+  const b = batidas.filter((t, i) => i === 0 || t - batidas[i - 1] > 0.2);
+  if (perto(1)) return [b];
+  if (perto(2)) return [b.filter((_, i) => i % 2 === 0), b.filter((_, i) => i % 2 === 1)];
+  if (perto(0.5)) return [b.flatMap((t, i) => (i + 1 < b.length ? [t, (t + b[i + 1]) / 2] : [t]))];
+  return null;
+}
+function gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas = null }) {
   const passo = 60 / bpm / 4; // semicolcheia, em segundos
   const tempo = 60 / bpm;
   const ataques = notas.filter((n) => (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passo * 0.6)
@@ -761,6 +798,36 @@ function gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo }) {
   // meioTempo: a pessoa diz que os tempos caem no meio (a voz sozinha não deixa saber)
   let { tempos } = melhor;
   if (meioTempo) tempos = seguir(tempos[0] - tempo / 2).tempos;
+  // pelas batidas: o tempo em cada uma das 4 semicolcheias da batida; fica a que põe mais notas fortes nos tempos.
+  // Se nem a melhor chega perto da grade que segue o cantor, as batidas estão erradas (ou é outra música): ficam
+  const pelasBatidas = temposDasBatidas(batidas, bpm);
+  if (pelasBatidas) {
+    const pontos = (ts) => {
+      let soma = 0;
+      let j = 0;
+      for (let i = 0; i < ts.length; i++) {
+        const semi = ((ts[i + 1] ?? ts[i] + (ts[i] - ts[i - 1])) - ts[i]) / 4;
+        while (j < ataques.length && ataques[j][0] < ts[i] - semi * 0.35) j++;
+        for (let q = j; q < ataques.length && ataques[q][0] <= ts[i] + semi * 0.35; q++) soma += ataques[q][1];
+      }
+      return soma;
+    };
+    let escolha = null;
+    for (const base of pelasBatidas) {
+      if (base.length < 2) continue;
+      for (let q = 0; q < 4; q++) {
+        const ts = base.map((t, i) => t + (q / 4) * ((base[i + 1] ?? t + (t - base[i - 1])) - t));
+        const p = pontos(ts);
+        if (!escolha || p > escolha.p) escolha = { ts, p };
+      }
+    }
+    if (escolha && escolha.p >= pontos(melhor.tempos) * 0.6) {
+      tempos = escolha.ts;
+      if (meioTempo) tempos = tempos.slice(0, -1).map((t, i) => (t + tempos[i + 1]) / 2);
+      // a grade vai até depois da última nota, no passo das últimas batidas
+      while (tempos[tempos.length - 1] < fim + tempo) tempos.push(tempos[tempos.length - 1] + (tempos[tempos.length - 1] - tempos[tempos.length - 2]));
+    }
+  }
   // antes da primeira nota forte (uma pausa, um pedacinho fraco): a grade volta, no mesmo andamento
   const primeiraDe = Math.min(...validas.map((n) => n.startTimeSeconds));
   while (tempos[0] > primeiraDe + passo / 2) tempos.unshift(tempos[0] - (tempos[1] - tempos[0]));
@@ -791,12 +858,12 @@ const DESENHOS = [
   { c: [2, 4], tempos: [0, 2], passo: 2, peso: 1, soFixo: true },
 ];
 const TAMANHO = { '4/4': 8, '3/4': 6, '6/8': 6, '2/4': 4 };
-export function estimarCompasso(notas, { bpm = 80, faixa = [48, 84], minAmp = 0.2, meioTempo = false, compasso = null } = {}) {
+export function estimarCompasso(notas, { bpm = 80, faixa = [48, 84], minAmp = 0.2, meioTempo = false, compasso = null, batidas = null } = {}) {
   const passoS = 60 / bpm / 4;
   const validas = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passoS * 0.6);
   const fixo = compasso && DESENHOS.find((x) => x.c[0] === compasso[0] && x.c[1] === compasso[1]);
   if (!validas.length || (compasso && !fixo)) return { compasso: compasso || [4, 4], anacruse: 0 };
-  const { passo, nPassos, passoDe } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo });
+  const { passo, nPassos, passoDe } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas });
   const tempo = passo * 4;
   const nCol = Math.ceil(nPassos / 2) + 1;
   const forca = new Array(nCol).fill(0);
@@ -938,19 +1005,19 @@ function ligarFinsCortados(grade) {
 
 // o instante (em segundos, no áudio) de cada tique da partitura que a IA montou com estas mesmas opções: a grade
 // segue o cantor (acelera e segura), então o tique não é proporcional ao tempo. Serve para pôr a cifra pelo áudio
-export function tempoDaGrade(notas, { bpm = 80, faixa = faixaDoModo('mistura'), minAmp = 0.2, meioTempo = false } = {}) {
+export function tempoDaGrade(notas, { bpm = 80, faixa = faixaDoModo('mistura'), minAmp = 0.2, meioTempo = false, batidas = null } = {}) {
   const passoS = 60 / bpm / 4;
   const validas = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passoS * 0.6);
   if (!validas.length) return null;
-  const { tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo });
+  const { tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas });
   return (tique) => tempoDo(tique / 2);
 }
 
-export function melodiaDasNotas(notas, { bpm = 80, fifths = 0, modo = 'mistura', faixa = faixaDoModo(modo), oitava = 0, minAmp = 0.2, centro = 67, meioTempo = false } = {}) {
+export function melodiaDasNotas(notas, { bpm = 80, fifths = 0, modo = 'mistura', faixa = faixaDoModo(modo), oitava = 0, minAmp = 0.2, centro = 67, meioTempo = false, batidas = null } = {}) {
   const passoS = 60 / bpm / 4;
   const validas = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passoS * 0.6);
   if (!validas.length) return [];
-  const { passo, nPassos, tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo });
+  const { passo, nPassos, tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas });
   const canto = notasDoCanto(validas);
   const regiao = regiaoDoCanto([...canto.keys()], faixa);
   // em cada semicolcheia, a nota mais forte que soa (desempate: a mais aguda, que costuma ser a voz), perto do canto
@@ -1009,13 +1076,13 @@ function fecharBuracos(grade, max) {
 }
 // alturas que entram no coral (do Mi grave do baixo ao Dó agudo do soprano)
 export const FAIXA_CORAL = [38, 84];
-export function vozesDasNotas(notas, { bpm = 80, fifths = 0, oitava = 0, minAmp = 0.2, meioTempo = false, faixa = FAIXA_CORAL } = {}) {
+export function vozesDasNotas(notas, { bpm = 80, fifths = 0, oitava = 0, minAmp = 0.2, meioTempo = false, faixa = FAIXA_CORAL, batidas = null } = {}) {
   const vozes = VOZES_CORAL;
   const vazias = () => vozes.map((v) => ({ id: v.id, nome: v.nome, clave: v.clave, ev: [] }));
   const passoS = 60 / bpm / 4;
   const validas = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passoS * 0.6);
   if (!validas.length) return vazias();
-  const { passo, nPassos, tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo });
+  const { passo, nPassos, tempoDo } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas });
   const [melLo, melHi] = faixaDoModo('mistura');
   const regiao = regiaoDoCanto(validas, [melLo, melHi]);
   const grades = vozes.map(() => new Array(nPassos).fill(null));

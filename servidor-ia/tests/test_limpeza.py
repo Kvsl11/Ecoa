@@ -5,8 +5,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from transcricao import (Nota, corrigir_pela_afinacao, juntar_pedacos, limpar, polifonia, rearticulacoes,  # noqa: E402
-                         tirar_estalos, tirar_harmonicos, uma_linha)
+from transcricao import (Nota, alinhar_inicios, corrigir_pela_afinacao, dividir_pela_afinacao,  # noqa: E402
+                         juntar_pedacos, limpar, polifonia, rearticulacoes, tirar_estalos, tirar_harmonicos,
+                         uma_linha)
 from youtube import id_do_video  # noqa: E402
 
 
@@ -133,3 +134,34 @@ def test_pedido_de_login_do_youtube_e_reconhecido():
     assert youtube.pede_login("ERROR: [youtube] abc: Sign in to confirm you're not a bot. Use --cookies-from-browser")
     assert youtube.pede_login("Sign in to confirm your age")
     assert not youtube.pede_login("ERROR: [youtube] abc: Requested format is not available")
+
+
+def test_nota_com_duas_alturas_e_dividida_pela_afinacao():
+    tempos = np.arange(0, 1.2, 0.01)
+    f0 = np.where(tempos < 0.6, 67.0, 69.0)  # Sol e depois Lá, na mesma "nota" do Basic Pitch
+    saida = dividir_pela_afinacao([Nota(0.0, 1.2, 67, 0.7)], f0, np.ones_like(tempos, bool), tempos)
+    assert [n.alt for n in saida] == [67, 69]
+    assert abs(saida[1].ini - 0.6) < 0.03 and saida[0].fim == saida[1].ini and saida[1].fim == 1.2
+
+
+def test_vibrato_e_deslize_nao_dividem_a_nota():
+    tempos = np.arange(0, 1.2, 0.01)
+    f0 = 67 + 0.6 * np.sin(2 * np.pi * 5.5 * tempos)  # vibrato de mais de meio tom, a 5,5 Hz
+    f0[:8] = np.linspace(65, 67, 8)  # a voz chegando na nota por baixo
+    saida = dividir_pela_afinacao([Nota(0.0, 1.2, 67, 0.7)], f0, np.ones_like(tempos, bool), tempos)
+    assert [n.alt for n in saida] == [67]
+
+
+def test_altura_pela_parte_firme_da_nota():
+    tempos = np.arange(0, 0.5, 0.01)
+    f0 = np.full_like(tempos, 69.0)
+    f0[:6] = 67.0  # o deslize do começo (60 ms) não puxa a nota para baixo
+    saida = corrigir_pela_afinacao([Nota(0.0, 0.5, 68, 0.7)], f0, np.ones_like(tempos, bool), tempos)
+    assert [n.alt for n in saida] == [69]
+
+
+def test_inicio_vai_para_o_ataque_da_voz():
+    notas = [Nota(1.04, 1.5, 67, 0.7), Nota(1.53, 2.0, 69, 0.7), Nota(3.0, 3.4, 71, 0.7)]
+    saida = alinhar_inicios(notas, np.array([1.0, 1.5, 3.2]))
+    assert [round(n.ini, 2) for n in saida] == [1.0, 1.5, 3.0]  # a 3ª: o ataque está longe demais
+    assert saida[0].fim == 1.5  # a de antes acaba onde a seguinte começa
