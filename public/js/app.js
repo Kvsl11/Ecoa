@@ -1813,7 +1813,7 @@ const player = (() => {
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
       <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
-      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
+      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><span class="pl-karaoke-pct" aria-hidden="true"><b></b>${icon('up', 14)}</span><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
     <div class="pl-extra" hidden></div>`;
@@ -3452,6 +3452,10 @@ const semLinhasDeAcordes = (sinc) => {
     kEl.style.setProperty('--nivel', String(nivelVoz));
     // (o microfone fica escuro quando o branco do volume passa por baixo dele)
     kEl.classList.toggle('sobre-branco', nivelVoz >= 0.24);
+    // (a porcentagem da voz no alto do controle aberto; em 0%, a setinha mostra que dá para arrastar para cima)
+    $('.pl-karaoke-pct b', kEl).textContent = `${Math.round(nivelVoz * 100)}%`;
+    kEl.classList.toggle('sem-voz', nivelVoz <= 0.02);
+    kEl.classList.toggle('topo-branco', nivelVoz >= 0.86);
     const bt = $('.pl-karaoke-bt', kEl);
     bt.setAttribute('aria-pressed', String(karaokeLigado));
     const titulo = !karaokeLigado ? 'Karaokê: tirar a voz' : prep ? `Preparando o karaokê: ${prep.etapa} (${prep.pct}%)` : 'Karaokê ligado: toque para a voz voltar';

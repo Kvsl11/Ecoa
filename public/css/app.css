@@ -3191,6 +3191,16 @@ html.pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { width: 56
   background: linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(236 240 255 / 0.92)); box-shadow: 0 -1px 0 rgb(255 255 255 / 0.9), 0 -6px 16px rgb(255 255 255 / 0.25);
   transition: height 0.1s linear, opacity 0.25s; }
 #player .pl-karaoke.aberto[data-estado="ligado"] .pl-karaoke-nivel { opacity: 1; }
+/* o controle aberto: o trilho um pouco mais escuro (dá para ver que é uma barra), a porcentagem da voz no alto e, sem a
+   voz, a setinha pulando para cima (arraste para a voz voltar) */
+html.pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { background: linear-gradient(180deg, rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.12)); }
+#player .pl-karaoke-pct { position: absolute; z-index: 1; top: 10px; left: 0; right: 0; display: grid; justify-items: center; gap: 2px; color: #fff; pointer-events: none; opacity: 0; transition: opacity 0.2s, color 0.2s; }
+#player .pl-karaoke-pct b { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+#player .pl-karaoke-pct svg { display: none; }
+#player .pl-karaoke.aberto[data-estado="ligado"] .pl-karaoke-pct { opacity: 1; }
+#player .pl-karaoke.sem-voz .pl-karaoke-pct svg { display: block; animation: karaoke-seta 1.2s ease-in-out infinite; }
+#player .pl-karaoke.topo-branco .pl-karaoke-pct { color: #1d2433; }
+@keyframes karaoke-seta { 0%, 100% { transform: translateY(3px); opacity: 0.55; } 50% { transform: translateY(-3px); opacity: 1; } }
 #player .pl-karaoke-bt { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: grid; place-items: center; height: 50px; padding: 0; border: 0; border-radius: 25px;
   background: transparent; color: inherit; cursor: pointer; transition: color 0.2s; }
 #player .pl-karaoke-bt:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
@@ -3230,7 +3240,7 @@ html.pp #player.letra-cheia .pl-linhas, html.pp #player.letra-cheia .pl-cifra { 
 html.pp #player.letra-cheia.karaoke-ajustando .pl-linhas, html.pp #player.letra-cheia.karaoke-ajustando .pl-cifra { opacity: 0.4; filter: blur(3px); }
 @media (prefers-reduced-motion: reduce) {
   html.pp #player.letra-cheia .pl-karaoke:not([hidden]), #player .pl-karaoke-nivel { transition: none; }
-  #player .pl-karaoke .pl-karaoke-bt svg, #player .pl-karaoke .mk-brilho, #player .pl-karaoke .mk-mic, #player .pl-karaoke::before, #player .pl-karaoke.pulo .pl-karaoke-bt { animation: none !important; }
+  #player .pl-karaoke .pl-karaoke-bt svg, #player .pl-karaoke .mk-brilho, #player .pl-karaoke-pct svg, #player .pl-karaoke .mk-mic, #player .pl-karaoke::before, #player .pl-karaoke.pulo .pl-karaoke-bt { animation: none !important; }
   html.pp #player.letra-cheia.karaoke-ajustando .pl-linhas, html.pp #player.letra-cheia.karaoke-ajustando .pl-cifra { filter: none; }
 }
 
