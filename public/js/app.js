@@ -13683,8 +13683,10 @@ async function audioDaVoz(cfg, texto) {
 // a voz mais natural que o aparelho tem em português (as "naturais"/neurais do Edge e do Android, as do Google)
 function vozDoNavegador() {
   const vozes = speechSynthesis.getVoices().filter((v) => /^pt/i.test(v.lang));
+  const masc = generoLumen() === 'masculina';
   const nota = (v) => (/^pt[-_]BR/i.test(v.lang) ? 4 : 0) + (/natural|neural|online|premium|enhanced|aprimorad/i.test(v.name) ? 3 : 0)
-    + (/google/i.test(v.name) ? 2 : 0) + (/francisca|thalita|luciana|antonio/i.test(v.name) ? 1 : 0);
+    + (/google/i.test(v.name) ? 2 : 0)
+    + ((masc ? /antonio|ant[oô]nio|daniel|male|masculin/i : /francisca|thalita|luciana|maria|female|feminin/i).test(v.name) ? 3 : 0);
   return vozes.sort((a, b) => nota(b) - nota(a))[0] || null;
 }
 const servidorLumen = () => (SERVIDOR_IA.url && !lumenSemIA ? { url: SERVIDOR_IA.lumen || SERVIDOR_IA.url, chave: SERVIDOR_IA.chave } : null);
@@ -13749,6 +13751,22 @@ async function pedirMicrofone() {
   } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
 }
 const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Songbook → Informações do app → Permissões → Microfone.';
+// A voz do Lumen tem nome e gênero: Francisca (feminina, "a Lumen") e Antônio (masculina, "o Lumen"). A IA também
+// fala de si nesse gênero
+const NOMES_VOZ = { feminina: 'Francisca', masculina: 'Antônio' };
+const generoLumen = () => (db.prefs().vozLumen === 'masculina' ? 'masculina' : 'feminina');
+const oLumen = () => (generoLumen() === 'masculina' ? 'o Lumen' : 'a Lumen');
+// O reconhecimento de voz não põe pontuação: a pergunta ganha o "?" (pelas palavras de pergunta), o cumprimento e o
+// agradecimento ganham o "!" e o resto, o ponto final
+function pontuar(texto) {
+  const t = String(texto || '').trim();
+  if (!t || /[.!?…]$/.test(t)) return t;
+  const n = normalizar(t);
+  if (/^(ola|oi|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|que bom|que legal|que lindo|nossa|amem|gloria a deus|parabens)\b/.test(n)) return `${t}!`;
+  if (/^(sera|sera que|pode|poderia|voce (pode|poderia|sabe|tem|consegue|acha|conhece)|tem como|tem algum|tem alguma|existe|ha|e verdade|da pra|da para|e (o|a|os|as|no|na|nos|nas|quando|se)) /.test(n)
+    || /\b(qual|quais|quando|como|onde|aonde|quem|quanto|quantos|quantas|por que|porque|pra que|para que|o que)\b/.test(n)) return `${t}?`;
+  return `${t}.`;
+}
 // o começo da fala com letra maiúscula (o reconhecimento de voz entrega tudo em minúscula)
 const comMaiuscula = (t) => { const s = String(t || '').trimStart(); return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1); };
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
@@ -13931,7 +13949,7 @@ function viewDuvidas() {
       <div class="dv-boas">
         <span class="dv-estrela">${logoLumen(56)}</span>
         <h2>Pode perguntar!</h2>
-        <p class="dv-sub-boas">${saudacao}! Eu sou o Lumen, o seu assistente litúrgico.</p>
+        <p class="dv-sub-boas">${saudacao}! Eu sou ${oLumen()}, ${generoLumen() === 'masculina' ? 'o seu assistente litúrgico' : 'a sua assistente litúrgica'}.</p>
       </div>
       <div class="dv-sugs">${SUGESTOES_DUVIDAS.map(([ic, q]) => `<button type="button" class="dv-sug" data-q="${esc(q)}">${icon(ic, 22)}<span>${esc(q)}</span></button>`).join('')}</div>
     </div>`;
@@ -14049,7 +14067,7 @@ function viewDuvidas() {
       try {
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, anexos: [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }] }, tempo: 200e3 });
+        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos: [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }] }, tempo: 200e3 });
         if (ia?.resposta) return pronto({ ia });
       } catch (e) { if (e.status === 501) lumenSemIA = true; }
     }
@@ -14110,7 +14128,7 @@ function viewDuvidas() {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz }, tempo: 150e3 });
+        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
         if (ia?.resposta) {
           Object.assign(resp, { ia, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
           guardarConversa();
@@ -14233,6 +14251,8 @@ function viewDuvidas() {
     rec.continuous = false;
     const antes = campo.value.trim() ? `${campo.value.trim()} ` : '';
     rec.onresult = (e) => { if (vozDuvidas !== rec) return; campo.value = comMaiuscula(antes + [...e.results].map((r) => r[0].transcript).join('').trim()); ajustar(); };
+    // (no fim do ditado, a pontuação: "?" na pergunta, "." no resto)
+    rec.addEventListener('end', () => { if (campo.value.trim()) { campo.value = pontuar(campo.value.trim()); ajustar(); } });
     rec.onerror = (e) => {
       const motivo = {
         'not-allowed': 'Permita o microfone para o app nas configurações do navegador',
@@ -14328,8 +14348,8 @@ function viewDuvidas() {
           <div class="dv-vivo-menu" role="menu" hidden>
             <div class="dv-vivo-menu-vozes" hidden>
               <small>Voz do Lumen</small>
-              <button type="button" role="menuitemradio" data-voz="feminina">${icon('som', 18)}<span>Feminina</span>${icon('check', 18)}</button>
-              <button type="button" role="menuitemradio" data-voz="masculina">${icon('som', 18)}<span>Masculina</span>${icon('check', 18)}</button>
+              <button type="button" role="menuitemradio" data-voz="feminina">${icon('som', 18)}<span>${NOMES_VOZ.feminina}<small>voz feminina</small></span>${icon('check', 18)}</button>
+              <button type="button" role="menuitemradio" data-voz="masculina">${icon('som', 18)}<span>${NOMES_VOZ.masculina}<small>voz masculina</small></span>${icon('check', 18)}</button>
             </div>
             <button type="button" role="menuitemcheckbox" data-interromper>${icon('mic', 18)}<span>Parar quando eu falar</span>${icon('check', 18)}</button>
           </div>
@@ -14376,6 +14396,11 @@ function viewDuvidas() {
     let aberto = true;
     let rec = null;
     let silencios = 0;
+    // a pausa da fala: o Lumen só responde depois de ~5 s sem ouvir nada (dá para parar, pensar e continuar a frase).
+    // Antes valia a pausa curta do reconhecimento de voz (~1 a 2 s) e ele respondia com a frase pela metade
+    const PAUSA_FALA = 5000;
+    let fimDaFala = 0;
+    let terminarFala = null;
     // o arquivo enviado (como no Gemini): vai junto com cada pergunta até tocar no x dele
     let anexo = anexoDuvidas;
     const anexoEl = el.querySelector('.dv-vivo-anexo');
@@ -14462,7 +14487,14 @@ function viewDuvidas() {
       const b = e.target.closest('button');
       if (!b) return;
       // a voz do Lumen: feminina (Francisca) ou masculina (Antonio); vale a partir da próxima fala
-      if (b.dataset.voz) db.setPref('vozLumen', b.dataset.voz);
+      // (a voz nova se apresenta, já no gênero dela, se o Lumen não estiver no meio de uma resposta)
+      if (b.dataset.voz && b.dataset.voz !== generoLumen()) {
+        db.setPref('vozLumen', b.dataset.voz);
+        if (['ouvindo', 'parado'].includes(el.dataset.estado) && permissaoEl.hidden) {
+          estado('falando');
+          falar(`Oi! Agora quem fala é ${b.dataset.voz === 'masculina' ? 'o Antônio' : 'a Francisca'}. Pode continuar.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+        }
+      }
       if (b.hasAttribute('data-interromper')) { db.setPref('interromperLumen', !comInterrupcao()); if (!comInterrupcao()) desligarVigia(); else if (el.dataset.estado === 'falando') ligarVigia(); }
       desenharMenu();
       setTimeout(() => abrirMenu(false), 180);
@@ -14677,34 +14709,77 @@ function viewDuvidas() {
         })();
       });
     };
+    // o texto dos resultados do reconhecimento (no Android, cada resultado às vezes repete o anterior inteiro: fica um só)
+    const textoDosResultados = (resultados) => {
+      let out = '';
+      for (const x of resultados) {
+        const t = String(x[0]?.transcript || '').trim();
+        if (!t) continue;
+        const a = normalizar(out);
+        const b = normalizar(t);
+        if (a && b.startsWith(a)) out = t;
+        else if (!a || !a.endsWith(b)) out = `${out} ${t}`;
+      }
+      return out.trim();
+    };
     const ouvir = () => {
       if (!aberto) return;
       pararVoz();
       desligarVigia();
       const antigo = rec; rec = null; antigo?.abort();
-      const r = new ReconhecerVoz();
-      rec = r;
-      r.lang = 'pt-BR';
-      r.interimResults = true;
-      r.continuous = false;
-      let erro = '';
+      clearTimeout(fimDaFala);
+      fimDaFala = 0;
+      let jaDito = ''; // o que veio nas sessões anteriores (o Android encerra o reconhecimento nas pausas)
       let ouvido = '';
+      let erro = '';
+      const juntar = () => `${jaDito} ${ouvido}`.replace(/\s+/g, ' ').trim();
       estado('ouvindo', leg.palavras.length ? '' : 'Pode falar, estou ouvindo…');
       mostrarFala('');
-      r.onresult = (e) => { if (rec !== r) return; ouvido = [...e.results].map((x) => x[0].transcript).join('').trim(); mostrarFala(ouvido); };
-      r.onerror = (e) => { erro = e.error; };
-      r.onend = () => {
-        if (rec !== r || !aberto) return;
-        rec = null;
-        const q = comMaiuscula(ouvido.trim());
-        if (q) { silencios = 0; responder(q); return; }
-        // ficou em silêncio: tenta ouvir mais uma vez antes de parar
-        if (erro === 'no-speech' && ++silencios < 2) { ouvir(); return; }
-        silencios = 0;
-        if (/not-allowed/.test(erro)) { mostrarPermissao(true); return; }
-        estado('parado', erro === 'network' ? 'O ditado precisa de internet.' : 'Microfone desligado. Toque nele para falar.');
+      // acabou a fala (a pausa passou, ou a pessoa tocou na pílula): responde com tudo o que ela disse
+      const terminar = () => {
+        clearTimeout(fimDaFala);
+        fimDaFala = 0;
+        terminarFala = null;
+        const r = rec; rec = null; r?.abort();
+        const q = comMaiuscula(pontuar(juntar()));
+        if (q) { silencios = 0; responder(q); return true; }
+        return false;
       };
-      try { r.start(); } catch { estado('parado', 'Microfone desligado. Toque nele para falar.'); }
+      terminarFala = terminar;
+      const sessao = () => {
+        const r = new ReconhecerVoz();
+        rec = r;
+        r.lang = 'pt-BR';
+        r.interimResults = true;
+        r.continuous = true;
+        ouvido = '';
+        erro = '';
+        r.onresult = (e) => {
+          if (rec !== r) return;
+          ouvido = textoDosResultados(e.results);
+          mostrarFala(juntar());
+          // cada palavra nova recomeça a contagem da pausa
+          clearTimeout(fimDaFala);
+          fimDaFala = setTimeout(terminar, PAUSA_FALA);
+        };
+        r.onerror = (e) => { erro = e.error; };
+        r.onend = () => {
+          if (rec !== r || !aberto) return;
+          if (ouvido) { jaDito = juntar(); ouvido = ''; }
+          // a sessão acabou no meio da pausa (o Android encerra sozinho): continua ouvindo até a pausa terminar
+          if (jaDito && fimDaFala && !/not-allowed|audio-capture/.test(erro)) { sessao(); return; }
+          if (jaDito) { terminar(); return; }
+          rec = null;
+          terminarFala = null;
+          // ficou em silêncio: tenta ouvir mais uma vez antes de parar
+          if (erro === 'no-speech' && ++silencios < 2) { ouvir(); return; }
+          silencios = 0;
+          if (/not-allowed/.test(erro)) { mostrarPermissao(true); return; }
+          estado('parado', erro === 'network' ? 'O ditado precisa de internet.' : 'Microfone desligado. Toque nele para falar.');
+        };
+        try { r.start(); } catch { if (!terminar()) estado('parado', 'Microfone desligado. Toque nele para falar.'); }
+      };
+      sessao();
     };
     const responder = async (q) => {
       mostrarFala(q);
@@ -14743,7 +14818,7 @@ function viewDuvidas() {
     el.querySelector('.dv-vivo-fechar').onclick = fechar;
     orbe.onclick = () => {
       const agora = el.dataset.estado;
-      if (agora === 'ouvindo') rec?.stop();
+      if (agora === 'ouvindo') { if (!terminarFala?.()) rec?.stop(); }
       else if (agora !== 'pensando') ouvir();
     };
     // "Toque para interromper": a voz para e já ouve a próxima pergunta
@@ -14751,7 +14826,7 @@ function viewDuvidas() {
     // o microfone: ouvindo, desliga; desligado (ou falando), liga
     micBtn.onclick = () => {
       const agora = el.dataset.estado;
-      if (agora === 'ouvindo') { const r = rec; rec = null; r?.abort(); silencios = 0; estado('parado', 'Microfone desligado. Toque nele para falar.'); }
+      if (agora === 'ouvindo') { clearTimeout(fimDaFala); fimDaFala = 0; terminarFala = null; const r = rec; rec = null; r?.abort(); silencios = 0; estado('parado', 'Microfone desligado. Toque nele para falar.'); }
       else if (agora !== 'pensando') {
         if (!permissaoEl.hidden) { permissaoEl.querySelector('button').click(); return; }
         ouvir();
@@ -14773,7 +14848,7 @@ function viewDuvidas() {
       if (!aberto) return;
       permissaoEl.hidden = true;
       estado('falando');
-      falar('Olá, eu sou o Lumen! Pode perguntar sobre a liturgia, os cantos e os arquivos do acervo, ou qualquer dúvida da missa.').then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+      falar(`Olá, eu sou ${oLumen()}! Pode perguntar sobre a liturgia, os cantos e os arquivos do acervo, ou qualquer dúvida da missa.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
     };
     // a permissão do microfone: o Lumen pede antes de começar (um cartão explica e o botão abre a pergunta do navegador)
     const permissaoEl = el.querySelector('.dv-vivo-permissao');

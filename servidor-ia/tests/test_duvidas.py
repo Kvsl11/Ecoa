@@ -154,3 +154,8 @@ def test_texto_do_pdf_limpo_e_o_pdf_do_acervo_para_a_ia(monkeypatch):
     k, t = duvidas.pdf_do_acervo("qual a estrutura da cerimônia de um casamento católico", achados)
     assert (k, t.id) == (2, "m1")
     assert duvidas.pdf_do_acervo("o que é liturgia", achados) is None
+
+
+def test_o_genero_da_voz_vai_para_a_ia():
+    assert "A Lumen" in duvidas.sistema_do_genero("feminina")
+    assert "O Lumen" in duvidas.sistema_do_genero("masculina")

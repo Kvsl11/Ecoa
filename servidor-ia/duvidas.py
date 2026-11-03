@@ -434,8 +434,17 @@ def baixar_pdf(fid: str) -> bytes | None:
     return dados
 
 
+def sistema_do_genero(genero: str) -> str:
+    """A voz escolhida no app dá o gênero do Lumen: a Francisca é "a Lumen", o Antônio é "o Lumen"."""
+    if genero == "masculina":
+        return ("\n\nVocê fala com a voz masculina (Antônio): você é O Lumen. Fale de si no masculino (\"eu sou o "
+                "Lumen\", \"fico contente\", \"estou pronto\", \"obrigado\").")
+    return ("\n\nVocê fala com a voz feminina (Francisca): você é A Lumen. Fale de si no feminino (\"eu sou a Lumen\", "
+            "\"sua assistente litúrgica\", \"estou pronta\", \"obrigada\"). Nunca diga \"o Lumen\" falando de si.")
+
+
 def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False,
-              anexos: list[dict] | None = None) -> dict:
+              anexos: list[dict] | None = None, genero: str = "feminina") -> dict:
     pergunta = pergunta.strip()[:1000]
     if not pergunta:
         raise ValueError("escreva a pergunta")
@@ -447,7 +456,7 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
     # o contexto do app (liturgia, biblioteca) vem do aparelho: limitado, para a conta não crescer sem controle
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
     arquivos = _decodificar(anexos)
-    sistema = SISTEMA + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
+    sistema = SISTEMA + sistema_do_genero(genero) + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
     # sem arquivo da pessoa: o PDF do acervo que trata do assunto vai inteiro (a IA lê o que ele diz de verdade)
     if not arquivos and os.environ.get("IA_PDF_DO_ACERVO", "1") != "0":
         escolhido = pdf_do_acervo(pergunta, achados)
