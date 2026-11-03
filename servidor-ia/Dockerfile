@@ -22,7 +22,10 @@ RUN pip install --no-cache-dir --user torch torchaudio --index-url https://downl
 # os modelos já baixados na montagem: a primeira música não espera o download (Demucs ~80 MB, Whisper small ~460 MB)
 ENV IA_WHISPER=small
 RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')" \
-    && python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')"
+    && python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')" \
+    && python -c "from beat_this.inference import load_model; load_model('final0')" \
+    && python -c "from audio_separator.separator import Separator; Separator(model_file_dir='/home/user/modelos-separacao').load_model('UVR_MDXNET_KARA_2.onnx')"
+ENV IA_MODELOS_SEPARACAO=/home/user/modelos-separacao
 
 COPY --chown=user . .
 ENV PORT=7860

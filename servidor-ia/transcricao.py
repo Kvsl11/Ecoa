@@ -9,10 +9,15 @@ ouvir melhor do que no celular:
 3. a voz conferida pela afinação (CREPE, ou pYIN): a nota que o Basic Pitch ouviu meio tom ou uma oitava fora vai para a
    altura que se canta, e o cantor solo vira uma linha só (uma nota por vez);
 4. a limpeza: o eco (harmônico) de uma nota mais grave sai, a nota cantada longa partida pelo vibrato volta a ser uma
-   só e os estalos curtinhos e fracos (respiração, consoante, palheta) saem.
+   só e os estalos curtinhos e fracos (respiração, consoante, palheta) saem;
+5. o solista separado do backing vocal (o modelo "karaokê", quando instalado o audio-separator): antes as duas coisas
+   vinham juntas na voz, a voz parecia um coral e a correção pela afinação ficava de fora. O backing vai à parte,
+   como "coro" (as vozes de verdade que fazem harmonia);
+6. as batidas e o primeiro tempo de cada compasso pelo Beat This! (rede treinada para isso, quando instalada): o app
+   usa as batidas como a grade dos tempos e o primeiro tempo para o compasso e a anacruse.
 
 As notas saem no mesmo formato do Basic Pitch do app (startTimeSeconds, durationSeconds, pitchMidi, amplitude), com a
-fonte de cada uma ("voz" ou "banda"). A força da voz é posta acima da banda: o app escolhe a melodia pela força.
+fonte de cada uma ("voz", "coro" ou "banda"). A força da voz é posta acima da banda: o app escolhe a melodia pela força.
 """
 
 from __future__ import annotations
@@ -456,15 +461,35 @@ def audio_do_video(video: str, baixar) -> tuple[np.ndarray, bool, str]:
     return y, cortado, baixado.get("titulo") or ""
 
 
+def _serve(g: dict, chave: str, y: np.ndarray) -> bool:
+    # a faixa guardada do vídeo inteiro serve também para um pedaço do começo (a partitura usa só os 6 primeiros minutos)
+    return chave in g and (len(g[chave]) == len(y) or (len(y) == MAX_SEGUNDOS * SR and len(g[chave]) > len(y)))
+
+
 def separar_guardado(y: np.ndarray, video: str | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """A voz e a banda: as já separadas deste vídeo ou, se não houver, separa (e guarda)."""
+    """A voz e a banda: as já separadas deste vídeo ou, se não houver, separa (e guarda). As separadas com outro
+    separador (o Demucs, antes de pedir o RoFormer) são refeitas."""
     g = guardado(video)
-    # a voz guardada do vídeo inteiro serve também para um pedaço do começo (a partitura usa só os 6 primeiros minutos)
-    if "voz" in g and "banda" in g and (len(g["voz"]) == len(y) or (len(y) == MAX_SEGUNDOS * SR and len(g["voz"]) > len(y))):
+    feito = str(g.get("separador", "htdemucs"))
+    if _serve(g, "voz", y) and "banda" in g and feito == separador():
         return g["voz"][:len(y)], g["banda"][:len(y)]
     voz, banda = separar(y)
-    guardar(video, voz=voz, banda=banda)
+    guardar(video, voz=voz, banda=banda, separador=np.array(separador()))
     return voz, banda
+
+
+def solista_guardado(voz: np.ndarray, video: str | None = None) -> tuple[np.ndarray, np.ndarray] | None:
+    """O solista e o backing vocal, da voz separada: os já guardados ou, se não houver, separa (e guarda). None sem
+    o modelo karaokê."""
+    modelo = modelo_solista()
+    if not modelo:
+        return None
+    g = guardado(video)
+    if _serve(g, "solista", voz) and "coro" in g and str(g.get("solista_modelo", "")) == modelo:
+        return g["solista"][:len(voz)], g["coro"][:len(voz)]
+    solista, coro = separar_solista(voz, modelo)
+    guardar(video, solista=solista, coro=coro, solista_modelo=np.array(modelo))
+    return solista, coro
 
 
 # quantos núcleos cada modelo usa (IA_THREADS; no Modal, os da máquina). Sem isso o torch pode achar que tem os
@@ -505,12 +530,48 @@ def modelo_basic_pitch():
 def tem_separacao() -> bool:
     if os.environ.get("IA_SEM_SEPARACAO"):
         return False
+    if separador() != "htdemucs":
+        return True
     try:
         import demucs  # noqa: F401
         import torch  # noqa: F401
         return True
     except ImportError:
         return False
+
+
+def _tem_audio_separator() -> bool:
+    try:
+        import audio_separator  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+# a separação da voz: o Demucs (htdemucs, o padrão: ~1 min numa música de 4 min em 8 núcleos) ou, com
+# IA_SEPARADOR=roformer e o audio-separator instalado, o Mel-Band RoFormer (a voz bem mais limpa: SDR 12,6 contra
+# 9,9 do htdemucs, mas ~6x mais lento no processador; para o servidor no PC com placa de vídeo)
+ROFORMER = "vocals_mel_band_roformer.ckpt"
+
+
+def separador() -> str:
+    pedido = (os.environ.get("IA_SEPARADOR") or "").strip().lower()
+    if pedido == "roformer" and _tem_audio_separator():
+        return ROFORMER
+    return "htdemucs"
+
+
+# o solista e o backing vocal: o modelo "karaokê" na voz separada (o UVR MDX-Net KARA 2, em ONNX: ~30 s por minuto de
+# música em 4 núcleos). IA_SOLISTA troca o modelo (por ex. mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt,
+# melhor e bem mais lento); IA_SOLISTA=0 desliga
+KARAOKE = "UVR_MDXNET_KARA_2.onnx"
+
+
+def modelo_solista() -> str | None:
+    pedido = (os.environ.get("IA_SOLISTA") or "").strip()
+    if pedido in ("0", "nao", "não", "off") or not _tem_audio_separator():
+        return None
+    return pedido if pedido and pedido != "1" else KARAOKE
 
 
 def modelo_demucs():
@@ -543,7 +604,10 @@ def carregar(caminho: str, maximo: float = MAX_SEGUNDOS) -> tuple[np.ndarray, bo
 
 
 def separar(y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Voz e banda (o resto), com o Demucs."""
+    """Voz e banda (o resto), com o Demucs ou o RoFormer (ver separador)."""
+    if separador() != "htdemucs":
+        voz, banda = _audio_separator(y, separador(), ("vocals",))
+        return voz, banda
     import librosa
     import torch
     from demucs.apply import apply_model
@@ -560,6 +624,51 @@ def separar(y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     banda = (fontes.sum(0) - fontes[iv]).mean(0).numpy()
     volta = lambda s: librosa.resample(s, orig_sr=m.samplerate, target_sr=SR).astype(np.float32)  # noqa: E731
     return volta(voz), volta(banda)
+
+
+_separadores: dict = {}
+_trava_sep = threading.Lock()  # um modelo do audio-separator separa uma música por vez
+
+
+def _audio_separator(y: np.ndarray, modelo: str, principal: tuple[str, ...]) -> tuple[np.ndarray, np.ndarray]:
+    """Um modelo do audio-separator no áudio (22050 Hz, mono): (a faixa principal, o resto), em 22050 Hz, mono. A
+    principal é a saída cujo nome tem uma das palavras de "principal" (vocals); o resto, a outra."""
+    import librosa
+    import soundfile as sf
+    from audio_separator.separator import Separator
+
+    _threads_do_torch()
+    with tempfile.TemporaryDirectory(prefix="songbook-sep-") as pasta:
+        entrada = os.path.join(pasta, "entrada.wav")
+        x = librosa.resample(y, orig_sr=SR, target_sr=44100)
+        sf.write(entrada, np.stack([x, x], 1), 44100)
+        with _trava_sep:
+            sep = _separadores.get(modelo)
+            if sep is None:
+                sep = Separator(output_dir=pasta, model_file_dir=os.environ.get("IA_MODELOS_SEPARACAO", "/tmp/audio-separator-models/"),
+                                log_level=logging.WARNING)
+                sep.load_model(modelo)
+                _separadores[modelo] = sep
+            sep.output_dir = pasta
+            if getattr(sep, "model_instance", None) is not None:
+                sep.model_instance.output_dir = pasta
+            saidas = sep.separate(entrada)
+        caminhos = [s if os.path.isabs(s) else os.path.join(pasta, s) for s in saidas]
+        eh_principal = lambda c: any(f"({p})" in os.path.basename(c).lower() for p in principal)  # noqa: E731
+        prin = next((c for c in caminhos if eh_principal(c)), None)
+        resto = next((c for c in caminhos if c != prin), None)
+        if prin is None or resto is None:
+            raise RuntimeError(f"saídas inesperadas do {modelo}: {saidas}")
+        ler = lambda c: librosa.load(c, sr=SR, mono=True)[0].astype(np.float32)  # noqa: E731
+        a, b = ler(prin), ler(resto)
+    n = len(y)
+    ajusta = lambda s: np.pad(s, (0, max(0, n - len(s))))[:n]  # noqa: E731
+    return ajusta(a), ajusta(b)
+
+
+def separar_solista(voz: np.ndarray, modelo: str = KARAOKE) -> tuple[np.ndarray, np.ndarray]:
+    """O solista (a voz principal) e o backing vocal (o coro), da voz já separada, pelo modelo karaokê."""
+    return _audio_separator(voz, modelo, ("vocals",))
 
 
 def ouvir(y: np.ndarray, pasta: str, nome: str, fonte: str, **opcoes):
@@ -626,10 +735,65 @@ def afinacao_da_voz(voz: np.ndarray):
     return midi_da_f0(np.nan_to_num(f0, nan=1.0)), vozeado, tempos
 
 
+_modelo_beat_this = None
+
+
+def tem_beat_this() -> bool:
+    if os.environ.get("IA_SEM_BEAT_THIS"):
+        return False
+    try:
+        import beat_this  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def modelo_beat_this():
+    global _modelo_beat_this
+    with _trava:
+        if _modelo_beat_this is None:
+            from beat_this.inference import Audio2Beats
+
+            _threads_do_torch()
+            _modelo_beat_this = Audio2Beats(checkpoint_path=os.environ.get("IA_BEAT_THIS", "final0"), device="cpu", dbn=False)
+        return _modelo_beat_this
+
+
+def andamento_pelas_batidas(batidas, primeiros=()) -> tuple[float, list[float], list[float]] | None:
+    """O andamento (a mediana dos intervalos, em bpm) das batidas e os primeiros tempos que caem numa batida. None
+    com batidas de menos (ou fora de qualquer andamento cantável)."""
+    b = np.asarray(sorted(float(t) for t in batidas))
+    if len(b) < 8:
+        return None
+    iv = np.diff(b)
+    iv = iv[iv > 0]
+    if not len(iv):
+        return None
+    bpm = 60.0 / float(np.median(iv))
+    if not 30 <= bpm <= 260:
+        return None
+    perto = [float(t) for t in primeiros if len(b) and float(np.min(np.abs(b - float(t)))) < 0.07]
+    return round(bpm, 1), [round(float(t), 3) for t in b], [round(t, 3) for t in perto]
+
+
+def batidas_beat_this(y: np.ndarray):
+    """(bpm, batidas, primeiros tempos) pelo Beat This! (CPJKU, ISMIR 2024: rede treinada nas batidas e nos primeiros
+    tempos de milhares de músicas; ~3 s por minuto de música). None sem ele ou se falhar."""
+    if not tem_beat_this():
+        return None
+    try:
+        batidas, primeiros = modelo_beat_this()(y, SR)
+        return andamento_pelas_batidas(batidas, primeiros)
+    except Exception:
+        log.exception("Beat This! falhou: vão as batidas do librosa")
+        return None
+
+
 def andamento(y: np.ndarray, banda: np.ndarray | None = None) -> tuple[float, list[float]]:
     """O andamento e as batidas, ouvidos no áudio. Com a banda separada, nela (a voz, que adianta e segura, fica de
     fora) e só a parte percussiva (bateria, a palhetada do violão): as batidas ficam mais firmes que pela música
-    inteira. O app usa as batidas como a grade dos tempos da partitura."""
+    inteira. O app usa as batidas como a grade dos tempos da partitura. (O Beat This!, quando instalado, vem antes:
+    ver batidas_beat_this.)"""
     import librosa
 
     fonte = banda if banda is not None and float(np.sqrt(np.mean(banda ** 2))) > 0.005 else y
@@ -675,6 +839,25 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
             except Exception as e:  # a separação falhou (memória, modelo): segue com a música inteira
                 log.exception("separação da voz falhou")
                 separado, aviso = False, f"separação da voz falhou ({type(e).__name__})"
+        coro, coro_y, solista = [], None, False
+        if separado:
+            # o solista longe do backing vocal: a voz do solista fica sozinha (uma linha só, conferida pela afinação)
+            # e o backing vai como "coro". Sem backing de verdade (quase nada na faixa), a voz inteira é do solista
+            try:
+                par = solista_guardado(voz_y, video)
+            except Exception as e:
+                log.exception("separação do solista falhou")
+                par = None
+                aviso = aviso or f"separação do solista falhou ({type(e).__name__})"
+            if par is not None:
+                sol_y, back_y = np.nan_to_num(par[0]), np.nan_to_num(par[1])
+                rms = lambda s: float(np.sqrt(np.mean(s ** 2)))  # noqa: E731
+                base = rms(voz_y) or 1.0
+                if rms(sol_y) / base > 0.25:
+                    solista = True
+                    voz_y = sol_y
+                    if rms(back_y) / base > 0.15:
+                        coro_y = back_y
         etapa("notas")
         if separado:
             voz, quebra_voz = ouvir(voz_y, pasta, "voz", "voz", **OPCOES_VOZ)
@@ -688,8 +871,13 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
                 log.exception("ataques da voz falharam")
                 ataques = None
             voz, banda, tipo = limpar(voz, banda, afin, quebra_voz, quebra_banda, ataques)
-            # a voz acima da banda: o app escolhe a melodia (e o Soprano) pela força
+            # o backing vocal à parte (sem a correção pela afinação, que é de uma voz só)
+            if coro_y is not None:
+                coro, quebra_coro = ouvir(coro_y, pasta, "coro", "coro", **OPCOES_VOZ)
+                coro = tirar_estalos(juntar_pedacos(tirar_harmonicos(coro), vibrato=True, quebra=quebra_coro))
+            # a voz acima do coro e o coro acima da banda: o app escolhe a melodia (e o Soprano) pela força
             forca_relativa(voz, 0.85, 1.0)
+            forca_relativa(coro, 0.62, 0.78)
             forca_relativa(banda, 0.5, 0.65)
         else:
             # sem a separação, a música inteira junta: só a limpeza (a voz e a banda não dá para separar)
@@ -697,8 +885,14 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
             juntas = juntar_pedacos(tirar_harmonicos(mistura), quebra=quebra)
             voz, banda, tipo = [], tirar_estalos(juntas), "mistura"
     etapa("escrevendo")
-    bpm, batidas = andamento(y, banda_y if separado else None)
-    notas = sorted(voz + banda, key=lambda n: (n.ini, n.alt))
+    # as batidas: pelo Beat This! (na música inteira, como ele foi treinado), senão pelo librosa na banda separada
+    pela_rede = batidas_beat_this(y)
+    if pela_rede is not None:
+        bpm, batidas, primeiros = pela_rede
+    else:
+        bpm, batidas = andamento(y, banda_y if separado else None)
+        primeiros = []
+    notas = sorted(voz + coro + banda, key=lambda n: (n.ini, n.alt))
     return {
         "notas": [n.para_app() for n in notas],
         "duracao": round(duracao, 3),
@@ -709,6 +903,13 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
         "vozes": tipo,
         "andamento": bpm,
         "batidas": batidas,
-        # as batidas vieram da banda separada (a bateria, o violão): o app as usa como a grade dos tempos
-        "batidasDaBanda": bool(separado and banda),
+        # as batidas são firmes (do Beat This!, ou da banda separada: a bateria, o violão): o app as usa como a grade
+        # dos tempos
+        "batidasDaBanda": bool(pela_rede is not None or (separado and banda)),
+        # o primeiro tempo de cada compasso (do Beat This!): o app tira dele o compasso e a anacruse
+        "primeirosTempos": primeiros,
+        "solista": solista,
+        "coro": len(coro),
+        "separador": separador() if separado else "",
+        "batidasPor": "beat_this" if pela_rede is not None else "librosa",
     }

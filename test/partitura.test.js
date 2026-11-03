@@ -414,3 +414,19 @@ test('IA: as batidas da banda viram a grade dos tempos (o cantor adianta e atras
   assert.equal(andamentoDasBatidas(batidas, 140), null);
   assert.ok(melodiaDasNotas(notas, { bpm: 94, batidas }).length > 0);
 });
+
+test('IA: o compasso e a anacruse pelos primeiros tempos que o servidor ouviu (Beat This!)', async () => {
+  const { estimarCompasso } = await import('../public/js/lib/partitura.js');
+  const q = 60 / 90;
+  // melodia sem acento nenhum (todas as notas iguais): pelas notas não dá para saber o compasso
+  const notas = Array.from({ length: 48 }, (_, i) => ({ startTimeSeconds: 1 + i * q, durationSeconds: q * 0.9, pitchMidi: 67 + (i % 3), amplitude: 0.8 }));
+  const batidas = Array.from({ length: 52 }, (_, i) => +(1 + i * q).toFixed(3));
+  // 3/4 com o primeiro tempo na segunda batida: anacruse de 1 tempo (8 tiques)
+  const primeiros = batidas.filter((_, i) => i % 3 === 1);
+  assert.deepEqual(estimarCompasso(notas, { bpm: 90, batidas, primeiros }), { compasso: [3, 4], anacruse: 8 });
+  // 4/4 começando na batida
+  const de4 = batidas.filter((_, i) => i % 4 === 0);
+  assert.deepEqual(estimarCompasso(notas, { bpm: 90, batidas, primeiros: de4 }), { compasso: [4, 4], anacruse: 0 });
+  // a pessoa escolheu 4/4: os primeiros tempos de 3/4 não servem (fica a estimativa)
+  assert.deepEqual(estimarCompasso(notas, { bpm: 90, batidas, primeiros, compasso: [4, 4] }).compasso, [4, 4]);
+});

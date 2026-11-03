@@ -234,7 +234,8 @@ def aquecer():
     import alinhador
 
     for nome, carregar in (("Demucs", transcricao.modelo_demucs), ("Basic Pitch", transcricao.modelo_basic_pitch),
-                           ("Whisper", letra.modelo_whisper), ("Alinhador da letra", alinhador.modelo)):
+                           ("Whisper", letra.modelo_whisper), ("Alinhador da letra", alinhador.modelo),
+                           ("Beat This!", transcricao.modelo_beat_this)):
         try:
             carregar()
             log.warning("Modelo pronto: %s", nome)
@@ -253,6 +254,8 @@ def saude():
     response = {
         "ok": True,
         "separacao": transcricao.tem_separacao(),
+        "solista": transcricao.modelo_solista(),
+        "batidas": "beat_this" if transcricao.tem_beat_this() else "librosa",
         "youtube": shutil.which("ffmpeg") is not None,
         "cookies": youtube.arquivo_de_cookies() is not None,
         "cookiesInfo": youtube.info_dos_cookies(),

@@ -858,12 +858,39 @@ const DESENHOS = [
   { c: [2, 4], tempos: [0, 2], passo: 2, peso: 1, soFixo: true },
 ];
 const TAMANHO = { '4/4': 8, '3/4': 6, '6/8': 6, '2/4': 4 };
-export function estimarCompasso(notas, { bpm = 80, faixa = [48, 84], minAmp = 0.2, meioTempo = false, compasso = null, batidas = null } = {}) {
+// pelo primeiro tempo de cada compasso que o servidor ouviu (o Beat This!): quantos tempos há entre um e outro (3 ou
+// 4) e em que colcheia da grade o compasso começa (a anacruse). Só quando quase todos os compassos têm o mesmo
+// tamanho; senão null (fica a estimativa pelas notas)
+function compassoDosPrimeiros(primeiros, passoDe, { L = null, meioTempo = false } = {}) {
+  if (!primeiros || primeiros.length < 4 || meioTempo) return null;
+  const pos = primeiros.map((t) => passoDe(t) / 2).filter((x) => x >= -0.5); // em colcheias
+  if (pos.length < 4) return null;
+  const tamanhos = pos.slice(1).map((x, i) => Math.round((x - pos[i]) / 2)); // em tempos
+  const conta = new Map();
+  for (const n of tamanhos) conta.set(n, (conta.get(n) || 0) + 1);
+  const [tempos, vezes] = [...conta].sort((a, b) => b[1] - a[1])[0];
+  if (![3, 4].includes(tempos) || vezes < tamanhos.length * 0.7) return null;
+  const tam = L ?? tempos * 2;
+  if (tam !== tempos * 2) return null;
+  // a colcheia (dentro do compasso) onde caem mais primeiros tempos
+  const fase = new Array(tam).fill(0);
+  for (const x of pos) fase[((Math.round(x) % tam) + tam) % tam]++;
+  const o = fase.indexOf(Math.max(...fase));
+  if (fase[o] < pos.length * 0.6) return null;
+  return { compasso: [tempos, 4], anacruse: o * 4 };
+}
+
+export function estimarCompasso(notas, { bpm = 80, faixa = [48, 84], minAmp = 0.2, meioTempo = false, compasso = null, batidas = null, primeiros = null } = {}) {
   const passoS = 60 / bpm / 4;
   const validas = notas.filter((n) => n.pitchMidi >= faixa[0] && n.pitchMidi <= faixa[1] && (n.amplitude ?? 1) >= minAmp && n.durationSeconds > passoS * 0.6);
   const fixo = compasso && DESENHOS.find((x) => x.c[0] === compasso[0] && x.c[1] === compasso[1]);
   if (!validas.length || (compasso && !fixo)) return { compasso: compasso || [4, 4], anacruse: 0 };
   const { passo, nPassos, passoDe } = gradeDasNotas(notas, validas, { bpm, minAmp, meioTempo, batidas });
+  // os primeiros tempos do servidor valem mais que a estimativa pelas notas (no 6/8 e no 2/4 escolhidos, não servem)
+  if (primeiros && (!fixo || fixo.c[1] === 4) && !(fixo && fixo.c[0] === 2)) {
+    const pelos = compassoDosPrimeiros(primeiros, passoDe, { L: fixo ? TAMANHO[fixo.c.join('/')] : null, meioTempo });
+    if (pelos) return pelos;
+  }
   const tempo = passo * 4;
   const nCol = Math.ceil(nPassos / 2) + 1;
   const forca = new Array(nCol).fill(0);

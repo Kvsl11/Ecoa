@@ -21,11 +21,14 @@ imagem = (
         "pip install --no-deps basic-pitch==0.4.0",
         # os modelos já baixados na montagem: a primeira música não espera o download
         "python -c \"from demucs.pretrained import get_model; get_model('htdemucs')\"",
+        # o Beat This! (as batidas) e o karaokê (o solista longe do backing vocal)
+        "python -c \"from beat_this.inference import load_model; load_model('final0')\"",
+        "python -c \"from audio_separator.separator import Separator; Separator(model_file_dir='/root/modelos-separacao').load_model('UVR_MDXNET_KARA_2.onnx')\"",
         "python -c \"from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')\"",
         # o "medium", do "sincronizar de novo" (mais preciso)
         "python -c \"from faster_whisper import WhisperModel; WhisperModel('medium', device='cpu', compute_type='int8')\"",
     )
-    .env({"IA_WHISPER": "small", "PYTHONUNBUFFERED": "1"})
+    .env({"IA_WHISPER": "small", "PYTHONUNBUFFERED": "1", "IA_MODELOS_SEPARACAO": "/root/modelos-separacao"})
     .add_local_dir(PASTA, remote_path="/root/app", ignore=["tests", "**/__pycache__", ".pytest_cache", "Dockerfile"])
 )
 
