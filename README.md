@@ -123,8 +123,11 @@ Visual escuro moderno (cor padrão ciano (a da logo)), com capas, cabeçalhos em
 - **Letra sincronizada** (menu ⋯ da música → *Sincronizar a letra com o vídeo*, com o servidor): o Whisper ouve o
   vídeo e cada linha ganha o seu instante; tocando, a linha cantada acende e a letra rola junto, como no Spotify, e
   tocar numa linha leva o vídeo até ela (o refrão repetido vai para a próxima vez dele).
-- **Karaokê** (como o *Sing* do Apple Music): na letra na tela toda, o **microfone** à direita (em cima da barra do
-  tempo; também no ⋯ do Tocando agora) tira a voz do cantor e deixa a banda. É um controle deslizante: arrastando para
+- **Karaokê** (como o *Sing* do Apple Music), nas músicas com a **letra sincronizada**: na letra na tela toda, o
+  **microfone** com as estrelinhas à direita (em cima da barra do tempo; também no ⋯ do Tocando agora), numa bolinha de
+  vidro claro que cresce com mola e vira o controle (a letra atrás se apaga enquanto ele está aberto), tira a voz do
+  cantor e deixa a banda. Nas músicas baixadas o karaokê vem junto com o download (Ajustes → Downloads, "Baixar também o
+  karaokê", um por vez no servidor). É um controle deslizante: arrastando para
   cima, a voz volta aos poucos, de guia (o volume é o quadrado da posição: no meio ela já fica baixinha); outro toque e
   a música volta a ser a gravação inteira, sem parar nem trocar de arquivo. Na primeira vez de cada música o servidor da
   IA (`POST /karaoke`, ou `/karaoke/arquivo` com o áudio da pessoa) separa a voz com o **Demucs em estéreo, a 44,1 kHz**

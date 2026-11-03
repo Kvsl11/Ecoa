@@ -177,6 +177,9 @@ dica.id = 'tooltip';
 dica.setAttribute('role', 'tooltip');
 document.body.append(dica);
 const ALVO_DICA = 'button, a.icon-btn, a.play-big, .swatch, [data-tip], .chip[title], .nav a, label.swatch';
+// sem dica: o microfone do karaokê (segurar e arrastar nele muda o volume da voz; a dica cobria o controle e engolia o
+// toque mais demorado)
+const SEM_DICA = '.pl-karaoke';
 let dicaTimer = null;
 let dicaDeToque = false;
 
@@ -203,7 +206,7 @@ function esconderDica() { clearTimeout(dicaTimer); dica.classList.remove('show')
 document.addEventListener('pointerover', (e) => {
   if (e.pointerType !== 'mouse') return;
   const el = e.target.closest(ALVO_DICA);
-  if (!el) return;
+  if (!el || el.closest(SEM_DICA)) return;
   clearTimeout(dicaTimer);
   dicaTimer = setTimeout(() => mostrarDica(el), 350);
 });
@@ -212,7 +215,7 @@ document.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' &
 document.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'mouse') { esconderDica(); return; }
   const el = e.target.closest(ALVO_DICA);
-  if (!el || (el.closest('.set-item') && !el.closest('.acts'))) return; // segurar a linha da música é para arrastar
+  if (!el || (el.closest('.set-item') && !el.closest('.acts')) || el.closest(SEM_DICA)) return; // segurar a linha da música é para arrastar
   dicaDeToque = false;
   clearTimeout(dicaTimer);
   dicaTimer = setTimeout(() => { dicaDeToque = true; mostrarDica(el); }, 480);
@@ -941,6 +944,8 @@ async function baixarAgora(id) {
   if (!db.song(id)) return;
   const tamanho = Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0);
   db.updateSong(id, { baixado: { arquivos, tamanho, em: Date.now() }, rebaixar: undefined });
+  // (e o karaokê dela, em segundo plano, se a letra é sincronizada)
+  setTimeout(() => karaokeDoDownload(id), 0);
   // A música fica pronta assim que áudio/vídeo forem guardados. Capas, fotos,
   // biografia e outros dados do artista são enriquecimento offline em segundo
   // plano: uma API lenta não deve segurar o download principal.
@@ -1018,6 +1023,30 @@ function karaokeDe(fonte) {
   if (!fonte) return null;
   for (const s of db.songs()) { const k = s.karaoke?.[fonte]; if (k && (k.versao || 1) >= KARAOKE_VERSAO) return k; }
   return karaokesAvulsos.get(fonte) || null;
+}
+// o karaokê é das músicas com a letra sincronizada (a letra acompanha a gravação, e é nela que se canta junto)
+const letraSincronizadaDe = (s) => Boolean(s?.sincronia?.fonte === 'lrclib' && s.sincronia.video === videoDaLetra(s) && s.sincronia.tempos?.length);
+// o microfone do karaokê, como o do Apple Music: o microfone de mão deitado e três estrelinhas, que piscam (cada uma é
+// um desenho à parte, para o CSS animar)
+const brilho = (x, y, r, k) => `<path class="mk-brilho mk-b${k}" d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="currentColor" stroke="none"/>`;
+const MICROFONE_KARAOKE = `<svg class="ic mk" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <g class="mk-mic"><circle cx="15.4" cy="8.6" r="4" fill="currentColor" stroke="none"/><path d="M12.4 11.6 5.2 18.8" stroke-width="2.6"/><path d="M12.3 13.9l-2.2-2.2" stroke-width="1.6"/></g>
+  ${brilho(5.6, 7.4, 3.1, 1)}${brilho(3.4, 13.2, 1.7, 2)}${brilho(19.6, 17.6, 2, 3)}</svg>`;
+// Baixar a música com a letra sincronizada também prepara o karaokê dela (Ajustes → Downloads: "Baixar também o
+// karaokê"): o microfone liga na hora, até sem internet. Um por vez, para não ocupar o servidor com várias de uma vez
+const filaKaraoke = [];
+let andandoKaraoke = null;
+function karaokeDoDownload(id) {
+  const s = db.song(id);
+  if (db.prefs().baixarKaraoke === false || !s?.baixado || !letraSincronizadaDe(s) || karaokeDe(fonteDoKaraoke(s)) || filaKaraoke.includes(id)) return;
+  filaKaraoke.push(id);
+  andandoKaraoke ||= (async () => {
+    while (filaKaraoke.length) {
+      const x = db.song(filaKaraoke.shift());
+      if (x?.baixado && letraSincronizadaDe(x) && !karaokeDe(fonteDoKaraoke(x))) await prepararKaraoke(x).catch(() => {});
+    }
+    andandoKaraoke = null;
+  })();
 }
 const preparandoKaraoke = new Map(); // fonte → { pct, etapa, promessa }
 const avisarKaraoke = () => window.dispatchEvent(new CustomEvent('songbook:karaoke'));
@@ -1719,7 +1748,7 @@ const player = (() => {
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
       <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
-      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${icon('mic', 18)}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
+      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
     <div class="pl-extra" hidden></div>`;
@@ -3341,8 +3370,12 @@ const semLinhasDeAcordes = (sinc) => {
   let nivelVoz = nivelDaVoz(); // o volume da voz no controle (0 a 1), guardado ao soltar
   let karaokeAberto = 0; // o relógio que recolhe o controle
   let ignorarClique = false; // (o toque que arrastou o controle não liga nem desliga o karaokê)
-  // a gravação do karaokê da música tocando ('' quando não dá: nada tocando, música sem vídeo ou vídeo solto da busca)
-  const fonteKaraokeAgora = () => (atual && !atual.semVideo ? fonteDoKaraoke(musicaTocando()) : '');
+  // a gravação do karaokê da música tocando ('' quando não dá: nada tocando, música sem vídeo, vídeo solto da busca ou
+  // música sem a letra sincronizada)
+  const fonteKaraokeAgora = () => {
+    const song = atual && !atual.semVideo ? musicaTocando() : null;
+    return song && letraSincronizadaDe(song) ? fonteDoKaraoke(song) : '';
+  };
   const desenharKaraoke = () => {
     if (!kEl) return;
     const fonte = fonteKaraokeAgora();
@@ -3365,12 +3398,24 @@ const semLinhasDeAcordes = (sinc) => {
     trilho.tabIndex = est === 'ligado' ? 0 : -1;
     // ("Karaokê" embaixo da barra do tempo, como o "Sing" do Apple Music)
     el.classList.toggle('karaoke-on', est === 'ligado');
+    if (est !== 'ligado') el.classList.remove('karaoke-ajustando');
   };
   window.addEventListener('songbook:karaoke', () => desenharKaraoke());
+  // (a letra sincronizada chegou: o microfone aparece; com o karaokê ligado, ele já prepara)
+  window.addEventListener('songbook:sincronia', () => setTimeout(() => { karaokeDaMusica = ''; acompanharKaraoke(); }, 0));
+  // o controle aberto (crescido para cima): a letra atrás fica apagada e desfocada, como no Apple Music
   const abrirControle = () => {
     kEl.classList.add('aberto');
+    el.classList.toggle('karaoke-ajustando', kEl.dataset.estado === 'ligado');
     clearTimeout(karaokeAberto);
-    karaokeAberto = setTimeout(() => kEl.classList.remove('aberto'), 2600);
+    karaokeAberto = setTimeout(() => { kEl.classList.remove('aberto'); el.classList.remove('karaoke-ajustando'); }, 2600);
+  };
+  // o toque que liga: o microfone dá um pulo e as estrelinhas se espalham
+  const pularMicrofone = () => {
+    kEl.classList.remove('pulo');
+    void kEl.offsetWidth;
+    kEl.classList.add('pulo');
+    setTimeout(() => kEl.classList.remove('pulo'), 700);
   };
   const mudarVoz = (n, segundos = 0.05) => {
     nivelVoz = Math.max(0, Math.min(1, Math.round(n * 100) / 100));
@@ -3469,7 +3514,7 @@ const semLinhasDeAcordes = (sinc) => {
       if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
       entrarNoKaraoke();
       // (pedido no toque: o controle se abre um instante, para mostrar que dá para arrastar)
-      if (avisarPronto) { abrirControle(); toast('Karaokê pronto. Arraste o microfone para cima para a voz voltar um pouco, de guia'); }
+      if (avisarPronto) { desenharKaraoke(); abrirControle(); pularMicrofone(); toast('Karaokê pronto. Arraste o microfone para cima para a voz voltar um pouco, de guia'); }
     }).catch((e) => {
       if (fonteKaraokeAgora() === fonte) karaokeLigado = false;
       desenharKaraoke();
@@ -3480,13 +3525,15 @@ const semLinhasDeAcordes = (sinc) => {
     karaokeLigado = false;
     // a voz volta inteira, devagar, no mesmo arquivo (sem trocar de arquivo, sem engasgo); ele segue até a próxima música
     if (local?.karaoke) rampaDaVoz(1, 0.5);
+    kEl.classList.remove('aberto');
+    el.classList.remove('karaoke-ajustando');
     desenharKaraoke();
   };
   const alternarKaraoke = () => {
     if (karaokeLigado) { desligarKaraoke(); return; }
     const song = musicaTocando();
     const fonte = fonteKaraokeAgora();
-    if (!fonte) { toast('Esta música ainda não tem um áudio para o karaokê'); return; }
+    if (!fonte) { toast('O karaokê é das músicas com a letra sincronizada, e esta ainda não tem'); return; }
     // (o Web Audio nasce e acorda aqui, no toque; a conferência dos canais também começa no toque)
     const g = criarGrafoKaraoke();
     if (!g) { toast('Este navegador não tem o Web Audio, e o karaokê não funciona nele'); return; }
@@ -3495,8 +3542,9 @@ const semLinhasDeAcordes = (sinc) => {
     karaokeLigado = true;
     // (no clipe não há letra: vai já para o modo música, e a letra aparece enquanto o karaokê fica pronto)
     if (emVideo() && !comCapa) mudarModoAgora();
-    abrirControle();
     desenharKaraoke();
+    abrirControle();
+    pularMicrofone();
     canais.then((ok) => {
       if (ok === false) {
         karaokeLigado = false;
@@ -16234,6 +16282,7 @@ function viewOffline() {
           <div class="seg" id="of-oque"><button data-v="video" aria-pressed="${p.baixarVideo !== false}">Áudio e vídeo</button><button data-v="audio" aria-pressed="${p.baixarVideo === false}">Só o áudio</button></div></div>
         <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}</div></div>${icon('next', 18)}</a>
         ${chave('of-ao-salvar', 'baixar', 'Baixar ao salvar', 'A música salva na biblioteca já é baixada para tocar sem internet', p.baixarAoSalvar !== false)}
+        ${chave('of-karaoke', 'mic', 'Baixar também o karaokê', 'Nas músicas com a letra sincronizada, o servidor já separa a voz da banda ao baixar: o microfone da letra liga na hora, até sem internet', p.baixarKaraoke !== false)}
         ${chave('of-moveis', 'aparelhos', 'Baixar com os dados móveis', 'Sem isso, fora do Wi-Fi o app pergunta antes de baixar', p.baixarDadosMoveis)}
         <div class="setting"><span class="ico">${icon('library', 18)}</span><div class="grow"><div class="t">Baixar as músicas salvas</div><div class="s" id="of-todas-s">${baixando.size ? `Baixando: ${baixando.size} na fila` : `${baixadas.length} de ${salvas.length} baixadas`}${servidorIA().url ? '' : ' · o áudio e o vídeo vêm pelo servidor do seu computador (Ajustes → Avançado)'}</div></div>
           <button class="btn small primary" id="of-todas"${faltam.length ? '' : ' disabled'}>${icon('baixar', 15)} ${faltam.length ? `Baixar ${faltam.length}` : 'Todas baixadas'}</button></div>
@@ -16301,6 +16350,11 @@ function viewOffline() {
     }
     if (e.target.id === 'of-moveis') db.setPref('baixarDadosMoveis', e.target.checked);
     if (e.target.id === 'of-ao-salvar') db.setPref('baixarAoSalvar', e.target.checked);
+    if (e.target.id === 'of-karaoke') {
+      db.setPref('baixarKaraoke', e.target.checked);
+      // (ligado: as músicas já baixadas e sincronizadas também ganham o karaokê, uma por vez)
+      if (e.target.checked) db.songs().filter((x) => x.baixado).forEach((x) => karaokeDoDownload(x.id));
+    }
   });
   view.addEventListener('click', async (e) => {
     const b = e.target.closest('button');
