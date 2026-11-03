@@ -118,6 +118,8 @@ function carregarServidor({ forcar = false } = {}) {
         SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
       }
     }
+    // o YouTube conectado de novo sozinho, se o servidor perdeu a conexão (ver reconectarYoutube)
+    if (SERVIDOR_IA.url) setTimeout(() => reconectarYoutube(SERVIDOR_IA), 0);
     return SERVIDOR_IA;
   })().catch(() => SERVIDOR_IA).finally(() => {
     servidorVerificadoEm = Date.now();
@@ -13082,6 +13084,21 @@ async function viewFontes() {
 const YT_COOKIES = 'songbook.ytCookies';
 const cookiesSalvos = () => { try { return JSON.parse(localStorage.getItem(YT_COOKIES) || 'null'); } catch { return null; } };
 const salvarCookies = (c) => { try { localStorage.setItem(YT_COOKIES, JSON.stringify(c)); } catch { /* sem espaço: só não guarda */ } };
+// sem precisar abrir esta tela: o servidor que perdeu a conexão (um Codespace novo, a pasta de dados apagada) recebe
+// de novo, sozinho, o arquivo de cookies guardado neste aparelho. Uma vez por servidor a cada abertura do app. Os
+// cookies que venceram (o YouTube recusa a conta) não dá para renovar sozinho: aí o app avisa quando o download falha
+const youtubeConferido = new Set();
+async function reconectarYoutube(cfg) {
+  const c = cookiesSalvos();
+  if (!cfg?.url || !c?.texto || youtubeConferido.has(cfg.url)) return;
+  youtubeConferido.add(cfg.url);
+  try {
+    const s = await chamar(cfg, '/saude', { tempo: 30e3 });
+    if (s?.cookies) return;
+    await chamar(cfg, '/youtube/conectar', { json: { cookies: c.texto }, tempo: 60e3 });
+    salvarCookies({ ...c, enviado: Date.now() });
+  } catch { /* o servidor não respondeu: tenta de novo na próxima abertura */ }
+}
 // quantos cookies tem o texto (formato Netscape: uma linha com 7 campos separados por tab; "#HttpOnly_" também conta)
 const contarCookies = (t) => String(t || '').split('\n').filter((l) => (!l.startsWith('#') || l.startsWith('#HttpOnly_')) && l.split('\t').length >= 7).length;
 function viewConectarYoutube() {

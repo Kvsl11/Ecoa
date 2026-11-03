@@ -7,6 +7,7 @@ export const NOVIDADES = [
     versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
     itens: [
       { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
+      { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
     ],
   },
   {

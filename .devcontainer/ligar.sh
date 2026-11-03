@@ -4,22 +4,31 @@
 # (no Terminal: tail -f servidor-ia/dados/servidor.log)
 cd "$(dirname "$0")/../servidor-ia"
 mkdir -p dados
+: > dados/servidor.log  # o log começa limpo a cada vez que liga
 # a porta pública: pelo gh do próprio Codespace (se não der, a pessoa muda na aba Portas)
 (sleep 20; gh codespace ports visibility 7860:public -c "$CODESPACE_NAME" >/dev/null 2>&1) &
-# o endereço deste servidor, que não muda enquanto o Codespace existir: o site (GitHub Pages) o entrega a todos os
-# aparelhos pela variável SERVIDOR_IA_URL do repositório. Tenta gravar sozinho (o token do Codespace pode não ter
-# permissão: aí a pessoa grava uma vez, em Settings → Secrets and variables → Actions → Variables)
+# o endereço deste servidor (não muda enquanto o Codespace existir) vai sozinho para o site: o Codespace grava em
+# .devcontainer/endereco.txt, pela API do GitHub com o token que ele já tem, e esse commit publica o app de novo
+# (GitHub Pages), que entrega o endereço a todos os aparelhos. Só grava quando mudou (um Codespace novo). A variável
+# SERVIDOR_IA_URL do repositório, se existir, vale mais que o arquivo
 ENDERECO="https://${CODESPACE_NAME}-7860.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
 if [ -n "$CODESPACE_NAME" ]; then
   echo "$ENDERECO" > dados/endereco.txt
-  if [ "$(gh variable get SERVIDOR_IA_URL 2>/dev/null)" != "$ENDERECO" ]; then
-    if gh variable set SERVIDOR_IA_URL --body "$ENDERECO" >/dev/null 2>&1; then
-      gh workflow run pages.yml >/dev/null 2>&1 && echo "Endereço do servidor gravado no site; o app publica de novo com ele."
-    else
-      echo "Para o site achar este servidor em qualquer aparelho, grave uma vez a variável SERVIDOR_IA_URL = $ENDERECO"
-      echo "(GitHub → Settings → Secrets and variables → Actions → Variables → New repository variable)"
+  (
+    repo="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)}"
+    arquivo="repos/$repo/contents/.devcontainer/endereco.txt"
+    atual=$(gh api "$arquivo" -q .content 2>/dev/null | base64 -d 2>/dev/null | tr -d '[:space:]')
+    if [ -n "$repo" ] && [ "$atual" != "$ENDERECO" ]; then
+      sha=$(gh api "$arquivo" -q .sha 2>/dev/null)
+      if gh api -X PUT "$arquivo" -f message="Servidor da IA: o endereço do Codespace" \
+          -f content="$(printf '%s\n' "$ENDERECO" | base64 -w0)" ${sha:+-f sha="$sha"} >/dev/null 2>&1; then
+        echo "Endereço do servidor publicado no site ($ENDERECO): os aparelhos acham este servidor sozinhos."
+      else
+        echo "Não consegui publicar o endereço no site. Grave uma vez a variável SERVIDOR_IA_URL = $ENDERECO"
+        echo "(GitHub → Settings → Secrets and variables → Actions → Variables → New repository variable)"
+      fi
     fi
-  fi
+  ) >> dados/servidor.log 2>&1 &
 fi
 # setsid: o servidor fica de pé depois que este comando termina (sem ele, o Codespace derrubava o servidor junto).
 # Antes de ligar:
@@ -38,5 +47,5 @@ setsid bash -c '
     bash ../.devcontainer/instalar.sh || echo "Aviso: a instalação dos pacotes falhou; o servidor liga com o que já tem."
   fi
   IA_SEM_TUNEL=1 IA_THREADS=$(nproc) IA_TAREFAS=3 exec python iniciar_pc.py
-' > dados/servidor.log 2>&1 < /dev/null &
+' >> dados/servidor.log 2>&1 < /dev/null &
 echo "Servidor da IA ligando (uns segundos; na primeira vez, até 15 minutos): aba Portas → 7860 → globo."

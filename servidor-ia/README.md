@@ -51,7 +51,9 @@ hora ligada); parado 30 minutos, ele desliga sozinho.
 4. Para o site achar este servidor em **qualquer aparelho** (sem ler o QR code em cada um): no GitHub do projeto,
    **Settings → Secrets and variables → Actions → Variables → New repository variable**, nome `SERVIDOR_IA_URL`,
    valor o endereço do Codespace (`https://<nome>-7860.app.github.dev`; ele aparece em `servidor-ia/dados/endereco.txt`
-   e no `servidor.log`). O Codespace tenta gravar sozinho ao ligar. A próxima publicação do app já leva o endereço.
+   e no `servidor.log`). Normalmente não precisa: ao ligar, o Codespace grava o endereço sozinho em
+   `.devcontainer/endereco.txt` (um commit pela API do GitHub), e a publicação do app que esse commit dispara já leva o
+   endereço. A variável só é preciso se o `servidor.log` disser que não conseguiu.
 5. O Lumen com IA no Codespace: a chave vai nos secrets **do Codespaces** (não nos do Actions): **Settings → Secrets and
    variables → Codespaces → New repository secret**, `GEMINI_API_KEY` (ou `ANTHROPIC_API_KEY`). Depois, pare e ligue o
    Codespace de novo. O texto dos PDFs do acervo, o servidor baixa do site (`data/textos-acervo.jsonl.gz`, lido toda
