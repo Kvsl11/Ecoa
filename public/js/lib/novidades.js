@@ -4,10 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 456, data: '2026-11-03', titulo: 'Servidor da IA sem nada para configurar',
+    itens: [
+      { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
+      { tipo: 'novo', texto: 'Tela nova Ajustes → Avançado → Servidor da IA: mostra numa olhada se o servidor está ligado, se o YouTube está conectado, se o Lumen está com a IA e se a voz e os tempos estão sendo ouvidos pelos modelos melhores. Desligado, o botão Ligar no GitHub leva direto ao Codespace. O campo para colar o endereço do servidor saiu do caminho (fica em “Usar outro servidor”, só para o servidor no computador).' },
+    ],
+  },
+  {
     versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
     itens: [
       { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
-      { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
     ],
   },
   {
@@ -61,15 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'Ajustes → Permissões mostra se as notificações e o microfone estão permitidos, ainda não pedidos ou bloqueados. Dá para permitir dali, e, quando o navegador bloqueou, a tela explica como liberar. Com as notificações ligadas, o botão “Testar” manda uma notificação de teste.' },
       { tipo: 'melhoria', texto: 'O app não pede mais as notificações no primeiro toque na tela, sem explicar nada. Agora um cartão no Início conta para que servem (os avisos dos downloads) e pergunta uma vez; “Agora não” não pergunta de novo, e dá para permitir depois em Ajustes → Permissões.' },
-    ],
-  },
-  {
-    versao: 446, data: '2026-11-02', titulo: 'Lumen: voz do Gemini desde o “olá” e a música na tela',
-    itens: [
-      { tipo: 'correcao', texto: 'A saudação do Lumen saía numa voz robótica (a do aparelho) na primeira vez. Agora ela espera a voz do Gemini, que o app já prepara quando abre e guarda no aparelho. A voz do aparelho só entra se o servidor estiver fora do ar.' },
-      { tipo: 'melhoria', texto: 'Pedindo para o Lumen tocar uma música, ela toca e a tela da música abre, como quando você toca nela na lista.' },
-      { tipo: 'correcao', texto: 'As perguntas faladas ganham o ponto de interrogação também quando começam chamando o Lumen (“Lumen, você pode…?”, “Olá Lumen, no que você pode me ajudar?”), e o “?” já aparece enquanto você fala.' },
-      { tipo: 'melhoria', texto: 'O Lumen entende melhor o nome da música mesmo quando o reconhecimento de voz escreve errado: “never hinder” e “never ranger” acham “Neverender”.' },
     ],
   },
 ];

@@ -9680,7 +9680,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
           <a class="btn small primary" href="https://github.com/codespaces" target="_blank" rel="noopener">Ligar no GitHub</a><button class="btn small" id="ia-religar">${icon('refresh', 15)} Já liguei</button></div>` : ''}
       <ul class="ia-dicas">
         <li>Voz e violão rendem mais que banda completa.</li>
-        ${noPc || noGithub ? '' : '<li>Ficou lento no celular? Use o servidor no computador (Ajustes).</li>'}
+        ${noPc || noGithub ? '' : '<li>Com o servidor da IA ligado, a partitura sai bem mais fiel (Ajustes → Servidor da IA).</li>'}
         <li>No Android: Compartilhar → Ecoa traz o áudio direto para cá.</li>
       </ul></div>`;
     $('#ia-auto')?.addEventListener('click', () => gerarSozinha());
@@ -12607,7 +12607,7 @@ const TOPICOS_AJUSTES = [
   { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
-  { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor no computador · Conta do YouTube · Apagar tudo' },
+  { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
   { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
@@ -12669,12 +12669,10 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Avançado', `
-    <details class="aj-avancado"${p.servidorPc ? ' open' : ''}><summary>Partitura e letra sincronizada pelo áudio</summary>
     <div class="settings-group">
-      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Para baixar o áudio dos vídeos</div></div>${icon('next', 18)}</a>
-      <div class="setting wrap" id="servidor-pc"><span class="ico">${icon('database', 18)}</span><div class="grow"><div class="t">Servidor no computador</div><div class="s" id="servidor-pc-estado">${p.servidorPc ? 'Verificando…' : 'Leia o QR code da página do servidor no PC'}</div></div>
-        <form class="aj-servidor" id="servidor-pc-form"><input type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" class="input" id="servidor-pc-url" placeholder="Cole o link do QR code ou o endereço" value="${esc(p.servidorPc || '')}" aria-label="Endereço do servidor"><button class="btn small primary">Salvar</button>${p.servidorPc ? '<button type="button" class="btn small" id="servidor-pc-tirar">Tirar</button>' : ''}</form></div>
-    </div></details>
+      <a class="setting" href="#/servidor"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Servidor da IA</div><div class="s" id="servidor-ia-resumo">Verificando…</div></div><span class="sv-ponto" id="servidor-ia-ponto"></span>${icon('next', 18)}</a>
+      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>
+    </div>
     <div class="settings-group">
       <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Músicas, repertórios e ajustes deste aparelho</div></div><button class="btn small danger" id="clr">Apagar</button></div>
     </div>`)}
@@ -12695,7 +12693,6 @@ function viewSettings(topico) {
     if (deste && h) h.hidden = true;
   });
   // (o Avançado aberto: é a página dele)
-  if (top.id === 'avancado') view.querySelector('.aj-avancado')?.setAttribute('open', '');
   const nomeCor = () => {
     const a = db.prefs().accent || COR_PADRAO;
     const txt = a === 'liturgico'
@@ -12750,29 +12747,13 @@ function viewSettings(topico) {
   };
   // vale na hora também no player (o Tocando agora no modo música)
   $('#video-fundo').onchange = (e) => { db.setPref('videoFundo', e.target.checked); player.atualizar({}); };
-  // servidor no computador: diz se responde agora; salvar ou tirar vale na próxima vez que o app abrir
-  const estadoPc = $('#servidor-pc-estado');
-  if (p.servidorPc) Promise.all([responde(p.servidorPc), carregarServidor()]).then(([ok]) => { estadoPc.textContent = ok ? `Ligado: ${SERVIDOR_IA.pc ? 'o app está usando ele' : 'reabra o app para usar'}` : 'Não responde. O PC está ligado? Ao religar, o endereço muda: leia o QR code de novo'; });
-  $('#servidor-pc-form').onsubmit = (e) => {
-    e.preventDefault();
-    const campo = $('#servidor-pc-url');
-    const url = baseDoServidor(campo.value);
-    if (!url) { toast('Cole o endereço que aparece na página do servidor no PC'); return; }
-    // confere antes de guardar: o campo mostra o endereço do servidor (o tirado do link do QR code) e só recarrega o
-    // app se ele responde (antes recarregava na hora com qualquer coisa, e a tela piscava sem conectar)
-    campo.value = url;
-    const bt = e.submitter || $('#servidor-pc-form button:not([type="button"])');
-    if (bt) bt.disabled = true;
-    estadoPc.textContent = 'Conectando…';
-    responde(url).then((ok) => {
-      if (bt) bt.disabled = false;
-      if (!ok) { db.setPref('servidorPc', url); estadoPc.textContent = 'Guardado, mas não respondeu agora. O PC está ligado? Ao religar, o endereço muda: leia o QR code de novo'; toast('O servidor não respondeu neste endereço'); return; }
-      db.setPref('servidorPc', url);
-      estadoPc.textContent = 'Conectado. Abrindo de novo…';
-      setTimeout(() => location.reload(), 400);
-    });
-  };
-  $('#servidor-pc-tirar')?.addEventListener('click', () => { db.setPref('servidorPc', ''); location.reload(); });
+  // o servidor da IA: só o estado (tudo automático; os detalhes ficam na tela Servidor da IA)
+  carregarServidor().then((cfg) => {
+    const r = $('#servidor-ia-resumo');
+    if (!r) return;
+    $('#servidor-ia-ponto').dataset.estado = cfg?.url ? 'ok' : 'nao';
+    r.textContent = cfg?.url ? 'Ligado · automático' : 'Desligado · toque para ligar o Codespace';
+  });
   $('#exp').onclick = () => download(`songbook-backup-${hojeISO()}.json`, db.exportAll(), 'application/json');
   $('#imp').onclick = openImport;
   $('#clr').onclick = async () => {
@@ -13084,6 +13065,115 @@ async function viewFontes() {
 const YT_COOKIES = 'songbook.ytCookies';
 const cookiesSalvos = () => { try { return JSON.parse(localStorage.getItem(YT_COOKIES) || 'null'); } catch { return null; } };
 const salvarCookies = (c) => { try { localStorage.setItem(YT_COOKIES, JSON.stringify(c)); } catch { /* sem espaço: só não guarda */ } };
+// ---------------------------------------------------------------- o servidor da IA (o Codespace do GitHub)
+// Tudo automático: o Codespace publica o próprio endereço no site quando liga e o app o acha em qualquer aparelho; a
+// conexão do YouTube volta sozinha (reconectarYoutube). A tela só mostra como está cada parte e, desligado, o botão
+// para ligar o Codespace. O endereço à mão (um servidor no computador) fica recolhido em "Usar outro servidor"
+const hostCurto = (url) => { try { return new URL(url).host.replace(/-7860\.app\.github\.dev$/i, ''); } catch { return ''; } };
+function viewServidorIA() {
+  setTab('inicio');
+  setTint('#14324a');
+  setHeader('Servidor da IA', { back: '#/ajustes/avancado' });
+  const p = db.prefs();
+  const linha = (id, ic, t) => `<div class="sv-item" id="sv-${id}" data-estado="verificando"><span class="sv-item-ic">${icon(ic, 18)}</span>
+    <div class="sv-item-txt"><b>${t}</b><small>Verificando…</small></div><span class="cy-ponto"></span></div>`;
+  view.innerHTML = `<div class="conectar-yt servidor-ia">
+    <section class="cy-topo"><span class="cy-ic sv-ic">${icon('sparkles', 26)}</span>
+      <div><h2>Servidor da IA</h2><p>Partitura, letra sincronizada e Lumen. Tudo automático: você só liga o Codespace.</p></div></section>
+    <section class="cy-card cy-status" id="sv-status" data-estado="verificando">
+      <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small></div>
+      <button class="btn small" id="sv-verificar" type="button" aria-label="Verificar de novo">${icon('refresh', 16)}</button></section>
+    <section class="cy-card sv-ligar" id="sv-ligar" hidden>
+      <p>O Codespace dorme quando ninguém usa. Ligue e volte aqui: em uns 2 minutos o app acha o servidor sozinho.</p>
+      <a class="btn primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('external', 16)} Ligar no GitHub</a></section>
+    <section class="sv-lista">
+      ${linha('youtube', 'youtube', 'YouTube')}
+      ${linha('lumen', 'lumen', 'Lumen com IA')}
+      ${linha('voz', 'mic', 'Voz separada da banda')}
+      ${linha('batidas', 'gauge', 'Tempos e compasso')}
+    </section>
+    <p class="muted cy-nota">${icon('info', 14)} O endereço do servidor chega sozinho pelo site, em todos os aparelhos, e a conexão do YouTube volta sozinha se o servidor mudar.</p>
+    <details class="cy-como sv-manual"${p.servidorPc ? ' open' : ''}><summary>${icon('computador', 16)}<b>Usar outro servidor</b><span class="muted">No seu computador</span>${icon('down', 18)}</summary>
+      <div class="sv-manual-corpo">
+        <p class="muted">Só para o servidor rodando no seu computador: leia o QR code da página dele ou cole o endereço.</p>
+        <form class="aj-servidor" id="servidor-pc-form"><input type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" class="input" id="servidor-pc-url" placeholder="Cole o link do QR code ou o endereço" value="${esc(p.servidorPc || '')}" aria-label="Endereço do servidor"><button class="btn small primary">Salvar</button>${p.servidorPc ? '<button type="button" class="btn small" id="servidor-pc-tirar">Tirar</button>' : ''}</form>
+        <small class="muted" id="servidor-pc-estado"></small>
+      </div></details>
+  </div>`;
+  const item = (id, estado, t) => {
+    const el = $(`#sv-${id}`);
+    if (!el) return;
+    el.dataset.estado = estado;
+    el.querySelector('small').innerHTML = t;
+  };
+  const verificar = async () => {
+    const st = $('#sv-status');
+    if (!st) return;
+    st.dataset.estado = 'verificando';
+    $('#sv-estado-t').textContent = 'Procurando o servidor…';
+    $('#sv-estado-d').textContent = '';
+    $('#sv-ligar').hidden = true;
+    for (const id of ['youtube', 'lumen', 'voz', 'batidas']) item(id, 'verificando', 'Verificando…');
+    const cfg = await carregarServidor({ forcar: true }).catch(() => SERVIDOR_IA);
+    let saude = null;
+    if (cfg?.url) saude = await chamar(cfg, '/saude', { tempo: 30e3 }).catch(() => null);
+    if (!$('#sv-status')) return;
+    const conhecido = cfg?.url || baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
+    if (!saude) {
+      st.dataset.estado = conhecido ? 'nao' : 'erro';
+      $('#sv-estado-t').textContent = conhecido ? 'Desligado' : 'Nenhum servidor ainda';
+      $('#sv-estado-d').textContent = conhecido ? `Codespace ${hostCurto(conhecido)}` : 'Ligue o Codespace: ele publica o endereço sozinho';
+      $('#sv-ligar').hidden = false;
+      const off = 'Precisa do servidor ligado';
+      item('youtube', 'off', off); item('lumen', 'off', off); item('voz', 'off', 'No aparelho, a partitura sai sem separar a voz'); item('batidas', 'off', off);
+      return;
+    }
+    st.dataset.estado = 'ok';
+    const host = new URL(cfg.url).host;
+    const github = /\.app\.github\.dev$/i.test(host);
+    $('#sv-estado-t').textContent = 'Ligado';
+    $('#sv-estado-d').textContent = github ? `Codespace ${hostCurto(cfg.url)} · encontrado sozinho` : host;
+    // o YouTube: conectado (e volta sozinho) ou o que fazer
+    const c = cookiesSalvos();
+    if (saude.cookies) item('youtube', 'ok', 'Conectado · volta sozinho se o servidor mudar');
+    else if (c?.texto) item('youtube', 'nao', 'Reconectando com a conta guardada neste aparelho…');
+    else item('youtube', 'nao', '<a href="#/youtube">Conectar uma vez</a> para baixar o áudio dos vídeos');
+    if (!saude.cookies && c?.texto) {
+      youtubeConferido.delete(cfg.url);
+      reconectarYoutube(cfg).then(() => chamar(cfg, '/saude', { tempo: 30e3 })).then((s2) => {
+        if (s2?.cookies) item('youtube', 'ok', 'Conectado de novo, sozinho');
+        else item('youtube', 'nao', 'A conta não conectou: <a href="#/youtube">conecte de novo</a>');
+      }).catch(() => item('youtube', 'nao', '<a href="#/youtube">Conectar</a>'));
+    }
+    const ia = { gemini: 'Gemini', claude: 'Claude' }[saude.ia];
+    item('lumen', ia ? 'ok' : 'nao', ia ? `Respondendo pelo ${ia}` : 'Sem a chave da IA: o Lumen faz só a busca simples');
+    item('voz', saude.separacao ? 'ok' : 'nao', saude.separacao ? (saude.solista ? 'Voz, banda e o solista longe do backing vocal' : 'Voz separada da banda') : 'O servidor ouve a música inteira junta');
+    item('batidas', saude.batidas === 'beat_this' ? 'ok' : 'nao', saude.batidas === 'beat_this' ? 'Batidas e primeiro tempo pela rede (Beat This!)' : 'Batidas estimadas (sem o Beat This!)');
+  };
+  $('#sv-verificar').onclick = verificar;
+  verificar();
+  // o servidor no computador (à mão): confere antes de guardar e abre o app de novo
+  const estadoPc = $('#servidor-pc-estado');
+  $('#servidor-pc-form').onsubmit = (e) => {
+    e.preventDefault();
+    const campo = $('#servidor-pc-url');
+    const url = baseDoServidor(campo.value);
+    if (!url) { toast('Cole o endereço que aparece na página do servidor no computador'); return; }
+    campo.value = url;
+    const bt = e.submitter || $('#servidor-pc-form button:not([type="button"])');
+    if (bt) bt.disabled = true;
+    estadoPc.textContent = 'Conectando…';
+    responde(url).then((ok) => {
+      if (bt) bt.disabled = false;
+      db.setPref('servidorPc', url);
+      if (!ok) { estadoPc.textContent = 'Guardado, mas não respondeu agora. O computador está ligado?'; toast('O servidor não respondeu neste endereço'); return; }
+      estadoPc.textContent = 'Conectado. Abrindo de novo…';
+      setTimeout(() => location.reload(), 400);
+    });
+  };
+  $('#servidor-pc-tirar')?.addEventListener('click', () => { db.setPref('servidorPc', ''); location.reload(); });
+}
+
 // sem precisar abrir esta tela: o servidor que perdeu a conexão (um Codespace novo, a pasta de dados apagada) recebe
 // de novo, sozinho, o arquivo de cookies guardado neste aparelho. Uma vez por servidor a cada abertura do app. Os
 // cookies que venceram (o YouTube recusa a conta) não dá para renovar sozinho: aí o app avisa quando o download falha
@@ -13111,7 +13201,7 @@ function viewConectarYoutube() {
   // aparece mais na tela, nem já preenchido)
   view.innerHTML = `<div class="conectar-yt">
     <section class="cy-topo"><span class="cy-ic">${icon('youtube', 26)}</span>
-      <div><h2>YouTube</h2><p>Com uma conta conectada, o app baixa o áudio dos vídeos para a partitura e a letra sincronizada.</p></div></section>
+      <div><h2>YouTube</h2><p>Conecte uma vez: o servidor baixa o áudio dos vídeos para a partitura e a letra sincronizada, e a conexão volta sozinha se o servidor mudar.</p></div></section>
     <section class="cy-card cy-status" id="cy-status" data-estado="verificando">
       <span class="cy-ponto"></span><div class="cy-status-txt"><b id="cy-estado-t">Verificando…</b><small id="cy-estado-d"></small></div>
       <button class="btn small" id="cy-trocar" type="button" hidden>Trocar</button></section>
@@ -13127,7 +13217,7 @@ function viewConectarYoutube() {
         ${passoN(1, 'Instale a extensão “Get cookies.txt LOCALLY”', 'No Android, no <a href="https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/" target="_blank" rel="noopener">Firefox</a>; no computador, no <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Chrome</a> ou no Firefox.')}
         ${passoN(2, 'Entre no youtube.com numa janela anônima', 'Use uma conta Google só para isso, se puder. Na janela anônima a conexão não vence.')}
         ${passoN(3, 'Exporte e feche a janela', 'Toque na extensão → <b>Export</b> e feche a janela anônima <b>sem sair da conta</b>. (No Firefox, permita a extensão nas janelas privadas.)')}
-        ${passoN(4, 'Envie o arquivo aqui', 'Se um dia o YouTube pedir de novo, é só repetir.')}
+        ${passoN(4, 'Envie o arquivo aqui', 'Pronto: o app guarda a conexão e manda de novo sozinho para o servidor quando precisar. Só se o YouTube recusar a conta (os cookies venceram) é preciso repetir.')}
       </ol></details>
     <p class="muted cy-nota">${icon('lock', 14)} O arquivo vai só para o servidor do Ecoa, que o usa para baixar o áudio.</p></div>`;
   const texto = $('#cy-texto');
@@ -13145,7 +13235,7 @@ function viewConectarYoutube() {
   };
   const resumo = (info) => {
     const c = cookiesSalvos();
-    if (c?.enviado) return `${contarCookies(c.texto)} cookies · enviado em ${quando(c.enviado)}`;
+    if (c?.enviado) return `Enviado em ${quando(c.enviado)} · volta sozinha se o servidor mudar`;
     if (info?.em) return `${info.n ? `${info.n} cookies · ` : ''}enviado de outro aparelho em ${quando(info.em * 1000)}`;
     return '';
   };
@@ -15469,6 +15559,7 @@ function route() {
     case 'acervo': return viewAcervo(b || '');
     case 'duvidas': return viewDuvidas();
     case 'youtube': return viewConectarYoutube();
+    case 'servidor': return viewServidorIA();
     default: return viewNotFound();
   }
 }
