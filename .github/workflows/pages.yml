@@ -139,6 +139,11 @@ jobs:
                       dados['reservaLumen'] = modal.Function.from_name('songbook-ia', 'lumen').get_web_url()
                   except Exception:
                       pass
+                  # o karaokê na placa de vídeo (uns 15 a 30 s por música): o app manda só o karaokê para lá
+                  try:
+                      dados['karaoke'] = modal.Function.from_name('songbook-ia', 'karaoke').get_web_url()
+                  except Exception:
+                      pass
               except Exception as e:
                   print(f"::notice::O servidor de reserva (Modal) ainda não está publicado ({type(e).__name__}): ele entra depois da próxima publicação do servidor")
           if not dados:

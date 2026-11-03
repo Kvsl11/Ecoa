@@ -78,6 +78,10 @@ document.addEventListener('keydown', (e) => { if (!e.metaKey && !e.ctrlKey) docu
 // página dele abre o app com ?ia=<endereço> e o endereço fica guardado (Ajustes → Servidor no computador)
 let SERVIDOR_IA = { url: '', chave: '' };
 const servidorIA = () => SERVIDOR_IA;
+// o karaokê numa placa de vídeo (a função "karaoke" do Modal, data/servidor-ia.json): separa a voz em uns 15 a 30 s, em
+// vez de 1 a 3 minutos no processador. Só o karaokê vai para lá; sem ela (ou sem crédito no Modal), vai para o servidor
+// de sempre
+let SERVIDOR_KARAOKE = null;
 // o servidor do site (o Codespace do GitHub, gravado pela publicação em data/servidor-ia.json): mesmo desligado, o
 // endereço fica sabido, para a tela dizer "ligue o Codespace"
 let servidorDoSite = '';
@@ -131,6 +135,7 @@ function carregarServidor({ forcar = false } = {}) {
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
+    SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
     // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
     let host = '';
@@ -1095,7 +1100,7 @@ function prepararKaraoke(song) {
   };
   estado.promessa = (async () => {
     await carregarServidor().catch(() => {});
-    if (!servidorIA().url) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
+    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
     // o envio (ou o download do áudio pelo servidor) até 10%, a separação até 90% e a vinda do arquivo até 99%
     const aoEtapa = (etapa, p) => {
       if (etapa === 'enviando') passo(10 * (p ?? 0), 'Enviando o áudio');
@@ -1120,16 +1125,30 @@ function prepararKaraoke(song) {
         nome = String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
       }
     }
-    // (o mesmo servidor do começo ao fim: o Codespace pode ligar no meio, e o arquivo pronto está no que separou)
-    const cfg = servidorIA();
+    // a placa de vídeo primeiro (rápida); se ela não atender (sem crédito no Modal, fora do ar), o servidor de sempre.
+    // (o mesmo servidor do começo ao fim: o arquivo pronto fica no que separou)
+    const servidores = [SERVIDOR_KARAOKE, servidorIA()].filter((x, i, l) => x?.url && l.findIndex((y) => y?.url === x.url) === i);
+    let cfg = null;
     let r;
     try {
-      if (arquivo) {
-        const form = new FormData();
-        form.append('arquivo', arquivo, nome);
-        r = await chamarComEtapas(cfg, '/karaoke/arquivo', { form }, aoEtapa);
-      } else {
-        r = await chamarComEtapas(cfg, '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+      for (const [n, s] of servidores.entries()) {
+        cfg = s;
+        try {
+          // (o YouTube conectado também nele, quando o servidor baixa a música)
+          if (!arquivo) await reconectarYoutube(s);
+          if (arquivo) {
+            const form = new FormData();
+            form.append('arquivo', arquivo, nome);
+            r = await chamarComEtapas(s, '/karaoke/arquivo', { form }, aoEtapa);
+          } else {
+            r = await chamarComEtapas(s, '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+          }
+          break;
+        } catch (e) {
+          // (só falha de servidor passa para o próximo; o erro da música — o YouTube recusou, o áudio não abre — não)
+          const deServidor = e.conexao || e.desativado || !e.status || e.status >= 500 || e.status === 404 || e.status === 405 || e.status === 501;
+          if (n === servidores.length - 1 || !deServidor) throw e;
+        }
       }
     } catch (e) {
       // (o servidor de antes do karaokê: ele se atualiza sozinho quando liga de novo)
