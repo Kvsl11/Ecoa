@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 458, data: '2026-11-03', titulo: 'Servidor da IA ao vivo',
+    itens: [
+      { tipo: 'melhoria', texto: 'Os indicadores do Servidor da IA e da conta do YouTube atualizam sozinhos, sem precisar sair da tela: com o Codespace desligado, a tela confere a cada 5 segundos e fica verde assim que ele liga; ligado, confere a cada 15 segundos (o Lumen fica verde sozinho quando a chave da IA chega). Embaixo do estado aparece a hora da última conferência.' },
+    ],
+  },
+  {
     versao: 457, data: '2026-11-03', titulo: 'Codespace liga o servidor sozinho',
     itens: [
       { tipo: 'correcao', texto: 'O Codespace não ligava o servidor sozinho, nem deixava a porta pública. Agora, ao ligar, o servidor sobe na hora (os pacotes novos instalam por trás e ele reinicia sozinho no fim) e, quando o GitHub não deixa a porta pública, o Codespace abre um túnel seguro e publica esse endereço no site. Os aparelhos acham o servidor sozinhos em uns 2 minutos, sem QR code.' },
@@ -60,12 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O Lumen responde ao que você perguntou, sobre qualquer assunto, sem puxar coisas do acervo que você não pediu. O acervo continua lá: perguntando dele (“tem algo no acervo sobre…?”) ou quando um documento responde de fato à pergunta, ele usa e mostra a fonte.' },
       { tipo: 'correcao', texto: 'No ao vivo, a voz às vezes trocava no meio da resposta pela voz robótica do aparelho. Agora, quando a voz do Gemini demora ou está no limite do dia, entra logo a voz neural de reserva, e um tropeço da internet faz o app tentar de novo antes de usar a voz do aparelho.' },
-    ],
-  },
-  {
-    versao: 448, data: '2026-11-03', titulo: 'Ecoa de logo nova',
-    itens: [
-      { tipo: 'melhoria', texto: 'O Ecoa ganhou uma logo nova: um “e” com as ondas de eco saindo dele, em branco sobre o degradê ciano e azul do app. Ela aparece no menu, nos Ajustes, no ícone da tela inicial e nas notificações.' },
     ],
   },
 ];

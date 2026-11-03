@@ -12751,12 +12751,17 @@ function viewSettings(topico) {
   // vale na hora também no player (o Tocando agora no modo música)
   $('#video-fundo').onchange = (e) => { db.setPref('videoFundo', e.target.checked); player.atualizar({}); };
   // o servidor da IA: só o estado (tudo automático; os detalhes ficam na tela Servidor da IA)
-  carregarServidor().then((cfg) => {
+  // (ao vivo: confere de novo a cada 10 s enquanto a tela está aberta)
+  const resumoServidor = (forcar) => carregarServidor({ forcar }).then((cfg) => {
     const r = $('#servidor-ia-resumo');
-    if (!r) return;
+    if (!r) return false;
     $('#servidor-ia-ponto').dataset.estado = cfg?.url ? 'ok' : 'nao';
     r.textContent = cfg?.url ? 'Ligado · automático' : 'Desligado · toque para ligar o Codespace';
+    return true;
   });
+  resumoServidor(false);
+  const relogioResumo = setInterval(() => { if (!document.hidden) resumoServidor(true).then((ainda) => { if (!ainda) clearInterval(relogioResumo); }); }, 10e3);
+  aoSair(() => clearInterval(relogioResumo));
   $('#exp').onclick = () => download(`songbook-backup-${hojeISO()}.json`, db.exportAll(), 'application/json');
   $('#imp').onclick = openImport;
   $('#clr').onclick = async () => {
@@ -13084,7 +13089,7 @@ function viewServidorIA() {
     <section class="cy-topo"><span class="cy-ic sv-ic">${icon('sparkles', 26)}</span>
       <div><h2>Servidor da IA</h2><p>Partitura, letra sincronizada e Lumen. Tudo automático: você só liga o Codespace.</p></div></section>
     <section class="cy-card cy-status" id="sv-status" data-estado="verificando">
-      <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small></div>
+      <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small><small class="sv-vivo" id="sv-quando"></small></div>
       <button class="btn small" id="sv-verificar" type="button" aria-label="Verificar de novo">${icon('refresh', 16)}</button></section>
     <section class="cy-card sv-ligar" id="sv-ligar" hidden>
       <p>O Codespace dorme quando ninguém usa. Ligue e volte aqui: em uns 2 minutos o app acha o servidor sozinho.</p>
@@ -13109,18 +13114,32 @@ function viewServidorIA() {
     el.dataset.estado = estado;
     el.querySelector('small').innerHTML = t;
   };
-  const verificar = async () => {
+  // ao vivo: a tela confere sozinha (a cada 5 s com o servidor desligado, para ficar verde assim que o Codespace
+  // ligar; a cada 15 s ligado), sem piscar "Verificando…"; o ↻ confere na hora
+  let conferindo = false;
+  const marcarQuando = (ligado) => {
+    const q = $('#sv-quando');
+    if (q) q.textContent = `Ao vivo · conferido às ${new Date().toLocaleTimeString('pt-BR')}${ligado ? '' : ' · esperando o Codespace ligar'}`;
+  };
+  const verificar = async ({ silencioso = false } = {}) => {
     const st = $('#sv-status');
-    if (!st) return;
-    st.dataset.estado = 'verificando';
-    $('#sv-estado-t').textContent = 'Procurando o servidor…';
-    $('#sv-estado-d').textContent = '';
-    $('#sv-ligar').hidden = true;
-    for (const id of ['youtube', 'lumen', 'voz', 'batidas']) item(id, 'verificando', 'Verificando…');
+    if (!st || conferindo) return null;
+    conferindo = true;
+    try { return await conferir(st, silencioso); } finally { conferindo = false; }
+  };
+  const conferir = async (st, silencioso) => {
+    if (!silencioso) {
+      st.dataset.estado = 'verificando';
+      $('#sv-estado-t').textContent = 'Procurando o servidor…';
+      $('#sv-estado-d').textContent = '';
+      $('#sv-ligar').hidden = true;
+      for (const id of ['youtube', 'lumen', 'voz', 'batidas']) item(id, 'verificando', 'Verificando…');
+    }
     const cfg = await carregarServidor({ forcar: true }).catch(() => SERVIDOR_IA);
     let saude = null;
-    if (cfg?.url) saude = await chamar(cfg, '/saude', { tempo: 30e3 }).catch(() => null);
-    if (!$('#sv-status')) return;
+    if (cfg?.url) saude = await chamar(cfg, '/saude', { tempo: 20e3 }).catch(() => null);
+    if (!$('#sv-status')) return null;
+    marcarQuando(Boolean(saude));
     const conhecido = cfg?.url || baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
     if (!saude) {
       st.dataset.estado = conhecido ? 'nao' : 'erro';
@@ -13129,9 +13148,10 @@ function viewServidorIA() {
       $('#sv-ligar').hidden = false;
       const off = 'Precisa do servidor ligado';
       item('youtube', 'off', off); item('lumen', 'off', off); item('voz', 'off', 'No aparelho, a partitura sai sem separar a voz'); item('batidas', 'off', off);
-      return;
+      return false;
     }
     st.dataset.estado = 'ok';
+    $('#sv-ligar').hidden = true;
     const host = new URL(cfg.url).host;
     const github = doCodespace(host);
     $('#sv-estado-t').textContent = 'Ligado';
@@ -13141,7 +13161,8 @@ function viewServidorIA() {
     if (saude.cookies) item('youtube', 'ok', 'Conectado · volta sozinho se o servidor mudar');
     else if (c?.texto) item('youtube', 'nao', 'Reconectando com a conta guardada neste aparelho…');
     else item('youtube', 'nao', '<a href="#/youtube">Conectar uma vez</a> para baixar o áudio dos vídeos');
-    if (!saude.cookies && c?.texto) {
+    // (reconecta uma vez por servidor; o ↻ tenta de novo)
+    if (!saude.cookies && c?.texto && (!silencioso || !youtubeConferido.has(cfg.url))) {
       youtubeConferido.delete(cfg.url);
       reconectarYoutube(cfg).then(() => chamar(cfg, '/saude', { tempo: 30e3 })).then((s2) => {
         if (s2?.cookies) item('youtube', 'ok', 'Conectado de novo, sozinho');
@@ -13152,9 +13173,23 @@ function viewServidorIA() {
     item('lumen', ia ? 'ok' : 'nao', ia ? `Respondendo pelo ${ia}` : 'Sem a chave da IA: o Lumen faz só a busca simples');
     item('voz', saude.separacao ? 'ok' : 'nao', saude.separacao ? (saude.solista ? 'Voz, banda e o solista longe do backing vocal' : 'Voz separada da banda') : 'O servidor ouve a música inteira junta');
     item('batidas', saude.batidas === 'beat_this' ? 'ok' : 'nao', saude.batidas === 'beat_this' ? 'Batidas e primeiro tempo pela rede (Beat This!)' : 'Batidas estimadas (sem o Beat This!)');
+    return true;
   };
-  $('#sv-verificar').onclick = verificar;
-  verificar();
+  let relogio = null;
+  const agendar = (ligado) => {
+    clearTimeout(relogio);
+    relogio = setTimeout(async () => {
+      if (!$('#sv-status')) return;
+      if (document.hidden) { agendar(ligado); return; } // em segundo plano: espera voltar
+      const r = await verificar({ silencioso: true });
+      agendar(r ?? ligado);
+    }, ligado ? 15e3 : 5e3);
+  };
+  const aoVoltar = () => { if (!document.hidden && $('#sv-status')) verificar({ silencioso: true }).then((r) => agendar(r)); };
+  document.addEventListener('visibilitychange', aoVoltar);
+  aoSair(() => { clearTimeout(relogio); document.removeEventListener('visibilitychange', aoVoltar); });
+  $('#sv-verificar').onclick = () => verificar().then((r) => agendar(r));
+  verificar().then((r) => agendar(r));
   // o servidor no computador (à mão): confere antes de guardar e abre o app de novo
   const estadoPc = $('#servidor-pc-estado');
   $('#servidor-pc-form').onsubmit = (e) => {
@@ -13246,6 +13281,27 @@ function viewConectarYoutube() {
     .then((r) => desenharEstado(r.cookies ? 'ok' : 'nao', r.cookies ? resumo(r.cookiesInfo) : 'Envie o arquivo de cookies para conectar'))
     .catch((e) => desenharEstado('erro', e.message));
   carregarServidor().then(verEstado);
+  // ao vivo: confere de novo a cada 10 s (com o servidor desligado, a cada 5 s), sem piscar e sem fechar a área de
+  // envio se a pessoa está colando a conexão; só redesenha quando o estado muda
+  let estadoVivo = '';
+  const conferirVivo = async () => {
+    if (!$('#cy-status') || document.hidden) return;
+    const cfg = await carregarServidor({ forcar: true }).catch(() => SERVIDOR_IA);
+    let r = null;
+    if (cfg?.url) r = await chamar(cfg, '/saude', { tempo: 20e3 }).catch(() => null);
+    if (!$('#cy-status')) return;
+    const estado = !r ? 'erro' : r.cookies ? 'ok' : 'nao';
+    const ocupado = !enviar.hidden && (texto.value.trim() || document.activeElement === texto);
+    if (estado === estadoVivo || ocupado || $('#cy-status').dataset.estado === 'verificando') { estadoVivo = estado; return; }
+    estadoVivo = estado;
+    if (estado === 'ok') desenharEstado('ok', resumo(r.cookiesInfo));
+    else if (estado === 'nao') desenharEstado('nao', 'Envie o arquivo de cookies para conectar');
+    else desenharEstado('erro', 'O servidor está desligado: ligue o Codespace (a tela atualiza sozinha)');
+  };
+  let relogioYt = null;
+  const agendarYt = () => { clearTimeout(relogioYt); relogioYt = setTimeout(async () => { await conferirVivo(); if ($('#cy-status')) agendarYt(); }, estadoVivo === 'erro' ? 5e3 : 10e3); };
+  agendarYt();
+  aoSair(() => clearTimeout(relogioYt));
   $('#cy-trocar').onclick = () => mostrarEnvio(enviar.hidden);
   $('#cy-colar').onclick = () => {
     const box = $('#cy-colar-box');
