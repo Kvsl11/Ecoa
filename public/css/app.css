@@ -4736,3 +4736,5 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-menu { max-height: min(70vh, 560px); overflow-y: auto; overscroll-behavior: contain; }
 .dv-vivo-menu-vozes small + button, .dv-vivo-menu-vozes button + small { margin-top: 2px; }
 .dv-vivo-menu-vozes button + small { padding-top: 10px; }
+/* o aviso de que a resposta veio da busca simples: pequeno, discreto */
+.dv-aviso-ia { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--muted); opacity: 0.85; }

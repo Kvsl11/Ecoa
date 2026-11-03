@@ -460,6 +460,7 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
     # o contexto do app (liturgia, biblioteca) vem do aparelho: limitado, para a conta não crescer sem controle
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
     arquivos = _decodificar(anexos)
+    pdf_junto = False
     sistema = SISTEMA + sistema_do_genero(genero) + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
     # sem arquivo da pessoa: o PDF do acervo que trata do assunto vai inteiro (a IA lê o que ele diz de verdade)
     if not arquivos and os.environ.get("IA_PDF_DO_ACERVO", "1") != "0":
@@ -468,11 +469,18 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
         if dados:
             k, t = escolhido
             arquivos = [{"nome": t.titulo, "tipo": "application/pdf", "dados": dados}]
+            pdf_junto = True
             sistema += (f"\n\nVai junto, inteiro, o arquivo do acervo [{k}] \"{t.titulo}\". Se ele trata da pergunta, "
                         f"responda pelo que está ESCRITO nele (a ordem, os ritos, as palavras), citando [{k}]; não "
                         "resuma de memória o que o arquivo diz de outro jeito.")
     if provedor() == "gemini":
-        texto, web, usou_web = _gemini(mensagens, sistema, arquivos)
+        try:
+            texto, web, usou_web = _gemini(mensagens, sistema, arquivos)
+        except ErroGemini:
+            if not pdf_junto:
+                raise
+            # (o PDF inteiro do acervo deixou o pedido grande demais para o limite: vai só com os trechos)
+            texto, web, usou_web = _gemini(mensagens, sistema, [])
     else:
         texto, web, usou_web = _claude(mensagens, sistema, voz, arquivos)
     usados = {int(n) for n in re.findall(r"\[(\d+)\]", texto)}
@@ -584,8 +592,10 @@ def candidatos_gemini(tipo: str = "texto") -> list[str]:
     flash = sorted((n for n in texto if "lite" not in n and not n.endswith("-latest")),
                    key=lambda n: (_versao(n), "preview" not in n), reverse=True)
     lites = sorted((n for n in texto if "lite" in n and not n.endswith("-latest")), key=lambda n: (_versao(n), "preview" not in n), reverse=True)
-    ordem = ([MODELO_GEMINI] if MODELO_GEMINI else []) + flash[:2] \
-        + (["gemini-flash-latest"] if "gemini-flash-latest" in nomes or not nomes else []) + lites[:1]
+    # (de reserva também os Flash-Lite: no plano grátis eles têm mais cota, e o Flash às vezes não tem nenhuma)
+    ordem = ([MODELO_GEMINI] if MODELO_GEMINI else []) + flash[:3] \
+        + (["gemini-flash-latest"] if "gemini-flash-latest" in nomes or not nomes else []) + lites[:2] \
+        + (["gemini-flash-lite-latest"] if "gemini-flash-lite-latest" in nomes else [])
     vistos: list[str] = []
     for n in ordem:
         if n and n not in vistos:
@@ -603,10 +613,14 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
     if _modelo_bom.get(tipo) in lista:
         lista.remove(_modelo_bom[tipo])
         lista.insert(0, _modelo_bom[tipo])
+    import time
+
     ultimo: ErroGemini | None = None
-    for k, modelo in enumerate(lista[:4]):
+    erros: list[str] = []
+    for k, modelo in enumerate(lista[:7]):
         tentativa = dict(corpo)
-        for _ in range(2):  # (a segunda vez, sem a busca do Google, se o modelo não aceitar a ferramenta)
+        esperou = False
+        for _ in range(3):  # (de novo sem a busca do Google, se o modelo não aceitar a ferramenta; ou depois da espera)
             pedido = urllib.request.Request(f"{API_GEMINI}/models/{modelo}:generateContent", data=json.dumps(tentativa).encode(),
                                             method="POST", headers={"Content-Type": "application/json", "x-goog-api-key": chave_gemini()})
             try:
@@ -614,18 +628,64 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
                     _modelo_bom[tipo] = modelo
                     return json.loads(r.read().decode()), modelo
             except urllib.error.HTTPError as e:
-                ultimo = ErroGemini(e.code, e.read().decode(errors="replace")[:300])
+                ultimo = ErroGemini(e.code, mensagem_do_google(e.read().decode(errors="replace")))
             except urllib.error.URLError as e:
                 raise ErroGemini(0, str(e.reason)) from e
             if ultimo.status == 400 and "tools" in tentativa and re.search(r"tool|search|grounding", str(ultimo), re.I):
                 tentativa = {c: v for c, v in tentativa.items() if c != "tools"}
                 continue
+            # o limite por minuto: espera o que o Google pede (até 8 s) e tenta de novo, uma vez; o limite do dia (ou o
+            # modelo fora do plano grátis, "limit: 0"): vai direto para o próximo modelo
+            espera = re.search(r"retry in ([\d.]+)s|\"retryDelay\": ?\"(\d+)", str(ultimo))
+            segundos = float(next(g for g in espera.groups() if g)) if espera else 0
+            if ultimo.status == 429 and not esperou and 0 < segundos <= 8 and "limit: 0" not in str(ultimo) and "PerDay" not in str(ultimo):
+                esperou = True
+                time.sleep(segundos + 0.3)
+                continue
             break
+        erros.append(f"{modelo}: {ultimo.status} {str(ultimo)[:160]}")
         if ultimo.status == 404 and k == 0:
             modelos_gemini(forcar=True)  # (a lista guardada estava velha)
         if ultimo.status not in (400, 404, 429, 500, 503):
             break
-    raise ultimo or ErroGemini(0, "nenhum modelo do Gemini disponível")
+    if ultimo:
+        raise ErroGemini(ultimo.status, " | ".join(erros) or str(ultimo))
+    raise ErroGemini(0, "nenhum modelo do Gemini disponível")
+
+
+def mensagem_do_google(corpo: str) -> str:
+    """A mensagem de erro do Google, curta (sem a chave): o que diz por que o pedido não passou."""
+    try:
+        erro = json.loads(corpo).get("error") or {}
+        msg = str(erro.get("message") or "")
+        for d in erro.get("details") or []:
+            if d.get("retryDelay"):
+                msg += f' "retryDelay": "{d["retryDelay"].rstrip("s")}s"'
+        return re.sub(r"\s+", " ", msg)[:400] or corpo[:300]
+    except Exception:
+        return corpo[:300]
+
+
+def testar_gemini() -> list[dict]:
+    """Um pedido pequeno a cada modelo da lista: mostra quais respondem com a chave (e o motivo dos que não)."""
+    import urllib.error
+    import urllib.request
+
+    out = []
+    for modelo in candidatos_gemini("texto")[:7] + candidatos_gemini("voz")[:1]:
+        corpo = {"contents": [{"role": "user", "parts": [{"text": "Responda só: ok"}]}]}
+        if "tts" in modelo:
+            corpo = {"contents": [{"parts": [{"text": "ok"}]}], "generationConfig": {"responseModalities": ["AUDIO"]}}
+        pedido = urllib.request.Request(f"{API_GEMINI}/models/{modelo}:generateContent", data=json.dumps(corpo).encode(), method="POST",
+                                        headers={"Content-Type": "application/json", "x-goog-api-key": chave_gemini()})
+        try:
+            with urllib.request.urlopen(pedido, timeout=40):
+                out.append({"modelo": modelo, "ok": True})
+        except urllib.error.HTTPError as e:
+            out.append({"modelo": modelo, "ok": False, "status": e.code, "motivo": mensagem_do_google(e.read().decode(errors="replace"))[:300]})
+        except Exception as e:
+            out.append({"modelo": modelo, "ok": False, "motivo": str(e)[:200]})
+    return out
 
 
 def nome_do_modelo() -> str:

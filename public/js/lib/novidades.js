@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 444, data: '2026-11-02', titulo: 'Lumen: o Gemini responde mesmo no limite do plano grátis',
+    itens: [
+      { tipo: 'correcao', texto: 'O Lumen dizia toda hora que “a inteligência artificial não respondeu agora”. O Gemini 3.6 Flash estava recusando os pedidos pelo limite do plano grátis. Agora, quando um modelo do Gemini está no limite, o Lumen passa na hora para outro Gemini que a sua chave pode usar (e, no limite por minuto, espera uns segundos e tenta de novo). Se o arquivo inteiro do acervo deixar a pergunta grande demais, ela vai só com os trechos.' },
+      { tipo: 'melhoria', texto: 'Quando a IA não responde mesmo assim, o Lumen não fala mais o aviso: só aparece um aviso pequeno, escrito, no alto da resposta.' },
+    ],
+  },
+  {
     versao: 443, data: '2026-11-02', titulo: 'Lumen com o Gemini 3.6 Flash e as vozes do Gemini',
     itens: [
       { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o Lumen usa o Gemini 3.6 Flash; se ele não responder, o servidor tenta os outros Gemini Flash que a sua chave pode usar.' },
@@ -77,12 +84,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'Com um vídeo tocando, segure o mini player e puxe para cima: o vídeo cresce junto com o dedo, como no Spotify. São três tamanhos: o compacto, o médio (o vídeo maior, com o nome em cima e os botões embaixo) e o grande (o vídeo na largura toda). Puxe para baixo para diminuir. O tamanho escolhido fica guardado.' },
       { tipo: 'melhoria', texto: 'Vale no celular, no tablet (o cartão sobe a partir do pé da tela) e no computador (arraste a barra de baixo com o mouse: o vídeo flutua acima dela e cresce ou diminui). No tamanho grande, puxar mais uma vez para cima abre o Tocando agora.' },
-    ],
-  },
-  {
-    versao: 434, data: '2026-11-02', titulo: 'A música certa do artista certo',
-    itens: [
-      { tipo: 'correcao', texto: 'Na Busca, uma música com o mesmo nome de outra vinha misturada: “Neverender”, do Justice, abria com o vídeo certo, mas a letra, a versão de música e o artista eram da “Neverender” do Coheed and Cambria. Agora o app usa o artista que a busca já mostrava (ou o que está no título do vídeo) e não aceita a música de outro artista só porque o título é igual. Se você salvou uma música assim, tire da biblioteca e salve de novo pela Busca.' },
     ],
   },
 ];

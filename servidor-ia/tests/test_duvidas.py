@@ -199,7 +199,7 @@ def test_escolhe_o_flash_mais_novo_e_troca_quando_um_sumiu(monkeypatch):
         return Resp({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
 
     monkeypatch.setattr(urllib.request, "urlopen", abrir)
-    assert duvidas.candidatos_gemini("texto")[:3] == ["gemini-3.8-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    assert duvidas.candidatos_gemini("texto") == ["gemini-3.8-flash-preview", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite"]
     assert duvidas.candidatos_gemini("voz")[0] == "gemini-3.8-flash-tts"
     dados, modelo = duvidas.chamar_gemini({"contents": []})
     assert modelo == "gemini-3.5-flash" and pedidos == ["gemini-3.8-flash-preview", "gemini-3.5-flash"]
@@ -224,3 +224,44 @@ def test_o_lumen_usa_o_gemini_3_6_flash_primeiro(monkeypatch):
                                                                      {"name": "models/gemini-3.6-flash", "supportedGenerationMethods": ["generateContent"]}]})
     monkeypatch.setattr(duvidas, "MODELO_GEMINI", "gemini-3.6-flash")
     assert duvidas.candidatos_gemini("texto")[:2] == ["gemini-3.6-flash", "gemini-3.8-flash"]
+
+
+def test_no_limite_do_plano_vai_para_o_proximo_e_conta_o_motivo(monkeypatch):
+    import io
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    lista = {"models": [{"name": f"models/{n}", "supportedGenerationMethods": ["generateContent"]} for n in
+                        ["gemini-3.6-flash", "gemini-3.5-flash-lite"]]}
+    monkeypatch.setattr(duvidas, "_modelos", {"em": 0.0, "lista": []})
+    monkeypatch.setattr(duvidas, "_modelo_bom", {})
+    monkeypatch.setattr(duvidas, "MODELO_GEMINI", "gemini-3.6-flash")
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    limite = _json.dumps({"error": {"code": 429, "message": "Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: gemini-3.6-flash"}})
+
+    class Resp:
+        def __init__(self, corpo):
+            self.corpo = corpo
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps(self.corpo).encode()
+
+    def abrir(pedido, timeout=0):
+        url = pedido.full_url
+        if "/models?" in url:
+            return Resp(lista)
+        if "gemini-3.6-flash:" in url:
+            raise urllib.error.HTTPError(url, 429, "limite", {}, io.BytesIO(limite.encode()))
+        return Resp({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    _, modelo = duvidas.chamar_gemini({"contents": []})
+    assert modelo == "gemini-3.5-flash-lite"
+    assert "limit: 0" in duvidas.mensagem_do_google(limite)

@@ -580,7 +580,8 @@ def tirar_duvida(pedido: PedidoDuvida):
             raise HTTPException(422, str(e))
         except duvidas.ErroGemini as e:
             log.warning("Gemini respondeu %s: %s", e.status, e)
-            raise HTTPException(503 if e.status == 429 else 502, "a IA não respondeu agora, tente de novo")
+            # (com o motivo do Google: "limite", "modelo fora do plano"…, para saber o que acertar)
+            raise HTTPException(503 if e.status == 429 else 502, f"a IA não respondeu agora ({e.status}): {str(e)[:500]}")
     import anthropic
 
     try:
@@ -594,6 +595,14 @@ def tirar_duvida(pedido: PedidoDuvida):
         raise HTTPException(502, "a IA não respondeu agora, tente de novo")
     except anthropic.APIConnectionError:
         raise HTTPException(502, "sem conexão com a IA, tente de novo")
+
+
+@app.get("/ia-teste", dependencies=[Depends(conferir_chave)])
+def ia_teste():
+    """Diagnóstico do Gemini: um pedido pequeno a cada modelo da lista, com o motivo dos que não respondem."""
+    if duvidas.provedor() != "gemini":
+        return {"ia": duvidas.provedor(), "modelos": []}
+    return {"ia": "gemini", "modelos": duvidas.testar_gemini()}
 
 
 class PedidoBusca(BaseModel):
