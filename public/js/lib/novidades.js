@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 463, data: '2026-11-03', titulo: 'Microfone do karaokê redesenhado',
+    itens: [
+      { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade, simples: a cabeça, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
+    ],
+  },
+  {
     versao: 462, data: '2026-11-03', titulo: 'Servidor da IA sempre ligado, sozinho',
     itens: [
       { tipo: 'melhoria', texto: 'O servidor da IA agora se ajeita sozinho: o Codespace do GitHub é o principal e, quando ele está desligado, o servidor de reserva (o Modal) atende na hora e manda o GitHub ligar o Codespace, que assume em uns 2 minutos. Sem a cota grátis do mês no Codespace, tudo fica no Modal. Não é mais preciso ir ao GitHub ligar nada, ler QR code ou colar endereço.' },
@@ -60,12 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'No coral feito pela IA, o Contralto, o Tenor e o Baixo agora são escritos pela cifra da música, como num hinário: cada voz canta uma nota do acorde, sem cruzar com as outras, perto da nota de antes e no mesmo ritmo e com a mesma letra do Soprano. Antes essas vozes saíam das notas do violão e do teclado, e ficavam emboladas. Se a gravação tem mesmo as 4 vozes, escolha “Coral do áudio” em Ajustar → Vozes.' },
       { tipo: 'melhoria', texto: 'O servidor separa o cantor principal do backing vocal: a melodia sai só da voz do solista, conferida pela afinação (antes o backing fazia a voz parecer um coral e essa conferência ficava de fora). E as batidas e o primeiro tempo de cada compasso agora são ouvidos por uma rede treinada para isso, então o compasso e a anacruse acertam mais.' },
-    ],
-  },
-  {
-    versao: 453, data: '2026-11-03', titulo: 'Partitura pela IA sem notas perdidas',
-    itens: [
-      { tipo: 'melhoria', texto: 'A partitura pela IA não perde mais notas cantadas: onde a voz canta firme e a IA não tinha marcado nota, ela entra pela afinação da voz. A afinação agora é ouvida com o modelo maior (mais lento, uns minutos a mais, e mais preciso), que acerta melhor onde há voz e em que nota.' },
     ],
   },
 ];
