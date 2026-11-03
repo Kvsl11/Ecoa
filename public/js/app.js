@@ -81,6 +81,9 @@ const servidorIA = () => SERVIDOR_IA;
 // o servidor do site (o Codespace do GitHub, gravado pela publicação em data/servidor-ia.json): mesmo desligado, o
 // endereço fica sabido, para a tela dizer "ligue o Codespace"
 let servidorDoSite = '';
+// o servidor do Codespace: a porta pública dele (…-7860.app.github.dev) ou, quando o GitHub não deixa a porta pública,
+// o túnel da Cloudflare que ele abre (….trycloudflare.com)
+const doCodespace = (host) => /\.app\.github\.dev$|\.trycloudflare\.com$/i.test(host || '');
 const doLink = new URLSearchParams(location.search).get('ia');
 if (doLink !== null) {
   db.setPref('servidorPc', baseDoServidor(doLink));
@@ -108,7 +111,7 @@ function carregarServidor({ forcar = false } = {}) {
     if (url) {
       let host = '';
       try { host = new URL(url).host; } catch { /* endereço inválido */ }
-      if (/\.app\.github\.dev$/i.test(host)) {
+      if (doCodespace(host)) {
         // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, fica sem servidor e a
         // partitura sai no aparelho (a tela pede para ligar o Codespace)
         servidorDoSite = url;
@@ -9642,7 +9645,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // o servidor no GitHub Codespaces (.devcontainer/) dorme quando ninguém usa: o endereço não muda, então basta
   // ligar o Codespace (github.com/codespaces, até pelo celular) e tocar em "Já liguei"
   const pcGuardado = baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
-  const noGithub = !noPc && /\.app\.github\.dev$/i.test(pcGuardado ? new URL(pcGuardado).host : '');
+  const noGithub = !noPc && doCodespace(pcGuardado ? new URL(pcGuardado).host : '');
   // o áudio da própria música, para a IA do servidor ouvir sozinha: o áudio da pessoa, o áudio oficial (sem as cenas do
   // clipe) ou o vídeo. Só se ele não der certo é que a tela pede um arquivo
   let fonte = fonteDaPartitura(song);
@@ -13069,7 +13072,7 @@ const salvarCookies = (c) => { try { localStorage.setItem(YT_COOKIES, JSON.strin
 // Tudo automático: o Codespace publica o próprio endereço no site quando liga e o app o acha em qualquer aparelho; a
 // conexão do YouTube volta sozinha (reconectarYoutube). A tela só mostra como está cada parte e, desligado, o botão
 // para ligar o Codespace. O endereço à mão (um servidor no computador) fica recolhido em "Usar outro servidor"
-const hostCurto = (url) => { try { return new URL(url).host.replace(/-7860\.app\.github\.dev$/i, ''); } catch { return ''; } };
+const hostCurto = (url) => { try { return new URL(url).host.replace(/-7860\.app\.github\.dev$/i, '').replace(/\.trycloudflare\.com$/i, ' (túnel)'); } catch { return ''; } };
 function viewServidorIA() {
   setTab('inicio');
   setTint('#14324a');
@@ -13130,7 +13133,7 @@ function viewServidorIA() {
     }
     st.dataset.estado = 'ok';
     const host = new URL(cfg.url).host;
-    const github = /\.app\.github\.dev$/i.test(host);
+    const github = doCodespace(host);
     $('#sv-estado-t').textContent = 'Ligado';
     $('#sv-estado-d').textContent = github ? `Codespace ${hostCurto(cfg.url)} · encontrado sozinho` : host;
     // o YouTube: conectado (e volta sozinho) ou o que fazer

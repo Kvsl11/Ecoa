@@ -26,7 +26,15 @@ APP = os.environ.get("IA_APP", "https://kvsl11.github.io/Songbook/")
 
 def endereco() -> str | None:
     """O endereço https do túnel (None enquanto ele não liga, ou sem túnel)."""
-    # no GitHub Codespaces (.devcontainer/), o endereço da porta encaminhada
+    # no GitHub Codespaces (.devcontainer/), o endereço que o codespace.py achou funcionando (a porta pública ou o
+    # túnel da Cloudflare); antes de ele achar, o da porta encaminhada
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dados", "endereco.txt"), encoding="utf-8") as f:
+            achado = f.read().strip()
+        if achado and os.environ.get("CODESPACE_NAME"):
+            return achado
+    except OSError:
+        pass
     codespace, dominio = os.environ.get("CODESPACE_NAME"), os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
     if codespace and dominio:
         return f"https://{codespace}-{os.environ.get('PORT', '7860')}.{dominio}"
