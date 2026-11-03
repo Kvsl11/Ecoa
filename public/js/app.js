@@ -3135,6 +3135,8 @@ const semLinhasDeAcordes = (sinc) => {
     get duracao() { return duracao; },
     tocandoAgora: (youtube) => desta(youtube) && estado === 'tocando',
     tocandoAlgo: () => Boolean(atual) && estado === 'tocando',
+    // a próxima (1) ou a anterior (-1) da fila (o Lumen usa: "próxima música"); false se não tem
+    pular: (lado) => pular(lado),
     desta,
     ouvir(fn) { ouvintes.add(fn); return () => ouvintes.delete(fn); },
     // o aleatório ligado ou desligado de fora do player (o botão das páginas do repertório e das Músicas curtidas)
@@ -13783,6 +13785,22 @@ function pontuar(texto) {
     || /\b(qual|quais|quando|como|onde|aonde|quem|quanto|quantos|quantas|por que|porque|pra que|para que|o que)\b/.test(n)) return `${t}?`;
   return `${t}.`;
 }
+// A saudação do ao vivo ("Olá, eu sou a Lumen."), na voz escolhida, guardada no aparelho: ao abrir, ela toca na hora
+// (antes esperava o servidor acordar e fazer a voz, uns 5 s). Ela é preparada quando a tela do Lumen abre
+const saudacaoLumen = () => `Olá, eu sou ${oLumen()}.`;
+const chaveSaudacao = () => new URL(`lumen-saudacao/${encodeURIComponent(vozDoLumen().nome)}/${encodeURIComponent(saudacaoLumen())}`, document.baseURI).href;
+async function saudacaoGuardada() {
+  try { const r = await (await caches.open('lumen-voz')).match(chaveSaudacao()); return r ? await r.blob() : null; } catch { return null; }
+}
+async function prepararSaudacao() {
+  if (await saudacaoGuardada()) return;
+  await comPrazo(carregarServidor().catch(() => {}), 12000);
+  const cfg = servidorVoz();
+  if (!cfg) return;
+  const chave = chaveSaudacao();
+  const blob = await audioDaVoz(cfg, saudacaoLumen()).catch(() => null);
+  if (blob?.size) { try { await (await caches.open('lumen-voz')).put(chave, new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/mpeg' } })); } catch { /* sem guardar */ } }
+}
 // o começo da fala com letra maiúscula (o reconhecimento de voz entrega tudo em minúscula)
 const comMaiuscula = (t) => { const s = String(t || '').trimStart(); return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1); };
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
@@ -13814,6 +13832,7 @@ async function contextoDoApp(pergunta) {
   }
   const musicas = db.songs();
   if (musicas.length) l.push('', `Músicas na biblioteca (${musicas.length}): ${musicas.slice(0, 250).map((m) => (m.artist ? `${m.title} (${m.artist})` : m.title)).join('; ')}`);
+  if (player.atual) l.push('', `No player agora: ${player.atual.titulo || ''}${player.atual.artista ? ` (${player.atual.artista})` : ''}, ${player.tocandoAlgo() ? 'tocando' : 'pausada'}.`);
   const sets = db.sets().slice(0, 15);
   if (sets.length) l.push('', 'Repertórios:', ...sets.map((x) => `- ${x.name}${x.date ? ` (${fmtData(x.date)})` : ''}: ${(x.items || []).map((it) => db.song(it.songId)?.title).filter(Boolean).join('; ')}`));
   return l.join('\n');
@@ -13863,7 +13882,145 @@ function trechoLimpo(frases) {
   const out = partes.join(' ');
   return /[.!?…]$/.test(out) ? out : `${out}.`;
 }
+// ---------------------------------------------------------------- o Lumen mexe no app
+// Pedidos do app inteiro, feitos aqui mesmo (rápido e sem gastar a IA): tocar uma música da biblioteca, pausar,
+// continuar, a próxima e a anterior, as músicas da biblioteca, os repertórios e abrir uma tela. Devolve
+// { fala, html, depois } (depois: o que fazer em seguida — no ao vivo, depois de falar) ou null (não é pedido do app)
+// a música da biblioteca pelo nome falado ("never render" acha "Neverender"; "neverender do justice" também)
+// quantas letras mudam de uma palavra para a outra (a voz escreve "never render" para "Neverender")
+function distancia(a, b) {
+  if (Math.abs(a.length - b.length) > 3) return 99;
+  let ant = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(ant[j] + 1, cur[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    ant = cur;
+  }
+  return ant[b.length];
+}
+function acharMusica(nome) {
+  const alvo = normalizar(nome).replace(/^(a|o|as|os) /, '').replace(/^(musica|cancao|faixa) /, '').trim();
+  if (!alvo) return null;
+  const junto = (t) => t.replace(/ /g, '');
+  let melhor = null;
+  let nota = 0;
+  for (const s of db.songs()) {
+    const t = normalizar(tituloLimpo(s.title || ''));
+    const com = normalizar(`${tituloLimpo(s.title || '')} ${s.artist || ''}`);
+    if (!t) continue;
+    let n = 0;
+    const quase = (x) => x.length >= 5 && distancia(junto(x), junto(alvo)) <= Math.max(1, Math.floor(junto(x).length * 0.15));
+    if (t === alvo || junto(t) === junto(alvo)) n = 100;
+    else if (quase(t) || quase(com)) n = 85;
+    else if (com === alvo || junto(com) === junto(alvo) || alvo.startsWith(`${t} d`) || junto(alvo).startsWith(junto(t)) && t.length >= 4) n = 90;
+    else if (t.startsWith(alvo) && alvo.length >= 4) n = 75;
+    else if ((t.includes(alvo) || junto(t).includes(junto(alvo))) && alvo.length >= 4) n = 65;
+    else if (alvo.includes(t) && t.length >= 5) n = 60;
+    else {
+      const pa = new Set(alvo.split(' ').filter((w) => w.length > 2));
+      const pt = t.split(' ').filter((w) => w.length > 2);
+      const comuns = pt.filter((w) => pa.has(w)).length;
+      if (pt.length && comuns / pt.length >= 0.6) n = 40 + 20 * comuns / pt.length;
+    }
+    if (n > nota) { nota = n; melhor = s; }
+  }
+  return nota >= 55 ? melhor : null;
+}
+const nomeDaMusica = (s) => `${tituloLimpo(s.title)}${s.artist ? `, ${s.artist.split(/\s*[,&]\s*/)[0]}` : ''}`;
+// toca a música (com vídeo ou áudio); sem nenhum, abre a página dela
+function tocarDoLumen(song) {
+  if (midiaDe(song)) player.tocar(itemDoPlayer(song));
+  else location.hash = `#/musica/${song.id}`;
+}
+const TELAS_LUMEN = [
+  [/\bliturgia\b/, '#/liturgia', 'a Liturgia'], [/\bbiblioteca\b/, '#/biblioteca', 'a Biblioteca'],
+  [/\brepertorios?\b/, '#/repertorios', 'os Repertórios'], [/\b(busca|pesquisa)\b/, '#/buscar', 'a Busca'],
+  [/\b(inicio|tela inicial|comeco)\b/, '#/', 'o Início'], [/\bacervo\b/, '#/buscar', 'o Acervo'],
+  [/\b(configurac\w*|ajustes|preferencias)\b/, '#/ajustes', 'os Ajustes'], [/\bpartituras?\b/, '#/partituras', 'as Partituras'],
+  [/\boracoes\b/, '#/oracoes', 'as Orações'],
+];
+function acaoDoLumen(pergunta) {
+  const t = normalizar(pergunta);
+  const falas = [];
+  const htmls = [];
+  const depois = [];
+  // 1. as músicas da biblioteca ("traga as músicas da minha biblioteca", "o que tem na biblioteca?")
+  if (/\b(musicas|cancoes|lista)\b.*\b(biblioteca|salvas|salvei|tenho)\b|\b(minha|na|da) biblioteca\b.*\b(tem|musicas|lista|traga|mostr\w*|quais)\b|\bquais musicas (eu )?tenho\b/.test(t)
+    && !/\b(abr[ae]|abrir)\b/.test(t)) {
+    const todas = db.songs();
+    if (!todas.length) falas.push('A sua biblioteca ainda está vazia.');
+    else {
+      const nomes = todas.slice(0, 8).map(nomeDaMusica);
+      falas.push(`Você tem ${todas.length === 1 ? 'uma música' : `${todas.length} músicas`} na biblioteca${todas.length > 8 ? ', entre elas' : ''}: ${nomes.join('; ')}${todas.length > 8 ? `, e mais ${todas.length - 8}` : ''}.`);
+      htmls.push(`<h4 class="dv-sub">Na sua biblioteca (${todas.length})</h4><div class="dv-cantos">${todas.slice(0, 60).map((x) => `<button type="button" class="dv-fonte" data-tocar="${esc(x.id)}">${icon('play', 14)}<span><b>${esc(tituloLimpo(x.title))}</b><small>${esc(x.artist || '')}</small></span></button>`).join('')}</div>`);
+    }
+  }
+  // 2. os repertórios
+  if (/\b(meus|quais|os|tenho|lista dos?) repertorios\b|\brepertorios (que )?(eu )?tenho\b/.test(t) && !/\b(abr[ae]|abrir)\b/.test(t)) {
+    const sets = db.sets();
+    if (!sets.length) falas.push('Você ainda não tem repertórios.');
+    else {
+      falas.push(`Você tem ${sets.length === 1 ? 'um repertório' : `${sets.length} repertórios`}: ${sets.slice(0, 6).map((x) => x.name + (x.date ? `, de ${fmtData(x.date)}` : '')).join('; ')}${sets.length > 6 ? `, e mais ${sets.length - 6}` : ''}.`);
+      htmls.push(`<h4 class="dv-sub">Seus repertórios</h4><div class="dv-cantos">${sets.slice(0, 30).map((x) => `<a class="dv-fonte" href="#/repertorio/${esc(x.id)}">${icon('list', 14)}<span><b>${esc(x.name)}</b><small>${x.date ? esc(fmtData(x.date)) : `${(x.items || []).length} músicas`}</small></span></a>`).join('')}</div>`);
+    }
+  }
+  // 3. tocar uma música ("toque a música Neverender", "coloca Neverender do Justice pra tocar")
+  const pedidoTocar = /\b(toque|toca|tocar|coloque|coloca|colocar|bota|bote|botar|play|reproduz\w*|quero (ouvir|escutar)|ouvir|escutar)\b\s+(.+)$/.exec(t);
+  if (pedidoTocar) {
+    const nome = pedidoTocar[3].replace(/\b(pra|para) (mim|tocar|eu ouvir)\b.*$|\b(por favor|agora|ai|aqui|no player|pra gente)\b.*$/, '').replace(/^(a|o) (musica|cancao) /, '').replace(/^(musica|cancao) /, '').trim();
+    if (nome && !/^(musica|algo|alguma coisa|qualquer)$/.test(nome)) {
+      const song = acharMusica(nome);
+      if (song) {
+        falas.push(`${midiaDe(song) ? 'Tocando' : 'Abrindo'} ${nomeDaMusica(song)}.`);
+        depois.push(() => tocarDoLumen(song));
+      } else {
+        falas.push(`Não achei “${nome}” na sua biblioteca. Deixei a Busca pronta para você procurar.`);
+        htmls.push(`<a class="dv-atalho" href="#/buscar" data-buscar="${esc(nome)}">${icon('search', 20)}<span><b>Procurar “${esc(nome)}”</b><small>Na Busca do app</small></span>${icon('next', 18)}</a>`);
+      }
+    }
+  }
+  // 4. os controles da música que toca
+  if (!pedidoTocar) {
+    if (/^(pausa|pause|pausar|pare|para|parar)( (a|essa|esta) (musica|cancao))?$|\b(pausa|pause|pare|para) (a|essa|esta) musica\b/.test(t)) {
+      falas.push(player.tocandoAlgo() ? 'Pausei a música.' : 'Não tem música tocando agora.');
+      if (player.tocandoAlgo()) depois.push(() => player.alternar());
+    } else if (/^(continua|continue|continuar|retoma|retome|despausa|volta a tocar)\b/.test(t)) {
+      falas.push(player.atual ? 'Continuando a música.' : 'Não tem música no player agora.');
+      if (player.atual) depois.push(() => { if (!player.tocandoAlgo()) player.alternar(); });
+    } else if (/\b(proxima|pula|pule|passa|passe|avanca)\b( (a|essa|esta|pra|para a))?( (musica|faixa|cancao))?$/.test(t)) {
+      falas.push(player.atual ? 'Indo para a próxima música.' : 'Não tem música no player agora.');
+      if (player.atual) depois.push(() => { if (!player.pular(1)) toast('Esta é a última da fila'); });
+    } else if (/\b(musica anterior|volta (a|uma) musica|anterior)\b$/.test(t)) {
+      falas.push(player.atual ? 'Voltando para a música anterior.' : 'Não tem música no player agora.');
+      if (player.atual) depois.push(() => player.pular(-1));
+    }
+  }
+  // 5. abrir uma tela ("abra a liturgia", "vai para a biblioteca")
+  if (/\b(abr[ae]|abrir|abre|vai pra|vai para|ir para|ir pra|me leva|leve)\b/.test(t)) {
+    const tela = TELAS_LUMEN.find(([re]) => re.test(t));
+    if (tela) { falas.push(`Abrindo ${tela[2]}.`); depois.push(() => { location.hash = tela[1]; }); }
+  }
+  if (!falas.length) return null;
+  return { fala: falas.join(' '), html: htmls.join(''), depois: depois.length ? () => depois.forEach((f) => { try { f(); } catch { /* segue */ } }) : null };
+}
+// As ações que a IA pede no fim da resposta, para o que o aparelho não entendeu sozinho ("toca aquela do Justice"):
+// [[tocar: título]], [[pausar]], [[continuar]], [[proxima]], [[anterior]], [[abrir: tela]]. Saem do texto e viram ações
+function acoesDaIA(texto) {
+  const depois = [];
+  const limpo = String(texto || '').replace(/\[\[\s*(tocar|pausar|continuar|proxima|próxima|anterior|abrir)\s*(?::\s*([^\]]*))?\]\]/gi, (_, acao, arg = '') => {
+    const a = normalizar(acao);
+    if (a === 'tocar') { const s = acharMusica(arg); if (s) depois.push(() => tocarDoLumen(s)); }
+    else if (a === 'pausar') depois.push(() => { if (player.tocandoAlgo()) player.alternar(); });
+    else if (a === 'continuar') depois.push(() => { if (player.atual && !player.tocandoAlgo()) player.alternar(); });
+    else if (a === 'proxima') depois.push(() => player.pular(1));
+    else if (a === 'anterior') depois.push(() => player.pular(-1));
+    else if (a === 'abrir') { const tela = TELAS_LUMEN.find(([re]) => re.test(normalizar(arg))); if (tela) depois.push(() => { location.hash = tela[1]; }); }
+    return '';
+  }).replace(/[ \t]+\n/g, '\n').trim();
+  return { texto: limpo, depois: depois.length ? () => depois.forEach((f) => { try { f(); } catch { /* segue */ } }) : null };
+}
 const falaDaResposta = (m) => {
+  if (m.acao) return m.acao.fala;
   if (m.ia) return textoDaIA(m.ia);
   if (m.sugestoes) {
     const S = m.sugestoes;
@@ -13927,7 +14084,7 @@ const realcar = (texto, pergunta) => {
   return esc(texto).replace(/[\p{L}\d]+/gu, (p) => (termos.has(raizDuvida(palavrasDuvida(p)[0] || '')) ? `<b>${hifenizar(p)}</b>` : hifenizar(p)));
 };
 // a resposta em texto (para copiar)
-const textoDaResposta = (m) => (m.ia ? m.ia.resposta : m.sugestoes ? textoDasSugestoes(m.sugestoes) : m.liturgia ? textoDaLiturgia(m.liturgia) : [
+const textoDaResposta = (m) => (m.acao ? m.acao.fala : m.ia ? m.ia.resposta : m.sugestoes ? textoDasSugestoes(m.sugestoes) : m.liturgia ? textoDaLiturgia(m.liturgia) : [
   ...(m.acervo || []).map((a) => `${a.titulo} (${a.caminho}): ${a.frases.join(' ')}`),
   ...(m.arquivos || []).map((a) => `${a.titulo} (${a.caminho})${a.id ? ` https://drive.google.com/file/d/${a.id}/view` : ''}`),
   ...(m.cantos || []).map((a) => `${a.titulo} (${a.caminho})`),
@@ -13940,7 +14097,8 @@ function viewDuvidas() {
   conversaDuvidas = conversaDuvidas.filter((m) => m.carregando || Date.now() - (m.t || 0) < DIA);
   setTab('inicio');
   setTint('#0b1020');
-  setHeader('Lumen', { back: '#/', eyebrow: 'Seu assistente litúrgico', actions: [...(conversaDuvidas.length ? [{ icon: 'trash', label: 'Apagar conversa', onClick: async () => { if (await ask({ title: 'Apagar a conversa?', text: 'As perguntas e respostas saem deste aparelho. (Elas também somem sozinhas depois de 24 horas.)', ok: 'Apagar', danger: true })) { conversaDuvidas = []; guardarConversa(); viewDuvidas(); } } }] : [])] });
+  void prepararSaudacao().catch(() => {});
+  setHeader('Lumen', { back: '#/', eyebrow: generoLumen() === 'masculina' ? 'Seu assistente' : 'Sua assistente', actions: [...(conversaDuvidas.length ? [{ icon: 'trash', label: 'Apagar conversa', onClick: async () => { if (await ask({ title: 'Apagar a conversa?', text: 'As perguntas e respostas saem deste aparelho. (Elas também somem sozinhas depois de 24 horas.)', ok: 'Apagar', danger: true })) { conversaDuvidas = []; guardarConversa(); viewDuvidas(); } } }] : [])] });
   const avatar = `<span class="dv-avatar" aria-hidden="true">${logoLumen(20)}</span>`;
   view.innerHTML = `<div class="chat">
     <div class="chat-rolo" id="dv-conversa"></div>
@@ -13973,6 +14131,7 @@ function viewDuvidas() {
   const corpo = (m, k) => {
     if (m.carregando) return `<div class="chat-digitando" aria-label="Procurando a resposta"><i></i><i></i><i></i><span>${esc(m.etapa || 'Procurando no acervo…')}</span></div>`;
     if (m.content && !m.acervo) return htmlDaResposta(m.content); // conversa guardada da versão anterior
+    if (m.acao) return `<p class="dv-texto">${esc(m.acao.fala)}</p>${m.acao.html || ''}`;
     // a resposta: o trecho que mais responde, em texto corrido, com a fonte embaixo; os outros trechos recolhidos
     const fonte = (a, n) => `<button type="button" class="dv-fonte" data-k="${k}" data-n="${n}">${icon(a.tipo === 'enviado' ? 'file' : 'library', 14)}<span><b>${esc(a.tipo === 'enviado' ? a.titulo : nomeBonito(a.titulo))}</b><small>${esc(a.caminho)}</small></span></button>`;
     const partes = [];
@@ -14056,8 +14215,8 @@ function viewDuvidas() {
     ? `<div class="chat-msg eu">${m.anexo ? `<span class="chat-anexo-msg">${icon(iconeDoAnexo(m.anexo.tipo), 16)}<span>${esc(m.anexo.nome)}</span></span>` : ''}<div class="chat-bolha">${esc(m.content)}</div><small class="chat-hora">${horaCurta(m.t)}</small></div>`
     : `<div class="chat-msg ia"><div class="chat-corpo"><div class="chat-nome">${avatar}<span>Lumen</span><small class="chat-hora">${horaCurta(m.t)}</small></div>
         <div class="chat-bolha">${corpo(m, k)}</div>
-        ${!m.carregando ? `<div class="chat-acoes">${m.ia || m.sugestoes || m.liturgia || m.acervo?.length || m.cantos?.length || m.arquivos?.length || m.web?.length || m.wiki ? `<button type="button" data-copiar="${k}">${icon('copy', 14)} Copiar</button>` : ''}
-          ${m.pergunta ? `<a href="${esc(google(m.pergunta))}" target="_blank" rel="noopener">${icon('search', 14)} Pesquisar no Google</a>` : ''}</div>` : ''}</div></div>`);
+        ${!m.carregando ? `<div class="chat-acoes">${m.acao || m.ia || m.sugestoes || m.liturgia || m.acervo?.length || m.cantos?.length || m.arquivos?.length || m.web?.length || m.wiki ? `<button type="button" data-copiar="${k}">${icon('copy', 14)} Copiar</button>` : ''}
+          ${m.pergunta && !m.acao ? `<a href="${esc(google(m.pergunta))}" target="_blank" rel="noopener">${icon('search', 14)} Pesquisar no Google</a>` : ''}</div>` : ''}</div></div>`);
   const desenhar = () => {
     caixa.innerHTML = conversaDuvidas.length ? conversaDuvidas.map(msg).join('') : boasVindas();
     // com conversa, vai para a última mensagem; vazia, fica no começo (o "Olá" não pode sair cortado no celular)
@@ -14109,6 +14268,17 @@ function viewDuvidas() {
     conversaDuvidas.push(resp);
     desenhar();
     if (anexo) return perguntarSobreAnexo(q, anexo, resp, voz);
+    // pedido do app (tocar, pausar, a biblioteca, abrir uma tela…): feito aqui, na hora. Na conversa por texto a ação
+    // acontece já; no ao vivo, depois que o Lumen fala (resp.depois)
+    const acao = acaoDoLumen(q);
+    if (acao) {
+      Object.assign(resp, { acao: { fala: acao.fala, html: acao.html }, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
+      Object.defineProperty(resp, 'depois', { value: acao.depois, enumerable: false, writable: true });
+      guardarConversa();
+      if (!voz) { acao.depois?.(); if (acao.depois && player.atual) toast(acao.fala); }
+      if (location.hash === '#/duvidas') viewDuvidas();
+      return resp;
+    }
     // pedido de sugestão de cantos para partes da missa de um dia: as sugestões da tela da Liturgia
     const pedidoCantos = pedidoSugestao(q, hojeISO());
     if (pedidoCantos) {
@@ -14148,7 +14318,10 @@ function viewDuvidas() {
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
         const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
         if (ia?.resposta) {
+          const { texto: semAcoes, depois } = acoesDaIA(ia.resposta);
+          ia.resposta = semAcoes;
           Object.assign(resp, { ia, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
+          if (depois) { Object.defineProperty(resp, 'depois', { value: depois, enumerable: false, writable: true }); if (!voz) depois(); }
           guardarConversa();
           if (location.hash === '#/duvidas') viewDuvidas();
           return resp;
@@ -14297,6 +14470,10 @@ function viewDuvidas() {
   if (innerWidth > 700 && matchMedia('(pointer: fine)').matches && !document.querySelector('.dv-vivo')) campo.focus();
   // o toque numa resposta (na conversa ou na tela ao vivo): copiar, abrir o canto ou o trecho do acervo
   const tocarResposta = async (e) => {
+    const bt = e.target.closest('[data-tocar]');
+    if (bt) { const s = db.song(bt.dataset.tocar); if (s) { tocarDoLumen(s); toast(`Tocando: ${tituloLimpo(s.title)}`); } return; }
+    const bb = e.target.closest('[data-buscar]');
+    if (bb) { try { sessionStorage.setItem('busca', bb.dataset.buscar); } catch { /* sem guardar */ } return; }
     const cop = e.target.closest('[data-copiar]');
     if (cop) { try { const m = conversaDuvidas[cop.dataset.copiar]; await navigator.clipboard.writeText(m.content && !m.acervo ? m.content : textoDaResposta(m)); toast('Resposta copiada'); } catch { toast('Não consegui copiar'); } return; }
     // canto sugerido para a missa: do acervo/Hinário (já no app) ou da Cindy/Músicas para Missa (lido na hora)
@@ -14513,6 +14690,7 @@ function viewDuvidas() {
       if (nova && nova.nome !== vozDoLumen().nome) {
         db.setPref('vozGemini', nova.nome);
         db.setPref('vozLumen', nova.genero);
+        void prepararSaudacao().catch(() => {});
         if (['ouvindo', 'parado'].includes(el.dataset.estado) && permissaoEl.hidden) {
           estado('falando');
           falar(`Oi! Agora eu falo com a voz ${nova.nome}. Pode continuar.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
@@ -14696,7 +14874,8 @@ function viewDuvidas() {
     });
     // falar: a voz neural do servidor, pedaço a pedaço (o próximo já vem enquanto este toca); se ela falha, o resto vai
     // na voz do navegador. A legenda acompanha. Termina quando acaba ou quando é interrompida (pararVoz)
-    const falar = (texto) => {
+    // ({ audio }: o áudio já pronto, como a saudação guardada; { soNavegador }: a voz do aparelho, na hora)
+    const falar = (texto, { audio = null, soNavegador = false } = {}) => {
       pararVoz();
       novaLegenda(texto);
       return new Promise((pronto) => {
@@ -14704,6 +14883,15 @@ function viewDuvidas() {
         fimFala = pronto;
         const vale = () => fimFala === minha;
         (async () => {
+          if (audio || soNavegador) {
+            const n = contarPalavras(texto);
+            let tocou = false;
+            if (audio) { pedacoAtual = { base: 0, n, letras: texto.length }; tocou = await tocarAudio(audio); pedacoAtual = null; }
+            if (!vale()) return;
+            if (!tocou) await falarNoNavegador(texto, 0);
+            if (vale()) { avancarLegenda(n, n); fimFala = null; pronto(); }
+            return;
+          }
           await comPrazo(servidorPronto, 6000);
           if (!vale()) return;
           const cfg = servidorVoz();
@@ -14823,6 +15011,8 @@ function viewDuvidas() {
       estado('falando');
       meio.scrollTop = 0;
       await falar(fala);
+      // o pedido do app (tocar uma música, abrir uma tela…): depois de falar, a conversa ao vivo fecha e ele acontece
+      if (aberto && el.dataset.estado === 'falando' && m.depois) { const f = m.depois; fechar(); f(); return; }
       if (aberto && el.dataset.estado === 'falando') ouvir();
     };
     const fechar = () => {
@@ -14869,11 +15059,17 @@ function viewDuvidas() {
       if (e.target.closest('button.dv-fonte, a[href^="#"]')) fechar();
       tocarResposta(e);
     });
-    const comecar = () => {
+    // a saudação curta, na hora: a guardada no aparelho (na voz escolhida); sem ela ainda, a voz do aparelho (e a
+    // guardada fica pronta para a próxima vez)
+    const saudacaoPronta = saudacaoGuardada();
+    const comecar = async () => {
       if (!aberto) return;
       permissaoEl.hidden = true;
       estado('falando');
-      falar(`Olá, eu sou ${oLumen()}! Pode perguntar sobre a liturgia, os cantos e os arquivos do acervo, ou qualquer dúvida da missa.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+      const audio = await comPrazo(saudacaoPronta, 400);
+      if (!aberto) return;
+      if (!audio) void prepararSaudacao().catch(() => {});
+      falar(saudacaoLumen(), audio ? { audio } : { soNavegador: true }).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
     };
     // a permissão do microfone: o Lumen pede antes de começar (um cartão explica e o botão abre a pergunta do navegador)
     const permissaoEl = el.querySelector('.dv-vivo-permissao');

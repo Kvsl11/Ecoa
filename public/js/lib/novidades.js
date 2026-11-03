@@ -4,8 +4,11 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 444, data: '2026-11-02', titulo: 'Lumen: o Gemini responde mesmo no limite do plano grátis',
+    versao: 444, data: '2026-11-02', titulo: 'Lumen: assistente do app inteiro, saudação na hora',
     itens: [
+      { tipo: 'novo', texto: 'O Lumen agora mexe no app: “toque Neverender”, “pausa a música”, “próxima música”, “volta a anterior”, “quais músicas tenho na biblioteca?”, “quais são os meus repertórios?”, “abra a liturgia”… Dá para pedir mais de uma coisa de uma vez (“traga as músicas da minha biblioteca e toque Neverender”). Ele acha a música mesmo com o nome dito de outro jeito (“never render”). No ao vivo, depois de responder, a conversa fecha e a música toca.' },
+      { tipo: 'melhoria', texto: 'O Lumen é o assistente do app inteiro: além da liturgia e do acervo, ele sabe as músicas da sua biblioteca, os repertórios e o que está tocando, e procura na internet o que o app não tem.' },
+      { tipo: 'melhoria', texto: 'A saudação do ao vivo ficou curta (“Olá, eu sou a Lumen.”) e toca na hora em que você abre: ela fica guardada no aparelho, na voz escolhida. Antes ela demorava uns 5 segundos.' },
       { tipo: 'correcao', texto: 'O Lumen dizia toda hora que “a inteligência artificial não respondeu agora”. O Gemini 3.6 Flash estava recusando os pedidos pelo limite do plano grátis. Agora, quando um modelo do Gemini está no limite, o Lumen passa na hora para outro Gemini que a sua chave pode usar (e, no limite por minuto, espera uns segundos e tenta de novo). Se o arquivo inteiro do acervo deixar a pergunta grande demais, ela vai só com os trechos.' },
       { tipo: 'melhoria', texto: 'Quando a IA não responde mesmo assim, o Lumen não fala mais o aviso: só aparece um aviso pequeno, escrito, no alto da resposta.' },
     ],
