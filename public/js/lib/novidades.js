@@ -4,6 +4,17 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 443, data: '2026-11-02', titulo: 'Lumen com o Gemini 3.6 Flash e as vozes do Gemini',
+    itens: [
+      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o Lumen usa o Gemini 3.6 Flash; se ele não responder, o servidor tenta os outros Gemini Flash que a sua chave pode usar.' },
+      { tipo: 'novo', texto: 'Lumen ao vivo com a voz do próprio Gemini. Se a voz do Gemini não responder (ou acabar o limite grátis do dia), entra a voz de antes, sem parar a conversa.' },
+      { tipo: 'melhoria', texto: 'Quando a IA não responde, o Lumen avisa (“a inteligência artificial não respondeu agora, então fiz uma busca simples”), em vez de responder calado pela busca simples.' },
+      { tipo: 'melhoria', texto: 'O Lumen ao vivo espera você terminar: ele só responde depois de uns 5 segundos sem você falar. Dá para parar, pensar e continuar a frase. Para ele responder na hora, toque na pílula do meio.' },
+      { tipo: 'melhoria', texto: 'A pergunta falada ganha a pontuação: o ponto de interrogação nas perguntas, a exclamação nos cumprimentos e agradecimentos e o ponto final no resto, no ao vivo e no ditado da conversa por texto.' },
+      { tipo: 'novo', texto: 'As vozes do Lumen são as do Gemini, com os nomes de lá: 30 vozes (14 femininas e 16 masculinas), como Kore, Aoede, Zephyr, Charon e Puck, cada uma com o seu jeito (firme, leve, animada, tranquila…). Escolha no “⋯” do ao vivo: a voz nova se apresenta na hora. Com voz feminina, ela é “a Lumen” e fala de si no feminino; com voz masculina, ele é “o Lumen”.' },
+    ],
+  },
+  {
     versao: 442, data: '2026-11-02', titulo: 'Lumen lê o PDF certo do acervo e escreve bonito',
     itens: [
       { tipo: 'melhoria', texto: 'O Lumen lê de verdade o arquivo do acervo que trata da sua pergunta: em “qual a estrutura da cerimônia do casamento?”, ele abre o Ritual do Matrimônio inteiro e responde pelo que está escrito nele (o mesmo com o batismo, a unção dos enfermos e os outros rituais). Antes ele via só pedaços soltos do texto.' },
@@ -72,15 +83,6 @@ export const NOVIDADES = [
     versao: 434, data: '2026-11-02', titulo: 'A música certa do artista certo',
     itens: [
       { tipo: 'correcao', texto: 'Na Busca, uma música com o mesmo nome de outra vinha misturada: “Neverender”, do Justice, abria com o vídeo certo, mas a letra, a versão de música e o artista eram da “Neverender” do Coheed and Cambria. Agora o app usa o artista que a busca já mostrava (ou o que está no título do vídeo) e não aceita a música de outro artista só porque o título é igual. Se você salvou uma música assim, tire da biblioteca e salve de novo pela Busca.' },
-    ],
-  },
-  {
-    versao: 433, data: '2026-11-02', titulo: 'Lumen mais inteligente e com voz de verdade',
-    itens: [
-      { tipo: 'novo', texto: 'Lumen ao vivo com voz realista: a resposta é falada por uma voz neural (feminina ou masculina, troque no alto da tela), no lugar da voz robótica do celular. As respostas faladas vêm curtas, como numa conversa.' },
-      { tipo: 'melhoria', texto: 'O brilho da conversa ao vivo, como o do Gemini: sobe de baixo da tela e cresce e clareia junto com a voz, no ritmo de verdade da fala. A pílula do meio também acompanha o volume, sem os pulos de antes.' },
-      { tipo: 'melhoria', texto: 'O Lumen responde com IA (Claude ou Gemini) dúvidas sobre a missa e a liturgia, os cantos do acervo para cada celebração (casamento, batismo, exéquias…) e a liturgia de qualquer data, como “qual o salmo de 30 de janeiro de 2027?”.' },
-      { tipo: 'correcao', texto: 'O Lumen às vezes respondia só com a busca simples, sem a IA, porque a tela dele não conferia o endereço do servidor. Agora confere antes de cada pergunta.' },
     ],
   },
 ];
