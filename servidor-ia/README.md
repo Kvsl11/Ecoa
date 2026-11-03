@@ -48,6 +48,14 @@ hora ligada); parado 30 minutos, ele desliga sozinho.
 2. Embaixo, na aba **Portas**: a porta **7860** tem de estar **Pública** (botão direito → Visibilidade da porta →
    Pública; o Codespace já tenta mudar sozinho). Clique no globo do endereço: abre a página com o QR code.
 3. Leia o QR code com o celular. Pronto.
+4. Para o site achar este servidor em **qualquer aparelho** (sem ler o QR code em cada um): no GitHub do projeto,
+   **Settings → Secrets and variables → Actions → Variables → New repository variable**, nome `SERVIDOR_IA_URL`,
+   valor o endereço do Codespace (`https://<nome>-7860.app.github.dev`; ele aparece em `servidor-ia/dados/endereco.txt`
+   e no `servidor.log`). O Codespace tenta gravar sozinho ao ligar. A próxima publicação do app já leva o endereço.
+5. O Lumen com IA no Codespace: a chave vai nos secrets **do Codespaces** (não nos do Actions): **Settings → Secrets and
+   variables → Codespaces → New repository secret**, `GEMINI_API_KEY` (ou `ANTHROPIC_API_KEY`). Depois, pare e ligue o
+   Codespace de novo. O texto dos PDFs do acervo, o servidor baixa do site (`data/textos-acervo.jsonl.gz`, lido toda
+   semana pelo workflow **Publicar o servidor da IA**).
 
 Até 3 músicas são ouvidas ao mesmo tempo no Codespaces (`IA_TAREFAS`): abrir várias em seguida põe todas para
 sincronizar juntas, e cada uma fica pronta quando termina.
@@ -81,19 +89,19 @@ Deixe o PC ligado enquanto usa. O servidor volta sozinho quando o Docker Desktop
 cada vez: abra <http://localhost:7860> e leia o QR code de novo. Com o PC desligado, o app volta para o servidor da
 nuvem (abaixo), se houver. Parar: `docker compose down` nesta pasta. Ver o que está fazendo: `docker compose logs -f ia`.
 
-## Publicar de graça (Modal)
+## Publicar no Modal (opcional)
 
-O workflow `.github/workflows/servidor-ia.yml` publica o servidor no [Modal](https://modal.com) (US$ 30 de uso
-grátis por mês, https, liga só quando alguém usa) e a publicação do app grava o endereço em `data/servidor-ia.json`:
-quem usa o app não configura nada. Só uma vez, à mão:
+O servidor principal é o do Codespaces (acima). O [Modal](https://modal.com) (US$ 30 de uso grátis por mês, https,
+liga só quando alguém usa) ficou opcional: o workflow `.github/workflows/servidor-ia.yml` só publica lá rodando à mão
+(**Actions → Publicar o servidor da IA → Run workflow**, com **Também publicar no Modal** marcado). Para isso, uma vez:
 
 1. Entre em <https://modal.com/signup> com a conta do GitHub.
 2. Crie um token em <https://modal.com/settings/tokens> → **New token** (aparecem dois valores: ID e Secret).
 3. No GitHub do app: **Settings → Secrets and variables → Actions → New repository secret**:
    `MODAL_TOKEN_ID` (o ID) e `MODAL_TOKEN_SECRET` (o Secret). Opcionais: `ANTHROPIC_API_KEY` ("Tirar dúvidas") e
    `YT_COOKIES` (o conteúdo do cookies.txt).
-4. Em **Actions**, rode **Publicar o servidor da IA** (a primeira montagem leva uns 15 minutos); a publicação do app
-   roda sozinha em seguida.
+4. Em **Actions**, rode **Publicar o servidor da IA** com **Também publicar no Modal** marcado (a primeira montagem
+   leva uns 15 minutos). Para o app usar o Modal, ponha o endereço dele na variável `SERVIDOR_IA_URL`.
 
 ### Lumen com IA (`ANTHROPIC_API_KEY`)
 
@@ -101,12 +109,12 @@ Com a chave da API da Anthropic (<https://console.anthropic.com> → **API Keys*
 `ANTHROPIC_API_KEY`, o Lumen (o assistente do app) passa a responder com IA: o Claude Sonnet lê o acervo do Drive
 (cantos, Hinário, nomes dos arquivos e o texto dos PDFs), o que o app manda junto (a liturgia do dia, os cantos
 sugeridos, a biblioteca e os repertórios de quem pergunta) e, se precisar, a internet, e cita de onde tirou cada coisa.
-Roda numa máquina pequena do Modal (a função `lumen`), separada da das partituras. A publicação lê o texto dos PDFs do
-acervo (`indexar_acervo.py`, até 800 arquivos novos por vez, guardados entre as publicações) e roda sozinha toda
-segunda-feira para ler os que entraram no Drive. Sem a chave, o Lumen continua com a busca gratuita no aparelho.
+Roda no servidor do Codespaces (a chave nos secrets do Codespaces, ver acima). O workflow **Publicar o servidor da IA**
+lê o texto dos PDFs do acervo (`indexar_acervo.py`, até 800 arquivos novos por vez, guardados entre uma vez e outra)
+toda segunda-feira, e a publicação do app o põe no site, de onde o servidor baixa. Sem a chave, o Lumen continua com a busca gratuita no aparelho.
 
 **Ou o Gemini (`GEMINI_API_KEY`)**: com a chave do Google AI Studio (<https://aistudio.google.com/apikey>, tem uso
-grátis) no secret `GEMINI_API_KEY`, o Lumen responde pelo Gemini (`gemini-2.5-flash`, troque com `IA_GEMINI_MODELO`),
+grátis) no secret `GEMINI_API_KEY` (do Codespaces), o Lumen responde pelo Gemini (`gemini-2.5-flash`, troque com `IA_GEMINI_MODELO`),
 com a busca do Google para o que não está no acervo. Com as duas chaves vale o Claude (`IA_PROVEDOR=gemini` troca).
 
 **A voz do Lumen ao vivo (`/falar`)**: a conversa ao vivo fala com uma voz neural realista (as vozes da Microsoft do

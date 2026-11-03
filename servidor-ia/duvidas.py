@@ -144,6 +144,31 @@ def _ler_dados(nome: str):
         raise FileNotFoundError(nome) from e
 
 
+# o texto dos PDFs do acervo vem do site publicado (o GitHub Pages o põe em data/textos-acervo.jsonl.gz, lido toda
+# semana pelo workflow do acervo): o servidor do Codespace (ou do computador) não lê os PDFs do Drive sozinho. Baixa
+# quando não tem e de novo quando o que tem passou de uma semana
+TEXTOS_VALIDADE = 7 * 24 * 3600
+
+
+def _textos_do_site() -> None:
+    import gzip
+    import time
+    import urllib.request
+
+    if os.environ.get("IA_TEXTOS") or (os.path.isfile(TEXTOS) and time.time() - os.path.getmtime(TEXTOS) < TEXTOS_VALIDADE):
+        return
+    try:
+        with urllib.request.urlopen(DADOS_URL + "textos-acervo.jsonl.gz", timeout=60) as r:
+            texto = gzip.decompress(r.read())
+        tmp = TEXTOS + ".parcial"
+        with open(tmp, "wb") as f:
+            f.write(texto)
+        os.replace(tmp, TEXTOS)
+    except Exception:  # sem internet, ou o site ainda sem o texto: fica com o que tem (ou sem os PDFs)
+        if os.path.isfile(TEXTOS):
+            os.utime(TEXTOS)  # tenta de novo só daqui a uma semana
+
+
 def limpar_texto_pdf(texto: str) -> str:
     """O texto tirado do PDF arrumado: a palavra cortada no fim da linha volta inteira ("cele-\nbração"), a linha
     quebrada no meio da frase vira uma linha só, os espaços repetidos somem e os números de página soltos saem."""
@@ -194,6 +219,7 @@ def carregar_trechos() -> list[Trecho]:
             trechos.append(Trecho(nome, pasta, f"{pasta} / {nome}", fid, "arquivo"))
     except FileNotFoundError:
         pass
+    _textos_do_site()
     if os.path.isfile(TEXTOS):
         with open(TEXTOS, encoding="utf-8") as f:
             for linha in f:

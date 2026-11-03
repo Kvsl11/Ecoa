@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main, master, ccr-59dd75f2-oirnca]
   workflow_dispatch:
-  workflow_run: # depois de publicar o servidor da IA: grava o endereço dele no app
+  workflow_run: # depois de ler o texto dos PDFs do acervo: põe o texto novo no site (o Lumen do Codespace baixa)
     workflows: [Publicar o servidor da IA]
     types: [completed]
   schedule:
@@ -108,24 +108,33 @@ jobs:
         run: |
           command -v pdftoppm || (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils)
           node scripts/cantos-sync.mjs
-      - name: Endereço do servidor da IA (Modal), para o app achar sozinho
-        continue-on-error: true
+      # o servidor da IA é o do GitHub Codespaces (.devcontainer/): o endereço dele (https://<nome>-7860.app.github.dev)
+      # fica na variável SERVIDOR_IA_URL (Settings → Secrets and variables → Actions → Variables) e vai para o app, que
+      # assim acha o servidor em qualquer aparelho sem ler o QR code. Sem a variável, cada aparelho usa o do QR code
+      - name: Endereço do servidor da IA (o Codespace), para o app achar sozinho
         env:
-          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          SERVIDOR_IA_URL: ${{ vars.SERVIDOR_IA_URL }}
         run: |
-          [ -n "$MODAL_TOKEN_ID" ] || exit 0
-          pip install -q modal
-          python3 - <<'PY'
-          import json, modal
-          dados = {'url': modal.Function.from_name('songbook-ia', 'web').get_web_url()}
-          # o Lumen (perguntas com IA) na máquina pequena; sem ela publicada ainda, o app usa o endereço principal
-          try:
-              dados['lumen'] = modal.Function.from_name('songbook-ia', 'lumen').get_web_url()
-          except Exception:
-              pass
-          json.dump(dados, open('public/data/servidor-ia.json', 'w'))
-          PY
+          if [ -z "$SERVIDOR_IA_URL" ]; then
+            echo "::notice::Sem a variável SERVIDOR_IA_URL: o app acha o servidor da IA pelo QR code do Codespace (Ajustes → Servidor no computador)."
+            exit 0
+          fi
+          python3 -c "import json, os; json.dump({'url': os.environ['SERVIDOR_IA_URL'].strip()}, open('public/data/servidor-ia.json', 'w'))"
+          echo "::notice::Servidor da IA do app: $SERVIDOR_IA_URL"
+      # o texto dos PDFs do acervo (lido pelo workflow "Publicar o servidor da IA"): vai junto com o site, e o Lumen do
+      # Codespace baixa daqui
+      - name: Texto dos PDFs do acervo (para o Lumen)
+        uses: actions/cache/restore@v4
+        with:
+          path: servidor-ia/textos-acervo.jsonl
+          key: textos-acervo-ultimo
+          restore-keys: textos-acervo-
+      - name: Texto dos PDFs do acervo no site
+        run: |
+          if [ -s servidor-ia/textos-acervo.jsonl ]; then
+            gzip -9 -c servidor-ia/textos-acervo.jsonl > public/data/textos-acervo.jsonl.gz
+            echo "::notice::$(wc -l < servidor-ia/textos-acervo.jsonl) arquivos do acervo com o texto lido, $(du -h public/data/textos-acervo.jsonl.gz | cut -f1) no site"
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -78,6 +78,9 @@ document.addEventListener('keydown', (e) => { if (!e.metaKey && !e.ctrlKey) docu
 // página dele abre o app com ?ia=<endereço> e o endereço fica guardado (Ajustes → Servidor no computador)
 let SERVIDOR_IA = { url: '', chave: '' };
 const servidorIA = () => SERVIDOR_IA;
+// o servidor do site (o Codespace do GitHub, gravado pela publicação em data/servidor-ia.json): mesmo desligado, o
+// endereço fica sabido, para a tela dizer "ligue o Codespace"
+let servidorDoSite = '';
 const doLink = new URLSearchParams(location.search).get('ia');
 if (doLink !== null) {
   db.setPref('servidorPc', baseDoServidor(doLink));
@@ -101,8 +104,19 @@ function carregarServidor({ forcar = false } = {}) {
     }
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    if (d?.url) {
-      SERVIDOR_IA = { url: baseDoServidor(d.url), chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
+    const url = baseDoServidor(d?.url);
+    if (url) {
+      let host = '';
+      try { host = new URL(url).host; } catch { /* endereço inválido */ }
+      if (/\.app\.github\.dev$/i.test(host)) {
+        // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, fica sem servidor e a
+        // partitura sai no aparelho (a tela pede para ligar o Codespace)
+        servidorDoSite = url;
+        if (url !== pc && await responde(url)) SERVIDOR_IA = { url, chave: d.chave || '', pc: true, lumen: url };
+        else SERVIDOR_IA = { url: '', chave: '' };
+      } else {
+        SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
+      }
     }
     return SERVIDOR_IA;
   })().catch(() => SERVIDOR_IA).finally(() => {
@@ -9618,14 +9632,14 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   await carregarServidor();
   const aqui = location.hash;
   if (!aqui.startsWith(`#/musica/${id}/compor/`)) return;
-  // o servidor no computador de quem usa (Ajustes → Servidor no computador): de graça, sem crédito do Modal. O arquivo
+  // o servidor no Codespace do GitHub ou no computador de quem usa (Ajustes → Servidor no computador). O arquivo
   // escolhido vai para ele; sem ele, é lido no aparelho. A partitura pelo áudio da própria música vai para o servidor
   // que houver (o do computador ou o da nuvem)
   const noPc = Boolean(servidorIA().pc && servidorIA().url);
   const temServidor = Boolean(servidorIA().url);
   // o servidor no GitHub Codespaces (.devcontainer/) dorme quando ninguém usa: o endereço não muda, então basta
   // ligar o Codespace (github.com/codespaces, até pelo celular) e tocar em "Já liguei"
-  const pcGuardado = baseDoServidor(db.prefs().servidorPc);
+  const pcGuardado = baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
   const noGithub = !noPc && /\.app\.github\.dev$/i.test(pcGuardado ? new URL(pcGuardado).host : '');
   // o áudio da própria música, para a IA do servidor ouvir sozinha: o áudio da pessoa, o áudio oficial (sem as cenas do
   // clipe) ou o vídeo. Só se ele não der certo é que a tela pede um arquivo

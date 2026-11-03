@@ -1,19 +1,19 @@
-# Publica o servidor da IA (pasta servidor-ia/) no Modal (modal.com): US$ 30 de uso grátis por mês, endereço https,
-# liga só quando alguém usa. Publica de novo a cada mudança na pasta; no fim, a publicação do app (GitHub Pages)
-# roda sozinha e grava o endereço para o app achar o servidor.
-# Antes do primeiro uso, uma vez: entre em modal.com com a conta do GitHub, crie um token em
-# modal.com/settings/tokens → New token e guarde os dois valores no GitHub em
-# Settings → Secrets and variables → Actions → New repository secret: MODAL_TOKEN_ID e MODAL_TOKEN_SECRET.
-# Opcionais, no mesmo lugar: ANTHROPIC_API_KEY ou GEMINI_API_KEY (ligam a IA do Lumen) e YT_COOKIES (o conteúdo do cookies.txt,
-# para vídeos do YouTube com restrição de idade).
+# O texto dos PDFs do acervo (Google Drive), para o Lumen responder com o que está dentro deles. O servidor da IA é o
+# do GitHub Codespaces (.devcontainer/): ele baixa este texto do site publicado (data/textos-acervo.jsonl.gz), que a
+# publicação do app (GitHub Pages) põe junto depois que este workflow termina.
+# Toda semana lê os PDFs novos; dá para rodar na hora em Actions → Publicar o servidor da IA → Run workflow.
+# O Modal (modal.com) ficou opcional: só publica lá rodando à mão com "Também publicar no Modal" marcado (precisa dos
+# secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET; opcionais ANTHROPIC_API_KEY, GEMINI_API_KEY e YT_COOKIES).
 name: Publicar o servidor da IA
 
 on:
-  push:
-    branches: [main, master, ccr-59dd75f2-oirnca]
-    paths: ['servidor-ia/**', '.github/workflows/servidor-ia.yml']
   workflow_dispatch:
-  # toda semana: lê os PDFs novos do acervo e publica de novo (o Lumen passa a saber o que entrou no Drive)
+    inputs:
+      modal:
+        description: Também publicar no Modal (precisa de crédito lá)
+        type: boolean
+        default: false
+  # toda semana: lê os PDFs novos do acervo (o Lumen passa a saber o que entrou no Drive)
   schedule:
     - cron: '23 6 * * 1'
 
@@ -31,19 +31,15 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       YT_COOKIES: ${{ secrets.YT_COOKIES }}
+      PUBLICAR_MODAL: ${{ github.event_name == 'workflow_dispatch' && inputs.modal && 'sim' || '' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Sem o token do Modal
-        if: env.MODAL_TOKEN_ID == '' || env.MODAL_TOKEN_SECRET == ''
-        run: echo "::notice::Guarde o token do Modal nos secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET para publicar o servidor da IA (veja o topo deste arquivo)."
       - uses: actions/setup-python@v5
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         with:
           python-version: '3.11'
       # o texto dos PDFs do acervo do Drive, para o Lumen responder com o que está dentro deles: fica guardado entre as
       # publicações (cache) e cada vez lê até 800 arquivos novos, então os ~2 mil do acervo entram em poucas rodadas
       - name: Texto guardado dos PDFs do acervo
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         uses: actions/cache@v4
         with:
           path: servidor-ia/textos-acervo.jsonl
@@ -51,7 +47,6 @@ jobs:
           restore-keys: textos-acervo-
       - name: Ler o texto dos PDFs do acervo (Drive)
         # (lê mesmo sem a chave da IA: a busca do Lumen no acervo, sem IA, também usa o texto dos PDFs)
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         continue-on-error: true
         timeout-minutes: 30
         working-directory: servidor-ia
@@ -59,8 +54,11 @@ jobs:
           pip install -q pypdf
           python indexar_acervo.py --max 800 2>&1 | tail -5
           [ -f textos-acervo.jsonl ] && echo "::notice::$(wc -l < textos-acervo.jsonl) arquivos do acervo com o texto lido"
+      - name: Sem o token do Modal
+        if: env.PUBLICAR_MODAL == 'sim' && (env.MODAL_TOKEN_ID == '' || env.MODAL_TOKEN_SECRET == '')
+        run: echo "::warning::Para publicar no Modal, guarde o token nos secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET."
       - name: Publicar no Modal
-        if: env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
+        if: env.PUBLICAR_MODAL == 'sim' && env.MODAL_TOKEN_ID != '' && env.MODAL_TOKEN_SECRET != ''
         working-directory: servidor-ia
         run: |
           pip install -q modal
@@ -69,7 +67,25 @@ jobs:
           [ -n "$ANTHROPIC_API_KEY" ] && args+=("ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
           [ -n "$GEMINI_API_KEY" ] && args+=("GEMINI_API_KEY=$GEMINI_API_KEY")
           [ -n "$YT_COOKIES" ] && args+=("YT_COOKIES=$YT_COOKIES")
-          modal secret create songbook-ia "${args[@]}" --force > /dev/null
-          modal deploy modal_app.py
+          # o Modal é a reserva: o app usa primeiro o servidor do Codespace (ou do computador). Sem crédito no Modal
+          # (o limite de gasto do mês, a conta desativada), a publicação fica para depois com um aviso, sem falhar;
+          # qualquer outro erro falha como antes
+          sem_credito='spend limit|billing|workspace .*disabled|disabled.*workspace|out of credits'
+          if ! modal secret create songbook-ia "${args[@]}" --force > secret.log 2>&1; then
+            cat secret.log
+            if grep -qiE "$sem_credito" secret.log; then echo "::warning::O Modal está sem crédito: o servidor de reserva não foi publicado (o do Codespace continua valendo)."; exit 0; fi
+            exit 1
+          fi
+          set +e
+          modal deploy modal_app.py 2>&1 | tee deploy.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -qiE "$sem_credito" deploy.log; then
+              echo "::warning::O Modal está sem crédito (limite de gasto do mês): o servidor de reserva não foi publicado agora. O app usa o servidor do Codespace; quando o crédito do Modal voltar, rode este workflow de novo (Actions → Publicar o servidor da IA → Run workflow)."
+              exit 0
+            fi
+            exit "$status"
+          fi
           url=$(python -c "import modal; print(modal.Function.from_name('songbook-ia', 'web').get_web_url())")
           echo "::notice::Servidor da IA no ar: $url"

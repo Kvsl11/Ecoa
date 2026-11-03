@@ -30,10 +30,10 @@ export function cabecalhos(url, chave) {
 // a linha da letra como se canta: sem os acordes ([G]Santo) e sem espaços sobrando
 export const linhaSemCifra = (l) => String(l || '').replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
 
-// a resposta de erro do servidor virou um erro em português. Quando o Modal (onde o servidor está publicado) desliga a
-// conta ("workspace is disabled": o crédito do mês acabou ou falta pagamento) ou o app parou, a resposta nem é do
-// servidor: o erro diz isso (desativado) e conta como sem conexão, para o arquivo ser lido no próprio aparelho
-export const SERVIDOR_DESATIVADO = 'O servidor da IA está desligado no Modal (a conta foi desativada: o crédito grátis do mês acabou ou falta pagamento). Entre em modal.com e reative a conta; enquanto isso, escolha o arquivo de áudio da música (a partitura é feita no próprio aparelho).';
+// a resposta de erro do servidor virou um erro em português. Quando o servidor na nuvem desliga (no Modal, que era o
+// de antes: "workspace is disabled", o crédito do mês acabou) ou o app parou, a resposta nem é do servidor: o erro diz
+// isso (desativado) e conta como sem conexão, para o arquivo ser lido no próprio aparelho
+export const SERVIDOR_DESATIVADO = 'O servidor da IA está desligado. Ligue o Codespace do GitHub (github.com/codespaces) e tente de novo; enquanto isso, escolha o arquivo de áudio da música (a partitura é feita no próprio aparelho).';
 export function erroDaResposta(status, texto = '') {
   let dados = {};
   try { dados = JSON.parse(texto); } catch { /* não é JSON */ }
