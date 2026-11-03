@@ -14,6 +14,12 @@ Transforma áudio em notas para a partitura do Songbook, com mais fidelidade que
   trechos falados ficam de fora). Sem ele, o **Whisper** ouve e as palavras são casadas com a letra. Com a letra da
   internet (LRCLIB) e um vídeo mais longo, o servidor só acha onde a música começa e a devolve no lugar certo.
 
+- **Karaokê** (`/karaoke` com o link do YouTube, `/karaoke/arquivo` com o áudio enviado): o **Demucs** separa a voz em
+  estéreo e a 44,1 kHz (de 60 em 60 s, com 5 s cruzados nas emendas, para a porcentagem andar e a memória não estourar)
+  e o ffmpeg grava um M4A (AAC) de 4 canais, no arranjo "quad": banda esquerda e direita (a gravação menos a voz), voz
+  esquerda e direita. O app escolhe o volume da voz na hora. Fica guardado por vídeo (`IA_KARAOKE_MAX`, padrão 20):
+  outro aparelho recebe na hora. Com `IA_SEPARADOR=roformer`, a voz sai do Mel-Band RoFormer.
+
 Medido em 11 trechos de músicas reais (MUSDB18, voz isolada como gabarito): a melodia certa passou de **34%** do
 tempo (a música inteira junta, como no celular) para **70%** (voz separada + limpeza).
 

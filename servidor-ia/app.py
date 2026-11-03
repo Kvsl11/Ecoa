@@ -12,6 +12,7 @@ Variáveis:
     IA_WHISPER   modelo do Whisper para a letra sincronizada (padrão: small; base é mais rápido, medium acerta mais)
     IA_THREADS   núcleos que cada modelo usa (padrão: o do modelo; no Modal, os da máquina)
     IA_CACHE     pasta onde o áudio e a voz separada de cada vídeo ficam guardados (padrão: a temporária)
+    IA_KARAOKE_TAXA  a taxa do karaokê (os 4 canais juntos, padrão: 256k); IA_KARAOKE_MAX: quantos ficam guardados (20)
     ANTHROPIC_API_KEY  liga o "Tirar dúvidas" (a IA que responde pelos arquivos do acervo e pela web)
 """
 
@@ -37,6 +38,7 @@ from pydantic import BaseModel
 
 import duvidas
 import falar
+import karaoke
 import letra
 import pc
 import transcricao
@@ -262,6 +264,8 @@ def saude():
         "cookies": youtube.arquivo_de_cookies() is not None,
         "cookiesInfo": youtube.info_dos_cookies(),
         "letra": letra.tem_whisper(),
+        # o karaokê (a voz e a banda separadas, para o microfone do app): com a separação e o ffmpeg
+        "karaoke": karaoke.disponivel(),
         "duvidas": duvidas.provedor() is not None,
         "buscaAcervo": True,
         "ia": duvidas.provedor(),
@@ -557,6 +561,99 @@ def entregar_baixado(numero: str):
         raise HTTPException(404, "o arquivo não está mais no servidor: baixe de novo")
     return FileResponse(pronto["caminho"], media_type=pronto["tipo"],
                         background=BackgroundTask(_finalizar_entrega, numero, pronto["pasta"]))
+
+
+class PedidoKaraoke(BaseModel):
+    url: str
+
+
+def _entregar_karaoke(caminho: str, pasta: str, video: str | None, info: dict | None = None) -> dict:
+    """O karaokê pronto fica à espera do app em GET /baixar/{número}, como os downloads."""
+    numero = uuid.uuid4().hex
+    with _prontos_trava:
+        _prontos[numero] = {"caminho": caminho, "pasta": pasta, "tipo": "audio/mp4", "criado": time.time()}
+    return {"arquivo": numero, "tipo": "audio/mp4", "tamanho": os.path.getsize(caminho), "video": video,
+            "canais": karaoke.CANAIS, "versao": karaoke.VERSAO, **(info or {})}
+
+
+def _fazer_karaoke(entrada: str, saida: str, etapa) -> dict:
+    """A separação (pesada: uma música por vez, como a partitura e a letra)."""
+    esperar_vaga(etapa)
+    try:
+        return karaoke.fazer(entrada, saida, etapa)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    finally:
+        vagas.release()
+
+
+@app.post("/karaoke", dependencies=[Depends(conferir_chave)])
+def karaoke_do_video(pedido: PedidoKaraoke, etapas: bool = Query(False), tarefa: bool = Query(False)):
+    """O karaokê da música (como o "Sing" do Apple Music): o áudio do vídeo com a voz e a banda separadas, num M4A de 4
+    canais (banda esquerda e direita, voz esquerda e direita). O app escolhe o volume da voz na hora. A resposta diz o
+    número para buscar o arquivo em GET /baixar/{número}."""
+    if not karaoke.disponivel():
+        raise HTTPException(501, "este servidor não separa a voz (instale o Demucs: veja servidor-ia/README.md)")
+    video = youtube.id_do_video(pedido.url)
+    if not video:
+        raise HTTPException(400, "link do YouTube inválido")
+    _apagar_prontos_velhos()
+    pasta = tempfile.mkdtemp(prefix="songbook-karaoke-")
+
+    def trabalho(etapa):
+        try:
+            saida = os.path.join(pasta, "karaoke.m4a")
+            if karaoke.guardado(video, saida):  # já feito antes (outro aparelho, ou de novo): na hora
+                etapa("separando", 1.0)
+                return _entregar_karaoke(saida, pasta, video)
+            etapa("baixando", 0)
+            # (o melhor som do YouTube: a separação ouve mais detalhe da voz)
+            r = baixar(video, pasta, etapa, midia="audio", qualidade="muito-alta")
+            info = _fazer_karaoke(r["caminho"], saida, etapa)
+            try:
+                os.remove(r["caminho"])
+            except OSError:
+                pass
+            karaoke.guardar(video, saida)
+            log.warning("karaokê pronto (%s): %.0f s, %s", video, info["duracao"], info["separador"])
+            return _entregar_karaoke(saida, pasta, video, info)
+        except Exception:
+            shutil.rmtree(pasta, ignore_errors=True)
+            raise
+
+    # (a pasta fica até o app buscar o arquivo)
+    return com_etapas(trabalho, etapas, None, tarefa)
+
+
+@app.post("/karaoke/arquivo", dependencies=[Depends(conferir_chave)])
+def karaoke_do_arquivo(arquivo: UploadFile = File(...), etapas: bool = Query(False), tarefa: bool = Query(False)):
+    """O mesmo karaokê, com o áudio da própria pessoa (o MP3 dela, a gravação do ensaio) no lugar do vídeo."""
+    if not karaoke.disponivel():
+        raise HTTPException(501, "este servidor não separa a voz (instale o Demucs: veja servidor-ia/README.md)")
+    _apagar_prontos_velhos()
+    pasta = tempfile.mkdtemp(prefix="songbook-karaoke-")
+    ext = os.path.splitext(arquivo.filename or "")[1][:8] or ".audio"
+    entrada = os.path.join(pasta, "audio" + ext)
+    total = 0
+    with open(entrada, "wb") as f:
+        while bloco := arquivo.file.read(1 << 20):
+            total += len(bloco)
+            if total > MAX_MB << 20:
+                shutil.rmtree(pasta, ignore_errors=True)
+                raise HTTPException(413, f"arquivo grande demais (máximo {MAX_MB} MB)")
+            f.write(bloco)
+
+    def trabalho(etapa):
+        try:
+            saida = os.path.join(pasta, "karaoke.m4a")
+            info = _fazer_karaoke(entrada, saida, etapa)
+            os.remove(entrada)
+            return _entregar_karaoke(saida, pasta, None, info)
+        except Exception:
+            shutil.rmtree(pasta, ignore_errors=True)
+            raise
+
+    return com_etapas(trabalho, etapas, None, tarefa)
 
 
 class PedidoDuvida(BaseModel):
