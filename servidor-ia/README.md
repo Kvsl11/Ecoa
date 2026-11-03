@@ -118,7 +118,7 @@ com a busca do Google para o que não está no acervo. Com as duas chaves vale o
 ```bash
 cd servidor-ia
 python3.11 -m venv .venv && . .venv/bin/activate
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install --no-deps basic-pitch==0.4.0
 uvicorn app:app --host 0.0.0.0 --port 8000

@@ -15,7 +15,8 @@ PASTA = os.path.dirname(os.path.abspath(__file__))
 imagem = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "libsndfile1")
-    .pip_install("torch", "torchaudio", index_url="https://download.pytorch.org/whl/cpu")
+    # o torchvision junto (o audio-separator o pede): sem ele, o pip trocava este torch pelo com CUDA, de vários GB
+    .pip_install("torch", "torchaudio", "torchvision", index_url="https://download.pytorch.org/whl/cpu")
     .pip_install_from_requirements(os.path.join(PASTA, "requirements.txt"))
     .run_commands(
         "pip install --no-deps basic-pitch==0.4.0",
