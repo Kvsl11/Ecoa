@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 447, data: '2026-11-03', titulo: 'Permissões: notificações e microfone num lugar só',
+    itens: [
+      { tipo: 'novo', texto: 'Ajustes → Permissões mostra se as notificações e o microfone estão permitidos, ainda não pedidos ou bloqueados. Dá para permitir dali, e, quando o navegador bloqueou, a tela explica como liberar. Com as notificações ligadas, o botão “Testar” manda uma notificação de teste.' },
+      { tipo: 'melhoria', texto: 'O app não pede mais as notificações no primeiro toque na tela, sem explicar nada. Agora um cartão no Início conta para que servem (os avisos dos downloads) e pergunta uma vez; “Agora não” não pergunta de novo, e dá para permitir depois em Ajustes → Permissões.' },
+    ],
+  },
+  {
     versao: 446, data: '2026-11-02', titulo: 'Lumen: voz do Gemini desde o “olá” e a música na tela',
     itens: [
       { tipo: 'correcao', texto: 'A saudação do Lumen saía numa voz robótica (a do aparelho) na primeira vez. Agora ela espera a voz do Gemini, que o app já prepara quando abre e guarda no aparelho. A voz do aparelho só entra se o servidor estiver fora do ar.' },
@@ -86,14 +93,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No mini player aumentado, o botão de tela cheia do vídeo abria o Tocando agora em vez de pôr o vídeo na tela inteira. Agora ele leva o vídeo para a tela cheia, no celular e no tablet, também nos vídeos do YouTube.' },
       { tipo: 'novo', texto: 'Na Busca, a barra branca tem um x no fim para apagar tudo o que foi escrito de uma vez. Ele aparece quando você toca na barra ou escreve algo, e some quando a barra está vazia e fora de uso.' },
-    ],
-  },
-  {
-    versao: 437, data: '2026-11-02', titulo: 'Mini player: passar o dedo de novo troca a música',
-    itens: [
-      { tipo: 'correcao', texto: 'Passar o dedo para o lado no mini player voltou a trocar de música (para a próxima ou para a anterior), no celular e no tablet. Desde que o vídeo passou a crescer com o dedo, o deslizar para o lado tinha parado. Agora funciona também em cima do vídeo, em qualquer tamanho do cartão.' },
-      { tipo: 'correcao', texto: 'O ✓ da biblioteca ficava mais baixo que o tocar/pausar no mini player aumentado (no médio do celular e no médio e no grande do tablet). Agora os botões ficam na mesma altura.' },
-      { tipo: 'correcao', texto: 'No modo música (com a capa), o mini player não fica mais grande com a capa cortada: ele volta ao compacto, com a capinha. Voltando para o vídeo, o tamanho que você escolheu volta junto.' },
     ],
   },
 ];
