@@ -17,6 +17,7 @@ import {
 import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cores.js';
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
+import { harmonizarCoral } from './lib/harmonizar.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
@@ -9838,6 +9839,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       notas = r.notas || [];
       // as batidas que o servidor ouviu na banda (com a bateria): a grade dos tempos da partitura
       batidas = r.batidasDaBanda && Array.isArray(r.batidas) ? r.batidas : null;
+      primeiros = batidas && Array.isArray(r.primeirosTempos) && r.primeirosTempos.length ? r.primeirosTempos : null;
       if (!notas.length) { telaFontes('A IA não encontrou notas neste áudio. Tente de novo ou use outro arquivo de áudio da música.'); return; }
       resultado();
     } catch (e) {
@@ -9888,6 +9890,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       if (cancelado || !view.contains(passo)) return;
       notas = r.notas || [];
       batidas = null;
+      primeiros = null;
       if (!notas.length) { telaFontes('A IA não encontrou notas neste áudio. Tente de novo ou use outro arquivo de áudio da música.'); return; }
       resultado();
     } catch (e) {
@@ -9901,6 +9904,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   }
   let notas = null;
   let batidas = null;
+  let primeiros = null; // o primeiro tempo de cada compasso (do servidor): o compasso e a anacruse
 
   // resultado: ajustes (andamento, tom, compasso, oitava) e a prévia; depois abre no editor
   function resultado() {
@@ -9912,13 +9916,20 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     let oitava = 0;
     let meioTempo = false;
     let coral = true; // separar em Soprano, Contralto, Tenor e Baixo (o padrão: o coral inteiro, cada voz na sua pauta)
+    // coral pela cifra (o padrão): a melodia do áudio no Soprano e o Contralto, o Tenor e o Baixo escritos pela harmonia,
+    // no ritmo e com a letra do Soprano. "Do áudio": as 3 vozes de baixo pelas notas que a IA ouviu (o jeito de antes,
+    // para a gravação que tem mesmo as 4 vozes). Sem acorde nenhum (nem na cifra, nem no som), vai o do áudio
+    let pelaCifra = true;
+    let harmonizou = false; // o último rascunho do coral saiu pela cifra
+    const comoCoral = () => coral && pelaCifra;
+    const faixaDaGrade = (cifrado = comoCoral()) => (coral && !cifrado ? FAIXA_CORAL : faixaDoModo(modoIA));
     // compasso pelo áudio (e onde ele começa: a anacruse), até a pessoa escolher outro; refeito quando muda o
     // andamento, o contratempo ou as vozes (a grade das notas muda)
     let compassoAuto = true;
     let compasso = [4, 4];
     let anacruse = 0;
     const acertarCompasso = () => {
-      const est = estimarCompasso(notas, { bpm, meioTempo, batidas, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), compasso: compassoAuto ? null : compasso });
+      const est = estimarCompasso(notas, { bpm, meioTempo, batidas, faixa: faixaDaGrade(), primeiros, compasso: compassoAuto ? null : compasso });
       ({ compasso, anacruse } = est);
     };
     acertarCompasso();
@@ -9928,9 +9939,15 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     let comLetra = textoLetra; // a letra da música já nas notas
     let comCifra = temCifraMusica; // e os acordes da cifra
     let osmd = null;
-    const montar = () => {
+    const montar = (cifrado = comoCoral()) => {
       let m;
-      if (coral) {
+      harmonizou = false;
+      if (coral && cifrado) {
+        // o Soprano é a melodia (uma linha só, como na melodia), já na extensão do soprano; as outras vozes vêm abaixo
+        m = novaPartitura({ titulo, compasso, fifths, modo, bpm, tipo: 'satb' });
+        m.pautas = [m.pautas[0]];
+        m.pautas[0].ev = melodiaDasNotas(notas, { bpm, fifths, oitava, modo: modoIA, centro: 67, meioTempo, batidas });
+      } else if (coral) {
         m = novaPartitura({ titulo, compasso, fifths, modo, bpm, tipo: 'satb' });
         m.pautas = vozesDasNotas(notas, { bpm, fifths, oitava, meioTempo, batidas, faixa: FAIXA_CORAL });
       } else {
@@ -9940,12 +9957,14 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
         m.pautas[0].ev = melodiaDasNotas(notas, { bpm, fifths, oitava, modo: modoIA, centro, meioTempo, batidas });
       }
       m.anacruse = anacruse;
-      if (comLetra || comCifra) colocarLetra(m, silabasMusica, { comLetra, cifras: comCifra });
+      // o coral pela cifra precisa dos acordes mesmo quando a cifra não vai aparecer na partitura
+      const cifrar = comCifra || (coral && cifrado);
+      if (comLetra || cifrar) colocarLetra(m, silabasMusica, { comLetra, cifras: cifrar });
       // a cifra pela harmonia que se ouve no áudio (as notas da banda), com os nomes da cifra da música: o acorde entra
       // onde ele muda no som, e não na sílaba onde estava escrito. Só a voz, sem banda: fica a da sílaba
-      if (comCifra) {
+      if (cifrar) {
         const guia = m.pautas.find((p) => p.ev.some((e) => e.a?.length));
-        const quando = tempoDaGrade(notas, { bpm, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), meioTempo, batidas });
+        const quando = tempoDaGrade(notas, { bpm, faixa: faixaDaGrade(cifrado), meioTempo, batidas });
         if (guia && quando) {
           const nTempos = Math.ceil(guia.ev.reduce((a, e) => a + e.d, 0) / 8);
           const sequencia = silabasMusica.map((x) => x.c).filter(Boolean);
@@ -9954,6 +9973,14 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
             { sequencia, tempoForte: (b) => (((b * 8 - anacruse) % cheio) + cheio) % cheio === 0 });
           if (cifras) colocarCifras(guia, cifras.map((x) => ({ tique: x.tempo * 8, cifra: x.cifra })));
         }
+      }
+      if (coral && cifrado) {
+        const vozes = harmonizarCoral(m.pautas[0], { fifths });
+        // nenhum acorde (a música sem cifra e o áudio sem acompanhamento): as vozes pelo que a IA ouviu
+        if (!vozes) return montar(false);
+        m.pautas = vozes;
+        harmonizou = true;
+        if (!comCifra) for (const e of m.pautas[0].ev) e.c = '';
       }
       // não coloca de novo ao abrir no editor (se a pessoa desligou, fica sem)
       m.letraAuto = true;
@@ -9975,8 +10002,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       <div class="ensaio" id="ia-ensaio" hidden></div>
       <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar</b><small>Vozes, andamento, tom, compasso</small></span>${icon('down', 18)}</summary>
       <div class="settings-group ia-ajustes">
-        <div class="setting wrap"><span class="ico">${icon('score', 18)}</span><div class="grow"><div class="t">Vozes</div><div class="s">Coral: soprano, contralto, tenor e baixo</div></div>
-          <div class="chips" id="ia-vozes"><button class="chip" data-vozes="4" aria-pressed="true">Coral</button><button class="chip" data-vozes="1" aria-pressed="false">Melodia</button></div></div>
+        <div class="setting wrap"><span class="ico">${icon('score', 18)}</span><div class="grow"><div class="t">Vozes</div><div class="s" id="ia-vozes-s">Coral: soprano, contralto, tenor e baixo</div></div>
+          <div class="chips" id="ia-vozes"><button class="chip" data-vozes="4" aria-pressed="true">Coral</button><button class="chip" data-vozes="4a" aria-pressed="false">Coral do áudio</button><button class="chip" data-vozes="1" aria-pressed="false">Melodia</button></div></div>
         <div class="setting wrap"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Andamento</div><div class="s">Notas picadas demais? Use a metade</div></div>
           <div class="seg"><button data-bpm="-4" aria-label="Mais devagar">${icon('minus', 15)}</button><span class="val" id="ia-bpm">${Math.round(bpm)}</span><button data-bpm="4" aria-label="Mais rápido">${icon('plus', 15)}</button></div>
           <div class="chips"><button class="chip" data-bpmx="0.5">Metade</button><button class="chip" data-bpmx="2">Dobro</button></div></div>
@@ -10016,6 +10043,9 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
         const cor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#f2f2f2';
         osmd.setOptions({ drawPartNames: coral, defaultColorMusic: cor, defaultColorNotehead: cor, defaultColorStem: cor, defaultColorRest: cor, defaultColorLabel: cor });
         await osmd.load(paraMusicXML(montar()));
+        const vs = $('#ia-vozes-s');
+        if (vs) vs.textContent = !coral ? 'Uma linha só: a melodia' : harmonizou ? 'Contralto, tenor e baixo pela cifra, no ritmo e na letra do soprano'
+          : pelaCifra ? 'Sem acordes para seguir: as vozes pelo que a IA ouviu' : 'As 4 vozes pelo que a IA ouviu no áudio';
         osmd.zoom = innerWidth < 640 ? 0.7 : 0.9;
         osmd.render();
         if (!$('#ia-ensaio')) return;
@@ -10038,7 +10068,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       if (b.dataset.bpm) { bpm = Math.max(40, Math.min(200, bpm + Number(b.dataset.bpm))); previa(); }
       // metade ou dobro: a mesma música escrita com as figuras dobradas (o andamento lento) ou pela metade
       if (b.dataset.bpmx) { bpm = Math.max(30, Math.min(240, Math.round(bpm * Number(b.dataset.bpmx) * 10) / 10)); previa(); }
-      if (b.dataset.vozes) { coral = b.dataset.vozes === '4'; $('#ia-vozes').querySelectorAll('[data-vozes]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); previa(); }
+      if (b.dataset.vozes) { coral = b.dataset.vozes !== '1'; pelaCifra = b.dataset.vozes === '4'; $('#ia-vozes').querySelectorAll('[data-vozes]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); previa(); }
       if (b.dataset.oit) { oitava = Math.max(-2, Math.min(2, oitava + Number(b.dataset.oit))); previa(); }
       if (b.dataset.c) { compassoAuto = b.dataset.c === 'auto'; if (!compassoAuto) compasso = b.dataset.c.split('/').map(Number); previa(); }
       if (b.id === 'ia-tom') { const v = await escolherTomPartitura(fifths, modo); if (v) { [fifths, modo] = v; previa(); } }

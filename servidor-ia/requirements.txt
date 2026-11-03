@@ -23,6 +23,12 @@ deno>=2
 demucs==4.0.1
 torchcrepe>=0.0.23
 faster-whisper>=1.0
+# Partitura mais precisa: as batidas e o primeiro tempo de cada compasso (Beat This!, ~3 s por minuto de música) e o
+# solista separado do backing vocal (o modelo karaokê do audio-separator, ~30 s por minuto). A 0.30.2 é a última do
+# audio-separator que aceita o numpy<2 do basic-pitch. Com IA_SEPARADOR=roformer, a voz sai pelo Mel-Band RoFormer
+# (bem mais limpa, ~6x mais lento no processador: para o PC com placa de vídeo)
+beat-this>=1.1
+audio-separator[cpu]==0.30.2
 
 # Tirar dúvidas: a IA (Claude) responde pelos arquivos do acervo e pela web (precisa de ANTHROPIC_API_KEY; ou o
 # Gemini, com GEMINI_API_KEY, que vai pela API REST e não precisa de pacote)
