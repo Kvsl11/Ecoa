@@ -3394,6 +3394,7 @@ html.tablet body.na-musica.com-player.painel-recolhido .main-col { margin-bottom
 .sv-item[data-estado="off"] .cy-ponto { background: var(--subtle); }
 .sv-item[data-estado="verificando"] .cy-ponto { animation: cy-pulsa 1s ease-in-out infinite alternate; }
 .sv-ponto { flex: none; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--subtle); }
+.sv-vivo { display: block; margin-top: 4px; color: var(--subtle); font-size: 12px !important; }
 .sv-manual-corpo { display: flex; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
 .sv-manual-corpo p { margin: 0; font-size: 13.5px; line-height: 1.45; }
 .sv-manual-corpo small:empty { display: none; }
