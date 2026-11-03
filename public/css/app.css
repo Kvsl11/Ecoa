@@ -2550,7 +2550,8 @@ dialog.creditos-dlg::backdrop { background: #121212; }
 .dv-avatar { flex: none; width: 26px; height: 26px; display: grid; place-items: center; }
 .dv-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 6px rgb(124 92 255 / 0.45)); }
 /* as mensagens */
-.chat-msg { display: flex; animation: chat-entra 0.25s ease both; }
+.chat-msg { display: flex; }
+.chat-msg.nova { animation: chat-entra 0.25s ease both; }
 .chat-msg.eu { flex-direction: column; align-items: flex-end; }
 .chat-msg.eu .chat-bolha { max-width: min(85%, 560px); padding: 11px 16px; border-radius: 22px 22px 6px 22px; font-weight: 600; line-height: 1.45;
   background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--dv-roxo))); color: #04161b;

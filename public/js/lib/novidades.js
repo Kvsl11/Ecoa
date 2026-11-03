@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 445, data: '2026-11-02', titulo: 'Lumen responde com o Gemini e não pisca mais',
+    itens: [
+      { tipo: 'correcao', texto: 'O Lumen respondia coisas sem nada a ver (como um texto de eucaristia para “o que você faz?”). O Gemini recusava as perguntas porque a cota grátis da pesquisa no Google tinha acabado, e o Lumen caía na busca simples. Agora, quando essa cota acaba, a pergunta vai de novo ao Gemini sem a pesquisa no Google, e ele responde.' },
+      { tipo: 'melhoria', texto: '“Oi”, “o que você faz?”, “no que você pode me ajudar?” têm resposta na hora: a Lumen conta o que sabe fazer (tocar, buscar e adicionar músicas, a biblioteca, a liturgia, os cantos, as dúvidas, os arquivos).' },
+      { tipo: 'correcao', texto: 'Na conversa por texto, enquanto o Lumen procura a resposta, os balões da conversa não piscam mais: só o aviso do que ele está fazendo muda, e só a resposta nova aparece com a animação.' },
+    ],
+  },
+  {
     versao: 444, data: '2026-11-02', titulo: 'Lumen: busca, toca, adiciona na playlist e mexe no app',
     itens: [
       { tipo: 'novo', texto: 'O Lumen agora mexe no app: “toque Neverender”, “pausa a música”, “próxima música”, “volta a anterior”, “quais músicas tenho na biblioteca?”, “quais são os meus repertórios?”, “abra a liturgia”… Dá para pedir mais de uma coisa de uma vez (“traga as músicas da minha biblioteca e toque Neverender”). Ele acha a música mesmo com o nome dito de outro jeito (“never render”). No ao vivo, depois de responder, a conversa fecha e a música toca.' },
@@ -83,13 +91,6 @@ export const NOVIDADES = [
     versao: 436, data: '2026-11-02', titulo: 'O vídeo volta ao Tocando agora',
     itens: [
       { tipo: 'correcao', texto: 'Depois de aumentar o vídeo do mini player até o tamanho grande, o Tocando agora (no tablet, deitado ou em pé, e na tela toda) abria sem o vídeo: só o nome, a barra do tempo e os botões. O tamanho grande do mini player levava o vídeo para fora da tela. Agora os tamanhos valem só no mini player, e o Tocando agora mostra o vídeo como sempre.' },
-    ],
-  },
-  {
-    versao: 435, data: '2026-11-02', titulo: 'Puxe o player para aumentar o vídeo',
-    itens: [
-      { tipo: 'novo', texto: 'Com um vídeo tocando, segure o mini player e puxe para cima: o vídeo cresce junto com o dedo, como no Spotify. São três tamanhos: o compacto, o médio (o vídeo maior, com o nome em cima e os botões embaixo) e o grande (o vídeo na largura toda). Puxe para baixo para diminuir. O tamanho escolhido fica guardado.' },
-      { tipo: 'melhoria', texto: 'Vale no celular, no tablet (o cartão sobe a partir do pé da tela) e no computador (arraste a barra de baixo com o mouse: o vídeo flutua acima dela e cresce ou diminui). No tamanho grande, puxar mais uma vez para cima abre o Tocando agora.' },
     ],
   },
 ];

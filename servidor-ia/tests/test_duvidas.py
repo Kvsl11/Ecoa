@@ -265,3 +265,40 @@ def test_no_limite_do_plano_vai_para_o_proximo_e_conta_o_motivo(monkeypatch):
     _, modelo = duvidas.chamar_gemini({"contents": []})
     assert modelo == "gemini-3.5-flash-lite"
     assert "limit: 0" in duvidas.mensagem_do_google(limite)
+
+
+def test_sem_cota_da_busca_do_google_pergunta_de_novo_sem_ela(monkeypatch):
+    import io
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    monkeypatch.setattr(duvidas, "_modelos", {"em": 9e18, "lista": [{"name": "models/gemini-3.6-flash", "supportedGenerationMethods": ["generateContent"]}]})
+    monkeypatch.setattr(duvidas, "_modelo_bom", {})
+    monkeypatch.setattr(duvidas, "_sem_busca_ate", {"t": 0.0})
+    monkeypatch.setattr(duvidas, "MODELO_GEMINI", "gemini-3.6-flash")
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    enviados = []
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}).encode()
+
+    def abrir(pedido, timeout=0):
+        corpo = _json.loads(pedido.data)
+        enviados.append("tools" in corpo)
+        if "tools" in corpo:
+            raise urllib.error.HTTPError(pedido.full_url, 429, "cota", {}, io.BytesIO(b'{"error":{"message":"You exceeded your current quota"}}'))
+        return Resp()
+
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    _, modelo = duvidas.chamar_gemini({"contents": [], "tools": [{"google_search": {}}]})
+    assert modelo == "gemini-3.6-flash" and enviados == [True, False]
+    duvidas.chamar_gemini({"contents": [], "tools": [{"google_search": {}}]})
+    assert enviados[-1] is False  # (na hora seguinte, já vai sem a busca)

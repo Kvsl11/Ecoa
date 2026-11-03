@@ -13542,6 +13542,8 @@ async function casarNoServidor(audioId, videoId) {
 
 // a conversa fica guardada neste aparelho por 24 horas (depois some sozinha); "Apagar conversa" limpa na hora
 const DIA = 24 * 3600e3;
+// os balões da conversa já mostrados (e se era o "carregando"): só os novos animam ao desenhar de novo
+const baloesVistos = new WeakMap();
 // o arquivo enviado na conversa por texto (até tocar no x dele)
 let anexoDuvidas = null;
 let conversaDuvidas = (() => { try { return JSON.parse(localStorage.getItem('songbook.duvidas') || '[]').filter((m) => !m.carregando && Date.now() - (m.t || 0) < DIA); } catch { return []; } })();
@@ -13961,6 +13963,17 @@ async function acaoDoLumen(pergunta) {
   const depois = [];
   const musicas = []; // as músicas da biblioteca que aparecem na resposta (com capa e artista, como na Busca)
   let busca = []; // as músicas da internet (os mesmos cartões da Busca)
+  // 0. sobre o próprio Lumen ("oi", "o que você faz?", "no que pode me ajudar?"): a resposta direta, na hora (antes
+  // ia para a busca do acervo e voltava um texto de eucaristia)
+  const sobreMim = /\b(o que (voce|vc|tu) (faz|sabe fazer|pode fazer|consegue fazer)|no que (voce |vc )?(pode|consegue|poderia) (me )?ajudar|em que (voce |vc )?(pode|consegue) (me )?ajudar|quem e (voce|vc)|como (voce|vc) funciona|(pra|para) que (voce |vc )?serve|o que (eu )?posso (te )?(pedir|perguntar)|quais (sao )?(as )?suas funcoes)\b/.test(t);
+  const soOi = /^(oi|ola|ola lumen|oi lumen|e ai|eai|hey|bom dia|boa tarde|boa noite)( lumen)?( tudo bem| tudo bom| como vai)?$/.test(t);
+  if (sobreMim || soOi) {
+    const a = generoLumen() === 'masculina';
+    const fala = sobreMim
+      ? `Eu sou ${oLumen()}, ${a ? 'o assistente' : 'a assistente'} do Songbook. Posso tocar, buscar e adicionar músicas nas suas playlists e repertórios, mostrar a sua biblioteca, abrir as telas do app, trazer a liturgia de qualquer dia, sugerir cantos para a missa, tirar dúvidas de liturgia e de canto pelo acervo e pela internet, e ler os arquivos que você me mandar. É só pedir!`
+      : `Oi! No que posso te ajudar?`;
+    return { fala, html: '', musicas: [], busca: [], depois: null };
+  }
   // 1. as músicas da biblioteca ("traga as músicas da minha biblioteca", "o que tem na biblioteca?")
   if (/\b(musicas|cancoes|lista)\b.*\b(biblioteca|salvas|salvei|tenho)\b|\b(minha|na|da) biblioteca\b.*\b(tem|musicas|lista|traga|mostr\w*|quais)\b|\bquais musicas (eu )?tenho\b/.test(t)
     && !/\b(abr[ae]|abrir|adicion\w*|salv\w*)\b/.test(t)) {
@@ -14310,12 +14323,26 @@ function viewDuvidas() {
     if (!partes.length) partes.push(`<div class="dv-nada">${icon('search', 20)}<p>Não achei nada sobre isso no acervo nem na internet. Tente com outras palavras ou pesquise no Google.</p></div>`);
     return partes.join('');
   };
-  const msg = (m, k) => (m.role === 'user'
+  const msg = (m, k) => {
+    // (o balão anima só ao aparecer, ou quando a resposta chega no lugar do "carregando")
+    const visto = baloesVistos.get(m);
+    const agora = m.carregando ? 'c' : 'r';
+    baloesVistos.set(m, agora);
+    return msgHtml(m, k).replace('class="chat-msg ', `class="chat-msg${visto !== agora ? ' nova' : ''} `);
+  };
+  const msgHtml = (m, k) => (m.role === 'user'
     ? `<div class="chat-msg eu">${m.anexo ? `<span class="chat-anexo-msg">${icon(iconeDoAnexo(m.anexo.tipo), 16)}<span>${esc(m.anexo.nome)}</span></span>` : ''}<div class="chat-bolha">${esc(m.content)}</div><small class="chat-hora">${horaCurta(m.t)}</small></div>`
     : `<div class="chat-msg ia"><div class="chat-corpo"><div class="chat-nome">${avatar}<span>Lumen</span><small class="chat-hora">${horaCurta(m.t)}</small></div>
         <div class="chat-bolha">${corpo(m, k)}</div>
         ${!m.carregando ? `<div class="chat-acoes">${m.acao || m.ia || m.sugestoes || m.liturgia || m.acervo?.length || m.cantos?.length || m.arquivos?.length || m.web?.length || m.wiki ? `<button type="button" data-copiar="${k}">${icon('copy', 14)} Copiar</button>` : ''}
           ${m.pergunta && !m.acao ? `<a href="${esc(google(m.pergunta))}" target="_blank" rel="noopener">${icon('search', 14)} Pesquisar no Google</a>` : ''}</div>` : ''}</div></div>`);
+  // a etapa da busca ("Procurando no acervo…") troca só o texto do balão que carrega: antes a conversa inteira era
+  // desenhada de novo a cada etapa e os balões piscavam
+  const mostrarEtapa = (resp) => {
+    const el = document.querySelector('#dv-conversa .chat-digitando span');
+    if (el && location.hash === '#/duvidas') el.textContent = resp.etapa || 'Procurando no acervo…';
+    else if (location.hash === '#/duvidas') desenhar();
+  };
   const desenhar = () => {
     caixa.innerHTML = conversaDuvidas.length ? conversaDuvidas.map(msg).join('') : boasVindas();
     // com conversa, vai para a última mensagem; vazia, fica no começo (o "Olá" não pode sair cortado no celular)
@@ -14336,7 +14363,7 @@ function viewDuvidas() {
       return resp;
     };
     resp.etapa = `Lendo ${anexo.nome}…`;
-    if (location.hash === '#/duvidas') desenhar();
+    mostrarEtapa(resp);
     await comPrazo(carregarServidor().catch(() => {}), 12000);
     const cfgIA = servidorLumen();
     if (cfgIA) {
@@ -14371,7 +14398,7 @@ function viewDuvidas() {
     // acontece já; no ao vivo, depois que o Lumen fala (resp.depois)
     if (/\b(busque|busca|buscar|procure|procura|pesquise|ache|encontre|toque|toca|tocar|adicion\w*|salv\w*)\b/.test(normalizar(q))) {
       resp.etapa = 'Procurando a música…';
-      if (location.hash === '#/duvidas') desenhar();
+      mostrarEtapa(resp);
     }
     const acao = await acaoDoLumen(q).catch(() => null);
     if (acao) {
@@ -14386,7 +14413,7 @@ function viewDuvidas() {
     const pedidoCantos = pedidoSugestao(q, hojeISO());
     if (pedidoCantos) {
       resp.etapa = 'Buscando as sugestões da missa do dia…';
-      if (location.hash === '#/duvidas') desenhar();
+      mostrarEtapa(resp);
       const sugestoes = await sugestoesDaMissa(pedidoCantos).catch(() => null);
       if (sugestoes) {
         Object.assign(resp, { sugestoes, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
@@ -14399,7 +14426,7 @@ function viewDuvidas() {
     const pedido = pedidoLiturgico(q, hojeISO());
     if (pedido) {
       resp.etapa = 'Buscando na liturgia do dia…';
-      if (location.hash === '#/duvidas') desenhar();
+      mostrarEtapa(resp);
       const liturgia = await partesDaLiturgia(pedido).catch(() => null);
       if (liturgia) {
         Object.assign(resp, { liturgia, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
@@ -14414,7 +14441,7 @@ function viewDuvidas() {
     const cfgIA = servidorLumen();
     if (cfgIA) {
       resp.etapa = 'Lumen está pensando…';
-      if (location.hash === '#/duvidas') desenhar();
+      mostrarEtapa(resp);
       try {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
@@ -14436,7 +14463,7 @@ function viewDuvidas() {
         else resp.semIA = true;
       }
       resp.etapa = 'Procurando no acervo…';
-      if (location.hash === '#/duvidas') desenhar();
+      mostrarEtapa(resp);
     }
     // primeiro o acervo (no aparelho); a internet (sites católicos pelo DuckDuckGo, e a Wikipédia) vai junto, mas sem
     // segurar a resposta se ela falhar
@@ -14471,7 +14498,7 @@ function viewDuvidas() {
       // e um verso de canto com "noiva" não explica nada sobre casamento)
       .filter((a) => a.frases.length && termosEm(a.frases.join(' '), q) >= 2).slice(0, 3);
     resp.etapa = 'Lendo os documentos do acervo…';
-    if (location.hash === '#/duvidas') desenhar();
+    mostrarEtapa(resp);
     // o texto de dentro dos PDFs (pelo servidor): o trecho que explica vem primeiro; os arquivos achados entram na lista
     for (const d of await doServidor) {
       if (d.tipo === 'documento' && d.frases?.length && termosEm(d.frases.join(' '), q) >= minimo && !achados.some((a) => a.id === d.id)) {
@@ -14482,7 +14509,7 @@ function viewDuvidas() {
     }
     achados = achados.slice(0, 4);
     resp.etapa = 'Procurando na internet…';
-    if (location.hash === '#/duvidas') desenhar();
+    mostrarEtapa(resp);
     const [web, wiki] = await Promise.all([naWeb, naWiki]);
     Object.assign(resp, { acervo: achados, cantos, arquivos: arquivos.slice(0, focoArquivos ? 8 : 3), focoArquivos, web, wiki: achados.length || web.length ? null : wiki, carregando: false, t: Date.now() });
     guardarConversa();

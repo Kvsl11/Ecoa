@@ -557,6 +557,9 @@ class ErroGemini(RuntimeError):
 # ---- os modelos do Gemini que a chave pode usar (a lista do próprio Google, guardada por 1 hora)
 _modelos = {"em": 0.0, "lista": []}
 _modelo_bom: dict[str, str] = {}
+# a busca do Google (grounding) tem cota própria, pequena no plano grátis: quando ela acaba, o Gemini responde 429 a
+# toda pergunta que pede a busca (e o pedido sem ela passa). Aí as perguntas vão sem a busca por um tempo
+_sem_busca_ate = {"t": 0.0}
 
 
 def modelos_gemini(forcar: bool = False) -> list[dict]:
@@ -628,6 +631,8 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
 
     ultimo: ErroGemini | None = None
     erros: list[str] = []
+    if "tools" in corpo and time.time() < _sem_busca_ate["t"]:
+        corpo = {c: v for c, v in corpo.items() if c != "tools"}
     for k, modelo in enumerate(lista[:7]):
         tentativa = dict(corpo)
         esperou = False
@@ -644,6 +649,12 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
                 raise ErroGemini(0, str(e.reason)) from e
             if ultimo.status == 400 and "tools" in tentativa and re.search(r"tool|search|grounding", str(ultimo), re.I):
                 tentativa = {c: v for c, v in tentativa.items() if c != "tools"}
+                continue
+            # a cota acabou com a busca do Google junto: o mesmo modelo de novo, sem a busca (e sem ela por 1 hora)
+            if ultimo.status == 429 and "tools" in tentativa:
+                _sem_busca_ate["t"] = time.time() + 3600
+                corpo = {c: v for c, v in corpo.items() if c != "tools"}
+                tentativa = dict(corpo)
                 continue
             # o limite por minuto: espera o que o Google pede (até 8 s) e tenta de novo, uma vez; o limite do dia (ou o
             # modelo fora do plano grátis, "limit: 0"): vai direto para o próximo modelo
