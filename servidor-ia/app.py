@@ -12,6 +12,8 @@ Variáveis:
     IA_WHISPER   modelo do Whisper para a letra sincronizada (padrão: small; base é mais rápido, medium acerta mais)
     IA_THREADS   núcleos que cada modelo usa (padrão: o do modelo; no Modal, os da máquina)
     IA_CACHE     pasta onde o áudio e a voz separada de cada vídeo ficam guardados (padrão: a temporária)
+    IA_GITHUB_TOKEN  token do GitHub com o escopo "codespace" (no Modal): liga o Codespace sozinho (POST /codespace/ligar)
+    IA_REPO      o repositório do projeto (dono/nome), para achar o Codespace dele
     IA_KARAOKE_TAXA  a taxa do karaokê (os 4 canais juntos, padrão: 256k); IA_KARAOKE_MAX: quantos ficam guardados (20)
     ANTHROPIC_API_KEY  liga o "Tirar dúvidas" (a IA que responde pelos arquivos do acervo e pela web)
 """
@@ -40,6 +42,7 @@ import duvidas
 import falar
 import karaoke
 import letra
+import ligar_codespace
 import pc
 import transcricao
 import youtube
@@ -266,6 +269,8 @@ def saude():
         "letra": letra.tem_whisper(),
         # o karaokê (a voz e a banda separadas, para o microfone do app): com a separação e o ffmpeg
         "karaoke": karaoke.disponivel(),
+        # este servidor (o de reserva, no Modal) sabe ligar o Codespace sozinho (tem o CODESPACE_TOKEN)
+        "ligaCodespace": ligar_codespace.disponivel(),
         "duvidas": duvidas.provedor() is not None,
         "buscaAcervo": True,
         "ia": duvidas.provedor(),
@@ -654,6 +659,17 @@ def karaoke_do_arquivo(arquivo: UploadFile = File(...), etapas: bool = Query(Fal
             raise
 
     return com_etapas(trabalho, etapas, None, tarefa)
+
+
+class PedidoLigar(BaseModel):
+    codespace: str = ""  # o nome (ou o endereço) do Codespace que o app conhece
+
+
+@app.post("/codespace/ligar", dependencies=[Depends(conferir_chave)])
+def ligar_o_codespace(pedido: PedidoLigar):
+    """O app não achou o Codespace ligado: este servidor (o de reserva, no Modal) manda o GitHub ligá-lo (ou criá-lo),
+    e o app passa a usá-lo quando ele responder. {"estado": "ligado" | "ligando" | "criando" | "sem-cota" | …}"""
+    return ligar_codespace.ligar(pedido.codespace)
 
 
 class PedidoDuvida(BaseModel):

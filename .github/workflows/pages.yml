@@ -111,21 +111,42 @@ jobs:
       # o servidor da IA é o do GitHub Codespaces (.devcontainer/): o endereço dele (https://<nome>-7860.app.github.dev)
       # vai para o app, que assim acha o servidor em qualquer aparelho sem ler o QR code. O próprio Codespace grava o
       # endereço em .devcontainer/endereco.txt ao ligar (ligar.sh); a variável SERVIDOR_IA_URL (Settings → Secrets and
-      # variables → Actions → Variables), se existir, vale mais
-      - name: Endereço do servidor da IA (o Codespace), para o app achar sozinho
+      # variables → Actions → Variables), se existir, vale mais. E o de reserva, no Modal ("reserva" e "reservaLumen"):
+      # o app usa ele enquanto o Codespace liga sozinho, ou quando a cota do Codespace acabou
+      - name: Endereço do servidor da IA (o Codespace e a reserva no Modal), para o app achar sozinho
         env:
           SERVIDOR_IA_URL: ${{ vars.SERVIDOR_IA_URL }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
           # (o arquivo só existe depois que o Codespace liga a primeira vez com esta versão)
           if [ -z "$SERVIDOR_IA_URL" ] && [ -f .devcontainer/endereco.txt ]; then
             SERVIDOR_IA_URL=$(tr -d '[:space:]' < .devcontainer/endereco.txt)
           fi
-          if [ -z "$SERVIDOR_IA_URL" ]; then
-            echo "::notice::Sem o endereço do Codespace ainda: ele é gravado sozinho quando o Codespace liga."
-            exit 0
-          fi
-          python3 -c "import json, os; json.dump({'url': os.environ['SERVIDOR_IA_URL'].strip()}, open('public/data/servidor-ia.json', 'w'))"
-          echo "::notice::Servidor da IA do app: $SERVIDOR_IA_URL"
+          export SERVIDOR_IA_URL
+          if [ -n "$MODAL_TOKEN_ID" ] && [ -n "$MODAL_TOKEN_SECRET" ]; then pip install -q modal || true; fi
+          python3 - <<'PY'
+          import json, os
+          dados = {}
+          url = os.environ.get('SERVIDOR_IA_URL', '').strip()
+          if url:
+              dados['url'] = url
+          if os.environ.get('MODAL_TOKEN_ID') and os.environ.get('MODAL_TOKEN_SECRET'):
+              try:
+                  import modal
+                  dados['reserva'] = modal.Function.from_name('songbook-ia', 'web').get_web_url()
+                  try:
+                      dados['reservaLumen'] = modal.Function.from_name('songbook-ia', 'lumen').get_web_url()
+                  except Exception:
+                      pass
+              except Exception as e:
+                  print(f"::notice::O servidor de reserva (Modal) ainda não está publicado ({type(e).__name__}): ele entra depois da próxima publicação do servidor")
+          if not dados:
+              print("::notice::Sem o endereço do Codespace ainda: ele é gravado sozinho quando o Codespace liga.")
+              raise SystemExit(0)
+          json.dump(dados, open('public/data/servidor-ia.json', 'w'))
+          print(f"::notice::Servidor da IA do app: {dados}")
+          PY
       # o texto dos PDFs do acervo (lido pelo workflow "Publicar o servidor da IA"): vai junto com o site, e o Lumen do
       # Codespace baixa daqui
       - name: Texto dos PDFs do acervo (para o Lumen)

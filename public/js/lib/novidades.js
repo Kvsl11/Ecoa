@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 462, data: '2026-11-03', titulo: 'Servidor da IA sempre ligado, sozinho',
+    itens: [
+      { tipo: 'melhoria', texto: 'O servidor da IA agora se ajeita sozinho: o Codespace do GitHub é o principal e, quando ele está desligado, o servidor de reserva (o Modal) atende na hora e manda o GitHub ligar o Codespace, que assume em uns 2 minutos. Sem a cota grátis do mês no Codespace, tudo fica no Modal. Não é mais preciso ir ao GitHub ligar nada, ler QR code ou colar endereço.' },
+      { tipo: 'melhoria', texto: 'Ajustes → Avançado → Servidor da IA mostra qual dos dois está atendendo e por quê (o Codespace ligando, sem cota…).' },
+    ],
+  },
+  {
     versao: 461, data: '2026-11-03', titulo: 'Karaokê sem depender do YouTube no servidor',
     itens: [
       { tipo: 'melhoria', texto: 'Nas músicas baixadas, o karaokê usa o próprio áudio do aparelho: ele vai para o servidor da IA, que só separa a voz da banda, sem precisar baixar a música do YouTube (que costuma recusar os servidores na nuvem). Funciona com o servidor no seu computador, no Codespace ou no Modal.' },
@@ -59,13 +66,6 @@ export const NOVIDADES = [
     versao: 453, data: '2026-11-03', titulo: 'Partitura pela IA sem notas perdidas',
     itens: [
       { tipo: 'melhoria', texto: 'A partitura pela IA não perde mais notas cantadas: onde a voz canta firme e a IA não tinha marcado nota, ela entra pela afinação da voz. A afinação agora é ouvida com o modelo maior (mais lento, uns minutos a mais, e mais preciso), que acerta melhor onde há voz e em que nota.' },
-    ],
-  },
-  {
-    versao: 452, data: '2026-11-03', titulo: 'Partitura pela IA mais precisa',
-    itens: [
-      { tipo: 'melhoria', texto: 'A partitura feita pela IA erra menos o tempo das notas: o servidor ouve as batidas na banda (bateria, violão), sem a voz, e a partitura usa essas batidas como a grade dos tempos. O cantor que adianta ou atrasa um pouco não faz mais a nota cair na figura errada.' },
-      { tipo: 'melhoria', texto: 'E erra menos as notas: a altura de cada nota é medida na parte firme dela (sem o deslize da voz chegando na nota), as duas notas ligadas que a IA ouvia como uma só são separadas, e o começo de cada nota vai para o ataque de verdade da voz.' },
     ],
   },
 ];
