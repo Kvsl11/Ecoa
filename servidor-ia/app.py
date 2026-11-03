@@ -254,6 +254,8 @@ def saude():
     response = {
         "ok": True,
         "separacao": transcricao.tem_separacao(),
+        # quantas músicas estão sendo ouvidas agora (o Codespace só reinicia o servidor para uma versão nova com 0)
+        "ocupado": max(0, int(os.environ.get("IA_TAREFAS", 1)) - getattr(vagas, "_value", 0)),
         "solista": transcricao.modelo_solista(),
         "batidas": "beat_this" if transcricao.tem_beat_this() else "librosa",
         "youtube": shutil.which("ffmpeg") is not None,
