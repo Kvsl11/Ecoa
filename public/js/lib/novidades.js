@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 442, data: '2026-11-02', titulo: 'Lumen lê o PDF certo do acervo e escreve bonito',
+    itens: [
+      { tipo: 'melhoria', texto: 'O Lumen lê de verdade o arquivo do acervo que trata da sua pergunta: em “qual a estrutura da cerimônia do casamento?”, ele abre o Ritual do Matrimônio inteiro e responde pelo que está escrito nele (o mesmo com o batismo, a unção dos enfermos e os outros rituais). Antes ele via só pedaços soltos do texto.' },
+      { tipo: 'correcao', texto: 'O texto do alto do Lumen ao vivo vinha bagunçado: o nome do arquivo com “.pdf.pdf”, palavras partidas, títulos em maiúsculas no meio da frase e pedaços começando pela metade. Agora os nomes aparecem limpos (“Cerimonial dos Bispos”), o texto dos PDFs vem arrumado e só frases inteiras são lidas.' },
+      { tipo: 'correcao', texto: 'No ao vivo, a caixa com o que você fala não corta mais na terceira linha: ela mostra até cinco linhas e acompanha o fim do que você está falando.' },
+      { tipo: 'melhoria', texto: 'Na conversa por texto, quando a pergunta passa de uma linha, ela ocupa a largura toda da caixa e os botões (enviar arquivo, microfone e enviar) descem para a linha de baixo, como no Gemini. Antes o texto ficava espremido no meio, no celular. Vale no celular, no tablet em pé e deitado e no computador.' },
+    ],
+  },
+  {
     versao: 441, data: '2026-11-02', titulo: 'Lumen: o anexar e o microfone do chat voltam a funcionar',
     itens: [
       { tipo: 'correcao', texto: 'Na conversa por texto do Lumen, o botão de enviar arquivo ligava a gravação da voz (“Ouvindo…”), e o botão do microfone não fazia nada. Agora o de anexar abre a escolha do arquivo, e o microfone liga o ditado.' },
@@ -72,15 +81,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O brilho da conversa ao vivo, como o do Gemini: sobe de baixo da tela e cresce e clareia junto com a voz, no ritmo de verdade da fala. A pílula do meio também acompanha o volume, sem os pulos de antes.' },
       { tipo: 'melhoria', texto: 'O Lumen responde com IA (Claude ou Gemini) dúvidas sobre a missa e a liturgia, os cantos do acervo para cada celebração (casamento, batismo, exéquias…) e a liturgia de qualquer data, como “qual o salmo de 30 de janeiro de 2027?”.' },
       { tipo: 'correcao', texto: 'O Lumen às vezes respondia só com a busca simples, sem a IA, porque a tela dele não conferia o endereço do servidor. Agora confere antes de cada pergunta.' },
-    ],
-  },
-  {
-    versao: 432, data: '2026-11-02', titulo: 'Partituras com cara nova',
-    itens: [
-      { tipo: 'melhoria', texto: 'As telas de partitura ficaram mais limpas: Partituras, Criar a partitura e Gerar com IA têm menos texto, cartões leves e as escolhas mais à mão (tom e compasso lado a lado, os tipos de partitura em grade).' },
-      { tipo: 'melhoria', texto: 'Gerar com IA: enquanto a IA trabalha, um cartão só mostra a etapa da vez, o tempo e uma barra com o andamento geral; as etapas aparecem numa lista enxuta, marcadas conforme terminam. No fim, “Partitura pronta” vem numa linha, com o resumo e os ajustes recolhidos.' },
-      { tipo: 'correcao', texto: 'O andamento da IA às vezes parava na primeira etapa (“Baixando o áudio”, em 0%) até a partitura ficar pronta. Agora cada etapa acende na hora.' },
-      { tipo: 'correcao', texto: 'No ensaio, a voz em destaque aparecia cortada (“S…”, “C…”) com o volume espremido do lado. Agora o nome aparece inteiro e o volume fica embaixo, como nas outras vozes.' },
     ],
   },
 ];

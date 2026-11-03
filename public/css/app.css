@@ -4619,8 +4619,8 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-meio { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 0 12px; scrollbar-width: none; }
 .dv-vivo-meio::-webkit-scrollbar { display: none; }
 .dv-vivo-col { width: 100%; max-width: 720px; margin: 0 auto; padding: 0 6px; }
-.dv-vivo-estado, .dv-vivo-texto { margin: 0; font-size: clamp(19px, 1.6vw + 12px, 26px); font-weight: 400; line-height: 1.38; letter-spacing: -0.005em;
-  text-wrap: pretty; overflow-wrap: break-word; hyphens: manual; -webkit-hyphens: manual; }
+.dv-vivo-estado, .dv-vivo-texto { margin: 0; font-size: clamp(19px, 1.6vw + 12px, 26px); font-weight: 400; line-height: 1.42; letter-spacing: -0.005em;
+  text-wrap: pretty; overflow-wrap: break-word; hyphens: none; -webkit-hyphens: none; text-align: left; }
 .dv-vivo-estado { color: rgb(255 255 255 / 0.5); }
 .dv-vivo-estado:empty { display: none; }
 .dv-vivo-texto .dita { color: #fff; }
@@ -4641,8 +4641,12 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-baixo { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 6px; }
 .dv-vivo-interromper { padding: 8px 16px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; color: #ece8ff; background: #1c1b33; }
 .dv-vivo:not([data-estado="falando"]) .dv-vivo-interromper { visibility: hidden; }
-.dv-vivo-fala { box-sizing: border-box; width: min(100%, 500px); margin: 0; padding: 13px 20px; border-radius: 20px; font-size: 16px; line-height: 1.4; font-style: italic;
-  color: rgb(255 255 255 / 0.9); background: rgb(30 29 52 / 0.92); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.dv-vivo-fala { box-sizing: border-box; width: min(100%, 560px); max-height: calc(5 * 1.4em + 26px); margin: 0; padding: 13px 20px; border-radius: 20px;
+  font-size: 16px; line-height: 1.4; font-style: italic; color: rgb(255 255 255 / 0.9); background: rgb(30 29 52 / 0.92);
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; hyphens: none; -webkit-hyphens: none; overflow-wrap: break-word; }
+.dv-vivo-fala::-webkit-scrollbar { display: none; }
+/* (a fala maior que a caixa: o começo esmaece no alto, em vez de aparecer uma linha cortada) */
+.dv-vivo-fala.rola { -webkit-mask-image: linear-gradient(transparent 4px, #000 30px); mask-image: linear-gradient(transparent 4px, #000 30px); }
 .dv-vivo-fala[hidden] { display: none; }
 .dv-vivo-barra { display: flex; align-items: center; justify-content: center; gap: 10px; width: min(100%, 500px); }
 .dv-vivo-btn { flex: none; width: 56px; height: 56px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #ece8ff; background: #1c1b33; }
@@ -4718,3 +4722,11 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-permissao h3 { margin: 6px 0 0; font-size: 20px; }
 .dv-vivo-permissao p { margin: 0; font-size: 15px; line-height: 1.5; color: rgb(255 255 255 / 0.75); }
 .dv-vivo-permitir { margin-top: 8px; padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700; color: #fff; background: var(--lm-grad-btn); }
+/* a caixa de pergunta do Lumen com mais de uma linha: o texto em cima, na largura toda, e os botões numa linha embaixo
+   (o anexar à esquerda; o microfone e o enviar à direita) */
+.chat-barra.expandido .chat-campo { flex-wrap: wrap; align-items: center; row-gap: 2px; padding: 8px 8px 8px 18px; border-radius: 26px; }
+.chat-barra.expandido .chat-campo textarea { order: 0; flex: 1 1 100%; padding: 8px 6px 4px 0; }
+.chat-barra.expandido .chat-anexar { order: 1; margin-left: -10px; margin-right: auto; }
+.chat-barra.expandido .chat-mic { order: 2; }
+.chat-barra.expandido .chat-enviar { order: 3; }
+.chat-barra.expandido .chat-vivo { order: 4; }

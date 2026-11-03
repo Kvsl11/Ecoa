@@ -13797,6 +13797,38 @@ const nomeDoSite = (w) => {
   return fim && fim.length <= 40 && !/\.\.\.|…/.test(fim) ? fim : w.site;
 };
 // a resposta dita em voz alta na conversa ao vivo: o que achou, de onde, em frases curtas
+// o nome do arquivo para mostrar e falar: sem a extensão (".pdf.pdf"), sem o número do fim ("-0492521"), com espaço
+// no lugar do hífen do nome de arquivo e, se vier todo em maiúsculas, com só as iniciais (as siglas ficam: CNBB)
+const PEQUENAS = new Set(['a', 'o', 'as', 'os', 'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'na', 'no', 'para', 'por', 'com', 'ao', 'à']);
+function nomeBonito(titulo) {
+  let t = String(titulo || '').replace(/(\.(pdf|docx?|txt|mp3|m4a|wav|ogg|mp4))+$/i, '').replace(/[-_ ]\d{5,}$/, '').trim();
+  if (!/\s/.test(t) && /[-_]/.test(t)) t = t.replace(/[-_]+/g, ' ');
+  t = t.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  const letras = t.replace(/[^\p{L}]/gu, '');
+  const caixaAlta = letras && letras === letras.toLocaleUpperCase('pt-BR');
+  const caixaBaixa = letras && letras === letras.toLocaleLowerCase('pt-BR');
+  if (caixaAlta || caixaBaixa) {
+    t = t.split(' ').map((w, i) => {
+      if (caixaAlta && /^\p{Lu}{2,4}$/u.test(w) && !PEQUENAS.has(w.toLowerCase()) && /^(CNBB|IGMR|CELAM|CD|DVD|PDF|[IVX]+)$/.test(w)) return w;
+      const b = w.toLocaleLowerCase('pt-BR');
+      return i && PEQUENAS.has(b) ? b : b.charAt(0).toLocaleUpperCase('pt-BR') + b.slice(1);
+    }).join(' ');
+  }
+  return t;
+}
+// o trecho do PDF arrumado para ler e falar: sem os pedaços de título em maiúsculas, sem a palavra cortada no fim da
+// linha, só frases de verdade (com 6 palavras ou mais)
+function trechoLimpo(frases) {
+  const texto = (Array.isArray(frases) ? frases.join(' ') : String(frases || '')).replace(/\u00ad/g, '').replace(/(\p{L})- (\p{Ll})/gu, '$1$2').replace(/\s+/g, ' ').trim();
+  const partes = texto.split(/(?<=[.!?;:])\s+/).map((f) => f.trim()).filter((f) => {
+    const letras = f.replace(/[^\p{L}]/gu, '');
+    // (frase inteira: começa com maiúscula, número ou aspas — o pedaço que começa no meio da frase não serve)
+    return /^[\p{Lu}\d"“«(]/u.test(f) && (f.match(/\S+/g) || []).length >= 6 && letras.length && (letras.match(/\p{Lu}/gu) || []).length / letras.length < 0.5;
+  }).map((f) => f.replace(/(?:\s\p{Lu}{2,}){2,}.*$/u, '').trim()).filter(Boolean);
+  if (!partes.length) return '';
+  const out = partes.join(' ');
+  return /[.!?…]$/.test(out) ? out : `${out}.`;
+}
 const falaDaResposta = (m) => {
   if (m.ia) return textoDaIA(m.ia);
   if (m.sugestoes) {
@@ -13815,8 +13847,10 @@ const falaDaResposta = (m) => {
   const partes = [];
   if (pedeLiturgiaDoDia(m.pergunta)) partes.push('A liturgia de hoje está na página da Liturgia. Deixei o atalho aqui na tela.');
   const [a] = m.acervo || [];
-  if (a) partes.push(a.tipo === 'enviado' ? `No arquivo que você mandou: ${a.frases.join(' ')}` : `No acervo, em ${a.titulo}: ${a.frases.join(' ')}`);
-  if (m.arquivos?.length) partes.push(`${a ? 'E encontrei' : 'Encontrei'} ${m.arquivos.length === 1 ? 'este arquivo' : `${m.arquivos.length} arquivos`} no acervo: ${m.arquivos.slice(0, 4).map((x) => x.titulo).join('; ')}. ${m.arquivos.length > 1 ? 'Eles estão' : 'Ele está'} na tela, é só tocar para abrir.`);
+  const trechoA = a && trechoLimpo(a.frases);
+  if (a && a.tipo === 'enviado') partes.push(trechoA ? `No arquivo que você mandou: ${trechoA}` : 'Achei isso no arquivo que você mandou. Está na tela.');
+  else if (a) partes.push(trechoA ? `No acervo, em ${nomeBonito(a.titulo)}: ${trechoA}` : `No acervo, o arquivo ${nomeBonito(a.titulo)} fala sobre isso. Ele está na tela, é só tocar para abrir.`);
+  if (m.arquivos?.length) partes.push(`${a ? 'E encontrei' : 'Encontrei'} ${m.arquivos.length === 1 ? 'este arquivo' : `${m.arquivos.length} arquivos`} no acervo: ${m.arquivos.slice(0, 4).map((x) => nomeBonito(x.titulo)).join('; ')}. ${m.arquivos.length > 1 ? 'Eles estão' : 'Ele está'} na tela, é só tocar para abrir.`);
   if (m.cantos?.length) partes.push(`${m.arquivos?.length ? 'E estes cantos' : `Achei ${m.cantos.length === 1 ? 'este canto' : 'estes cantos'}`}: ${m.cantos.slice(0, 4).map((x) => x.titulo).join(', ')}.`);
   const [w] = m.web || [];
   const achou = a || m.arquivos?.length || m.cantos?.length;
@@ -13906,7 +13940,7 @@ function viewDuvidas() {
     if (m.carregando) return `<div class="chat-digitando" aria-label="Procurando a resposta"><i></i><i></i><i></i><span>${esc(m.etapa || 'Procurando no acervo…')}</span></div>`;
     if (m.content && !m.acervo) return htmlDaResposta(m.content); // conversa guardada da versão anterior
     // a resposta: o trecho que mais responde, em texto corrido, com a fonte embaixo; os outros trechos recolhidos
-    const fonte = (a, n) => `<button type="button" class="dv-fonte" data-k="${k}" data-n="${n}">${icon(a.tipo === 'enviado' ? 'file' : 'library', 14)}<span><b>${esc(a.titulo)}</b><small>${esc(a.caminho)}</small></span></button>`;
+    const fonte = (a, n) => `<button type="button" class="dv-fonte" data-k="${k}" data-n="${n}">${icon(a.tipo === 'enviado' ? 'file' : 'library', 14)}<span><b>${esc(a.tipo === 'enviado' ? a.titulo : nomeBonito(a.titulo))}</b><small>${esc(a.caminho)}</small></span></button>`;
     const partes = [];
     if (m.ia) {
       const fontes = m.ia.fontes || [];
@@ -13951,17 +13985,18 @@ function viewDuvidas() {
     }
     // os arquivos do acervo (PDFs, áudios): abrem no leitor do app
     const formato = (f) => ({ audio: 'som', pdf: 'file', texto: 'text' }[f] || 'file');
-    const listaArquivos = () => `<h4 class="dv-sub">Arquivos do acervo</h4><div class="dv-cantos">${m.arquivos.map((a) => `<a class="dv-fonte" href="#/arquivo/${encodeURIComponent(`https://drive.google.com/file/d/${a.id}/view`)}/${encodeURIComponent(a.titulo)}/${encodeURIComponent('#/duvidas')}">${icon(formato(a.formato), 14)}<span><b>${esc(a.titulo)}</b><small>${esc(a.caminho)}</small></span></a>`).join('')}</div>`;
+    const listaArquivos = () => `<h4 class="dv-sub">Arquivos do acervo</h4><div class="dv-cantos">${m.arquivos.map((a) => `<a class="dv-fonte" href="#/arquivo/${encodeURIComponent(`https://drive.google.com/file/d/${a.id}/view`)}/${encodeURIComponent(a.titulo)}/${encodeURIComponent('#/duvidas')}">${icon(formato(a.formato), 14)}<span><b>${esc(nomeBonito(a.titulo))}</b><small>${esc(a.caminho)}</small></span></a>`).join('')}</div>`;
     if (m.arquivos?.length && m.focoArquivos) partes.push(listaArquivos());
     if (m.cantos?.length) {
       partes.push(`<p class="dv-texto">Achei estes cantos nos arquivos do acervo:</p><div class="dv-cantos">${m.cantos.map((a, n) => `<button type="button" class="dv-fonte" data-k="${k}" data-n="${n}" data-lista="cantos">${icon('music', 14)}<span><b>${esc(a.titulo)}</b><small>${esc(a.caminho)}</small></span></button>`).join('')}</div>`);
     }
     const [primeiro, ...outros] = m.acervo || [];
     if (primeiro) {
-      partes.push(`<p class="dv-texto">${primeiro.frases.map((f) => realcar(f, m.pergunta)).join(' ')}</p>`, fonte(primeiro, 0));
+      const textoDe = (x) => (x.tipo === 'documento' ? realcar(trechoLimpo(x.frases) || x.frases.join(' … '), m.pergunta) : x.frases.map((f) => realcar(f, m.pergunta)).join(' '));
+      partes.push(`<p class="dv-texto">${textoDe(primeiro)}</p>`, fonte(primeiro, 0));
       if (outros.length) {
         partes.push(`<details class="dv-mais"><summary>Mais ${outros.length === 1 ? '1 trecho' : `${outros.length} trechos`} do acervo</summary>
-          ${outros.map((a, n) => `<p class="dv-texto">${a.frases.map((f) => realcar(f, m.pergunta)).join(' ')}</p>${fonte(a, n + 1)}`).join('')}</details>`);
+          ${outros.map((a, n) => `<p class="dv-texto">${textoDe(a)}</p>${fonte(a, n + 1)}`).join('')}</details>`);
       }
     }
     if (m.arquivos?.length && !m.focoArquivos) partes.push(listaArquivos());
@@ -14144,6 +14179,11 @@ function viewDuvidas() {
   const campo = form.q;
   const enviar = form.querySelector('.chat-enviar');
   const ajustar = () => {
+    // passou de uma linha: o texto ocupa a largura toda e os botões descem para a linha de baixo (como no Gemini);
+    // antes o texto ficava espremido entre o anexar, o microfone e o enviar
+    campo.style.height = 'auto';
+    if (!form.classList.contains('expandido') && campo.scrollHeight > 56) form.classList.add('expandido');
+    else if (form.classList.contains('expandido') && (!campo.value || (campo.scrollHeight <= 48 && !campo.value.includes('\n')))) form.classList.remove('expandido');
     campo.style.height = 'auto';
     campo.style.height = Math.min(180, campo.scrollHeight) + 'px';
     enviar.disabled = !campo.value.trim() && !anexoDuvidas;
@@ -14364,7 +14404,13 @@ function viewDuvidas() {
       if (aberto && el.dataset.estado === 'falando') ouvir();
     };
     // o que a pessoa falou, na caixa de baixo (vazia: some)
-    const mostrarFala = (t) => { falaEl.textContent = comMaiuscula(t); falaEl.hidden = !t; };
+    // (a fala comprida rola dentro da caixa e fica sempre no fim, no que está sendo dito; antes ela cortava na 3ª linha)
+    const mostrarFala = (t) => {
+      falaEl.textContent = comMaiuscula(t);
+      falaEl.hidden = !t;
+      falaEl.scrollTop = falaEl.scrollHeight;
+      falaEl.classList.toggle('rola', falaEl.scrollHeight > falaEl.clientHeight + 2);
+    };
     const estado = (qual, texto = '') => {
       el.dataset.estado = qual;
       estadoEl.textContent = texto;
