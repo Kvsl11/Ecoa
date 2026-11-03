@@ -290,8 +290,10 @@ def buscar_trechos(pergunta: str, quantos: int = 8) -> list[dict]:
     return out
 
 
-SISTEMA = """Você é o Lumen, o assistente litúrgico do app Songbook Litúrgico. Você ajuda ministérios de música \
-católica (cantores, instrumentistas, equipes de liturgia) com liturgia, canto litúrgico, a missa e o próprio app. \
+SISTEMA = """Você é o Lumen, o assistente do app Songbook Litúrgico inteiro: as músicas da biblioteca, os repertórios, o \
+player, a liturgia, o acervo litúrgico e o que mais a pessoa precisar (e a internet, quando o app não tem). Você ajuda \
+ministérios de música católica (cantores, instrumentistas, equipes de liturgia) com liturgia, canto litúrgico, a \
+missa e o próprio app. \
 Responda em português do Brasil, claro e direto, como quem explica para o grupo antes do ensaio. Use listas curtas \
 quando ajudarem; nada de enrolação.
 
@@ -313,7 +315,16 @@ responde dúvidas como: quando não há missa (Sexta-feira Santa, Sábado Santo 
 Finados ou do Tríduo Pascal, o que se canta em cada parte da missa, cores e tempos litúrgicos, solenidades e festas. \
 Para a liturgia de uma data (leituras, salmo, evangelho), use a que vem em <app>; se ela não veio, procure na web \
 (liturgia diária da CNBB, Canção Nova, Paulus) e diga a fonte. Para cantos de uma celebração (casamento, batismo, \
-exéquias, crisma…), prefira os do acervo e explique em que parte da celebração cada um entra."""
+exéquias, crisma…), prefira os do acervo e explique em que parte da celebração cada um entra.
+
+Você também MEXE NO APP. Quando a pessoa pedir uma ação, responda curto confirmando e ponha no fim da resposta o \
+comando, exatamente assim (o app executa e tira o comando do texto):
+- tocar uma música da biblioteca: [[tocar: título exato da música, como está na biblioteca em <app>]]
+- pausar a música: [[pausar]]; continuar: [[continuar]]; a próxima: [[proxima]]; a anterior: [[anterior]]
+- abrir uma tela: [[abrir: liturgia]] (ou biblioteca, repertorios, busca, inicio, ajustes, partituras, oracoes)
+Use a lista de músicas e de repertórios de <app> para responder sobre a biblioteca e os repertórios e para achar a \
+música pedida mesmo com o nome dito de outro jeito ("aquela do Justice"). Se a música não estiver na biblioteca, \
+diga isso e não ponha o comando."""
 
 # na conversa ao vivo a resposta é falada: curta, em frases, sem lista nem marcação
 SISTEMA_VOZ = """
@@ -546,6 +557,9 @@ class ErroGemini(RuntimeError):
 # ---- os modelos do Gemini que a chave pode usar (a lista do próprio Google, guardada por 1 hora)
 _modelos = {"em": 0.0, "lista": []}
 _modelo_bom: dict[str, str] = {}
+# a busca do Google (grounding) tem cota própria, pequena no plano grátis: quando ela acaba, o Gemini responde 429 a
+# toda pergunta que pede a busca (e o pedido sem ela passa). Aí as perguntas vão sem a busca por um tempo
+_sem_busca_ate = {"t": 0.0}
 
 
 def modelos_gemini(forcar: bool = False) -> list[dict]:
@@ -617,6 +631,8 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
 
     ultimo: ErroGemini | None = None
     erros: list[str] = []
+    if "tools" in corpo and time.time() < _sem_busca_ate["t"]:
+        corpo = {c: v for c, v in corpo.items() if c != "tools"}
     for k, modelo in enumerate(lista[:7]):
         tentativa = dict(corpo)
         esperou = False
@@ -633,6 +649,12 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120) -> tuple
                 raise ErroGemini(0, str(e.reason)) from e
             if ultimo.status == 400 and "tools" in tentativa and re.search(r"tool|search|grounding", str(ultimo), re.I):
                 tentativa = {c: v for c, v in tentativa.items() if c != "tools"}
+                continue
+            # a cota acabou com a busca do Google junto: o mesmo modelo de novo, sem a busca (e sem ela por 1 hora)
+            if ultimo.status == 429 and "tools" in tentativa:
+                _sem_busca_ate["t"] = time.time() + 3600
+                corpo = {c: v for c, v in corpo.items() if c != "tools"}
+                tentativa = dict(corpo)
                 continue
             # o limite por minuto: espera o que o Google pede (até 8 s) e tenta de novo, uma vez; o limite do dia (ou o
             # modelo fora do plano grátis, "limit: 0"): vai direto para o próximo modelo
