@@ -159,3 +159,54 @@ def test_texto_do_pdf_limpo_e_o_pdf_do_acervo_para_a_ia(monkeypatch):
 def test_o_genero_da_voz_vai_para_a_ia():
     assert "A Lumen" in duvidas.sistema_do_genero("feminina")
     assert "O Lumen" in duvidas.sistema_do_genero("masculina")
+
+
+def test_escolhe_o_flash_mais_novo_e_troca_quando_um_sumiu(monkeypatch):
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    gera = ["generateContent"]
+    lista = {"models": [{"name": f"models/{n}", "supportedGenerationMethods": gera} for n in
+                        ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash-preview",
+                         "gemini-3.8-flash-tts", "gemini-embedding-001"]]}
+    monkeypatch.setattr(duvidas, "_modelos", {"em": 0.0, "lista": []})
+    monkeypatch.setattr(duvidas, "_modelo_bom", {})
+    monkeypatch.setattr(duvidas, "MODELO_GEMINI", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    pedidos = []
+
+    class Resp:
+        def __init__(self, corpo):
+            self.corpo = corpo
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps(self.corpo).encode()
+
+    def abrir(pedido, timeout=0):
+        url = pedido.full_url if hasattr(pedido, "full_url") else pedido
+        if "/models?" in url:
+            return Resp(lista)
+        pedidos.append(url.split("/models/")[1].split(":")[0])
+        if "gemini-3.5-flash:" in url:  # o primeiro sumiu (404): vai para o próximo
+            raise urllib.error.HTTPError(url, 404, "não existe", {}, None)
+        return Resp({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+
+    monkeypatch.setattr(urllib.request, "urlopen", abrir)
+    assert duvidas.candidatos_gemini("texto")[:3] == ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.8-flash-preview"]
+    assert duvidas.candidatos_gemini("voz")[0] == "gemini-3.8-flash-tts"
+    dados, modelo = duvidas.chamar_gemini({"contents": []})
+    assert modelo == "gemini-2.5-flash" and pedidos == ["gemini-3.5-flash", "gemini-2.5-flash"]
+
+
+def test_wav_do_audio_do_gemini():
+    import falar
+
+    w = falar.wav(b"\x00\x01" * 10)
+    assert w[:4] == b"RIFF" and w[8:12] == b"WAVE" and len(w) == 44 + 20

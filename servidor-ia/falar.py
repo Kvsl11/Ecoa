@@ -15,6 +15,13 @@ VOZES = {
     "masculina": os.environ.get("IA_VOZ_MASCULINA", "pt-BR-AntonioNeural"),
 }
 MAX_CARACTERES = 2500
+# as vozes do próprio Gemini (as da conversa ao vivo do app do Gemini), quando o servidor tem a chave do Gemini
+VOZES_GEMINI = {
+    "feminina": os.environ.get("IA_VOZ_GEMINI", "Aoede"),
+    "masculina": os.environ.get("IA_VOZ_GEMINI_MASCULINA", "Charon"),
+}
+# (o limite grátis do Gemini para a fala acabou: volta a tentar depois de 10 minutos; antes disso, a voz de reserva)
+_gemini_sem_ate = 0.0
 
 
 def tem_voz() -> bool:
@@ -49,3 +56,47 @@ async def falar(texto: str, voz: str = "feminina", velocidade: str = "+4%") -> b
     if not audio:
         raise RuntimeError("a voz não respondeu")
     return bytes(audio)
+
+
+def wav(pcm: bytes, taxa: int = 24000) -> bytes:
+    """O áudio cru do Gemini (PCM 16 bits, mono) num arquivo WAV que o navegador toca."""
+    import struct
+
+    return (b"RIFF" + struct.pack("<I", 36 + len(pcm)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, taxa, taxa * 2, 2, 16)
+            + b"data" + struct.pack("<I", len(pcm)) + pcm)
+
+
+def falar_gemini(texto: str, voz: str = "feminina") -> bytes:
+    """A fala na voz do Gemini (o modelo de fala, TTS, que a chave pode usar). Erro se não der: quem chama usa a reserva."""
+    import base64
+    import time
+
+    import duvidas
+
+    global _gemini_sem_ate
+    if time.time() < _gemini_sem_ate:
+        raise RuntimeError("a voz do Gemini está no limite agora")
+    texto = limpar(texto)
+    if not texto:
+        raise ValueError("nada para falar")
+    corpo = {
+        "contents": [{"parts": [{"text": texto}]}],
+        "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {
+            "prebuiltVoiceConfig": {"voiceName": VOZES_GEMINI.get(voz, VOZES_GEMINI["feminina"])}}}},
+    }
+    try:
+        dados, _ = duvidas.chamar_gemini(corpo, "voz", timeout=40)
+    except duvidas.ErroGemini as e:
+        if e.status == 429:
+            _gemini_sem_ate = time.time() + 600
+        raise
+    for parte in ((dados.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
+        dado = parte.get("inlineData") or parte.get("inline_data")
+        if dado and dado.get("data"):
+            bruto = base64.b64decode(dado["data"])
+            tipo = dado.get("mimeType") or dado.get("mime_type") or ""
+            if bruto[:4] == b"RIFF":
+                return bruto
+            taxa = re.search(r"rate=(\d+)", tipo)
+            return wav(bruto, int(taxa.group(1)) if taxa else 24000)
+    raise RuntimeError("o Gemini não devolveu o áudio")

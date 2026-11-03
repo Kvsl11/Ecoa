@@ -4,8 +4,11 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 442, data: '2026-11-02', titulo: 'Lumen lê o PDF certo, espera você terminar e tem vozes com nome',
+    versao: 442, data: '2026-11-02', titulo: 'Lumen com o Gemini de verdade, a voz dele e o PDF certo',
     itens: [
+      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o servidor pergunta ao Google quais modelos a sua chave pode usar e escolhe o Gemini Flash mais novo (se um falhar, tenta o próximo).' },
+      { tipo: 'novo', texto: 'Lumen ao vivo com a voz do próprio Gemini. Se a voz do Gemini não responder (ou acabar o limite grátis do dia), entra a voz de antes, sem parar a conversa.' },
+      { tipo: 'melhoria', texto: 'Quando a IA não responde, o Lumen avisa (“a inteligência artificial não respondeu agora, então fiz uma busca simples”), em vez de responder calado pela busca simples.' },
       { tipo: 'melhoria', texto: 'O Lumen lê de verdade o arquivo do acervo que trata da sua pergunta: em “qual a estrutura da cerimônia do casamento?”, ele abre o Ritual do Matrimônio inteiro e responde pelo que está escrito nele (o mesmo com o batismo, a unção dos enfermos e os outros rituais). Antes ele via só pedaços soltos do texto.' },
       { tipo: 'correcao', texto: 'O texto do alto do Lumen ao vivo vinha bagunçado: o nome do arquivo com “.pdf.pdf”, palavras partidas, títulos em maiúsculas no meio da frase e pedaços começando pela metade. Agora os nomes aparecem limpos (“Cerimonial dos Bispos”), o texto dos PDFs vem arrumado e só frases inteiras são lidas.' },
       { tipo: 'correcao', texto: 'No ao vivo, a caixa com o que você fala não corta mais na terceira linha: ela mostra até cinco linhas e acompanha o fim do que você está falando.' },

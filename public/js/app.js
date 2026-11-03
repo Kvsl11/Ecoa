@@ -13662,11 +13662,13 @@ const servidorVoz = () => (SERVIDOR_IA.url && !vozNeuralSem ? { url: SERVIDOR_IA
 // enquanto o seguinte é preparado
 function pedacosDaFala(texto) {
   const frases = String(texto || '').replace(/\s+/g, ' ').trim().match(/[^.!?…;]+[.!?…;]*\s*/g) || [];
+  // o primeiro pedaço é curto (uma frase), para a voz começar logo; o segundo, médio; o resto vai num pedaço só (cada
+  // pedaço é um pedido à voz do Gemini, que no plano grátis tem limite por dia: antes uma resposta virava 5 ou 6)
+  const limites = [0, 450, 2400];
   const out = [];
   for (const f of frases) {
     const ultimo = out[out.length - 1];
-    // o primeiro pedaço é curto (uma frase), para a voz começar logo
-    if (ultimo && out.length > 1 && (ultimo + f).length <= 240) out[out.length - 1] = ultimo + f;
+    if (ultimo && out.length > 1 && (ultimo + f).length <= limites[Math.min(out.length - 1, 2)]) out[out.length - 1] = ultimo + f;
     else out.push(f);
   }
   return out.map((x) => x.trim()).filter(Boolean);
@@ -13863,6 +13865,7 @@ const falaDaResposta = (m) => {
     ].filter(Boolean).join(' '))].join(' ');
   }
   const partes = [];
+  if (m.semIA) partes.push('A inteligência artificial não respondeu agora, então fiz uma busca simples.');
   if (pedeLiturgiaDoDia(m.pergunta)) partes.push('A liturgia de hoje está na página da Liturgia. Deixei o atalho aqui na tela.');
   const [a] = m.acervo || [];
   const trechoA = a && trechoLimpo(a.frases);
@@ -13998,6 +14001,7 @@ function viewDuvidas() {
         <div class="dv-lit-fontes">${L.fontes.map((f) => { const [site, nome, url] = fonteLit[f]; return `<a class="dv-fonte" href="${url}" target="_blank" rel="noopener"><span class="dv-favicon"><img src="https://external-content.duckduckgo.com/ip3/${site}.ico" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('sem')">${icon('external', 14)}</span><span><b>${nome}</b><small>${site}</small></span></a>`; }).join('')}</div>
       </div>`;
     }
+    if (m.semIA) partes.push(`<p class="dv-aviso">A IA não respondeu agora (tente de novo em instantes). Esta resposta veio da busca simples no acervo e na internet.</p>`);
     if (pedeLiturgiaDoDia(m.pergunta)) {
       partes.push(`<a class="dv-atalho" href="#/liturgia">${icon('cross', 20)}<span><b>Liturgia de hoje</b><small>Leituras, salmo, evangelho e orações do dia</small></span>${icon('next', 18)}</a>`);
     }
@@ -14069,7 +14073,7 @@ function viewDuvidas() {
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
         const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos: [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }] }, tempo: 200e3 });
         if (ia?.resposta) return pronto({ ia });
-      } catch (e) { if (e.status === 501) lumenSemIA = true; }
+      } catch (e) { if (e.status === 501) lumenSemIA = true; else resp.semIA = true; }
     }
     const texto = await textoDoAnexo(anexo);
     if (texto.trim()) {
@@ -14136,8 +14140,10 @@ function viewDuvidas() {
           return resp;
         }
       } catch (e) {
-        // sem a chave da IA no servidor (501): não tenta de novo nesta sessão; outros erros: só desta vez
+        // sem a chave da IA no servidor (501): não tenta de novo nesta sessão; outros erros: só desta vez, e a resposta
+        // avisa que veio da busca simples (antes caía nela calada e parecia que a IA respondia mal)
         if (e.status === 501) lumenSemIA = true;
+        else resp.semIA = true;
       }
       resp.etapa = 'Procurando no acervo…';
       if (location.hash === '#/duvidas') desenhar();

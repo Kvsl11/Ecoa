@@ -260,6 +260,8 @@ def saude():
         "duvidas": duvidas.provedor() is not None,
         "buscaAcervo": True,
         "ia": duvidas.provedor(),
+        # o modelo do Gemini que responde (o servidor escolhe o Flash mais novo que a chave pode usar)
+        "modelo": duvidas.nome_do_modelo() if duvidas.provedor() == "gemini" else None,
         "voz": falar.tem_voz(),
         "chave": bool(os.environ.get("IA_CHAVE")),
         "maxSegundos": transcricao.MAX_SEGUNDOS,
@@ -621,7 +623,18 @@ class PedidoFala(BaseModel):
 
 @app.post("/falar", dependencies=[Depends(conferir_chave)])
 async def falar_texto(pedido: PedidoFala):
-    """A resposta do Lumen em voz neural realista (MP3), para a conversa ao vivo."""
+    """A resposta do Lumen em voz neural realista, para a conversa ao vivo: a voz do próprio Gemini (WAV), quando o
+    servidor tem a chave dele; se ela falhar (ou acabar o limite grátis), a voz neural da Microsoft (MP3)."""
+    if duvidas.provedor() == "gemini" and os.environ.get("IA_VOZ_DO_GEMINI", "1") != "0":
+        import asyncio
+
+        try:
+            audio = await asyncio.to_thread(falar.falar_gemini, pedido.texto, pedido.voz)
+            return Response(audio, media_type="audio/wav", headers={"Cache-Control": "no-store", "X-Voz": "gemini"})
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        except Exception as e:  # sem o modelo de fala, no limite ou fora do ar: a voz de reserva
+            log.warning("voz do Gemini falhou (%s): fica a de reserva", e)
     if not falar.tem_voz():
         raise HTTPException(501, "este servidor não tem a voz (pip install edge-tts)")
     try:
