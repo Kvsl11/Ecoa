@@ -1,5 +1,6 @@
 # Publica o servidor da IA (pasta servidor-ia/) no Modal (modal.com): US$ 30 de uso grátis por mês, endereço https,
-# liga só quando alguém usa. Publica de novo a cada mudança na pasta; no fim, a publicação do app (GitHub Pages)
+# liga só quando alguém usa. É a reserva: o app usa primeiro o servidor do Codespaces ou do computador (o do QR code)
+# e só vem ao Modal quando aquele não responde. Sem o Modal, apague os secrets MODAL_TOKEN_ID e MODAL_TOKEN_SECRET. Publica de novo a cada mudança na pasta; no fim, a publicação do app (GitHub Pages)
 # roda sozinha e grava o endereço para o app achar o servidor.
 # Antes do primeiro uso, uma vez: entre em modal.com com a conta do GitHub, crie um token em
 # modal.com/settings/tokens → New token e guarde os dois valores no GitHub em
@@ -69,7 +70,25 @@ jobs:
           [ -n "$ANTHROPIC_API_KEY" ] && args+=("ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
           [ -n "$GEMINI_API_KEY" ] && args+=("GEMINI_API_KEY=$GEMINI_API_KEY")
           [ -n "$YT_COOKIES" ] && args+=("YT_COOKIES=$YT_COOKIES")
-          modal secret create songbook-ia "${args[@]}" --force > /dev/null
-          modal deploy modal_app.py
+          # o Modal é a reserva: o app usa primeiro o servidor do Codespace (ou do computador). Sem crédito no Modal
+          # (o limite de gasto do mês, a conta desativada), a publicação fica para depois com um aviso, sem falhar;
+          # qualquer outro erro falha como antes
+          sem_credito='spend limit|billing|workspace .*disabled|disabled.*workspace|out of credits'
+          if ! modal secret create songbook-ia "${args[@]}" --force > secret.log 2>&1; then
+            cat secret.log
+            if grep -qiE "$sem_credito" secret.log; then echo "::warning::O Modal está sem crédito: o servidor de reserva não foi publicado (o do Codespace continua valendo)."; exit 0; fi
+            exit 1
+          fi
+          set +e
+          modal deploy modal_app.py 2>&1 | tee deploy.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -qiE "$sem_credito" deploy.log; then
+              echo "::warning::O Modal está sem crédito (limite de gasto do mês): o servidor de reserva não foi publicado agora. O app usa o servidor do Codespace; quando o crédito do Modal voltar, rode este workflow de novo (Actions → Publicar o servidor da IA → Run workflow)."
+              exit 0
+            fi
+            exit "$status"
+          fi
           url=$(python -c "import modal; print(modal.Function.from_name('songbook-ia', 'web').get_web_url())")
           echo "::notice::Servidor da IA no ar: $url"
