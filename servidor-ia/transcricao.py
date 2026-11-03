@@ -187,6 +187,10 @@ def corrigir_pela_afinacao(notas: list[Nota], f0_midi: np.ndarray, vozeado: np.n
         total = int(sel.sum())
         vivos = f0_midi[sel & vozeado]
         fracao = len(vivos) / total if total else 0.0
+        # a altura pela parte firme da nota: o deslize da voz chegando na nota (e saindo dela) fica de fora
+        firme = f0_midi[_miolo(n, tempos) & vozeado]
+        if len(firme) >= 3:
+            vivos = firme
         if total and fracao < 0.15 and n.amp < 0.35:
             continue
         if fracao >= 0.5:
@@ -202,6 +206,97 @@ def corrigir_pela_afinacao(notas: list[Nota], f0_midi: np.ndarray, vozeado: np.n
         ref = n.alt if ref is None else ref * 0.6 + n.alt * 0.4
         saida.append(n)
     return saida
+
+
+def _miolo(n: Nota, tempos: np.ndarray, borda: float = 0.15, maximo: float = 0.06) -> np.ndarray:
+    """Os quadros do meio da nota, sem a borda do começo e do fim (15% de cada lado, até 60 ms)."""
+    corte = min(maximo, n.dur * borda)
+    return (tempos >= n.ini + corte) & (tempos < n.fim - corte)
+
+
+def _mediana_movel(x: np.ndarray, janela: int) -> np.ndarray:
+    if janela < 3 or len(x) < janela:
+        return x
+    meio = janela // 2
+    cheio = np.pad(x, meio, mode="edge")
+    return np.median(np.lib.stride_tricks.sliding_window_view(cheio, janela), axis=1)
+
+
+def dividir_pela_afinacao(notas: list[Nota], f0_midi: np.ndarray, vozeado: np.ndarray, tempos: np.ndarray,
+                          minimo: float = 0.12, salto: float = 0.75) -> list[Nota]:
+    """A nota que o Basic Pitch ouviu como uma só, mas em que a voz muda de altura no meio (duas notas ligadas,
+    cantadas na mesma sílaba ou em legato), é dividida onde a afinação muda e firma na nova altura. A curva é
+    alisada em ~150 ms antes (o vibrato, que sobe e desce em volta da nota, não divide nada) e cada parte precisa
+    durar pelo menos "minimo"."""
+    if len(tempos) < 2:
+        return notas
+    quadro = float(tempos[1] - tempos[0]) or 0.01
+    janela = max(3, int(round(0.15 / quadro)) | 1)
+    saida = []
+    for n in notas:
+        sel = np.flatnonzero((tempos >= n.ini) & (tempos < n.fim) & vozeado)
+        if n.dur < 2 * minimo or len(sel) < 2 * minimo / quadro:
+            saida.append(n)
+            continue
+        curva = _mediana_movel(f0_midi[sel], janela)
+        alturas = np.round(curva).astype(int)
+        # trechos da mesma altura; os curtos (a passagem de uma nota para a outra) entram no vizinho
+        trechos = []
+        for k, a in enumerate(alturas):
+            if trechos and trechos[-1][0] == a:
+                trechos[-1][2] = k
+            else:
+                trechos.append([a, k, k])
+        curto = lambda t: (tempos[sel[t[2]]] - tempos[sel[t[1]]] + quadro) < minimo  # noqa: E731
+        mudou = True
+        while mudou and len(trechos) > 1:
+            mudou = False
+            for i, t in enumerate(trechos):
+                if curto(t):
+                    viz = i - 1 if i == len(trechos) - 1 or (i > 0 and not curto(trechos[i - 1])) else i + 1
+                    v = trechos[viz]
+                    v[1], v[2] = min(v[1], t[1]), max(v[2], t[2])
+                    del trechos[i]
+                    mudou = True
+                    break
+            # dois vizinhos da mesma altura voltam a ser um
+            for i in range(len(trechos) - 1, 0, -1):
+                if trechos[i][0] == trechos[i - 1][0]:
+                    trechos[i - 1][2] = trechos[i][2]
+                    del trechos[i]
+        partes = [t for t in trechos]
+        firmes = [float(np.median(curva[t[1]:t[2] + 1])) for t in partes]
+        if len(partes) < 2 or all(abs(firmes[i + 1] - firmes[i]) < salto for i in range(len(partes) - 1)):
+            saida.append(n)
+            continue
+        ini = n.ini
+        for i, t in enumerate(partes):
+            fim = n.fim if i == len(partes) - 1 else float(tempos[sel[partes[i + 1][1]]])
+            saida.append(Nota(ini, fim, int(round(firmes[i])), n.amp, n.fonte))
+            ini = fim
+    return saida
+
+
+def alinhar_inicios(notas: list[Nota], ataques: np.ndarray, raio: float = 0.05) -> list[Nota]:
+    """O começo de cada nota vai para o ataque de verdade da voz (onde o som da sílaba começa, achado na voz
+    separada), se ele está a menos de "raio": o Basic Pitch marca o começo em quadros de ~12 ms e às vezes adianta ou
+    atrasa a nota, e na grade da partitura isso a jogava para a semicolcheia vizinha. A nota não passa da anterior
+    nem fica curta demais."""
+    if ataques is None or not len(ataques):
+        return notas
+    ataques = np.sort(np.asarray(ataques, dtype=float))
+    ant = None
+    for n in sorted(notas, key=lambda x: x.ini):
+        k = int(np.searchsorted(ataques, n.ini))
+        perto = [ataques[j] for j in (k - 1, k) if 0 <= j < len(ataques)]
+        if perto:
+            t = min(perto, key=lambda x: abs(x - n.ini))
+            if abs(t - n.ini) <= raio and t < n.fim - 0.05 and (ant is None or t > ant.ini + 0.03):
+                if ant is not None and ant.fim > t:
+                    ant.fim = t
+                n.ini = float(t)
+        ant = n
+    return notas
 
 
 def uma_linha(notas: list[Nota], junto: float = 0.05) -> list[Nota]:
@@ -233,17 +328,18 @@ def forca_relativa(notas: list[Nota], alvo: float, teto: float) -> None:
         n.amp = min(teto, n.amp / nivel * alvo)
 
 
-def limpar(voz: list[Nota], banda: list[Nota], afinacao=None, quebra_voz=None, quebra_banda=None):
+def limpar(voz: list[Nota], banda: list[Nota], afinacao=None, quebra_voz=None, quebra_banda=None, ataques=None):
     """Toda a limpeza. "afinacao" é (f0_midi, vozeado, tempos) da voz separada, ou None; "quebra_*", onde o som de
-    cada parte cai (ver rearticulacoes). Devolve a voz, a banda e se a voz é de um cantor ("solo") ou de várias
-    vozes ("coral")."""
+    cada parte cai (ver rearticulacoes); "ataques", os instantes em que a voz ataca uma nota (ou None). Devolve a
+    voz, a banda e se a voz é de um cantor ("solo") ou de várias vozes ("coral")."""
     voz = tirar_estalos(juntar_pedacos(tirar_harmonicos(voz), vibrato=True, quebra=quebra_voz))
     banda = tirar_estalos(juntar_pedacos(tirar_harmonicos(banda), quebra=quebra_banda), curta=0.08, fraca=0.2)
     tipo = "coral" if polifonia(voz) > 0.2 else "solo"
     if tipo == "solo":
         if afinacao is not None:
-            voz = corrigir_pela_afinacao(voz, *afinacao)
+            voz = corrigir_pela_afinacao(dividir_pela_afinacao(voz, *afinacao), *afinacao)
         voz = juntar_pedacos(uma_linha(voz), vibrato=True, quebra=quebra_voz)
+        voz = alinhar_inicios(voz, ataques)
     return voz, banda, tipo
 
 
@@ -471,12 +567,30 @@ def afinacao_da_voz(voz: np.ndarray):
     return midi_da_f0(np.nan_to_num(f0, nan=1.0)), vozeado, tempos
 
 
-def andamento(y: np.ndarray) -> tuple[float, list[float]]:
+def andamento(y: np.ndarray, banda: np.ndarray | None = None) -> tuple[float, list[float]]:
+    """O andamento e as batidas, ouvidos no áudio. Com a banda separada, nela (a voz, que adianta e segura, fica de
+    fora) e só a parte percussiva (bateria, a palhetada do violão): as batidas ficam mais firmes que pela música
+    inteira. O app usa as batidas como a grade dos tempos da partitura."""
     import librosa
 
-    bpm, batidas = librosa.beat.beat_track(y=y, sr=SR, units="time")
+    fonte = banda if banda is not None and float(np.sqrt(np.mean(banda ** 2))) > 0.005 else y
+    try:
+        perc = librosa.effects.percussive(fonte, margin=2.0)
+        envelope = librosa.onset.onset_strength(y=perc, sr=SR, aggregate=np.median)
+        if float(envelope.max()) <= 0:
+            raise ValueError("sem ataques na parte percussiva")
+    except Exception:
+        envelope = librosa.onset.onset_strength(y=fonte, sr=SR)
+    bpm, batidas = librosa.beat.beat_track(onset_envelope=envelope, sr=SR, units="time", start_bpm=90.0)
     bpm = float(np.atleast_1d(bpm)[0])
     return round(bpm, 1), [round(float(t), 3) for t in batidas]
+
+
+def ataques_da_voz(voz: np.ndarray) -> np.ndarray:
+    """Os instantes em que a voz ataca uma nota (o começo do som de cada sílaba), na voz separada."""
+    import librosa
+
+    return librosa.onset.onset_detect(y=voz, sr=SR, hop_length=128, units="time", backtrack=True)
 
 
 def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome: None, audio=None, video: str | None = None) -> dict:
@@ -508,7 +622,13 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
             banda, quebra_banda = ouvir(banda_y, pasta, "banda", "banda", **OPCOES_BANDA)
             etapa("afinacao")
             afin = afinacao_da_voz(voz_y) if voz else None
-            voz, banda, tipo = limpar(voz, banda, afin, quebra_voz, quebra_banda)
+            # a etapa a mais de análise: onde a voz ataca cada nota (para o começo certo de cada uma)
+            try:
+                ataques = ataques_da_voz(voz_y) if voz else None
+            except Exception:
+                log.exception("ataques da voz falharam")
+                ataques = None
+            voz, banda, tipo = limpar(voz, banda, afin, quebra_voz, quebra_banda, ataques)
             # a voz acima da banda: o app escolhe a melodia (e o Soprano) pela força
             forca_relativa(voz, 0.85, 1.0)
             forca_relativa(banda, 0.5, 0.65)
@@ -518,7 +638,7 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
             juntas = juntar_pedacos(tirar_harmonicos(mistura), quebra=quebra)
             voz, banda, tipo = [], tirar_estalos(juntas), "mistura"
     etapa("escrevendo")
-    bpm, batidas = andamento(y)
+    bpm, batidas = andamento(y, banda_y if separado else None)
     notas = sorted(voz + banda, key=lambda n: (n.ini, n.alt))
     return {
         "notas": [n.para_app() for n in notas],
@@ -530,4 +650,6 @@ def transcrever(caminho: str | None, separar_voz: bool = True, etapa=lambda nome
         "vozes": tipo,
         "andamento": bpm,
         "batidas": batidas,
+        # as batidas vieram da banda separada (a bateria, o violão): o app as usa como a grade dos tempos
+        "batidasDaBanda": bool(separado and banda),
     }

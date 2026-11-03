@@ -9836,6 +9836,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       if (!view.contains(passo) || ctrl.signal.aborted) return;
       if (r.cortado) toast('Usei só os primeiros 6 minutos');
       notas = r.notas || [];
+      // as batidas que o servidor ouviu na banda (com a bateria): a grade dos tempos da partitura
+      batidas = r.batidasDaBanda && Array.isArray(r.batidas) ? r.batidas : null;
       if (!notas.length) { telaFontes('A IA não encontrou notas neste áudio. Tente de novo ou use outro arquivo de áudio da música.'); return; }
       resultado();
     } catch (e) {
@@ -9885,6 +9887,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       await etapas.concluir();
       if (cancelado || !view.contains(passo)) return;
       notas = r.notas || [];
+      batidas = null;
       if (!notas.length) { telaFontes('A IA não encontrou notas neste áudio. Tente de novo ou use outro arquivo de áudio da música.'); return; }
       resultado();
     } catch (e) {
@@ -9897,13 +9900,14 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     } finally { clearTimeout(vigia); }
   }
   let notas = null;
+  let batidas = null;
 
   // resultado: ajustes (andamento, tom, compasso, oitava) e a prévia; depois abre no editor
   function resultado() {
     const tomCifra = tomDaCifra(renderSong(song.content).key || song.key);
     let [fifths, modo] = tomCifra ? [tomCifra.fifths, tomCifra.modo] : (({ fifths: f, modo: m }) => [f, m])(estimarTom(notas));
     // o andamento vem em décimos (a grade das notas e o som precisam dele exato); na tela, inteiro
-    let bpm = estimarAndamento(notas, { faixa: faixaDoModo(modoIA) });
+    let bpm = estimarAndamento(notas, { faixa: faixaDoModo(modoIA), batidas });
     const { clave, centro } = claveDaVoz(notas, modoIA);
     let oitava = 0;
     let meioTempo = false;
@@ -9914,7 +9918,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     let compasso = [4, 4];
     let anacruse = 0;
     const acertarCompasso = () => {
-      const est = estimarCompasso(notas, { bpm, meioTempo, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), compasso: compassoAuto ? null : compasso });
+      const est = estimarCompasso(notas, { bpm, meioTempo, batidas, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), compasso: compassoAuto ? null : compasso });
       ({ compasso, anacruse } = est);
     };
     acertarCompasso();
@@ -9928,12 +9932,12 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       let m;
       if (coral) {
         m = novaPartitura({ titulo, compasso, fifths, modo, bpm, tipo: 'satb' });
-        m.pautas = vozesDasNotas(notas, { bpm, fifths, oitava, meioTempo, faixa: FAIXA_CORAL });
+        m.pautas = vozesDasNotas(notas, { bpm, fifths, oitava, meioTempo, batidas, faixa: FAIXA_CORAL });
       } else {
         m = novaPartitura({ titulo, compasso, fifths, modo, bpm });
         m.pautas[0].clave = clave;
         m.pautas[0].nome = modoIA === 'voz' ? 'Voz' : 'Melodia';
-        m.pautas[0].ev = melodiaDasNotas(notas, { bpm, fifths, oitava, modo: modoIA, centro, meioTempo });
+        m.pautas[0].ev = melodiaDasNotas(notas, { bpm, fifths, oitava, modo: modoIA, centro, meioTempo, batidas });
       }
       m.anacruse = anacruse;
       if (comLetra || comCifra) colocarLetra(m, silabasMusica, { comLetra, cifras: comCifra });
@@ -9941,7 +9945,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       // onde ele muda no som, e não na sílaba onde estava escrito. Só a voz, sem banda: fica a da sílaba
       if (comCifra) {
         const guia = m.pautas.find((p) => p.ev.some((e) => e.a?.length));
-        const quando = tempoDaGrade(notas, { bpm, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), meioTempo });
+        const quando = tempoDaGrade(notas, { bpm, faixa: coral ? FAIXA_CORAL : faixaDoModo(modoIA), meioTempo, batidas });
         if (guia && quando) {
           const nTempos = Math.ceil(guia.ev.reduce((a, e) => a + e.d, 0) / 8);
           const sequencia = silabasMusica.map((x) => x.c).filter(Boolean);

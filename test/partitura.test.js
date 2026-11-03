@@ -385,3 +385,32 @@ test('paraMusicXML: só um trecho de compassos (editor de partitura grande)', ()
   const lido = ler(xml);
   assert.deepEqual(lido.pautas[0].ev.map((e) => e.a[0]), ['C4', 'D4', 'E4']);
 });
+
+test('IA: as batidas da banda viram a grade dos tempos (o cantor adianta e atrasa e as figuras ficam certas)', async () => {
+  const { melodiaDasNotas, estimarAndamento, andamentoDasBatidas } = await import('../public/js/lib/partitura.js');
+  const bpm = 90;
+  const tempo = 60 / bpm;
+  const ritmo = [1, 0.5, 0.5, 1, 1, 0.5, 0.5, 0.5, 0.5, 2, 1, 1, 0.5, 0.5, 1, 1.5, 0.5, 2];
+  let seed = 3;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const notas = [];
+  let t = 0.5;
+  for (let rep = 0; rep < 4; rep++) {
+    for (const [i, d] of ritmo.entries()) {
+      notas.push({ startTimeSeconds: t + (rnd() * 2 - 1) * 0.07, durationSeconds: d * tempo * 0.9, pitchMidi: [67, 69, 71, 72, 74][i % 5], amplitude: 0.8 });
+      t += d * tempo;
+    }
+  }
+  const esperado = [].concat(...Array(4).fill(ritmo.map((d) => d * 8)));
+  const batidas = Array.from({ length: 80 }, (_, i) => 0.5 + i * tempo);
+  assert.equal(estimarAndamento(notas, { batidas }), 90);
+  assert.deepEqual(melodiaDasNotas(notas, { bpm, batidas }).filter((e) => e.a.length).map((e) => e.d), esperado);
+  // o tracker marcou o contratempo (ou a colcheia): as notas escolhem onde está o tempo
+  const noMeio = batidas.map((x) => x + tempo / 2);
+  assert.deepEqual(melodiaDasNotas(notas, { bpm, batidas: noMeio }).filter((e) => e.a.length).map((e) => e.d), esperado);
+  const colcheias = batidas.flatMap((x) => [x, x + tempo / 2]);
+  assert.equal(estimarAndamento(notas, { batidas: colcheias }), 90);
+  // a pessoa mudou o andamento: as batidas não valem mais e fica a grade que segue o cantor
+  assert.equal(andamentoDasBatidas(batidas, 140), null);
+  assert.ok(melodiaDasNotas(notas, { bpm: 94, batidas }).length > 0);
+});
