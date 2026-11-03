@@ -109,14 +109,16 @@ jobs:
           command -v pdftoppm || (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils)
           node scripts/cantos-sync.mjs
       # o servidor da IA é o do GitHub Codespaces (.devcontainer/): o endereço dele (https://<nome>-7860.app.github.dev)
-      # fica na variável SERVIDOR_IA_URL (Settings → Secrets and variables → Actions → Variables) e vai para o app, que
-      # assim acha o servidor em qualquer aparelho sem ler o QR code. Sem a variável, cada aparelho usa o do QR code
+      # vai para o app, que assim acha o servidor em qualquer aparelho sem ler o QR code. O próprio Codespace grava o
+      # endereço em .devcontainer/endereco.txt ao ligar (ligar.sh); a variável SERVIDOR_IA_URL (Settings → Secrets and
+      # variables → Actions → Variables), se existir, vale mais
       - name: Endereço do servidor da IA (o Codespace), para o app achar sozinho
         env:
           SERVIDOR_IA_URL: ${{ vars.SERVIDOR_IA_URL }}
         run: |
+          [ -n "$SERVIDOR_IA_URL" ] || SERVIDOR_IA_URL=$(tr -d '[:space:]' < .devcontainer/endereco.txt 2>/dev/null)
           if [ -z "$SERVIDOR_IA_URL" ]; then
-            echo "::notice::Sem a variável SERVIDOR_IA_URL: o app acha o servidor da IA pelo QR code do Codespace (Ajustes → Servidor no computador)."
+            echo "::notice::Sem o endereço do Codespace ainda: ele é gravado sozinho quando o Codespace liga."
             exit 0
           fi
           python3 -c "import json, os; json.dump({'url': os.environ['SERVIDOR_IA_URL'].strip()}, open('public/data/servidor-ia.json', 'w'))"
