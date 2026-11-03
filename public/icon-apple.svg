@@ -1,6 +1,2 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#000000"/><g transform="translate(32 32) scale(1.02) translate(-30.5 -31.5)"><g fill="#ffffff" stroke="#ffffff">
-<ellipse cx="21" cy="44" rx="7.6" ry="6" transform="rotate(-22 21 44)" stroke="none"/>
-<rect x="25.4" y="13" width="4.8" height="32" rx="2.4" stroke="none"/>
-<path d="M28 14.6c3.6 3.9 9.6 4.6 10.2 11.4" fill="none" stroke-width="4.6" stroke-linecap="round"/>
-<path d="M40.6 31.4a10 10 0 0 1 0 13.2" fill="none" stroke-width="4.4" stroke-linecap="round"/>
-<path d="M45.6 26.2a17 17 0 0 1 0 23.6" fill="none" stroke-width="4.4" stroke-linecap="round"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#0891b2"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/>
+<g transform="translate(32 32) scale(.92) translate(-32 -32)" fill="none" stroke="#fff" stroke-linecap="round"><path d="M14.5 32H39.5A12.5 12.5 0 1 0 36.29 40.36" stroke-width="6.4"/><path d="M43.15 19.38A20.5 20.5 0 0 1 43.15 44.62" stroke-width="4.2" opacity=".7"/><path d="M50.75 17.16A28 28 0 0 1 50.75 46.84" stroke-width="3.6" opacity=".38"/></g></svg>

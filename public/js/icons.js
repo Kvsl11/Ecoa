@@ -142,7 +142,6 @@ export function icon(name, size = 20, extra = '') {
   return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${P[name] || ''}</svg>`;
 }
 
-// Logo do app: livro de cifras aberto com nota musical e cruz, na cor de destaque.
 // Logo do Lumen (o assistente litúrgico): o monograma L, arredondado, com a estrela de luz (lumen = luz, em latim)
 // no canto livre, ao lado da haste, no degradê azul → roxo → rosa → dourado; a estrela tem o centro aceso. O mesmo
 // desenho em public/lumen.svg.
@@ -159,22 +158,22 @@ export function logoLumen(size = 32) {
   </svg>`;
 }
 
-// Logo do Ecoa: uma nota musical com duas ondas de eco saindo dela (o som que ecoa), em branco sobre o fundo
-// preto (um contorno leve separa do fundo escuro do app). O mesmo desenho em public/icon.svg
+// Logo do Ecoa: um "e" redondo com duas ondas de eco saindo dele (o som que ecoa), em branco sobre o degradê
+// ciano → azul do app. O mesmo desenho em public/icon.svg (e nos PNGs gerados a partir dele).
+let nLogo = 0;
 export function logo(size = 32) {
+  const id = 'ec' + ++nLogo;
   return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">
-  <rect x=".5" y=".5" width="63" height="63" rx="15" fill="#000000" stroke="rgb(255 255 255 / .14)"/>
-  <g transform="translate(32 32) scale(1.12) translate(-30.5 -31.5)" fill="#ffffff" stroke="#ffffff">
-    <ellipse cx="21" cy="44" rx="7.6" ry="6" transform="rotate(-22 21 44)" stroke="none"/>
-    <rect x="25.4" y="13" width="4.8" height="32" rx="2.4" stroke="none"/>
-    <path d="M28 14.6c3.6 3.9 9.6 4.6 10.2 11.4" fill="none" stroke-width="4.6" stroke-linecap="round"/>
-    <path d="M40.6 31.4a10 10 0 0 1 0 13.2" fill="none" stroke-width="4.4" stroke-linecap="round"/>
-    <path d="M45.6 26.2a17 17 0 0 1 0 23.6" fill="none" stroke-width="4.4" stroke-linecap="round"/>
+  <defs><linearGradient id="${id}" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#0891b2"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs>
+  <rect width="64" height="64" rx="15" fill="url(#${id})"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round">
+    <path d="M14.5 32H39.5A12.5 12.5 0 1 0 36.29 40.36" stroke-width="6.4"/>
+    <path d="M43.15 19.38A20.5 20.5 0 0 1 43.15 44.62" stroke-width="4.2" opacity=".7"/>
+    <path d="M50.75 17.16A28 28 0 0 1 50.75 46.84" stroke-width="3.6" opacity=".38"/>
   </g>
   </svg>`;
 }
-
-
 
 // Símbolo no estilo do Cifra Club (violão branco saindo pelas bordas), na cor de destaque do app
 let nCc = 0;
