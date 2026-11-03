@@ -13885,33 +13885,6 @@ function pontuar(texto, { parcial = false } = {}) {
   if (/^(ola|oi|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|que bom|que legal|que lindo|nossa|amem|gloria a deus|parabens)\b/.test(normalizar(t))) return `${t}!`;
   return `${t}.`;
 }
-// A saudação do ao vivo ("Olá, eu sou a Lumen."), na voz escolhida, guardada no aparelho: ao abrir, ela toca na hora
-// (antes esperava o servidor acordar e fazer a voz, uns 5 s). Ela é preparada quando a tela do Lumen abre
-const saudacaoLumen = () => `Olá, eu sou ${oLumen()}.`;
-const chaveSaudacao = () => new URL(`lumen-saudacao/${encodeURIComponent(vozDoLumen().nome)}/${encodeURIComponent(saudacaoLumen())}`, document.baseURI).href;
-async function saudacaoGuardada() {
-  try { const r = await (await caches.open('lumen-voz')).match(chaveSaudacao()); return r ? await r.blob() : null; } catch { return null; }
-}
-// o áudio da saudação: o guardado, ou feito agora pelo servidor. Só a voz do Gemini (WAV) fica guardada: a de reserva
-// (MP3) serve desta vez e a próxima abertura tenta de novo a do Gemini
-let saudacaoFazendo = null;
-function prepararSaudacao() {
-  if (saudacaoFazendo) return saudacaoFazendo;
-  saudacaoFazendo = (async () => {
-    const ja = await saudacaoGuardada();
-    if (ja) return ja;
-    await comPrazo(carregarServidor().catch(() => {}), 12000);
-    const cfg = servidorVoz();
-    if (!cfg) return null;
-    const chave = chaveSaudacao();
-    const blob = await audioDaVoz(cfg, saudacaoLumen()).catch(() => null);
-    if (blob?.size && /wav/.test(blob.type)) { try { await (await caches.open('lumen-voz')).put(chave, new Response(blob, { headers: { 'Content-Type': blob.type } })); } catch { /* sem guardar */ } }
-    return blob?.size ? blob : null;
-  })().finally(() => { saudacaoFazendo = null; });
-  return saudacaoFazendo;
-}
-// (a saudação fica pronta logo que o app abre, e não só ao entrar no Lumen: a primeira conversa já começa na voz certa)
-setTimeout(() => { if (navigator.onLine && !db.prefs().economiaDados) void prepararSaudacao().catch(() => {}); }, 8000);
 // o começo da fala com letra maiúscula (o reconhecimento de voz entrega tudo em minúscula)
 const comMaiuscula = (t) => { const s = String(t || '').trimStart(); return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1); };
 const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => setTimeout(() => r(null), ms))]);
@@ -14317,7 +14290,6 @@ function viewDuvidas() {
   conversaDuvidas = conversaDuvidas.filter((m) => m.carregando || Date.now() - (m.t || 0) < DIA);
   setTab('inicio');
   setTint('#0b1020');
-  void prepararSaudacao().catch(() => {});
   setHeader('Lumen', { back: '#/', eyebrow: generoLumen() === 'masculina' ? 'Seu assistente' : 'Sua assistente', actions: [...(conversaDuvidas.length ? [{ icon: 'trash', label: 'Apagar conversa', onClick: async () => { if (await ask({ title: 'Apagar a conversa?', text: 'As perguntas e respostas saem deste aparelho. (Elas também somem sozinhas depois de 24 horas.)', ok: 'Apagar', danger: true })) { conversaDuvidas = []; guardarConversa(); viewDuvidas(); } } }] : [])] });
   const avatar = `<span class="dv-avatar" aria-hidden="true">${logoLumen(20)}</span>`;
   view.innerHTML = `<div class="chat">
@@ -14946,7 +14918,6 @@ function viewDuvidas() {
       if (nova && nova.nome !== vozDoLumen().nome) {
         db.setPref('vozGemini', nova.nome);
         db.setPref('vozLumen', nova.genero);
-        void prepararSaudacao().catch(() => {});
         if (['ouvindo', 'parado'].includes(el.dataset.estado) && permissaoEl.hidden) {
           estado('falando');
           falar(`Oi! Agora eu falo com a voz ${nova.nome}. Pode continuar.`).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
@@ -15130,7 +15101,7 @@ function viewDuvidas() {
     });
     // falar: a voz neural do servidor, pedaço a pedaço (o próximo já vem enquanto este toca); se ela falha, o resto vai
     // na voz do navegador. A legenda acompanha. Termina quando acaba ou quando é interrompida (pararVoz)
-    // ({ audio }: o áudio já pronto, como a saudação guardada; { soNavegador }: a voz do aparelho, na hora)
+    // ({ audio }: o áudio já pronto, já guardado; { soNavegador }: a voz do aparelho, na hora)
     const falar = (texto, { audio = null, soNavegador = false } = {}) => {
       pararVoz();
       novaLegenda(texto);
@@ -15148,7 +15119,8 @@ function viewDuvidas() {
             if (vale()) { avancarLegenda(n, n); fimFala = null; pronto(); }
             return;
           }
-          await comPrazo(servidorPronto, 6000);
+          // (o servidor acordando pode passar de 6 s: sem ele, a fala ia toda na voz do aparelho)
+          await comPrazo(servidorPronto, 15000);
           if (!vale()) return;
           const cfg = servidorVoz();
           const pedacos = pedacosDaFala(texto);
@@ -15160,6 +15132,12 @@ function viewDuvidas() {
               let blob = null;
               try { blob = await proximo; } catch (e) { if (e.status === 501 || e.status === 404) vozNeuralSem = true; }
               if (!vale()) return;
+              // (uma falha de rede ou do servidor: tenta o mesmo pedaço mais uma vez antes de cair na voz robótica do
+              // aparelho; antes um tropeço só já trocava a voz do resto da resposta)
+              if (!blob && !vozNeuralSem) {
+                try { blob = await audioDaVoz(cfg, pedacos[feito]); } catch (e) { if (e.status === 501 || e.status === 404) vozNeuralSem = true; }
+                if (!vale()) return;
+              }
               if (!blob) break;
               if (feito + 1 < pedacos.length) { proximo = audioDaVoz(cfg, pedacos[feito + 1]); proximo.catch(() => {}); }
               const n = contarPalavras(pedacos[feito]);
@@ -15315,19 +15293,12 @@ function viewDuvidas() {
       if (e.target.closest('button.dv-fonte, a[href^="#"], li[data-id], li[data-href], [data-web]') && !e.target.closest('[data-salvar]')) fechar();
       tocarResposta(e);
     });
-    // a saudação curta, na hora: a guardada no aparelho (na voz escolhida); sem ela ainda, a voz do aparelho (e a
-    // guardada fica pronta para a próxima vez)
-    const saudacaoPronta = saudacaoGuardada();
-    // (sem a guardada, espera a voz do servidor — a do Gemini — em vez da voz robótica do aparelho)
-    const comecar = async () => {
+    // abriu, já ouve: a pessoa entra e começa a perguntar (antes o Lumen abria dizendo "Olá, eu sou a Lumen", e era
+    // preciso esperar a saudação acabar)
+    const comecar = () => {
       if (!aberto) return;
       permissaoEl.hidden = true;
-      estado('falando');
-      novaLegenda(saudacaoLumen());
-      avancarLegenda(0, contarPalavras(saudacaoLumen()));
-      const audio = await comPrazo(saudacaoPronta, 400) || await comPrazo(prepararSaudacao().catch(() => null), 12000);
-      if (!aberto) return;
-      falar(saudacaoLumen(), audio ? { audio } : {}).then(() => { if (aberto && el.dataset.estado === 'falando') ouvir(); });
+      ouvir();
     };
     // a permissão do microfone: o Lumen pede antes de começar (um cartão explica e o botão abre a pergunta do navegador)
     const permissaoEl = el.querySelector('.dv-vivo-permissao');

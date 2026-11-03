@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 450, data: '2026-11-03', titulo: 'Lumen ao vivo já começa ouvindo',
+    itens: [
+      { tipo: 'melhoria', texto: 'Abrindo o Lumen ao vivo, ele não diz mais “Olá, eu sou a Lumen”: já começa ouvindo, e você pode perguntar na hora.' },
+    ],
+  },
+  {
+    versao: 449, data: '2026-11-03', titulo: 'Lumen mais livre e sem a voz robótica',
+    itens: [
+      { tipo: 'melhoria', texto: 'O Lumen responde ao que você perguntou, sobre qualquer assunto, sem puxar coisas do acervo que você não pediu. O acervo continua lá: perguntando dele (“tem algo no acervo sobre…?”) ou quando um documento responde de fato à pergunta, ele usa e mostra a fonte.' },
+      { tipo: 'correcao', texto: 'No ao vivo, a voz às vezes trocava no meio da resposta pela voz robótica do aparelho. Agora, quando a voz do Gemini demora ou está no limite do dia, entra logo a voz neural de reserva, e um tropeço da internet faz o app tentar de novo antes de usar a voz do aparelho.' },
+    ],
+  },
+  {
     versao: 448, data: '2026-11-03', titulo: 'Ecoa de logo nova',
     itens: [
       { tipo: 'melhoria', texto: 'O Ecoa ganhou uma logo nova: um “e” com as ondas de eco saindo dele, em branco sobre o degradê ciano e azul do app. Ela aparece no menu, nos Ajustes, no ícone da tela inicial e nas notificações.' },
@@ -71,27 +84,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na conversa por texto do Lumen, o botão de enviar arquivo ligava a gravação da voz (“Ouvindo…”), e o botão do microfone não fazia nada. Agora o de anexar abre a escolha do arquivo, e o microfone liga o ditado.' },
       { tipo: 'correcao', texto: 'Dúvidas como “como o salmista deve proclamar o salmo?” não viram mais uma lista de cantos repetidos com versos de antífona: sem a IA, a resposta vem dos documentos do acervo e da internet.' },
-    ],
-  },
-  {
-    versao: 440, data: '2026-11-02', titulo: 'Lumen pede o microfone e volta a falar',
-    itens: [
-      { tipo: 'correcao', texto: 'O Lumen ao vivo mostrava o texto, mas a voz não saía. No celular e no tablet Android, o microfone que fica atento para você interromper colocava o som em “modo ligação”, e a voz ia para o alto-falante de ouvido, quase muda. Agora a voz sai normal, e se o aparelho pausar a voz sozinho, ela volta a tocar.' },
-      { tipo: 'novo', texto: 'O app pede a permissão do microfone antes de usar, no Lumen ao vivo e no ditado, com uma explicação. Se o microfone estiver bloqueado, ele mostra o caminho para liberar e o botão Tentar de novo.' },
-      { tipo: 'melhoria', texto: 'O que o Lumen fala aparece sempre escrito. O botão do alto agora mostra ou esconde só o que VOCÊ fala: sem o traço, a sua fala aparece escrita embaixo; com o traço, não aparece.' },
-    ],
-  },
-  {
-    versao: 439, data: '2026-11-02', titulo: 'Lumen ao vivo de cara nova, mais esperto e com arquivos',
-    itens: [
-      { tipo: 'melhoria', texto: 'Lumen ao vivo repaginado, como o do Gemini: no alto ficam só o logo, o botão da legenda e o “⋯” (com a voz); a resposta aparece numa coluna no centro, em letra de leitura; o que você fala aparece numa caixa embaixo, centrada, junto com o “Toque para interromper” e a barra de botões.' },
-      { tipo: 'novo', texto: 'Legenda: com o botão do alto ligado, a resposta acompanha a voz (as palavras já ditas acendem, as que vêm ficam apagadas). Desligado, a tela fica só com o brilho. A escolha fica guardada.' },
-      { tipo: 'novo', texto: 'Falar por cima interrompe: enquanto o Lumen fala, se você começar a falar, ele para na hora e passa a ouvir. Dá para desligar no “⋯” (Parar quando eu falar).' },
-      { tipo: 'novo', texto: 'Mande um arquivo para o Lumen (PDF, foto, vídeo, áudio, Word ou texto) pelo botão de enviar, ao lado das fontes, no ao vivo e na conversa por texto, e pergunte o que quiser sobre ele. O arquivo fica junto das perguntas até você tocar no x.' },
-      { tipo: 'melhoria', texto: 'O Lumen entende a pergunta falada: “preciso que você me diga se tem algo no acervo sobre casamento” acha o Ritual do Matrimônio e os outros arquivos do acervo (PDFs e áudios, pelo nome e pela pasta), também por sinônimos (casamento e matrimônio, enterro e exéquias, batizado e batismo…). Com o servidor, procura também dentro do texto dos PDFs.' },
-      { tipo: 'correcao', texto: 'O teclado do tablet e do celular não abre mais sozinho a cada resposta do Lumen.' },
-      { tipo: 'correcao', texto: 'O que você fala começa com letra maiúscula, no ao vivo e no ditado.' },
-      { tipo: 'correcao', texto: 'A pílula colorida do ao vivo não tem mais as bordinhas pretas quando se mexe.' },
     ],
   },
 ];
