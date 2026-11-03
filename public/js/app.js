@@ -273,13 +273,20 @@ async function notificarSistema({ titulo, texto = '', tag = '', href = '', silen
   } catch { return false; }
 }
 
-// O Android só apresenta o pedido de permissão após uma interação do usuário.
-if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-  document.addEventListener('pointerup', function pedirPermissaoNotificacoes() {
-    document.removeEventListener('pointerup', pedirPermissaoNotificacoes);
-    Notification.requestPermission().catch(() => {});
-  }, { once: true });
+// A permissão das notificações: o app não pede mais no primeiro toque (sem explicar nada). Um cartão no Início explica
+// e pede (uma vez: "Agora não" guarda a escolha), e Ajustes → Permissões mostra e pede de novo quando quiser.
+// 'ok', 'pedir' (ainda não respondida), 'negado' ou 'sem' (navegador sem notificações; no iPhone, só no app instalado)
+function estadoDasNotificacoes() {
+  if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'sem';
+  return Notification.permission === 'granted' ? 'ok' : Notification.permission === 'denied' ? 'negado' : 'pedir';
 }
+// abre a pergunta do navegador (o Android só mostra depois de um toque: chame dentro do clique); devolve o estado
+async function pedirNotificacoes() {
+  if (estadoDasNotificacoes() === 'sem') return 'sem';
+  try { await Notification.requestPermission(); } catch { /* navegador antigo: o estado diz */ }
+  return estadoDasNotificacoes();
+}
+const COMO_LIBERAR_NOTIF = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
 
 // Capa usada nas notificações de download, quando disponível.
 const capaDaNotificacao = (song) =>
@@ -5348,6 +5355,9 @@ function viewHome() {
   view.innerHTML = `
     <div class="inicio" data-filtro="${filtro}">
     <nav class="chips inicio-filtros" aria-label="Mostrar na página inicial">${FILTROS_INICIO.map(([k, nome]) => `<button class="chip" data-filtro="${k}" aria-pressed="${k === filtro}">${nome}</button>`).join('')}</nav>
+    ${estadoDasNotificacoes() === 'pedir' && !db.prefs().notificacoesDepois ? `<div class="pede-permissao" id="pede-notif"><span class="ico">${icon('bell', 22)}</span>
+      <div class="grow"><b>Avisos dos downloads</b><small>Para o app avisar quando uma música terminar de baixar (e mostrar o progresso), mesmo com a tela em outro app.</small>
+      <div class="row"><button class="btn small primary" data-notif="sim">Permitir</button><button class="btn small" data-notif="nao">Agora não</button></div></div></div>` : ''}
     <section data-sec="tudo"><div class="quick">${atalhos.join('')}</div></section>
 
     ${sets.length ? `<section data-sec="repertorios"><div class="shelf-head"><h2>Seus repertórios</h2><a href="#/biblioteca/repertorios">Mostrar tudo</a></div>
@@ -5373,6 +5383,13 @@ function viewHome() {
     </div>`;
   ligarTiles(view);
   enriquecerTilesArtistas(view);
+  $('#pede-notif', view)?.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-notif]');
+    if (!b) return;
+    if (b.dataset.notif === 'sim') await pedirNotificacoes();
+    else db.setPref('notificacoesDepois', true);
+    $('#pede-notif', view)?.remove();
+  });
   // os chips filtram a página (como no Spotify); a escolha fica até fechar o app
   $('.inicio-filtros', view).addEventListener('click', (e) => {
     const b = e.target.closest('[data-filtro]');
@@ -12404,6 +12421,7 @@ function viewTopicosAjustes() {
   setHeader('Ajustes', { back: '#/' });
   const resumo = (t) => {
     if (t.id === 'qualidade') return `Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}`;
+    if (t.id === 'permissoes') return `Notificações: ${ROTULO_PERMISSAO[estadoDasNotificacoes()]} · Microfone`;
     if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Armazenamento · Cache`; }
     return t.s;
   };
@@ -12415,6 +12433,72 @@ function viewTopicosAjustes() {
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
       ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
     </nav></div>`;
+  // o microfone só se sabe esperando a consulta do navegador
+  estadoDoMicrofone().then((m) => {
+    const sm = $('.aj-topico[href="#/permissoes"] small', view);
+    if (sm) sm.textContent = `Notificações: ${ROTULO_PERMISSAO[estadoDasNotificacoes()]} · Microfone: ${ROTULO_PERMISSAO[m]}`;
+  });
+}
+const ROTULO_PERMISSAO = { ok: 'permitido', pedir: 'não pedido', negado: 'bloqueado', sem: 'indisponível' };
+// Permissões: cada uma com o estado (permitida, não pedida, bloqueada) e o botão que pede, ou como liberar quando o
+// navegador bloqueou (o app não consegue desbloquear sozinho). Atualiza ao voltar das configurações do aparelho
+function viewPermissoes() {
+  setTab('');
+  setTint('#333');
+  setHeader('Permissões', { back: '#/ajustes' });
+  view.innerHTML = `<div class="ajustes permissoes">
+    <h2 class="aj-pagina">Permissões</h2>
+    <p class="aj-nota aj-nota-topo">${icon('info', 15)}<span>O app só pede o que usa. Você pode mudar quando quiser.</span></p>
+    <section class="aj-sec"><div class="settings-group">
+      <div class="setting wrap" id="perm-notif"></div>
+      <div class="setting wrap" id="perm-mic"></div>
+    </div></section>
+  </div>`;
+  const linha = (box, { ic, t, uso, estado, semTexto, comoLiberar, pedir, testar }) => {
+    if (!box) return;
+    const sub = {
+      ok: 'Permitido',
+      pedir: 'Ainda não pedido',
+      negado: 'Bloqueado no navegador',
+      sem: semTexto,
+    }[estado];
+    box.className = `setting wrap perm perm-${estado}`;
+    box.innerHTML = `<span class="ico">${icon(ic, 18)}</span><div class="grow"><div class="t">${t}</div><div class="s">${esc(uso)}</div>
+      <div class="perm-estado">${icon(estado === 'ok' ? 'check' : estado === 'negado' ? 'alerta' : 'info', 14)}<span>${esc(sub)}</span></div>
+      ${estado === 'negado' ? `<p class="perm-como">${esc(comoLiberar)}</p>` : ''}</div>
+      ${estado === 'pedir' ? '<button class="btn small primary" data-perm="pedir">Permitir</button>'
+        : estado === 'negado' ? '<button class="btn small" data-perm="pedir">Tentar de novo</button>'
+          : estado === 'ok' && testar ? '<button class="btn small" data-perm="testar">Testar</button>' : ''}`;
+    box.querySelector('[data-perm="pedir"]')?.addEventListener('click', async () => { await pedir(); desenhar(); });
+    box.querySelector('[data-perm="testar"]')?.addEventListener('click', testar);
+  };
+  const desenhar = async () => {
+    linha($('#perm-notif', view), {
+      ic: 'bell', t: 'Notificações', estado: estadoDasNotificacoes(),
+      uso: 'Avisa quando uma música termina de baixar e mostra o progresso do download.',
+      semTexto: ehIOS() && !jaInstalado() ? 'No iPhone, as notificações só funcionam com o app instalado na tela de início' : 'Este navegador não mostra notificações',
+      comoLiberar: COMO_LIBERAR_NOTIF,
+      pedir: pedirNotificacoes,
+      testar: () => notificarSistema({ titulo: 'Ecoa', texto: 'As notificações estão funcionando.', tag: 'teste-notificacao' }),
+    });
+    const mic = await estadoDoMicrofone();
+    linha($('#perm-mic', view), {
+      ic: 'mic', t: 'Microfone', estado: mic,
+      uso: 'Para conversar com o Lumen ao vivo e ditar as perguntas. Nada é gravado.',
+      semTexto: 'Não achei o microfone deste aparelho',
+      comoLiberar: COMO_LIBERAR_MIC,
+      pedir: pedirMicrofone,
+    });
+  };
+  desenhar();
+  // a permissão mudou fora daqui (no cadeado do navegador ou nas configurações do aparelho): redesenha
+  const aoVoltar = () => { if (document.visibilityState === 'visible') desenhar(); };
+  document.addEventListener('visibilitychange', aoVoltar);
+  const consultas = [];
+  for (const name of ['notifications', 'microphone']) {
+    navigator.permissions?.query({ name }).then((st) => { st.onchange = desenhar; consultas.push(st); }).catch(() => {});
+  }
+  aoSair(() => { document.removeEventListener('visibilitychange', aoVoltar); consultas.forEach((st) => { st.onchange = null; }); });
 }
 // Qualidade de mídia, como a do Spotify: cada qualidade numa lista para escolher uma (e vale para todos os downloads
 // dali em diante: o servidor baixa o áudio e o vídeo nela). "Atualizar os downloads" baixa de novo, na qualidade
@@ -12475,6 +12559,7 @@ const TOPICOS_AJUSTES = [
   { id: 'musica', secao: 'Música', ic: 'chord', t: 'Música e cifra', s: 'Destaque e diagrama dos acordes · Capa animada' },
   { id: 'qualidade', href: '#/qualidade', ic: 'gauge', t: 'Qualidade de mídia', s: 'Qualidade do download do áudio e do vídeo' },
   { id: 'offline', href: '#/offline', ic: 'baixar', t: 'Downloads e economia de dados', s: 'Músicas baixadas · Armazenamento · Cache' },
+  { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
   { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor no computador · Conta do YouTube · Apagar tudo' },
@@ -13765,7 +13850,7 @@ async function pedirMicrofone() {
     return 'ok';
   } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
 }
-const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Songbook → Informações do app → Permissões → Microfone.';
+const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Permissões → Microfone.';
 // As vozes do Lumen são as do Gemini, com os nomes de lá (e o jeito de cada uma). A voz escolhida dá o gênero: voz
 // feminina, "a Lumen"; masculina, "o Lumen" (a IA também fala de si nesse gênero)
 const VOZES_GEMINI = [
@@ -13967,7 +14052,7 @@ const TELAS_LUMEN = [
   [/\bliturgia\b/, '#/liturgia', 'a Liturgia'], [/\bbiblioteca\b/, '#/biblioteca', 'a Biblioteca'],
   [/\brepertorios?\b/, '#/repertorios', 'os Repertórios'], [/\b(busca|pesquisa)\b/, '#/buscar', 'a Busca'],
   [/\b(inicio|tela inicial|comeco)\b/, '#/', 'o Início'], [/\bacervo\b/, '#/buscar', 'o Acervo'],
-  [/\b(configurac\w*|ajustes|preferencias)\b/, '#/ajustes', 'os Ajustes'], [/\bpartituras?\b/, '#/partituras', 'as Partituras'],
+  [/\bpermiss(ao|oes)\b/, '#/permissoes', 'as Permissões'], [/\b(configurac\w*|ajustes|preferencias)\b/, '#/ajustes', 'os Ajustes'], [/\bpartituras?\b/, '#/partituras', 'as Partituras'],
   [/\boracoes\b/, '#/oracoes', 'as Orações'],
 ];
 // a playlist ou o repertório pelo nome falado (tipo: 'playlist' | 'repertorio' | '' qualquer)
@@ -15340,6 +15425,7 @@ function route() {
     case 'liturgia': return viewLiturgia(b);
     case 'ajustes': return viewSettings(b);
     case 'qualidade': return viewQualidade();
+    case 'permissoes': return viewPermissoes();
     case 'partituras': return viewPartituras();
     case 'compartilhado': return viewCompartilhado();
     case 'oracoes': return viewOracoes();

@@ -4747,3 +4747,16 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .chat-bolha ul.dv-musicas li { margin: 0; }
 .dv-musicas .track { border-radius: 12px; }
 .chat-bolha .dv-musicas .track:hover { background: color-mix(in srgb, var(--lm-roxo, #a88bff) 10%, transparent); }
+
+/* o pedido das notificações no Início (uma vez) e a tela Ajustes → Permissões */
+.pede-permissao { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 14px; border-radius: var(--radius); background: rgb(255 255 255 / 0.07); }
+.pede-permissao .ico { flex: none; color: var(--accent); margin-top: 2px; }
+.pede-permissao b { display: block; font-size: 15px; }
+.pede-permissao small { display: block; color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 2px; }
+.pede-permissao .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.perm .perm-estado { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.perm-ok .perm-estado { color: var(--accent); }
+.perm-negado .perm-estado { color: var(--danger); }
+.perm .perm-como { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.perm > .btn { flex: none; align-self: center; }
+:root[data-theme="light"] .pede-permissao { background: rgb(0 0 0 / 0.05); }
