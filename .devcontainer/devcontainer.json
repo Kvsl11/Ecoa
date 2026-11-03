@@ -11,6 +11,10 @@
   // site: .devcontainer/servidor.sh e servidor-ia/codespace.py)
   "postCreateCommand": "bash .devcontainer/instalar.sh",
   "postStartCommand": "bash .devcontainer/ligar.sh",
+  // e ao abrir o editor: se o servidor não ficou de pé ao ligar, liga agora (o ligar.sh não liga dois)
+  "postAttachCommand": "bash .devcontainer/ligar.sh",
+  // o gh (o programa do GitHub): para deixar a porta 7860 pública (o endereço publicado no site vai pela API, sem ele)
+  "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
   "forwardPorts": [7860],
   "portsAttributes": {
     "7860": { "label": "Servidor da IA (abra para o QR code)", "onAutoForward": "silent", "visibility": "public" }
