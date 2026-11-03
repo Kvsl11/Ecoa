@@ -13939,48 +13939,137 @@ const TELAS_LUMEN = [
   [/\b(configurac\w*|ajustes|preferencias)\b/, '#/ajustes', 'os Ajustes'], [/\bpartituras?\b/, '#/partituras', 'as Partituras'],
   [/\boracoes\b/, '#/oracoes', 'as Orações'],
 ];
-function acaoDoLumen(pergunta) {
+// a playlist ou o repertório pelo nome falado (tipo: 'playlist' | 'repertorio' | '' qualquer)
+function acharSet(nome, tipo = '') {
+  const sets = db.sets().filter((x) => !tipo || (tipo === 'playlist') === ehPlaylist(x));
+  const alvo = normalizar(nome || '');
+  if (!alvo) return null;
+  return sets.find((x) => normalizar(x.name) === alvo) || sets.find((x) => normalizar(x.name).includes(alvo) || alvo.includes(normalizar(x.name)))
+    || sets.find((x) => distancia(normalizar(x.name).replace(/ /g, ''), alvo.replace(/ /g, '')) <= 2) || null;
+}
+// a música que está no player, se ela é da biblioteca
+const musicaDoPlayer = () => (player.atual?.songId && db.song(player.atual.songId)) || null;
+// tira do nome falado o que não é nome ("a música", "pra mim", "por favor"…)
+const limparNomeFalado = (n) => String(n || '').replace(/\b(pra|para) (mim|tocar|eu ouvir|a gente)\b.*$|\b(por favor|agora|ai|aqui|no player|pra gente|e toque|e toca|e tocar|e coloca|e coloque)\b.*$/, '')
+  .replace(/^(a|o|as|os) (musica|cancao|cifra|letra) /, '').replace(/^(musica|cancao|cifra|letra) /, '').replace(/^(a|o) /, '').trim();
+// a música da internet salva na biblioteca (como o botão de salvar da Busca); devolve o id
+const salvarResultado = (r) => salvarDaInternet('musica', { titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url ? { url: r.letra.url, titulo: r.titulo, artista: r.artista } : null, video: r.video ? { id: r.video.id, url: `https://www.youtube.com/watch?v=${r.video.id}`, titulo: r.video.titulo || r.titulo, canal: r.video.canal || '' } : null, fotoArtista: r.fotoArtista || '' });
+async function acaoDoLumen(pergunta) {
   const t = normalizar(pergunta);
   const falas = [];
   const htmls = [];
   const depois = [];
+  const musicas = []; // as músicas da biblioteca que aparecem na resposta (com capa e artista, como na Busca)
+  let busca = []; // as músicas da internet (os mesmos cartões da Busca)
   // 1. as músicas da biblioteca ("traga as músicas da minha biblioteca", "o que tem na biblioteca?")
   if (/\b(musicas|cancoes|lista)\b.*\b(biblioteca|salvas|salvei|tenho)\b|\b(minha|na|da) biblioteca\b.*\b(tem|musicas|lista|traga|mostr\w*|quais)\b|\bquais musicas (eu )?tenho\b/.test(t)
-    && !/\b(abr[ae]|abrir)\b/.test(t)) {
-    const todas = db.songs();
+    && !/\b(abr[ae]|abrir|adicion\w*|salv\w*)\b/.test(t)) {
+    const todas = db.songs().filter((x) => !x.soNoRepertorio);
     if (!todas.length) falas.push('A sua biblioteca ainda está vazia.');
     else {
-      const nomes = todas.slice(0, 8).map(nomeDaMusica);
-      falas.push(`Você tem ${todas.length === 1 ? 'uma música' : `${todas.length} músicas`} na biblioteca${todas.length > 8 ? ', entre elas' : ''}: ${nomes.join('; ')}${todas.length > 8 ? `, e mais ${todas.length - 8}` : ''}.`);
-      htmls.push(`<h4 class="dv-sub">Na sua biblioteca (${todas.length})</h4><div class="dv-cantos">${todas.slice(0, 60).map((x) => `<button type="button" class="dv-fonte" data-tocar="${esc(x.id)}">${icon('play', 14)}<span><b>${esc(tituloLimpo(x.title))}</b><small>${esc(x.artist || '')}</small></span></button>`).join('')}</div>`);
+      falas.push(`Você tem ${todas.length === 1 ? 'uma música' : `${todas.length} músicas`} na biblioteca${todas.length > 8 ? ', entre elas' : ''}: ${todas.slice(0, 8).map(nomeDaMusica).join('; ')}${todas.length > 8 ? `, e mais ${todas.length - 8}` : ''}.`);
+      musicas.push(...todas.slice(0, 60).map((x) => x.id));
     }
   }
-  // 2. os repertórios
-  if (/\b(meus|quais|os|tenho|lista dos?) repertorios\b|\brepertorios (que )?(eu )?tenho\b/.test(t) && !/\b(abr[ae]|abrir)\b/.test(t)) {
+  // 2. os repertórios e as playlists
+  if (/\b(meus|minhas|quais|os|as|tenho|lista d[oa]s?) (repertorios|playlists)\b|\b(repertorios|playlists) (que )?(eu )?tenho\b/.test(t) && !/\b(abr[ae]|abrir|adicion\w*)\b/.test(t)) {
     const sets = db.sets();
-    if (!sets.length) falas.push('Você ainda não tem repertórios.');
+    if (!sets.length) falas.push('Você ainda não tem repertórios nem playlists.');
     else {
-      falas.push(`Você tem ${sets.length === 1 ? 'um repertório' : `${sets.length} repertórios`}: ${sets.slice(0, 6).map((x) => x.name + (x.date ? `, de ${fmtData(x.date)}` : '')).join('; ')}${sets.length > 6 ? `, e mais ${sets.length - 6}` : ''}.`);
-      htmls.push(`<h4 class="dv-sub">Seus repertórios</h4><div class="dv-cantos">${sets.slice(0, 30).map((x) => `<a class="dv-fonte" href="#/repertorio/${esc(x.id)}">${icon('list', 14)}<span><b>${esc(x.name)}</b><small>${x.date ? esc(fmtData(x.date)) : `${(x.items || []).length} músicas`}</small></span></a>`).join('')}</div>`);
+      falas.push(`Você tem ${sets.length === 1 ? 'uma lista' : `${sets.length} listas`}: ${sets.slice(0, 6).map((x) => `${tipoDoSet(x).toLowerCase()} ${x.name}`).join('; ')}${sets.length > 6 ? `, e mais ${sets.length - 6}` : ''}.`);
+      htmls.push(`<h4 class="dv-sub">Repertórios e playlists</h4><ul class="tracks">${sets.slice(0, 30).map((x) => `<li class="track clickable" data-href="#/repertorio/${esc(x.id)}" style="grid-template-columns:auto 1fr">${capaRepertorio(x)}<div class="info"><div class="t">${esc(x.name)}</div><div class="s">${tipoDoSet(x)} · ${x.date ? `${esc(fmtData(x.date))} · ` : ''}${(x.items || []).length} músicas</div></div></li>`).join('')}</ul>`);
     }
   }
-  // 3. tocar uma música ("toque a música Neverender", "coloca Neverender do Justice pra tocar")
-  const pedidoTocar = /\b(toque|toca|tocar|coloque|coloca|colocar|bota|bote|botar|play|reproduz\w*|quero (ouvir|escutar)|ouvir|escutar)\b\s+(.+)$/.exec(t);
-  if (pedidoTocar) {
-    const nome = pedidoTocar[3].replace(/\b(pra|para) (mim|tocar|eu ouvir)\b.*$|\b(por favor|agora|ai|aqui|no player|pra gente)\b.*$/, '').replace(/^(a|o) (musica|cancao) /, '').replace(/^(musica|cancao) /, '').trim();
-    if (nome && !/^(musica|algo|alguma coisa|qualquer)$/.test(nome)) {
-      const song = acharMusica(nome);
-      if (song) {
-        falas.push(`${midiaDe(song) ? 'Tocando' : 'Abrindo'} ${nomeDaMusica(song)}.`);
-        depois.push(() => tocarDoLumen(song));
+  // 3. adicionar à playlist, ao repertório ou à biblioteca ("adiciona Neverender na minha playlist Treino",
+  // "coloca essa música no repertório de domingo", "salva essa música na biblioteca")
+  const pedidoAdd = /\b(adicion\w*|acrescent\w*|inclu\w*|coloc\w*|bot\w*|poe|ponha|salv\w*|guard\w*)\b\s*(.*?)\s*\b(na|no|nas|nos|em|pra|para a|para o|a|ao)\s+(minha |meu |a |o )?(playlist|repertorio|biblioteca|lista)\b\s*(.*)$/.exec(t);
+  if (pedidoAdd) {
+    const [, , oQue, , , destino, nomeDestino] = pedidoAdd;
+    const nomeMus = limparNomeFalado(oQue);
+    let song = null;
+    let doPlayer = false;
+    if (!nomeMus || /^(essa|esta|ela|isso|essa ai|a que (esta )?tocando|a atual)$/.test(nomeMus)) { song = musicaDoPlayer(); doPlayer = true; }
+    else song = acharMusica(nomeMus);
+    // não está na biblioteca: procura na internet (como na Busca) e salva
+    if (!song && !doPlayer) {
+      const lista = await buscarTudo(nomeMus, 4, 3).catch(() => []);
+      if (lista[0]) {
+        const id = await salvarResultado(lista[0]).catch(() => null);
+        song = id && db.song(id);
+        busca = lista.slice(0, 1);
+      }
+    }
+    if (!song) falas.push(doPlayer ? 'Não tem música da biblioteca tocando agora. Diga o nome da música que eu adiciono.' : `Não achei “${nomeMus}”.`);
+    else if (destino === 'biblioteca') {
+      if (song.soNoRepertorio) db.updateSong(song.id, { soNoRepertorio: undefined });
+      falas.push(`${nomeDaMusica(song)} ${busca.length ? 'foi salva' : 'está'} na sua biblioteca.`);
+      musicas.push(song.id);
+      desenharLateral();
+    } else {
+      const tipo = destino === 'playlist' ? 'playlist' : destino === 'repertorio' ? 'repertorio' : '';
+      const nomeSet = limparNomeFalado(nomeDestino.replace(/^(de|do|da|chamad[ao]) /, ''));
+      let set = acharSet(nomeSet, tipo) || (nomeSet ? null : null);
+      const doTipo = db.sets().filter((x) => !tipo || (tipo === 'playlist') === ehPlaylist(x));
+      if (!set && !nomeSet && doTipo.length === 1) set = doTipo[0];
+      if (!set && !nomeSet && !doTipo.length) set = db.saveSet(tipo === 'repertorio' ? { name: `Missa ${fmtData(hojeISO())}` } : { name: 'Minha playlist', tipo: 'playlist' });
+      if (!set && nomeSet) set = db.saveSet(tipo === 'repertorio' ? { name: comMaiuscula(nomeSet) } : { name: comMaiuscula(nomeSet), tipo: 'playlist' });
+      if (!set) {
+        falas.push(`Em qual ${tipo === 'repertorio' ? 'repertório' : 'playlist'}? Você tem: ${doTipo.slice(0, 6).map((x) => x.name).join('; ')}. Diga, por exemplo: adiciona na ${tipo === 'repertorio' ? 'repertório' : 'playlist'} ${doTipo[0].name}.`);
+      } else if (set.items.some((it) => it.songId === song.id)) {
+        falas.push(`${nomeDaMusica(song)} já está em ${set.name}.`);
       } else {
-        falas.push(`Não achei “${nome}” na sua biblioteca. Deixei a Busca pronta para você procurar.`);
-        htmls.push(`<a class="dv-atalho" href="#/buscar" data-buscar="${esc(nome)}">${icon('search', 20)}<span><b>Procurar “${esc(nome)}”</b><small>Na Busca do app</small></span>${icon('next', 18)}</a>`);
+        set.items.push({ songId: song.id, label: ehPlaylist(set) ? '' : song.parte || '' });
+        db.saveSet(set);
+        desenharLateral();
+        falas.push(`Adicionei ${nomeDaMusica(song)} ${ehPlaylist(set) ? 'à playlist' : 'ao repertório'} ${set.name}.`);
+        musicas.push(song.id);
       }
     }
   }
-  // 4. os controles da música que toca
-  if (!pedidoTocar) {
+  // 4. buscar uma música ("busque a música Neverender", "procura a cifra de Noites Traiçoeiras") e, se pedir, tocar
+  const pedidoBusca = !pedidoAdd && /\b(busque|busca|buscar|procure|procura|procurar|pesquise|pesquisa|encontre|encontra|ache|acha|traga|traz|mostre|mostra)\b\s+(pra mim |para mim )?((a|o) )?(musica|cancao|cifra|letra)\b\s*(de |da |do )?(.+)$/.exec(t);
+  const tocarDepois = pedidoBusca && /\b(e )?(toque|toca|tocar|coloca|coloque|bota|bote)\b/.test(t);
+  if (pedidoBusca) {
+    const nome = limparNomeFalado(pedidoBusca[7]);
+    const daBiblioteca = acharMusica(nome);
+    if (daBiblioteca) {
+      falas.push(`${nomeDaMusica(daBiblioteca)} já está na sua biblioteca${tocarDepois ? '. Tocando' : ''}.`);
+      musicas.push(daBiblioteca.id);
+      if (tocarDepois) depois.push(() => tocarDoLumen(daBiblioteca));
+    } else {
+      busca = (await buscarTudo(nome, 5, 4).catch(() => [])).slice(0, 6);
+      if (!busca.length) falas.push(`Não achei “${nome}”.`);
+      else if (tocarDepois) {
+        const r = busca[0];
+        falas.push(`Achei ${r.titulo}${r.artista ? `, de ${r.artista}` : ''}. Tocando.`);
+        depois.push(() => abrirMusica(r, '#/duvidas', null));
+      } else {
+        falas.push(`Achei ${busca.length === 1 ? 'esta' : 'estas'}: ${busca.slice(0, 3).map((r) => `${r.titulo}${r.artista ? `, de ${r.artista}` : ''}`).join('; ')}. Toque numa para abrir, ou me peça para tocar.`);
+      }
+    }
+  }
+  // 5. tocar uma música ("toque Neverender"): da biblioteca; se não está nela, a primeira da Busca
+  const pedidoTocar = !pedidoAdd && !pedidoBusca && /\b(toque|toca|tocar|coloque|coloca|colocar|bota|bote|botar|play|reproduz\w*|quero (ouvir|escutar)|ouvir|escutar)\b\s+(.+)$/.exec(t);
+  if (pedidoTocar) {
+    const nome = limparNomeFalado(pedidoTocar[3]);
+    if (nome && !/^(musica|algo|alguma coisa|qualquer|ela|essa)$/.test(nome)) {
+      const song = acharMusica(nome);
+      if (song) {
+        falas.push(`${midiaDe(song) ? 'Tocando' : 'Abrindo'} ${nomeDaMusica(song)}.`);
+        musicas.push(song.id);
+        depois.push(() => tocarDoLumen(song));
+      } else {
+        busca = (await buscarTudo(nome, 4, 4).catch(() => [])).slice(0, 4);
+        const r = busca[0];
+        if (r) {
+          falas.push(`Não está na sua biblioteca, mas achei ${r.titulo}${r.artista ? `, de ${r.artista}` : ''}. Tocando.`);
+          depois.push(() => abrirMusica(r, '#/duvidas', null));
+        } else falas.push(`Não achei “${nome}”, nem na biblioteca nem na internet.`);
+      }
+    }
+  }
+  // 6. os controles da música que toca
+  if (!pedidoTocar && !pedidoBusca && !pedidoAdd) {
     if (/^(pausa|pause|pausar|pare|para|parar)( (a|essa|esta) (musica|cancao))?$|\b(pausa|pause|pare|para) (a|essa|esta) musica\b/.test(t)) {
       falas.push(player.tocandoAlgo() ? 'Pausei a música.' : 'Não tem música tocando agora.');
       if (player.tocandoAlgo()) depois.push(() => player.alternar());
@@ -13995,13 +14084,13 @@ function acaoDoLumen(pergunta) {
       if (player.atual) depois.push(() => player.pular(-1));
     }
   }
-  // 5. abrir uma tela ("abra a liturgia", "vai para a biblioteca")
-  if (/\b(abr[ae]|abrir|abre|vai pra|vai para|ir para|ir pra|me leva|leve)\b/.test(t)) {
+  // 7. abrir uma tela ("abra a liturgia", "vai para a biblioteca")
+  if (!pedidoAdd && /\b(abr[ae]|abrir|vai pra|vai para|ir para|ir pra|me leva|leve)\b/.test(t)) {
     const tela = TELAS_LUMEN.find(([re]) => re.test(t));
     if (tela) { falas.push(`Abrindo ${tela[2]}.`); depois.push(() => { location.hash = tela[1]; }); }
   }
   if (!falas.length) return null;
-  return { fala: falas.join(' '), html: htmls.join(''), depois: depois.length ? () => depois.forEach((f) => { try { f(); } catch { /* segue */ } }) : null };
+  return { fala: falas.join(' '), html: htmls.join(''), musicas: [...new Set(musicas)], busca, depois: depois.length ? () => depois.forEach((f) => { try { f(); } catch { /* segue */ } }) : null };
 }
 // As ações que a IA pede no fim da resposta, para o que o aparelho não entendeu sozinho ("toca aquela do Justice"):
 // [[tocar: título]], [[pausar]], [[continuar]], [[proxima]], [[anterior]], [[abrir: tela]]. Saem do texto e viram ações
@@ -14009,7 +14098,11 @@ function acoesDaIA(texto) {
   const depois = [];
   const limpo = String(texto || '').replace(/\[\[\s*(tocar|pausar|continuar|proxima|próxima|anterior|abrir)\s*(?::\s*([^\]]*))?\]\]/gi, (_, acao, arg = '') => {
     const a = normalizar(acao);
-    if (a === 'tocar') { const s = acharMusica(arg); if (s) depois.push(() => tocarDoLumen(s)); }
+    if (a === 'tocar') {
+      const s = acharMusica(arg);
+      if (s) depois.push(() => tocarDoLumen(s));
+      else if (arg.trim()) depois.push(() => buscarTudo(arg.trim(), 3, 3).then((l) => { if (l[0]) abrirMusica(l[0], '#/duvidas', null); }).catch(() => {}));
+    }
     else if (a === 'pausar') depois.push(() => { if (player.tocandoAlgo()) player.alternar(); });
     else if (a === 'continuar') depois.push(() => { if (player.atual && !player.tocandoAlgo()) player.alternar(); });
     else if (a === 'proxima') depois.push(() => player.pular(1));
@@ -14131,7 +14224,13 @@ function viewDuvidas() {
   const corpo = (m, k) => {
     if (m.carregando) return `<div class="chat-digitando" aria-label="Procurando a resposta"><i></i><i></i><i></i><span>${esc(m.etapa || 'Procurando no acervo…')}</span></div>`;
     if (m.content && !m.acervo) return htmlDaResposta(m.content); // conversa guardada da versão anterior
-    if (m.acao) return `<p class="dv-texto">${esc(m.acao.fala)}</p>${m.acao.html || ''}`;
+    if (m.acao) {
+      // as músicas com capa e artista, como na Busca: as da biblioteca (tocar toca) e as da internet (abrir e salvar)
+      const daBiblioteca = (m.acao.musicas || []).map((id) => db.song(id)).filter(Boolean);
+      return `<p class="dv-texto">${esc(m.acao.fala)}</p>${m.acao.html || ''}
+        ${daBiblioteca.length ? `<ul class="tracks dv-musicas">${daBiblioteca.map((x) => linhaMusica(x)).join('')}</ul>` : ''}
+        ${m.acao.busca?.length ? `<ul class="tracks tracks-grade dv-musicas" data-busca-k="${k}">${m.acao.busca.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : ''}`;
+    }
     // a resposta: o trecho que mais responde, em texto corrido, com a fonte embaixo; os outros trechos recolhidos
     const fonte = (a, n) => `<button type="button" class="dv-fonte" data-k="${k}" data-n="${n}">${icon(a.tipo === 'enviado' ? 'file' : 'library', 14)}<span><b>${esc(a.tipo === 'enviado' ? a.titulo : nomeBonito(a.titulo))}</b><small>${esc(a.caminho)}</small></span></button>`;
     const partes = [];
@@ -14270,9 +14369,13 @@ function viewDuvidas() {
     if (anexo) return perguntarSobreAnexo(q, anexo, resp, voz);
     // pedido do app (tocar, pausar, a biblioteca, abrir uma tela…): feito aqui, na hora. Na conversa por texto a ação
     // acontece já; no ao vivo, depois que o Lumen fala (resp.depois)
-    const acao = acaoDoLumen(q);
+    if (/\b(busque|busca|buscar|procure|procura|pesquise|ache|encontre|toque|toca|tocar|adicion\w*|salv\w*)\b/.test(normalizar(q))) {
+      resp.etapa = 'Procurando a música…';
+      if (location.hash === '#/duvidas') desenhar();
+    }
+    const acao = await acaoDoLumen(q).catch(() => null);
     if (acao) {
-      Object.assign(resp, { acao: { fala: acao.fala, html: acao.html }, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
+      Object.assign(resp, { acao: { fala: acao.fala, html: acao.html, musicas: acao.musicas, busca: acao.busca }, acervo: [], cantos: [], web: [], wiki: null, carregando: false, t: Date.now() });
       Object.defineProperty(resp, 'depois', { value: acao.depois, enumerable: false, writable: true });
       guardarConversa();
       if (!voz) { acao.depois?.(); if (acao.depois && player.atual) toast(acao.fala); }
@@ -14470,6 +14573,18 @@ function viewDuvidas() {
   if (innerWidth > 700 && matchMedia('(pointer: fine)').matches && !document.querySelector('.dv-vivo')) campo.focus();
   // o toque numa resposta (na conversa ou na tela ao vivo): copiar, abrir o canto ou o trecho do acervo
   const tocarResposta = async (e) => {
+    // as músicas da resposta: a da biblioteca toca; a da internet abre (como na Busca); a lista abre o repertório
+    const lb = e.target.closest('li[data-id]');
+    if (lb) { const s = db.song(lb.dataset.id); if (s) { tocarDoLumen(s); toast(`Tocando: ${tituloLimpo(s.title)}`); } return; }
+    const lw = e.target.closest('[data-busca-k] [data-web]');
+    if (lw) {
+      e.preventDefault();
+      const r = conversaDuvidas[lw.closest('[data-busca-k]').dataset.buscaK]?.acao?.busca?.[Number(lw.dataset.i)];
+      if (r) abrirMusica(r, '#/duvidas', lw);
+      return;
+    }
+    const lr = e.target.closest('li[data-href]');
+    if (lr) { location.hash = lr.dataset.href; return; }
     const bt = e.target.closest('[data-tocar]');
     if (bt) { const s = db.song(bt.dataset.tocar); if (s) { tocarDoLumen(s); toast(`Tocando: ${tituloLimpo(s.title)}`); } return; }
     const bb = e.target.closest('[data-buscar]');
@@ -15056,7 +15171,7 @@ function viewDuvidas() {
     };
     respEl.addEventListener('click', (e) => {
       // abrir um canto, um arquivo ou a Liturgia sai da conversa ao vivo; o link da internet abre noutra aba e ela continua
-      if (e.target.closest('button.dv-fonte, a[href^="#"]')) fechar();
+      if (e.target.closest('button.dv-fonte, a[href^="#"], li[data-id], li[data-href], [data-web]') && !e.target.closest('[data-salvar]')) fechar();
       tocarResposta(e);
     });
     // a saudação curta, na hora: a guardada no aparelho (na voz escolhida); sem ela ainda, a voz do aparelho (e a

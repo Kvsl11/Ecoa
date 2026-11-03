@@ -2688,7 +2688,7 @@ dialog.creditos-dlg::backdrop { background: #121212; }
   .dv-sug { padding: 9px 8px; }
 }
 /* Tirar dúvidas: a resposta (texto corrido) e a fonte embaixo, como uma etiqueta */
-.dv-texto { margin: 0 0 10px; font-size: 15.5px; line-height: 1.65; text-align: justify; text-justify: inter-word; hyphens: manual; -webkit-hyphens: manual; }
+.dv-texto { margin: 0 0 10px; font-size: 15.5px; line-height: 1.6; text-align: left; hyphens: none; -webkit-hyphens: none; }
 .dv-texto b { font-weight: 700; color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 3px;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .chat-bolha .dv-fonte { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; margin: 0 0 4px; padding: 6px 10px 6px 8px; border-radius: 10px; font-size: 13px; color: var(--accent); }
@@ -4738,3 +4738,11 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .dv-vivo-menu-vozes button + small { padding-top: 10px; }
 /* o aviso de que a resposta veio da busca simples: pequeno, discreto */
 .dv-aviso-ia { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--muted); opacity: 0.85; }
+/* o texto das respostas do Lumen alinhado à esquerda: justificado, ele abria buracos entre as palavras no celular
+   ("Você   tem   2   músicas") */
+.chat .dv-texto, .chat .dv-ia p, .dv-vivo-resposta .dv-texto, .dv-vivo-resposta .dv-ia p { text-align: left; hyphens: none; -webkit-hyphens: none; word-spacing: normal; }
+/* as músicas na resposta do Lumen, como na Busca (capa, nome, artista) */
+.chat-bolha ul.dv-musicas, ul.dv-musicas { margin: 10px -6px 4px; padding: 0; list-style: none; }
+.chat-bolha ul.dv-musicas li { margin: 0; }
+.dv-musicas .track { border-radius: 12px; }
+.chat-bolha .dv-musicas .track:hover { background: color-mix(in srgb, var(--lm-roxo, #a88bff) 10%, transparent); }
