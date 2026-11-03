@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 442, data: '2026-11-02', titulo: 'Lumen com o Gemini de verdade, a voz dele e o PDF certo',
     itens: [
-      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o servidor pergunta ao Google quais modelos a sua chave pode usar e usa sempre o Gemini Flash da versão mais alta (se ele falhar, tenta o anterior).' },
+      { tipo: 'correcao', texto: 'O Lumen não estava usando o Gemini: o modelo que o servidor chamava (Gemini 2.5 Flash) foi desligado pelo Google, a IA dava erro e o Lumen respondia com a busca simples, sem avisar. Agora o Lumen usa o Gemini 3.6 Flash; se ele não responder, o servidor tenta os outros Gemini Flash que a sua chave pode usar.' },
       { tipo: 'novo', texto: 'Lumen ao vivo com a voz do próprio Gemini. Se a voz do Gemini não responder (ou acabar o limite grátis do dia), entra a voz de antes, sem parar a conversa.' },
       { tipo: 'melhoria', texto: 'Quando a IA não responde, o Lumen avisa (“a inteligência artificial não respondeu agora, então fiz uma busca simples”), em vez de responder calado pela busca simples.' },
       { tipo: 'melhoria', texto: 'O Lumen lê de verdade o arquivo do acervo que trata da sua pergunta: em “qual a estrutura da cerimônia do casamento?”, ele abre o Ritual do Matrimônio inteiro e responde pelo que está escrito nele (o mesmo com o batismo, a unção dos enfermos e os outros rituais). Antes ele via só pedaços soltos do texto.' },

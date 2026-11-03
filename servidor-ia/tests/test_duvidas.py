@@ -217,3 +217,10 @@ def test_vozes_do_gemini_pelo_nome():
 
     assert falar.voz_do_gemini("Puck") == "Puck" and falar.voz_do_gemini("feminina") == "Kore"
     assert falar.genero_da_voz("Puck") == "masculina" and falar.genero_da_voz("Aoede") == "feminina"
+
+
+def test_o_lumen_usa_o_gemini_3_6_flash_primeiro(monkeypatch):
+    monkeypatch.setattr(duvidas, "_modelos", {"em": 9e18, "lista": [{"name": "models/gemini-3.8-flash", "supportedGenerationMethods": ["generateContent"]},
+                                                                     {"name": "models/gemini-3.6-flash", "supportedGenerationMethods": ["generateContent"]}]})
+    monkeypatch.setattr(duvidas, "MODELO_GEMINI", "gemini-3.6-flash")
+    assert duvidas.candidatos_gemini("texto")[:2] == ["gemini-3.6-flash", "gemini-3.8-flash"]

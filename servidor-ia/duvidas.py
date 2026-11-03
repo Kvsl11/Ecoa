@@ -27,9 +27,10 @@ DADOS = os.environ.get("IA_DADOS") or os.path.join(PASTA, "..", "public", "data"
 TEXTOS = os.environ.get("IA_TEXTOS") or os.path.join(PASTA, "textos-acervo.jsonl")
 # o Sonnet: responde bem citando o acervo, por uma fração do preço do Opus (dá para trocar com IA_MODELO)
 MODELO = os.environ.get("IA_MODELO", "claude-sonnet-5-5")
-# (vazio: o servidor pergunta ao Google quais modelos a chave pode usar e escolhe o Flash mais novo; o nome fixo de
-# antes, gemini-2.5-flash, foi desligado pelo Google e o Lumen ficou sem IA)
-MODELO_GEMINI = os.environ.get("IA_GEMINI_MODELO", "")
+# o Gemini 3.6 Flash, o escolhido para o Lumen (IA_GEMINI_MODELO troca; vazio = o Flash da versão mais alta). Se ele
+# não responder, o servidor tenta os outros Flash que a chave pode usar, do mais novo para o mais velho (o nome fixo
+# de antes, gemini-2.5-flash, foi desligado pelo Google e o Lumen ficou sem IA)
+MODELO_GEMINI = os.environ.get("IA_GEMINI_MODELO", "gemini-3.6-flash")
 API_GEMINI = "https://generativelanguage.googleapis.com/v1beta"
 
 
