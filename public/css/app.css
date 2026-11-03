@@ -3233,8 +3233,6 @@ html.pp #player.letra-cheia.karaoke-ajustando .pl-linhas, html.pp #player.letra-
   #player .pl-karaoke .pl-karaoke-bt svg, #player .pl-karaoke .mk-brilho, #player .pl-karaoke .mk-mic, #player .pl-karaoke::before, #player .pl-karaoke.pulo .pl-karaoke-bt { animation: none !important; }
   html.pp #player.letra-cheia.karaoke-ajustando .pl-linhas, html.pp #player.letra-cheia.karaoke-ajustando .pl-cifra { filter: none; }
 }
-/* "Karaokê" embaixo da barra do tempo, entre os dois tempos (como o "Sing" do Apple Music) */
-html.pp #player.karaoke-on .pl-tempo::after { content: 'Karaokê'; grid-row: 2; grid-column: 1 / -1; justify-self: center; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: rgb(255 255 255 / 0.85); pointer-events: none; }
 
 /* embaixo da letra: os cartões do artista, dos créditos e do vídeo (rolando o painel) */
 html.pp #player .pl-extra { order: 9; display: grid; gap: 12px; flex: none; }

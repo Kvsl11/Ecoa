@@ -2963,10 +2963,10 @@ const semLinhasDeAcordes = (sinc) => {
   let somKaraoke = null;
   let grafoKaraoke = null; // { ctx, voz: o volume da voz (GainNode) }
   let karaokeLigado = false;
-  // o controle vai de 0 (sem a voz) a 1 (a gravação inteira); o volume é o quadrado dele: no meio do controle a voz já
-  // fica bem baixinha, só de guia, como no Apple Music
+  // o controle vai de 0 (sem a voz) a 1 (a gravação inteira), e o volume da voz acompanha a barra: no meio, a metade;
+  // ela vai sumindo aos poucos e só some de vez embaixo (com o quadrado da posição, baixar um pouco já parecia tirar tudo)
   const nivelDaVoz = () => { const v = Number(db.prefs().karaokeVoz); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; };
-  const ganhoDaVoz = (n) => n * n;
+  const ganhoDaVoz = (n) => n;
   // (criado no toque do microfone: fora de um toque, o navegador deixa o Web Audio mudo)
   const criarGrafoKaraoke = () => {
     if (grafoKaraoke) return grafoKaraoke;
@@ -3461,7 +3461,6 @@ const semLinhasDeAcordes = (sinc) => {
     trilho.setAttribute('aria-valuenow', String(Math.round(nivelVoz * 100)));
     trilho.setAttribute('aria-valuetext', nivelVoz <= 0 ? 'Sem a voz' : nivelVoz >= 1 ? 'A voz inteira' : `Voz em ${Math.round(nivelVoz * 100)}%`);
     trilho.tabIndex = est === 'ligado' ? 0 : -1;
-    // ("Karaokê" embaixo da barra do tempo, como o "Sing" do Apple Music)
     el.classList.toggle('karaoke-on', est === 'ligado');
     if (est !== 'ligado') el.classList.remove('karaoke-ajustando');
   };
