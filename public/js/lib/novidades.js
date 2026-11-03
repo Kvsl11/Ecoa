@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 459, data: '2026-11-03', titulo: 'Artista e álbum em todas as músicas',
+    itens: [
+      { tipo: 'correcao', texto: 'No ⋯ das músicas da biblioteca, das playlists e dos repertórios, “Ir para o artista” e “Ver álbum” aparecem em toda música que tem artista. Antes só apareciam nas cifras que vieram do Cifra Club; as outras (de outros sites, do acervo, importadas) agora acham o artista pelo nome e o álbum pelo título.' },
+    ],
+  },
+  {
     versao: 458, data: '2026-11-03', titulo: 'Servidor da IA ao vivo',
     itens: [
       { tipo: 'melhoria', texto: 'Os indicadores do Servidor da IA e da conta do YouTube atualizam sozinhos, sem precisar sair da tela: com o Codespace desligado, a tela confere a cada 5 segundos e fica verde assim que ele liga; ligado, confere a cada 15 segundos (o Lumen fica verde sozinho quando a chave da IA chega). Embaixo do estado aparece a hora da última conferência.' },
@@ -59,13 +65,6 @@ export const NOVIDADES = [
     versao: 450, data: '2026-11-03', titulo: 'Lumen ao vivo já começa ouvindo',
     itens: [
       { tipo: 'melhoria', texto: 'Abrindo o Lumen ao vivo, ele não diz mais “Olá, eu sou a Lumen”: já começa ouvindo, e você pode perguntar na hora.' },
-    ],
-  },
-  {
-    versao: 449, data: '2026-11-03', titulo: 'Lumen mais livre e sem a voz robótica',
-    itens: [
-      { tipo: 'melhoria', texto: 'O Lumen responde ao que você perguntou, sobre qualquer assunto, sem puxar coisas do acervo que você não pediu. O acervo continua lá: perguntando dele (“tem algo no acervo sobre…?”) ou quando um documento responde de fato à pergunta, ele usa e mostra a fonte.' },
-      { tipo: 'correcao', texto: 'No ao vivo, a voz às vezes trocava no meio da resposta pela voz robótica do aparelho. Agora, quando a voz do Gemini demora ou está no limite do dia, entra logo a voz neural de reserva, e um tropeço da internet faz o app tentar de novo antes de usar a voz do aparelho.' },
     ],
   },
 ];

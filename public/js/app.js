@@ -5017,7 +5017,11 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     song.youtube && !versoesDe(song)?.diferentes && { valor: 'modo', rotulo: player.modoMusica ? 'Mudar para vídeo' : 'Mudar para música', ic: player.modoMusica ? 'videoclipe' : 'music' },
     { valor: 'abrir', rotulo: 'Abrir a cifra', ic: 'music' },
     { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
-    slug && song.artist && { valor: 'artista', rotulo: 'Ir para o artista', ic: 'pessoa' },
+    // o artista e o álbum em toda música com artista: a do Cifra Club abre direto; as outras (de outro site, do
+    // acervo, importadas) procuram o artista pelo nome e o álbum pelo título (antes só a do Cifra Club tinha o artista,
+    // e nenhuma tinha o álbum aqui)
+    (song.artist || slug) && { valor: 'artista', rotulo: 'Ir para o artista', ic: 'pessoa' },
+    (song.artist || ehCifraClub(song.source || '')) && { valor: 'album', rotulo: 'Ver álbum', ic: 'disc' },
     !set && { valor: 'excluir', rotulo: 'Excluir da biblioteca', ic: 'trash', perigo: true },
   ].filter(Boolean);
   const v = await escolherNaLista({ menu: true, cabeca: `${capa(song)}<span class="lista-txt"><b>${esc(song.title)}</b><small>${esc(song.artist || (song.source ? host(song.source) : 'Cifra própria'))}</small></span>`, opcoes });
@@ -5037,7 +5041,11 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
   }
   if (v === 'abrir') abrirCifra(set ? `#/repertorio/${set.id}/${i}` : `#/musica/${song.id}`);
   if (v === 'editar') location.hash = `#/editar/${song.id}`;
-  if (v === 'artista') location.hash = `#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(song.artist)}`;
+  if (v === 'artista') {
+    location.hash = slug ? `#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(song.artist || slug)}`
+      : `#/artista-pelo-nome/${encodeURIComponent(song.artist)}`;
+  }
+  if (v === 'album') irParaAlbum({ titulo: song.title, artista: song.artist, fonte: song.source });
   return ['remover', 'parte', 'excluir'].includes(v) ? v : null;
 }
 
