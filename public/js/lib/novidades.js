@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 490, data: '2026-11-04', titulo: 'A capinha da prévia ao entrar na playlist',
+    itens: [
+      { tipo: 'melhoria', texto: 'Ao entrar na playlist, a capinha da prévia faz a animação do Spotify. Ela já começa mostrando a primeira música, e não mais a capa da playlist. O contorno claro se desenha em volta e, no fim, o cartão de trás desliza para a direita.' },
+      { tipo: 'melhoria', texto: 'A capinha ficou no tamanho e na proporção da do Spotify, um pouco mais estreita e alta que antes.' },
+      { tipo: 'melhoria', texto: 'O app guarda no aparelho a medida das faixas pretas de cada clipe. Assim, a capinha e a prévia não precisam medir de novo, e o vídeo entra mais rápido.' },
+    ],
+  },
+  {
     versao: 489, data: '2026-11-04', titulo: 'Baixada fica verde',
     itens: [
       { tipo: 'correcao', texto: 'O botão de baixar da playlist voltava a aparecer cinza com tudo baixado. Agora a música ou playlist baixada mostra o círculo verde cheio com a seta preta em todo lugar: na playlist, na página da música e no "Remover o download" dos ⋮. O que ainda falta baixar fica só com o contorno.' },
@@ -70,13 +78,6 @@ export const NOVIDADES = [
     versao: 481, data: '2026-11-04', titulo: 'A letra sem atraso',
     itens: [
       { tipo: 'correcao', texto: 'Em algumas músicas, a letra sincronizada vinha uns segundos atrasada, como em "Club Tropicana" (Wham!), uns 4,5 s. O LRCLIB tem edições da mesma música feitas para gravações um pouco diferentes (o áudio oficial tem 266 s, e a maioria das edições, 268 a 270 s), e o app ficava com a mais repetida. Agora, assim que o app sabe a duração do áudio que toca, ele usa a edição feita para ela. As músicas já salvas são corrigidas sozinhas; a letra que você sincronizou à mão fica como está.' },
-    ],
-  },
-  {
-    versao: 480, data: '2026-11-04', titulo: 'A letra no tempo certo em mais músicas',
-    itens: [
-      { tipo: 'correcao', texto: 'Em algumas músicas, uma linha da letra sincronizada aparecia bem antes de ser cantada. Em "Club Tropicana" (Wham!), a primeira frase acendia uns 40 s antes da hora; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living" chegavam adiantados. O LRCLIB tem várias edições da mesma letra, e as mais repetidas traziam essa linha errada. Agora o app compara as edições: a linha fora do lugar vai para onde as outras concordam que ela é cantada, sem precisar do servidor da IA.' },
-      { tipo: 'correcao', texto: 'As músicas já salvas são corrigidas sozinhas, em segundo plano. A letra que você sincronizou à mão fica como está.' },
     ],
   },
 ];
