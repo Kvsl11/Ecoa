@@ -25,6 +25,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { escolherAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
@@ -12890,7 +12891,7 @@ async function novoRepertorio(tipo = '') {
 // ---- A playlist no jeito do Spotify (as criadas por você; as Músicas curtidas e as Baixadas têm a página delas).
 // Em cima, a seta e os ⋮; a capa grande no meio (encolhe ao rolar, e o nome passa para o topo), o nome, a descrição,
 // o dono e a duração. Na linha dos botões, a capinha, baixar e compartilhar à esquerda; o aleatório e o play à
-// direita. Nos chips: Adicionar, Mix (as músicas se emendam, como num DJ), Vídeo (as faixas com a imagem do clipe),
+// direita. Nos chips: Adicionar, Vídeo (as faixas com a imagem do clipe),
 // Editar (tela própria: tirar e mudar a ordem), Nome e detalhes (folha) e Ordenar (só a vista; a ordem salva não muda)
 const ORDENS_PLAYLIST = [['personalizada', 'Ordem personalizada'], ['titulo', 'Título'], ['artista', 'Artista'], ['adicionadas', 'Adicionadas recentemente']];
 const fmtDuracaoCurta = (seg) => { const m = Math.round(seg / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
@@ -12906,7 +12907,7 @@ view.addEventListener('scroll', () => {
 }, { passive: true });
 function linhaDaPlaylist(set, it, i, comVideo) {
   const s = db.song(it.songId);
-  const tocando = player.atual?.setId === set.id && player.atual?.index === i;
+  const tocando = player.atual?.setId === set.id && player.atual?.index === i && player.atual?.songId === it.songId;
   const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" alt="" loading="lazy"></div>` : capa(s || {});
   return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
     <div class="info"><div class="t${tocando ? ' playing' : ''}">${esc(s?.title || '(música removida)')}</div>
@@ -12922,7 +12923,6 @@ function viewPlaylist(set) {
   const alternarVideo = () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewPlaylist(db.set(id)); };
   setHeader(set.name, { back: '#/biblioteca/playlists', actions: [{ icon: 'more', label: 'Mais opções', onClick: () => menuDaPlaylist(set, { comVideo, alternarVideo }) }] });
   const aleat = Boolean(db.prefs().aleatorio);
-  const mix = db.prefs().transicao === 'automix';
   // a ordem da vista (a salva continua a mesma: é a do "Ordem personalizada" e a do player)
   const lista = set.items.map((it, i) => ({ it, i, s: db.song(it.songId) }));
   const porTexto = (f) => (a, b) => (f(a) || '').localeCompare(f(b) || '', 'pt-BR');
@@ -12947,7 +12947,6 @@ function viewPlaylist(set) {
     </div>
     <nav class="chips spot-chips pl-chips" aria-label="Ações da playlist">
       <button class="chip" id="add">${icon('plus', 16)} Adicionar</button>
-      <button class="chip" id="pl-mix" aria-pressed="${mix}" title="As músicas se emendam, como num DJ">${icon('mix', 16)} Mix</button>
       <button class="chip" id="pl-video" aria-pressed="${comVideo}" title="Mostrar as faixas com a imagem do clipe">${icon('videoclipe', 15)} Vídeo</button>
       ${set.items.length ? `<button class="chip" id="pl-editar" title="Tirar músicas e mudar a ordem">${icon('rows', 15)} Editar</button>` : ''}
       <button class="chip" id="pl-detalhes">${icon('edit', 15)} Nome e detalhes</button>
@@ -12975,12 +12974,7 @@ function viewPlaylist(set) {
   $('#pl-share').onclick = () => compartilharPlaylist(set);
   $('#pl-video').onclick = alternarVideo;
   $('#pl-editar')?.addEventListener('click', () => editarPlaylist(set));
-  $('#pl-mix').onclick = (e) => {
-    const v = db.prefs().transicao !== 'automix';
-    db.setPref('transicao', v ? 'automix' : '');
-    e.currentTarget.setAttribute('aria-pressed', String(v));
-    toast(v ? (ehIOS() ? 'Mix ligado (no iPhone as músicas trocam no fim, sem emendar)' : 'Mix ligado: as músicas se emendam, como num DJ') : 'Mix desligado');
-  };
+
   $('#pl-ordenar')?.addEventListener('click', async () => {
     const v = await escolherNaLista({ menu: true, titulo: 'Ordenar por', cls: 'bib-folha', atual: ordem, opcoes: ORDENS_PLAYLIST.map(([valor, rotulo]) => ({ valor, rotulo })) });
     if (v && v !== ordem) { guardarPrefBib(`pl.${id}.ordem`, v); viewPlaylist(db.set(id)); }
@@ -13012,6 +13006,14 @@ function viewPlaylist(set) {
     if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
   });
   const ul = view.querySelector('.pl-faixas');
+  // o nome da música que está tocando fica na cor do app, e acompanha o player (troca quando ele passa para a próxima)
+  const marcarTocando = () => ul?.querySelectorAll('li[data-i] .t').forEach((t) => {
+    const i = Number(t.closest('li').dataset.i);
+    t.classList.toggle('playing', player.atual?.setId === id && player.atual?.index === i);
+  });
+  if (ul) aoSair(player.ouvir(marcarTocando));
+  // a capinha ganha movimento: o clipe baixado de uma das músicas, no refrão (ou, sem download, as capas passando)
+  animarCapinha(set);
   ul?.addEventListener('click', (e) => {
     const li = e.target.closest('li[data-i]');
     if (!li) return;
@@ -13028,11 +13030,86 @@ function viewPlaylist(set) {
     if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
   });
 }
+const PREVIA_SEG = 30; // (o trecho da prévia e da capinha, em segundos)
+// O refrão da música para a prévia e a capinha: o tempo dele no clipe e no áudio oficial (pela letra sincronizada; sem
+// ela, um ponto a 30% da música), e os arquivos baixados, quando tem (o clipe e o áudio tocam do aparelho, sem internet)
+function tempoDoRefrao(s) {
+  const sinc = letraSincronizadaDe(s) ? s.sincronia : null;
+  const ref = trechoDoRefrao(sinc, PREVIA_SEG);
+  const t = ref ? ref.inicio : (s.duracao ? Math.floor(s.duracao * 0.3) : 45);
+  const vs = versoesDe(s);
+  if (!vs?.pares) return { tVideo: t, tAudio: t };
+  // (a letra segue o áudio oficial quando a música tem as duas versões)
+  return !sinc || sinc.video === vs.audio ? { tAudio: t, tVideo: Math.max(0, tempoNoVideo(vs.pares, t)) } : { tVideo: t, tAudio: Math.max(0, tempoNoAudio(vs.pares, t)) };
+}
+async function arquivoBaixado(yt, soVideo = false) {
+  const a = yt && baixadoDe(yt);
+  if (!a || (soVideo && !String(a.tipo || '').startsWith('video/'))) return null;
+  const blob = await lerAudio(chaveBaixada(yt)).catch(() => null);
+  return blob ? URL.createObjectURL(blob) : null;
+}
+async function midiaDoRefrao(s) {
+  const { tVideo, tAudio } = tempoDoRefrao(s);
+  const vs = versoesDe(s);
+  const video = await arquivoBaixado(s.youtube, true);
+  let audio = null;
+  if (vs?.audio && vs.audio !== s.youtube) {
+    if (ehArquivo(vs.audio)) { const b = await lerAudio(s.id).catch(() => null); audio = b ? URL.createObjectURL(b) : null; } else audio = await arquivoBaixado(vs.audio);
+  }
+  return { video, audio, tVideo, tAudio };
+}
+// um <video> ou <audio> do aparelho, começando no tempo t (e voltando a ele no fim do trecho)
+function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
+  const el = document.createElement(tag);
+  el.muted = mudo;
+  el.playsInline = true;
+  el.preload = 'auto';
+  el.setAttribute('playsinline', '');
+  el.addEventListener('loadedmetadata', () => {
+    try { el.currentTime = Math.min(t, Math.max(0, (el.duration || t + 1) - 1)); } catch { /* segue do começo */ }
+    if (!el.dataset.parado) el.play().catch(() => {});
+  }, { once: true });
+  el.addEventListener('timeupdate', () => { if (el.currentTime > t + PREVIA_SEG + 1) el.currentTime = t; });
+  el.src = url;
+  return el;
+}
+// a capinha da playlist com movimento, como no Spotify: o clipe baixado de uma das músicas, sem som, no refrão; sem
+// clipe baixado, as imagens dos clipes passando devagar
+let urlsDaCapinha = [];
+async function animarCapinha(set) {
+  urlsDaCapinha.forEach((u) => URL.revokeObjectURL(u));
+  urlsDaCapinha = [];
+  const box = $('#pl-mini');
+  if (!box) return;
+  const songs = set.items.map((it) => db.song(it.songId)).filter((x) => x?.youtube);
+  for (const s of songs) {
+    const url = await arquivoBaixado(s.youtube, true);
+    if (!url) continue;
+    if (!box.isConnected) { URL.revokeObjectURL(url); return; }
+    urlsDaCapinha.push(url);
+    const v = elementoDoRefrao('video', url, tempoDoRefrao(s).tVideo);
+    v.className = 'pl-mini-anim';
+    box.append(v);
+    return;
+  }
+  if (!songs.length || !box.isConnected) return;
+  const fotos = [...new Set(songs.map((x) => x.youtube))].slice(0, 6);
+  box.insertAdjacentHTML('beforeend', `<span class="pl-mini-anim pl-mini-fotos">${fotos.map((y) => `<img src="https://i.ytimg.com/vi/${esc(y)}/mqdefault.jpg" alt="">`).join('')}</span>`);
+  const imgs = [...box.querySelectorAll('.pl-mini-fotos img')];
+  let k = 0;
+  const passar = () => {
+    if (!box.isConnected) { clearInterval(vez); return; }
+    imgs.forEach((img, j) => img.classList.toggle('on', j === k));
+    k = (k + 1) % imgs.length;
+  };
+  const vez = setInterval(passar, 2600);
+  requestAnimationFrame(passar);
+}
 // A prévia da playlist (a capinha ao lado do baixar), como a do Spotify: as músicas em tela cheia, uma de cada vez,
-// com o clipe rodando (30 s de um trecho do meio), o artista e o cartão da música embaixo, com a barrinha do tempo.
+// com o clipe rodando (30 s do refrão, achado pela letra sincronizada; do aparelho, quando a música está baixada), o
+// artista e o cartão da música embaixo, com a barrinha do tempo.
 // Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Começa sem som; o alto-falante do
 // topo liga (e pausa o que estiver tocando no player, que volta ao fechar). Tocar no cartão toca a playlist dali
-const PREVIA_SEG = 30;
 function previaDaPlaylist(set, inicio = 0) {
   const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => x.s?.youtube);
   if (!faixas.length) { toast('Nenhuma música desta playlist tem vídeo ainda'); return; }
@@ -13061,22 +13138,56 @@ function previaDaPlaylist(set, inicio = 0) {
   document.body.append(dlg);
   const feed = $('.pv-feed', dlg);
   const slides = [...dlg.querySelectorAll('.pv-slide')];
-  const iframe = () => slides[ativa]?.querySelector('iframe');
-  const comando = (func, args = []) => { try { iframe()?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
+  // o que toca na música da tela: o clipe (do aparelho ou do YouTube) e, se baixado à parte, o áudio oficial
+  let atual = null;
+  const comandoYt = (f, func, args = []) => { try { f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
+  const aplicarSom = () => {
+    if (!atual) return;
+    const { video, audio, iframe } = atual;
+    if (audio) {
+      audio.muted = !comSom;
+      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(() => {}); } else { audio.dataset.parado = '1'; audio.pause(); }
+    } else if (video) video.muted = !comSom;
+    else if (iframe) { comandoYt(iframe, comSom ? 'unMute' : 'mute'); if (comSom) comandoYt(iframe, 'setVolume', [100]); }
+  };
+  const largar = () => {
+    if (!atual) return;
+    for (const el of [atual.video, atual.audio]) if (el) { el.pause(); el.removeAttribute('src'); el.load(); }
+    atual.iframe?.remove();
+    atual.video?.remove();
+    atual.urls.forEach((u) => URL.revokeObjectURL(u));
+    atual = null;
+  };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
-  const ativar = (k) => {
+  const ativar = async (k) => {
     if (k === ativa || k < 0 || k >= slides.length) return;
-    slides[ativa]?.querySelector('iframe')?.remove();
+    largar();
     ativa = k;
-    const { s } = faixas[k];
-    const meio = s.duracao ? Math.max(0, Math.floor(s.duracao * 0.3)) : 45;
-    const f = document.createElement('iframe');
-    f.src = `${ytEmbed(s.youtube, { inicio: meio, mudo: !comSom })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
-    f.allow = 'autoplay; encrypted-media';
-    f.title = s.title;
-    f.tabIndex = -1;
-    slides[k].querySelector('.pv-video').append(f);
     t0 = performance.now();
+    const { s } = faixas[k];
+    const m = await midiaDoRefrao(s);
+    if (ativa !== k || !dlg.isConnected) { [m.video, m.audio].forEach((u) => u && URL.revokeObjectURL(u)); return; }
+    const caixa = slides[k].querySelector('.pv-video');
+    atual = { urls: [m.video, m.audio].filter(Boolean), tVideo: m.tVideo, tAudio: m.tAudio };
+    if (m.video) {
+      atual.video = elementoDoRefrao('video', m.video, m.tVideo);
+      caixa.append(atual.video);
+    } else {
+      const f = document.createElement('iframe');
+      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
+      f.allow = 'autoplay; encrypted-media';
+      f.title = s.title;
+      f.tabIndex = -1;
+      caixa.append(f);
+      atual.iframe = f;
+      f.addEventListener('load', () => setTimeout(aplicarSom, 700), { once: true });
+    }
+    if (m.audio) {
+      atual.audio = elementoDoRefrao('audio', m.audio, m.tAudio, { mudo: !comSom });
+      if (!comSom) atual.audio.dataset.parado = '1';
+    }
+    t0 = performance.now();
+    aplicarSom();
   };
   const andar = () => {
     const p = Math.min(1, (performance.now() - t0) / (PREVIA_SEG * 1000));
@@ -13093,6 +13204,7 @@ function previaDaPlaylist(set, inicio = 0) {
   dlg.addEventListener('close', () => {
     obs.disconnect();
     cancelAnimationFrame(raf);
+    largar();
     dlg.remove();
     if (pausouPlayer && player.atual && !player.tocandoAlgo()) player.alternar();
   });
@@ -13105,8 +13217,7 @@ function previaDaPlaylist(set, inicio = 0) {
     if (e.target.closest('[data-som]')) {
       comSom = !comSom;
       if (comSom && player.tocandoAlgo()) { player.alternar(); pausouPlayer = true; }
-      comando(comSom ? 'unMute' : 'mute');
-      if (comSom) comando('setVolume', [100]);
+      aplicarSom();
       desenharSom();
       return;
     }
