@@ -6617,7 +6617,7 @@ function viewHome() {
     const qa = $('.quick a[href="#/liturgia"] .cover');
     if (qa) qa.style.setProperty('--h', { verde: 130, roxo: 285, vermelho: 0, branco: 45, rosa: 330 }[lit.cor] ?? 130);
     const sugestoes = m ? m.partes.reduce((n, p) => n + p.cantos.length, 0) : 0;
-    const chip = sugestoes ? `${sugestoes} sugestões de cantos` : m === undefined ? 'buscando sugestões…' : '';
+    const chip = sugestoes ? `${sugestoes} sugestões de cantos` : '';
     box.innerHTML = heroLiturgia(lit, hoje, { acoes: `<a class="btn white" href="#/liturgia/${hoje}">${icon('sparkles', 16)} Montar a missa</a>
       <a class="btn lit-btn-ler" href="#/liturgia/${hoje}">${icon('book', 16)} Ler a liturgia</a>
       ${chip ? `<span class="lit-chip">${chip}</span>` : ''}` });
@@ -6829,17 +6829,16 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
   else toast('Trazendo a música…');
   try {
     // vídeo da busca: primeiro descobre qual música é (para vir com a cifra e a letra dela)
-    // (o que está sendo preparado aparece embaixo do nome, na linha tocada)
-    const sub = el?.querySelector('.s');
-    const subAntes = sub?.innerHTML;
-    const aoPreparar = (txt) => { if (sub?.isConnected) { sub.innerHTML = `<span class="preparando">${esc(txt)}</span>`; } };
+    // (enquanto prepara, a linha tocada mostra só o círculo girando, como no Spotify; o que está sendo feito fica para o
+    // leitor de tela, sem textos aparecendo e sumindo embaixo do nome)
+    const aoPreparar = (txt) => { if (el?.isConnected) { el.setAttribute('aria-busy', 'true'); el.setAttribute('aria-description', txt); } };
     aoPreparar('Trazendo a cifra e a letra…');
     // (a letra sincronizada já começa a ser procurada agora, junto com a cifra e o vídeo)
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
       const r = await trazerMusica(dados.video && !dados.cifra && !dados.letra ? await musicaDoVideo(dados.video, dados) : dados);
       await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer });
-    } finally { if (sub?.isConnected) sub.innerHTML = subAntes; }
+    } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
     abrirNoTocando = false;
     toast('Não consegui trazer: ' + e.message);
@@ -12254,7 +12253,7 @@ function viewSong(id, ctx = {}) {
     box.hidden = !estado;
     box.className = `sinc-estado ${estado}`;
     box.innerHTML = estado === 'ok' ? `${icon('text', 13)}<span>Letra sincronizada${sinc?.aproximada ? ' (aproximada)' : ''}</span>`
-      : estado === 'procurando' ? '<span class="spin"></span><span>Procurando a letra sincronizada…</span>'
+      : estado === 'procurando' ? '<span class="spin" role="status" aria-label="Procurando a letra sincronizada"></span>'
         : estado === 'sem' ? `${icon('info', 13)}<span>Sem letra sincronizada para esta música</span>` : '';
   };
   const seguir = setInterval(() => {
