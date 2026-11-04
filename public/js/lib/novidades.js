@@ -4,9 +4,11 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 465, data: '2026-11-04', titulo: 'Karaokê sem estalos',
+    versao: 465, data: '2026-11-04', titulo: 'Karaokê sem estalos e o clipe de volta',
     itens: [
       { tipo: 'correcao', texto: 'O karaokê podia dar estalos e chiadinhos: o celular, ocupado com a tela, engasgava o som, e a banda com a voz às vezes passava do limite. Agora o som do karaokê tem mais folga e não estala, nem ao arrastar o volume da voz. Os karaokês novos também saem com mais qualidade (menos chiado onde a voz estava).' },
+      { tipo: 'melhoria', texto: 'O microfone: com o karaokê ligado, tocar nele abre o volume da voz (para desligar, toque no microfone com o controle aberto); tocar fora do controle fecha ele na hora e a letra volta ao normal; e o microfone e a porcentagem ficam escuros quando o branco passa por eles, sem sumir.' },
+      { tipo: 'correcao', texto: 'O clipe escolhido não some mais: quando ele é outra gravação da música (outra edição, cenas a mais), o “Mudar para vídeo” continua e toca o clipe. Antes a música ficava só com o áudio, as duas versões iguais.' },
     ],
   },
   {

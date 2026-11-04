@@ -750,8 +750,9 @@ function itemDoPlayer(song, set = null, index = -1) {
   // com as duas versões, o modo música toca o áudio oficial e o modo vídeo, o clipe
   const vs = versoesDe(song);
   return {
-    // (soMusica: o vídeo é outra gravação, na música sem clipe: ela toca sempre a música, sem o "Mudar para vídeo")
-    youtube: vs && (player.modoMusica || !vs.video || vs.diferentes) ? vs.audio : song.youtube, ...(vs ? { video: vs.video, audio: vs.audio, pares: vs.pares, ...(vs.diferentes ? { soMusica: true } : {}) } : {}), titulo: song.title, artista: song.artist || '', capa: song.cover || '', songId: song.id, cor: corDe(song),
+    // (o clipe que é outra gravação — outra edição, cenas, versão estendida — continua sendo o vídeo da música: o
+    // "Mudar para vídeo" toca ele. Antes a música ficava só com o áudio, e o clipe escolhido sumia)
+    youtube: vs && (player.modoMusica || !vs.video) ? vs.audio : song.youtube, ...(vs ? { video: vs.video, audio: vs.audio, pares: vs.pares } : {}), titulo: song.title, artista: song.artist || '', capa: song.cover || '', songId: song.id, cor: corDe(song),
     href: set ? `#/repertorio/${set.id}/${index}` : song.id && song.id !== 'previa' ? `#/musica/${song.id}` : location.hash,
     parte: set ? set.items[index]?.label || '' : '', setId: set?.id || '', index,
   };
@@ -3459,14 +3460,16 @@ const semLinhasDeAcordes = (sinc) => {
     kEl.style.setProperty('--pct', String(prep?.pct || 0));
     kEl.style.setProperty('--nivel', String(nivelVoz));
     // (o microfone fica escuro quando o branco do volume passa por baixo dele)
-    kEl.classList.toggle('sobre-branco', nivelVoz >= 0.24);
+    // (o controle aberto tem 168 px: o meio do microfone fica a 25 px do fundo e o do número, a 18 px do alto. Cada um
+    // fica escuro assim que o branco chega no meio dele)
+    kEl.classList.toggle('sobre-branco', nivelVoz * 168 >= 25);
     // (a porcentagem da voz no alto do controle aberto; em 0%, a setinha mostra que dá para arrastar para cima)
     $('.pl-karaoke-pct b', kEl).textContent = `${Math.round(nivelVoz * 100)}%`;
     kEl.classList.toggle('sem-voz', nivelVoz <= 0.02);
-    kEl.classList.toggle('topo-branco', nivelVoz >= 0.86);
+    kEl.classList.toggle('topo-branco', nivelVoz * 168 >= 168 - 18);
     const bt = $('.pl-karaoke-bt', kEl);
     bt.setAttribute('aria-pressed', String(karaokeLigado));
-    const titulo = !karaokeLigado ? 'Karaokê: tirar a voz' : prep ? `Preparando o karaokê: ${prep.etapa} (${prep.pct}%)` : 'Karaokê ligado: toque para a voz voltar';
+    const titulo = !karaokeLigado ? 'Karaokê: tirar a voz' : prep ? `Preparando o karaokê: ${prep.etapa} (${prep.pct}%)` : kEl.classList.contains('aberto') ? 'Karaokê ligado: toque para desligar' : 'Karaokê ligado: toque para mudar o volume da voz';
     bt.setAttribute('aria-label', titulo);
     bt.title = titulo;
     const trilho = $('.pl-karaoke-trilho', kEl);
@@ -3484,8 +3487,19 @@ const semLinhasDeAcordes = (sinc) => {
     kEl.classList.add('aberto');
     el.classList.toggle('karaoke-ajustando', kEl.dataset.estado === 'ligado');
     clearTimeout(karaokeAberto);
-    karaokeAberto = setTimeout(() => { kEl.classList.remove('aberto'); el.classList.remove('karaoke-ajustando'); }, 2600);
+    karaokeAberto = setTimeout(() => { kEl.classList.remove('aberto'); el.classList.remove('karaoke-ajustando'); }, 4000);
   };
+  // tocar fora do controle aberto fecha ele na hora e a letra volta ao normal (esse toque só fecha: não leva a música
+  // para a linha tocada nem aperta outro botão)
+  const fecharControle = () => { clearTimeout(karaokeAberto); kEl.classList.remove('aberto'); el.classList.remove('karaoke-ajustando'); desenharKaraoke(); };
+  let fechouControle = false;
+  document.addEventListener('pointerdown', (e) => {
+    if (!kEl?.classList.contains('aberto') || kEl.contains(e.target)) return;
+    fecharControle();
+    fechouControle = true;
+    setTimeout(() => { fechouControle = false; }, 600);
+  }, true);
+  document.addEventListener('click', (e) => { if (fechouControle) { fechouControle = false; e.preventDefault(); e.stopPropagation(); } }, true);
   // o toque que liga: o microfone dá um pulo e as estrelinhas se espalham
   const pularMicrofone = () => {
     kEl.classList.remove('pulo');
@@ -3682,6 +3696,8 @@ const semLinhasDeAcordes = (sinc) => {
     $('.pl-karaoke-bt', kEl).addEventListener('click', (e) => {
       e.stopPropagation();
       if (ignorarClique) { ignorarClique = false; return; }
+      // ligado e recolhido: o toque abre o controle (para mexer na voz); aberto, o toque no microfone desliga
+      if (karaokeLigado && kEl.dataset.estado === 'ligado' && !kEl.classList.contains('aberto')) { abrirControle(); return; }
       alternarKaraoke();
     });
     // no teclado: as setas sobem e descem a voz (o controle é um slider)
@@ -3800,9 +3816,7 @@ const semLinhasDeAcordes = (sinc) => {
       }
       if (!(atual.songId === song.id || desta(vs.video))) return;
       const audioAntes = atual.audio;
-      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: Boolean(vs.diferentes) };
-      // (o vídeo é outra gravação: fica só a música, mesmo no modo vídeo)
-      if (vs.diferentes && atual.youtube === vs.video) { trocarVersao(vs.audio, tempoNoAudio(vs.pares, api.tempoAgora)); return; }
+      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: false };
       // (outra versão só música no lugar da que tocava: a mesma gravação, no mesmo ponto)
       if (audioAntes && audioAntes !== vs.audio && atual.youtube === audioAntes) trocarVersao(vs.audio, api.tempoAgora);
       else if (comCapa && atual.youtube === vs.video && atual.youtube !== vs.audio) trocarVersao(vs.audio, tempoNoAudio(vs.pares, api.tempoAgora));
@@ -5271,7 +5285,7 @@ function indicadores(s) {
   const baixada = s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>`
     : baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>` : '';
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
-  const video = s.youtube && !versoesDe(s)?.diferentes;
+  const video = Boolean(s.youtube);
   const e = seloExplicita(s.title, s.artist);
   if (!(c || video || baixada || e)) return '';
   return `<span class="ind">${baixada}${e}${c ? tem('chord', 'Tem cifra') : ''}${video ? `${tem('videoclipe', 'Tem vídeo')}<span class="ind-txt">Vídeo</span><span class="ind-sep">•</span>` : ''}</span>`;
@@ -5582,7 +5596,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     set && { valor: 'parte', rotulo: set.items[i]?.label ? `Parte da missa: ${set.items[i].label}` : 'Definir a parte da missa', ic: 'list' },
     song.youtube && { valor: 'tocar', rotulo: player.tocandoAgora(song.youtube) ? 'Pausar' : 'Tocar a referência', ic: player.tocandoAgora(song.youtube) ? 'pause' : 'play' },
     { valor: 'video', rotulo: song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo', ic: song.youtube ? 'refresh' : 'youtube' },
-    song.youtube && !versoesDe(song)?.diferentes && { valor: 'modo', rotulo: player.modoMusica ? 'Mudar para vídeo' : 'Mudar para música', ic: player.modoMusica ? 'videoclipe' : 'music' },
+    song.youtube && { valor: 'modo', rotulo: player.modoMusica ? 'Mudar para vídeo' : 'Mudar para música', ic: player.modoMusica ? 'videoclipe' : 'music' },
     { valor: 'abrir', rotulo: 'Abrir a cifra', ic: 'music' },
     { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
     // o artista e o álbum em toda música com artista: a do Cifra Club abre direto; as outras (de outro site, do
@@ -7459,7 +7473,7 @@ const indicadoresWeb = (r) => {
   const tem = (ic, t) => `<span class="ind-i" title="${t}" aria-label="${t}">${icon(ic, 11)}</span>`;
   // (já na biblioteca e sem clipe de verdade, o vídeo achado é outra gravação: não conta)
   const salva = r.cifra && db.songBySource(r.cifra);
-  const video = r.video && !(salva && versoesDe(salva)?.diferentes);
+  const video = Boolean(r.video);
   const sinais = (r.cifra ? tem('chord', 'Tem cifra') : '') + (r.cifra || r.letra ? tem('text', 'Tem letra') : '') + (video ? tem('youtube', 'Tem vídeo') : '');
   return sinais ? `<span class="ind">${sinais}</span>` : '';
 };
