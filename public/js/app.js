@@ -1344,23 +1344,28 @@ window.addEventListener('songbook:nova-musica', (e) => {
   }, 2500);
 });
 // os botões de baixar na tela acompanham o andamento
-window.addEventListener('online', () => player.reavaliarFonte());
-window.addEventListener('offline', () => player.reavaliarFonte());
-window.addEventListener('songbook:downloads', () => {
-  player.reavaliarFonte();
-  document.querySelectorAll('[data-baixar-set]').forEach((b) => { const set = db.set(b.dataset.baixarSet); if (set) b.outerHTML = botaoBaixarSet(set); });
-  // (as setinhas verdes das listas, na hora: na biblioteca as linhas são .lib-item[data-k], que antes ficavam de fora e
-  // só mostravam a baixada depois de abrir a biblioteca de novo; e a setinha apagada enquanto ela baixa)
+// (as setinhas verdes das listas, na hora: na biblioteca as linhas são .lib-item[data-k], que antes ficavam de fora e
+// só mostravam a baixada depois de abrir a biblioteca de novo; e a setinha apagada enquanto ela baixa. E o microfone do
+// karaokê, assim que ele fica pronto ou é apagado)
+function atualizarIndicadores() {
   document.querySelectorAll('.track[data-id], .track[data-musica], .lib-item[data-k]').forEach((li) => {
     const s = db.song(li.dataset.id || li.dataset.musica || li.dataset.k);
     if (!s) return;
-    const agora = s.baixado ? 'ok' : baixando.has(s.id) ? 'andando' : '';
-    const antes = li.querySelector('.ind-baixada') ? 'ok' : li.querySelector('.ind-baixando') ? 'andando' : '';
+    const agora = `${s.baixado ? 'ok' : baixando.has(s.id) ? 'andando' : ''}|${temKaraokePronto(s)}`;
+    const antes = `${li.querySelector('.ind-baixada') ? 'ok' : li.querySelector('.ind-baixando') ? 'andando' : ''}|${Boolean(li.querySelector('.ind-karaoke'))}`;
     if (agora === antes) return;
     const sub = li.querySelector('.info .s');
     const velho = sub?.querySelector('.ind');
     if (velho) velho.outerHTML = indicadores(s); else sub?.insertAdjacentHTML('afterbegin', indicadores(s));
   });
+}
+window.addEventListener('online', () => player.reavaliarFonte());
+window.addEventListener('offline', () => player.reavaliarFonte());
+window.addEventListener('songbook:karaoke', () => atualizarIndicadores());
+window.addEventListener('songbook:downloads', () => {
+  player.reavaliarFonte();
+  document.querySelectorAll('[data-baixar-set]').forEach((b) => { const set = db.set(b.dataset.baixarSet); if (set) b.outerHTML = botaoBaixarSet(set); });
+  atualizarIndicadores();
   document.querySelectorAll('[data-baixar]').forEach((b) => { const s = db.song(b.dataset.baixar); if (s) b.outerHTML = botaoBaixar(s, [...b.classList].filter((c) => !['icon-btn', 'btn-baixar', 'baixada', 'baixando'].includes(c)).join(' ')); });
 });
 
@@ -5641,6 +5646,7 @@ async function exportarPowerPointModelo(set) {
 
 // indicadores bem pequenos nas listas: a música tem cifra (a letra vem junto) e/ou vídeo
 const memoCifra = new Map();
+const temKaraokePronto = (s) => Boolean(s?.karaoke && s.karaoke[fonteDoKaraoke(s)]);
 function indicadores(s) {
   if (!s) return '';
   let c = memoCifra.get(s.content);
@@ -5655,8 +5661,10 @@ function indicadores(s) {
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
   const video = Boolean(s.youtube);
   const e = seloExplicita(s.title, s.artist);
-  if (!(c || video || baixada || e)) return '';
-  return `<span class="ind">${baixada}${e}${c ? tem('chord', 'Tem cifra') : ''}${video ? `${tem('videoclipe', 'Tem vídeo')}<span class="ind-txt">Vídeo</span><span class="ind-sep">•</span>` : ''}</span>`;
+  // o microfone com as estrelinhas (o do karaokê): o karaokê desta música já está pronto no aparelho
+  const kar = temKaraokePronto(s) ? `<span class="ind-i ind-karaoke" title="Karaokê pronto" aria-label="Karaokê pronto">${MICROFONE_KARAOKE}</span>` : '';
+  if (!(c || video || baixada || e || kar)) return '';
+  return `<span class="ind">${baixada}${e}${kar}${c ? tem('chord', 'Tem cifra') : ''}${video ? `${tem('videoclipe', 'Tem vídeo')}<span class="ind-txt">Vídeo</span><span class="ind-sep">•</span>` : ''}</span>`;
 }
 
 const linhaMusica = (s, extra = '') => `

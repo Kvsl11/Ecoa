@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 479, data: '2026-11-04', titulo: 'O microfone do karaokê nas listas',
+    itens: [
+      { tipo: 'novo', texto: 'Nas listas de músicas (Músicas curtidas, a Biblioteca, os repertórios), o microfone com as estrelinhas aparece ao lado da setinha verde nas músicas que já têm o karaokê pronto no aparelho. Ele aparece assim que o karaokê fica pronto e some se você apagar o karaokê.' },
+    ],
+  },
+  {
     versao: 478, data: '2026-11-04', titulo: 'O microfone do karaokê no ⋮',
     itens: [
       { tipo: 'melhoria', texto: 'No ⋮ do Tocando agora, a opção "Karaokê (tirar a voz)" agora tem o mesmo microfone com as estrelinhas do botão de karaokê da letra, em vez do microfone simples.' },
@@ -62,14 +68,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O som dos acordes (tocar no desenho do acorde) não sai mais desafinado. Uma das gravações do violão, a do Ré agudo, soava meio tom acima (era um Ré#): os acordes com essa nota, como o G com capotraste na 7ª casa, saíam com um choque de meio tom, "zoados". Agora cada nota é afinada pela altura medida de cada gravação (algumas outras também estavam um pouco fora).' },
       { tipo: 'correcao', texto: 'A música não acelera nem desacelera mais. O automix tocava a próxima um pouco mais rápida ou mais lenta para casar com o andamento da anterior (e voltava aos poucos), e às vezes o player ficava com a velocidade mudada e a música seguinte tocava acelerada, mesmo com a transição desligada. Agora a velocidade nunca muda, e o encaixe na batida é só no comecinho, ainda sem som.' },
-    ],
-  },
-  {
-    versao: 469, data: '2026-11-04', titulo: 'Crossfade de verdade e karaokês atualizados sozinhos',
-    itens: [
-      { tipo: 'correcao', texto: 'O crossfade e o automix agora baixam o volume da música que está acabando: ela vai sumindo enquanto a próxima sobe. Antes, logo que a próxima começava, o app trocava ela para o áudio oficial e a transição se cancelava: a anterior era cortada e a próxima entrava no volume cheio.' },
-      { tipo: 'melhoria', texto: 'O volume da música que sai desce desde o começo da transição, de um jeito que dá para ouvir (antes ficava quase cheio na primeira metade). E o automix não corta mais o final instrumental de músicas que tocam pelo YouTube: ele só encurta o final quando consegue encaixar na batida (nas músicas baixadas).' },
-      { tipo: 'melhoria', texto: 'Os karaokês que você já tinha são atualizados sozinhos, em segundo plano, para tirar só o cantor (o back vocal volta). Não são feitos do zero: o servidor aproveita a voz que já estava separada, sem baixar a música de novo, e fica bem mais rápido. Tocando no microfone de um que ainda não foi atualizado, ele atualiza na hora do mesmo jeito.' },
     ],
   },
 ];

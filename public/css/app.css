@@ -1402,6 +1402,7 @@ body.performance #song.lyrics-mode { background: var(--painel); padding-bottom: 
 .ind-i svg { width: 14px; height: 14px; }
 .ind-i.ind-baixada svg, .ind-i.ind-baixando svg { width: 15px; height: 15px; }
 .ind .selo-e { margin-right: 0; }
+.ind-i.ind-karaoke svg { width: 15px; height: 15px; overflow: visible; }
 .ind-txt { color: var(--muted); }
 .ind-sep { color: var(--muted); margin-left: 1px; }
 
