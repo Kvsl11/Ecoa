@@ -14916,6 +14916,26 @@ async function entrarPelaTela() {
   }
 }
 
+// as informações da gaveta: a conta (e-mail e a sincronia), os números da biblioteca e a última música tocada
+function infoDaGaveta(u) {
+  const musicas = db.songs().filter((x) => !x.soNoRepertorio);
+  const artistas = new Set(musicas.map((x) => normalizar(x.artist || '')).filter(Boolean)).size;
+  const baixadas = db.songs().filter((x) => x.baixado).length;
+  const sets = db.sets().length;
+  const numero = (n, t, href) => `<a class="pg-num" href="${href}"><b>${n}</b><small>${t}</small></a>`;
+  const ultima = db.recent()[0];
+  return `
+    ${u ? `<div class="pg-conta">${LOGO_GOOGLE}<span class="grow"><b>${esc(u.email || 'Conta Google')}</b><small id="pg-estado">${esc(resumoDaSincronia())}</small></span></div>`
+    : '<p class="pg-conta-sem">Sua biblioteca está só neste aparelho. Entrando com o Google, ela fica guardada na sua conta.</p>'}
+    <div class="pg-nums">
+      ${numero(musicas.length, musicas.length === 1 ? 'música curtida' : 'músicas curtidas', '#/biblioteca/musicas')}
+      ${numero(sets, sets === 1 ? 'repertório' : 'repertórios', '#/repertorios')}
+      ${numero(artistas, artistas === 1 ? 'artista' : 'artistas', '#/biblioteca')}
+      ${numero(baixadas, baixadas === 1 ? 'baixada' : 'baixadas', '#/offline')}
+    </div>
+    ${ultima ? `<a class="pg-ultima" href="#/musica/${encodeURIComponent(ultima.id)}">${capa(ultima, { cls: 'sm' })}<span class="grow"><small>Tocou por último</small><b>${esc(ultima.title)}</b>${ultima.artist ? `<small>${esc(ultima.artist)}</small>` : ''}</span></a>` : ''}`;
+}
+
 function abrirGavetaDoPerfil() {
   if (document.querySelector('.perfil-gaveta')) return;
   const u = usuarioConta();
@@ -14925,13 +14945,14 @@ function abrirGavetaDoPerfil() {
   g.innerHTML = `<nav class="pg-painel" aria-label="Seu perfil">
       ${u ? `<a class="pg-cab" href="#/conta">${avatarHtml(u, 48)}<span class="grow"><b>${esc(u.nome || u.email)}</b><small>Ver perfil</small></span></a>`
     : `<button class="pg-cab" data-entrar>${avatarHtml(null, 48)}<span class="grow"><b>Entrar com o Google</b><small>Sua biblioteca em todos os aparelhos</small></span></button>`}
+      ${infoDaGaveta(u)}
       <div class="pg-lista">
         ${item('sparkles', 'Novidades', 'href="#/novidades"')}
         ${item('clock', 'Tocadas recentemente', 'href="#/biblioteca"')}
         ${item('settings', 'Ajustes', 'href="#/ajustes"')}
         ${u ? item('refresh', 'Sincronizar agora', 'data-sinc') : ''}
       </div>
-      ${u ? `<p class="pg-estado" id="pg-estado">${esc(resumoDaSincronia())}</p>` : ''}
+      <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
   const fechar = () => {
