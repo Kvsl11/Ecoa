@@ -68,8 +68,24 @@ test('download: redescobre o servidor antes de iniciar cada fila e usa recupera�
   assert.ok(rotina.indexOf('await carregarServidor()') < rotina.indexOf('!servidorIA().url'));
   // (o arquivo vem do mesmo servidor que baixou: com o Modal de reserva, o Codespace pode ligar no meio do download)
   const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id)')));
-  assert.match(baixar, /const cfg = servidorIA\(\);\s*const r = await chamarComEtapas\(cfg, '\/baixar'/);
+  assert.match(baixar, /const cfg = servidorIA\(\);[\s\S]*?const r = await tentarBaixar\(cfg, yt, video/);
   assert.match(baixar, /baixarArquivoDoServidor\(cfg, r\.arquivo\)/);
+  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id)'));
+  assert.match(tentar, /chamarComEtapas\(cfg, '\/baixar'/);
+});
+
+test('download: o videoclipe tenta de novo, descendo de qualidade, e o parcial se completa sozinho', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id)'));
+  // (3 tentativas: o vídeo na qualidade escolhida e depois nas mais baixas)
+  assert.match(app, /QUALIDADES_ABAIXO = \{ 'muito-alta': \['alta', 'normal'\]/);
+  assert.match(tentar, /video \? \[q, \.\.\.QUALIDADES_ABAIXO\[q\]\] : \[q, q, q\]/);
+  // (pediu o clipe e veio só o som: tenta de novo)
+  assert.match(tentar, /video && r\?\.tipo && !String\(r\.tipo\)\.startsWith\('video\/'\)/);
+  // o download parcial volta para a fila sozinho, e ao abrir o app as baixadas pela metade também
+  const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// O download que ficou parcial'));
+  assert.match(baixar, /if \(falhas\.length\) completarDepois\(id\)/);
+  assert.match(app, /s\.baixado && precisaBaixar\(s\) && midiaDe\(s\)/);
 });
 test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravação', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');

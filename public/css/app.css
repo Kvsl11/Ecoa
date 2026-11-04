@@ -5210,9 +5210,11 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
 .em-quadro:nth-child(3n) img { animation-delay: -5s; }
 .em-quadro:nth-child(3n + 1) img { animation-delay: -9s; }
 @keyframes em-respira { from { transform: scale(1.02); } to { transform: scale(1.14); } }
-.em-quadro figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 8px; font-size: 11px; line-height: 1.25; color: rgb(255 255 255 / 0.75);
-  background: linear-gradient(transparent, rgb(0 0 0 / 0.75)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.em-quadro figcaption b { display: block; color: #fff; font-size: 12px; }
+.em-quadro figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 12px 9px; font-size: 11.5px; line-height: 1.2; color: rgb(255 255 255 / 0.72);
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.82)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* o artista em destaque; a música embaixo, menor */
+.em-quadro figcaption b { display: block; color: #fff; font-size: clamp(14px, 1.6vw, 19px); font-weight: 900; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 2px 10px rgb(0 0 0 / 0.6); }
 .entrada-veu { position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background:
     radial-gradient(90% 60% at 50% 100%, rgb(5 6 7 / 0.98) 30%, transparent 75%),
@@ -5244,6 +5246,8 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
   background: rgb(0 0 0 / 0.45); border: 1px solid rgb(255 255 255 / 0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(-6px); transition: opacity 0.4s, transform 0.4s; }
 .entrada-tocando.vis { opacity: 1; transform: none; }
+.entrada-tocando b { font-weight: 900; }
+.entrada-tocando .m { color: rgb(255 255 255 / 0.7); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .entrada-tocando .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
 .entrada-tocando .eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--accent); animation: em-eq 0.9s ease-in-out infinite alternate; }
 .entrada-tocando .eq i:nth-child(2) { animation-delay: -0.3s; }

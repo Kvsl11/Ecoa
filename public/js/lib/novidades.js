@@ -4,6 +4,21 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 501, data: '2026-11-04', titulo: 'O download traz sempre o áudio e o clipe',
+    itens: [
+      { tipo: 'correcao', texto: 'Muitas músicas baixavam só o áudio, sem o videoclipe. O clipe é o arquivo grande e falhava às vezes (o servidor demorava, o YouTube não entregava aquela qualidade), e o app desistia na primeira vez. Agora cada arquivo tenta até 3 vezes, e o vídeo desce de qualidade a cada tentativa (muito alta, alta, normal) para vir sempre junto.' },
+      { tipo: 'correcao', texto: 'Se ainda assim o clipe não vier, o download tenta de novo sozinho daqui a alguns minutos e também ao abrir o app. As músicas que você já tinha baixado só com o áudio ganham o clipe sozinhas, em segundo plano, sem precisar apagar o download e baixar de novo. O que já tinha vindo fica.' },
+    ],
+  },
+  {
+    versao: 500, data: '2026-11-04', titulo: 'Os artistas em destaque no mural da entrada',
+    itens: [
+      { tipo: 'correcao', texto: 'No mural da tela de entrada, o Billie Jean aparecia todo preto: os quadros que o YouTube tira desse clipe são pretos. Agora cada clipe mostra só os quadros que têm imagem, e o Billie Jean aparece com a capa do vídeo.' },
+      { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Peaches e What Do You Mean?.' },
+      { tipo: 'melhoria', texto: 'O mural ficou com os artistas em destaque. Cada clipe mostra só os quadros em que o artista aparece, como o Michael de monstro, de olhos amarelos, no Thriller. O nome do artista aparece grande em cada quadro, com a música embaixo, e também no alto da tela.' },
+    ],
+  },
+  {
     versao: 499, data: '2026-11-04', titulo: 'Uma tela de entrada nova',
     itens: [
       { tipo: 'melhoria', texto: 'A tela de entrada ficou nova. No fundo, um mural com quadros de clipes famosos passa devagar, em fileiras inclinadas: Michael Jackson, The Beatles, Bruno Mars, Lady Gaga, Sabrina Carpenter, Queen e outros. No alto, aparece o nome de um dos clipes, trocando de tempos em tempos. Na frente ficam o "Ouça. Cante. Ecoe.", o que o app tem e o botão Entrar com o Google. No computador, o convite fica à esquerda e o mural ocupa o resto da tela.' },
@@ -56,21 +71,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Ao entrar na playlist, o contorno da capinha da prévia agora faz a animação do Spotify. Ele dá duas voltas: na primeira, dois traços correm em volta da tela e somem; na segunda, voltam e crescem até fechar o contorno. Só depois o cartão de trás sai girando.' },
       { tipo: 'melhoria', texto: 'O cartão de trás ficou um pouco mais recolhido atrás da tela.' },
-    ],
-  },
-  {
-    versao: 491, data: '2026-11-04', titulo: 'O cartão inclinado e a sombra da capinha',
-    itens: [
-      { tipo: 'melhoria', texto: 'O cartão atrás da capinha da prévia agora fica inclinado, como no Spotify: no alto ele aparece à direita da tela e, embaixo, fica escondido atrás dela. Ao entrar na playlist, ele sai girando até ficar nessa posição.' },
-      { tipo: 'melhoria', texto: 'A capinha ganhou a faixa escura em volta da tela, a sombra que separa a tela do cartão de trás, como no Spotify. O contorno e o cartão ficaram nos tons de cinza-azulado dele.' },
-    ],
-  },
-  {
-    versao: 490, data: '2026-11-04', titulo: 'A capinha da prévia ao entrar na playlist',
-    itens: [
-      { tipo: 'melhoria', texto: 'Ao entrar na playlist, a capinha da prévia faz a animação do Spotify. Ela já começa mostrando a primeira música, e não mais a capa da playlist. O contorno claro se desenha em volta e, no fim, o cartão de trás desliza para a direita.' },
-      { tipo: 'melhoria', texto: 'A capinha ficou no tamanho e na proporção da do Spotify, um pouco mais estreita e alta que antes.' },
-      { tipo: 'melhoria', texto: 'O app guarda no aparelho a medida das faixas pretas de cada clipe. Assim, a capinha e a prévia não precisam medir de novo, e o vídeo entra mais rápido.' },
     ],
   },
 ];
