@@ -4712,7 +4712,7 @@ const semLinhasDeAcordes = (sinc) => {
     const naLetra = el.classList.contains('letra-cheia');
     const song = musicaTocando();
     const opcoes = [
-      !naLetra && (atual.href || atual.abrir) && !telaDeCelular() && { valor: 'abrir', rotulo: 'Abrir a música', ic: 'music' },
+      !naLetra && (atual.href || atual.abrir) && !telaDeCelular() && { valor: 'abrir', rotulo: 'Abrir a música', ic: 'external' },
       salva ? { valor: 'add-repertorio', rotulo: 'Adicionar a um repertório', ic: 'plus' } : { valor: 'salva', rotulo: 'Salvar na biblioteca', ic: 'download' },
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
       // o karaokê (o mesmo microfone da letra na tela toda)
@@ -4722,8 +4722,8 @@ const semLinhasDeAcordes = (sinc) => {
       naLetra && atual.youtube && !atual.semVideo && { valor: 'ver-video', rotulo: 'Ver o vídeo', ic: 'videoclipe' },
       naLetra && atual.songId && db.song(atual.songId) && { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
       // a partitura no ⋯ do Tocando agora (não no da letra): ver a que a música tem, ou a IA criar sozinha
-      !naLetra && atual.songId && { valor: 'partitura', rotulo: temPartituraMusica(song) ? 'Ver partitura' : 'Criar partitura', ic: temPartituraMusica(song) ? 'score' : 'sparkles' },
-      (salva || (preview && (atual.songId === 'previa' || atual.href === '#/musica/previa'))) && { valor: 'trocar', rotulo: atual.semVideo ? 'Escolher um vídeo' : (modoCapa() ? 'Trocar música' : 'Trocar o vídeo'), ic: atual.semVideo ? 'youtube' : (modoCapa() ? 'music' : 'refresh') },
+      !naLetra && atual.songId && { valor: 'partitura', rotulo: temPartituraMusica(song) ? 'Ver partitura' : 'Criar partitura', ic: 'score' },
+      (salva || (preview && (atual.songId === 'previa' || atual.href === '#/musica/previa'))) && { valor: 'trocar', rotulo: atual.semVideo ? 'Escolher um vídeo' : (modoCapa() ? 'Trocar música' : 'Trocar o vídeo'), ic: atual.semVideo ? 'youtube' : 'refresh' },
       !naLetra && !atual.semVideo && !atual.soMusica && !(ehArquivo(atual.youtube) && !atual.video) && { valor: 'troca', rotulo: modoCapa() ? 'Mudar para vídeo' : 'Mudar para música', ic: modoCapa() ? 'videoclipe' : 'music' },
       (atual.artista || ehCifraClub(song?.source || '')) && { valor: 'album', rotulo: 'Ver álbum', ic: 'disc' },
       { valor: 'compartilhar', rotulo: 'Compartilhar', ic: 'share' },
@@ -11366,7 +11366,7 @@ function viewSong(id, ctx = {}) {
             : `<a role="menuitem" href="#/editar/${song.id}">${icon('edit', 18)}<span>Editar cifra</span></a>`}
           <button role="menuitem" id="btn-pdf">${icon('file', 18)}<span>Exportar PDF</span></button>
           ${song.artist || ehCifraClub(song.source || '') ? `<button role="menuitem" id="btn-album">${icon('disc', 18)}<span>Ver álbum</span></button>` : ''}
-          <button role="menuitem" id="btn-trocar-video">${icon(player.modoMusica ? 'music' : (song.youtube ? 'refresh' : 'youtube'), 18)}<span>${player.modoMusica ? 'Trocar música' : (song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo')}</span></button>
+          <button role="menuitem" id="btn-trocar-video">${icon(player.modoMusica || song.youtube ? 'refresh' : 'youtube', 18)}<span>${player.modoMusica ? 'Trocar música' : (song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo')}</span></button>
           ${isPreview ? '' : `<button role="menuitem" id="btn-audio-meu">${icon('upload', 18)}<span>${song.audioProprio ? 'Trocar o seu áudio' : 'Usar um áudio seu'}</span></button>`}
           ${!isPreview && song.audioProprio ? `<button role="menuitem" id="btn-audio-tirar">${icon('x', 18)}<span>Tirar o seu áudio</span></button>` : ''}
           ${(() => {
@@ -11374,7 +11374,7 @@ function viewSong(id, ctx = {}) {
             const tem = temPartituraMusica(song);
             const de = isPreview ? 'previa' : song.id;
             return tem ? `<a role="menuitem" href="#/musica/${de}/partitura">${icon('score', 18)}<span>Ver partitura</span></a>`
-              : `<a role="menuitem" href="#/musica/${de}/compor/auto">${icon('sparkles', 18)}<span>Criar partitura</span></a>`;
+              : `<a role="menuitem" href="#/musica/${de}/compor/auto">${icon('score', 18)}<span>Criar partitura</span></a>`;
           })()}
         </div>
       </div>
