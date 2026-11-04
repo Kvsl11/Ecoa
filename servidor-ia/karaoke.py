@@ -36,7 +36,7 @@ VERSAO = 1
 CANAIS = ["banda-esquerda", "banda-direita", "voz-esquerda", "voz-direita"]
 BLOCO = 60  # segundos de música por vez no Demucs
 SOBRA = 5  # segundos a mais de cada lado do bloco, cruzados com o bloco vizinho
-TAXA = os.environ.get("IA_KARAOKE_TAXA") or "256k"  # os 4 canais juntos (128 kb/s por par, como o M4A do YouTube)
+TAXA = os.environ.get("IA_KARAOKE_TAXA") or "320k"  # os 4 canais juntos (160 kb/s por par: menos chiado onde a voz saiu)
 # o karaokê pronto de cada vídeo fica guardado (outro aparelho, ou a mesma música de novo, recebe na hora)
 GUARDAR = int(os.environ.get("IA_KARAOKE_MAX") or 20)
 _trava = threading.Lock()

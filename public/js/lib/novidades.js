@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 465, data: '2026-11-04', titulo: 'Karaokê sem estalos',
+    itens: [
+      { tipo: 'correcao', texto: 'O karaokê podia dar estalos e chiadinhos: o celular, ocupado com a tela, engasgava o som, e a banda com a voz às vezes passava do limite. Agora o som do karaokê tem mais folga e não estala, nem ao arrastar o volume da voz. Os karaokês novos também saem com mais qualidade (menos chiado onde a voz estava).' },
+    ],
+  },
+  {
     versao: 464, data: '2026-11-03', titulo: 'Karaokê muito mais rápido',
     itens: [
       { tipo: 'melhoria', texto: 'O karaokê agora é preparado numa placa de vídeo (no Modal), como nos apps profissionais de separar faixas: a voz sai da música em uns 15 a 30 segundos, em vez de 1 a 3 minutos. Só o karaokê vai para lá; o resto continua no servidor de sempre. Se a placa não estiver disponível, ele é preparado no servidor de sempre, como antes.' },
@@ -60,12 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
       { tipo: 'novo', texto: 'Tela nova Ajustes → Avançado → Servidor da IA: mostra numa olhada se o servidor está ligado, se o YouTube está conectado, se o Lumen está com a IA e se a voz e os tempos estão sendo ouvidos pelos modelos melhores. Desligado, o botão Ligar no GitHub leva direto ao Codespace. O campo para colar o endereço do servidor saiu do caminho (fica em “Usar outro servidor”, só para o servidor no computador).' },
-    ],
-  },
-  {
-    versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
-    itens: [
-      { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
     ],
   },
 ];

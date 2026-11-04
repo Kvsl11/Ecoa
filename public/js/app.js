@@ -2976,11 +2976,17 @@ const semLinhasDeAcordes = (sinc) => {
     // faz ele tocar como música)
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* sem a sessão de áudio */ }
     try {
-      const ctx = new Ctx();
+      // (o buffer de música, não o de jogo: com o pequeno, o celular ocupado com a tela engasgava e dava estalos)
+      let ctx;
+      try { ctx = new Ctx({ latencyHint: 'playback' }); } catch { ctx = new Ctx(); }
+      // 1 dB de folga: a banda e a voz somadas às vezes passavam do limite e estalavam
+      const saida = ctx.createGain();
+      saida.gain.value = 0.89;
+      saida.connect(ctx.destination);
       const voz = ctx.createGain();
       voz.gain.value = 1;
-      voz.connect(ctx.destination);
-      grafoKaraoke = { ctx, voz };
+      voz.connect(saida);
+      grafoKaraoke = { ctx, voz, saida };
     } catch { return null; }
     return grafoKaraoke;
   };
@@ -2997,7 +3003,7 @@ const semLinhasDeAcordes = (sinc) => {
     canais.connect(banda, 1, 1);
     canais.connect(voz, 2, 0);
     canais.connect(voz, 3, 1);
-    banda.connect(g.ctx.destination);
+    banda.connect(g.saida);
     voz.connect(g.voz);
     // (o Web Audio parado pelo navegador — o app em segundo plano, uma ligação — volta junto com o play)
     const tocarElemento = m.play.bind(m);
@@ -3011,9 +3017,11 @@ const semLinhasDeAcordes = (sinc) => {
     if (!g) return;
     const p = g.voz.gain;
     const agora = g.ctx.currentTime;
-    p.cancelScheduledValues(agora);
-    p.setValueAtTime(p.value, agora);
-    p.linearRampToValueAtTime(alvo, agora + segundos);
+    // (segura o volume onde ele está agora antes da rampa nova: com o cancel e o valor lido, ele podia pular e estalar
+    // enquanto se arrastava o controle)
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(agora);
+    else { p.cancelScheduledValues(agora); p.setValueAtTime(p.value, agora); }
+    p.linearRampToValueAtTime(alvo, agora + Math.max(0.03, segundos));
   };
   // tocar do aparelho: o áudio da pessoa, sempre; um download, quando é o vídeo, no modo música ou sem internet (o
   // download só do áudio, no modo vídeo e com internet, deixa o clipe tocar pelo YouTube)
