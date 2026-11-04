@@ -3210,6 +3210,10 @@ html.pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { backgroun
 /* ligado e recolhido: a bolinha branca, o microfone escuro; aberto, o microfone escurece só com o branco por baixo */
 html.pp #player.letra-cheia .pl-karaoke[data-estado="ligado"]:not(.aberto) { background: linear-gradient(180deg, #fff, #eef1fb); color: #1d2433; }
 #player .pl-karaoke.aberto.sobre-branco[data-estado="ligado"] .pl-karaoke-bt { color: #1d2433; }
+/* (no meio do caminho, metade no branco e metade no escuro, o contorno suave não deixa o microfone e o número sumirem) */
+#player .pl-karaoke.aberto .pl-karaoke-bt svg { filter: drop-shadow(0 0 1.2px rgb(0 0 0 / 0.55)); }
+#player .pl-karaoke.aberto.sobre-branco .pl-karaoke-bt svg, #player .pl-karaoke.topo-branco .pl-karaoke-pct { filter: drop-shadow(0 0 1.2px rgb(255 255 255 / 0.9)); }
+#player .pl-karaoke-pct { filter: drop-shadow(0 0 1.2px rgb(0 0 0 / 0.55)); }
 /* com o karaokê ligado, as estrelinhas piscam uma depois da outra, e o microfone balança de leve no ritmo */
 #player .pl-karaoke[data-estado="ligado"] .mk-brilho { animation: karaoke-brilho 1.8s ease-in-out infinite; }
 #player .pl-karaoke[data-estado="ligado"] .mk-b2 { animation-delay: 0.6s; }

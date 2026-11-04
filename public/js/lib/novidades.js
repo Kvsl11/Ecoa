@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 465, data: '2026-11-04', titulo: 'Karaokê sem estalos e o clipe de volta',
+    itens: [
+      { tipo: 'correcao', texto: 'O karaokê podia dar estalos e chiadinhos: o celular, ocupado com a tela, engasgava o som, e a banda com a voz às vezes passava do limite. Agora o som do karaokê tem mais folga e não estala, nem ao arrastar o volume da voz. Os karaokês novos também saem com mais qualidade (menos chiado onde a voz estava).' },
+      { tipo: 'melhoria', texto: 'O microfone: com o karaokê ligado, tocar nele abre o volume da voz (para desligar, toque no microfone com o controle aberto); tocar fora do controle fecha ele na hora e a letra volta ao normal; e o microfone e a porcentagem ficam escuros quando o branco passa por eles, sem sumir.' },
+      { tipo: 'correcao', texto: 'O clipe escolhido não some mais: quando ele é outra gravação da música (outra edição, cenas a mais), o “Mudar para vídeo” continua e toca o clipe. Antes a música ficava só com o áudio, as duas versões iguais.' },
+      { tipo: 'melhoria', texto: 'O Lumen responde mais rápido: o Gemini responde direto, sem a etapa de “pensar” antes (que levava vários segundos a mais em toda pergunta).' },
+    ],
+  },
+  {
     versao: 464, data: '2026-11-03', titulo: 'Karaokê muito mais rápido',
     itens: [
       { tipo: 'melhoria', texto: 'O karaokê agora é preparado numa placa de vídeo (no Modal), como nos apps profissionais de separar faixas: a voz sai da música em uns 15 a 30 segundos, em vez de 1 a 3 minutos. Só o karaokê vai para lá; o resto continua no servidor de sempre. Se a placa não estiver disponível, ele é preparado no servidor de sempre, como antes.' },
@@ -60,12 +69,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
       { tipo: 'novo', texto: 'Tela nova Ajustes → Avançado → Servidor da IA: mostra numa olhada se o servidor está ligado, se o YouTube está conectado, se o Lumen está com a IA e se a voz e os tempos estão sendo ouvidos pelos modelos melhores. Desligado, o botão Ligar no GitHub leva direto ao Codespace. O campo para colar o endereço do servidor saiu do caminho (fica em “Usar outro servidor”, só para o servidor no computador).' },
-    ],
-  },
-  {
-    versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
-    itens: [
-      { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
     ],
   },
 ];

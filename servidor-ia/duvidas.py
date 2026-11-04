@@ -654,6 +654,10 @@ _modelo_bom: dict[str, str] = {}
 # a busca do Google (grounding) tem cota própria, pequena no plano grátis: quando ela acaba, o Gemini responde 429 a
 # toda pergunta que pede a busca (e o pedido sem ela passa). Aí as perguntas vão sem a busca por um tempo
 _sem_busca_ate = {"t": 0.0}
+# O Lumen responde sem "pensar" antes (o raciocínio do Gemini Flash vem ligado e levava vários segundos a mais em toda
+# pergunta, sem melhorar as respostas do dia a dia). Os modelos que não aceitam o ajuste vão sem ele (e ficam anotados)
+SEM_PENSAR = {"thinkingConfig": {"thinkingBudget": 0}}
+_pensa_sempre: set[str] = set()
 
 
 def modelos_gemini(forcar: bool = False) -> list[dict]:
@@ -732,8 +736,10 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120, modelos:
         corpo = {c: v for c, v in corpo.items() if c != "tools"}
     for k, modelo in enumerate(lista[:modelos]):
         tentativa = dict(corpo)
+        if "generationConfig" not in tentativa and modelo not in _pensa_sempre and os.environ.get("IA_GEMINI_PENSAR") != "1":
+            tentativa["generationConfig"] = SEM_PENSAR
         esperou = False
-        for _ in range(3):  # (de novo sem a busca do Google, se o modelo não aceitar a ferramenta; ou depois da espera)
+        for _ in range(4):  # (de novo sem a busca do Google, se o modelo não aceitar a ferramenta; ou depois da espera)
             pedido = urllib.request.Request(f"{API_GEMINI}/models/{modelo}:generateContent", data=json.dumps(tentativa).encode(),
                                             method="POST", headers={"Content-Type": "application/json", "x-goog-api-key": chave_gemini()})
             try:
@@ -744,6 +750,11 @@ def chamar_gemini(corpo: dict, tipo: str = "texto", timeout: int = 120, modelos:
                 ultimo = ErroGemini(e.code, mensagem_do_google(e.read().decode(errors="replace")))
             except urllib.error.URLError as e:
                 raise ErroGemini(0, str(e.reason)) from e
+            # (o modelo só funciona pensando: de novo sem o ajuste, e ele fica anotado)
+            if ultimo.status == 400 and tentativa.get("generationConfig") is SEM_PENSAR and re.search(r"think|budget", str(ultimo), re.I):
+                _pensa_sempre.add(modelo)
+                tentativa = {c: v for c, v in tentativa.items() if c != "generationConfig"}
+                continue
             if ultimo.status == 400 and "tools" in tentativa and re.search(r"tool|search|grounding", str(ultimo), re.I):
                 tentativa = {c: v for c, v in tentativa.items() if c != "tools"}
                 continue
