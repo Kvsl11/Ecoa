@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 504, data: '2026-11-04', titulo: 'A gaveta do perfil de cara nova',
+    itens: [
+      { tipo: 'melhoria', texto: 'A gaveta que abre pela sua foto ficou mais moderna: o topo na cor da sua foto, com o seu nome, o e-mail e o botão Ver perfil; a sincronia com a conta Google numa linha só, com o botão de sincronizar ao lado (ele gira enquanto sincroniza); os números da biblioteca numa faixa; a última música tocada num cartão com a capa ao fundo e o botão de tocar; e o menu num cartão com ícones coloridos.' },
+    ],
+  },
+  {
     versao: 503, data: '2026-11-04', titulo: 'O vídeo online não para mais por "outro dispositivo"',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo que toca pela internet (sem estar baixado) parava muito com o aviso do YouTube de que a conta estava sendo usada em outros dispositivos. Era o próprio app: além do player que você ouve, ele abre outros do YouTube por baixo (a capa animada, o clipe esperando para a troca entre música e vídeo, a próxima música no crossfade, a prévia das playlists), e cada um contava como outra reprodução da sua conta ao mesmo tempo. Agora só o player que você ouve usa a sua conta do YouTube; os outros abrem sem conta e não contam.' },
@@ -65,12 +71,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Os downloads continuam sendo de cada aparelho.' },
       { tipo: 'novo', texto: 'A sua foto aparece no canto de cima, como no Spotify. Tocando nela, abre a gaveta do perfil, com as suas informações: o e-mail da conta e quando ela sincronizou, quantas músicas curtidas, repertórios, artistas e baixadas você tem, a música que você tocou por último e a versão do app. Embaixo ficam Ver perfil, Novidades, Tocadas recentemente e Ajustes.' },
       { tipo: 'novo', texto: 'A página do perfil tem o topo na cor da sua foto, o seu nome com quantos repertórios e músicas você tem, os botões Editar (para mudar o nome), Ajustes e ⋯ (Compartilhar o Ecoa, Sincronizar agora, Sair da conta), os seus repertórios e os artistas que você tocou recentemente.' },
-    ],
-  },
-  {
-    versao: 494, data: '2026-11-04', titulo: 'O karaokê entra sem travar a música',
-    itens: [
-      { tipo: 'correcao', texto: 'Ao tocar no microfone do karaokê, a música dava uma travada: sumia por quase um segundo e voltava. No celular, mais ainda com fone Bluetooth, o som do karaokê leva um instante para começar a sair, e o app baixava a música antes disso. Agora a música segue tocando normal até o karaokê estar soando de verdade, e só então uma passa para a outra, sem buraco.' },
     ],
   },
 ];
