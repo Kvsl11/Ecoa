@@ -3275,6 +3275,20 @@ const semLinhasDeAcordes = (sinc) => {
     else v.webkitEnterFullscreen?.(); // (iPhone: só o próprio vídeo vai para a tela cheia)
     v.addEventListener('webkitendfullscreen', () => { v.controls = false; }, { once: true });
   });
+  // O botão de tela inteira fica escondido, como no Spotify e no YouTube: tocar no vídeo mostra ele por uns 3 s (e de
+  // novo, cada vez que tocar). O vídeo do aparelho avisa o toque; o do YouTube é uma moldura de outro site, que não
+  // avisa, mas a página perde o foco para ela quando o dedo toca nela (aí o foco volta, para o próximo toque contar)
+  let ctrlVez = 0;
+  const mostrarCtrl = () => {
+    tela.classList.add('mostra-ctrl');
+    clearTimeout(ctrlVez);
+    ctrlVez = setTimeout(() => tela.classList.remove('mostra-ctrl'), 3000);
+  };
+  tela.addEventListener('click', (e) => { if (!e.target.closest('.pl-tela-cheia')) mostrarCtrl(); });
+  addEventListener('blur', () => setTimeout(() => {
+    const f = document.activeElement;
+    if (f?.tagName === 'IFRAME' && tela.contains(f)) { mostrarCtrl(); f.blur(); }
+  }, 0));
   const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local' })))
     : (somAudio ||= criarSom(new Audio())));
   // o arquivo no elemento (uma vez só: trocar de versão de novo não abre outra vez); false se ele não está no aparelho

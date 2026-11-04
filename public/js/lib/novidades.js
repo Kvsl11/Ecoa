@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 493, data: '2026-11-04', titulo: 'O botão de tela inteira aparece ao tocar no vídeo',
+    itens: [
+      { tipo: 'melhoria', texto: 'No Tocando agora, o botão de ver o vídeo na tela inteira fica escondido e aparece por uns 3 segundos quando você toca no vídeo, como no Spotify e no YouTube. Tocar de novo mostra outra vez. O mesmo vale na página da música e no painel do tablet. Na barrinha do player, embaixo, ele continua sempre à vista.' },
+    ],
+  },
+  {
     versao: 492, data: '2026-11-04', titulo: 'O contorno da capinha dá duas voltas',
     itens: [
       { tipo: 'melhoria', texto: 'Ao entrar na playlist, o contorno da capinha da prévia agora faz a animação do Spotify. Ele dá duas voltas: na primeira, dois traços correm em volta da tela e somem; na segunda, voltam e crescem até fechar o contorno. Só depois o cartão de trás sai girando.' },
@@ -71,15 +77,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'A capinha ao lado do baixar abre a prévia: as músicas em tela cheia, uma de cada vez, com o clipe rodando um trecho de 30 s. Arraste para cima para passar para a próxima. O alto-falante liga o som, e tocar no cartão da música toca a playlist a partir dela.' },
       { tipo: 'novo', texto: '"Editar" abre uma tela para tirar músicas (⊖), mudar a ordem (segure e arraste) e selecionar várias de uma vez. Nada muda até tocar em Salvar. "Nome e detalhes" muda a capa, o nome e a descrição.' },
       { tipo: 'novo', texto: '"Vídeo" mostra as faixas com a imagem do clipe. "Mix" faz as músicas se emendarem, como num DJ. "Ordenar" mostra por título, artista ou pelas adicionadas por último, sem mudar a ordem da playlist. O ⋮ do topo tem compartilhar, trocar a capa, baixar, adicionar a outra playlist, transformar em repertório e excluir.' },
-    ],
-  },
-  {
-    versao: 483, data: '2026-11-04', titulo: 'A Biblioteca no jeito do Spotify',
-    itens: [
-      { tipo: 'novo', texto: 'A Biblioteca ganhou o topo do Spotify: o ícone do app (abre os Ajustes), "Sua biblioteca", a lupa e o +. A lupa abre a busca numa tela só dela, que acha repertórios, playlists, artistas e músicas salvas. O + cria um repertório, uma playlist ou uma música, ou importa arquivos.' },
-      { tipo: 'novo', texto: 'Os chips agora são Repertórios, Playlists, Artistas e Baixadas, numa fileira que rola de lado. Ao escolher um, fica só ele aceso, com o X para voltar a tudo.' },
-      { tipo: 'novo', texto: 'Em "Recentes", toque para escolher a ordem: Recentes, Adicionados recentemente, Ordem alfabética ou Criador. O botão ao lado troca entre grade e lista.' },
-      { tipo: 'melhoria', texto: 'A grade mostra três por linha no celular, com os artistas em fotos redondas misturados aos repertórios e às playlists. Músicas curtidas e Baixadas continuam fixadas no começo. Para excluir repertórios, segure o dedo num deles.' },
     ],
   },
 ];
