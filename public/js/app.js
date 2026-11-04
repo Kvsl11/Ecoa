@@ -3029,7 +3029,7 @@ const semLinhasDeAcordes = (sinc) => {
   // (noModoMusica: como fica depois de trocar para o modo música, para deixar o arquivo da outra versão já aberto)
   const localDe = (id, noModoMusica = comCapa) => {
     // o karaokê ligado, pronto e na gravação em que a letra acompanha: o arquivo dele (tocando ou não da internet)
-    if (karaokeLigado && grafoKaraoke && id && id === fonteDoKaraoke(musicaTocando()) && karaokeDe(id)) return { chave: chaveKaraoke(id), video: false, karaoke: true };
+    if (karaokeLigado && grafoKaraoke && id && id === fonteDoKaraoke(musicaTocando()) && ligadoNa?.fonte === id && ligadoNa.id === (musicaTocando()?.id || '') && karaokeDe(id)) return { chave: chaveKaraoke(id), video: false, karaoke: true };
     if (ehArquivo(id)) return { chave: id.slice(ARQ.length), video: false };
     const b = id && baixadoDe(id);
     if (!b) return null;
@@ -3613,6 +3613,7 @@ const semLinhasDeAcordes = (sinc) => {
   };
   const desligarKaraoke = () => {
     karaokeLigado = false;
+    ligadoNa = null;
     // a voz volta inteira, devagar, no mesmo arquivo (sem trocar de arquivo, sem engasgo); ele segue até a próxima música
     if (local?.karaoke) rampaDaVoz(1, 0.5);
     kEl.classList.remove('aberto');
@@ -3630,6 +3631,7 @@ const semLinhasDeAcordes = (sinc) => {
     g.ctx.resume().catch(() => {});
     const canais = conferirCanais();
     karaokeLigado = true;
+    ligadoNa = { id: song?.id || '', fonte };
     // (no clipe não há letra: vai já para o modo música, e a letra aparece enquanto o karaokê fica pronto)
     if (emVideo() && !comCapa) mudarModoAgora();
     desenharKaraoke();
@@ -3648,10 +3650,14 @@ const semLinhasDeAcordes = (sinc) => {
       prepararAgora(song, { avisar: true });
     });
   };
-  // outra música com o karaokê ligado: já começa sem a voz (o arquivo dela, se pronto) ou o servidor prepara o dela
+  // O karaokê vale só para a música em que a pessoa tocou no microfone: trocou de música (ou de gravação), ele desliga
+  // sozinho, e a próxima toca normal. Antes ele seguia ligado e o servidor preparava o karaokê de cada música seguinte,
+  // gastando os créditos com músicas em que ninguém pediu
   let karaokeDaMusica = '';
+  let ligadoNa = null; // { id, fonte }: a música (e a gravação) em que o karaokê foi ligado
   const acompanharKaraoke = () => {
     const fonte = fonteKaraokeAgora();
+    if (karaokeLigado && ligadoNa && ((musicaTocando()?.id || '') !== ligadoNa.id || fonte !== ligadoNa.fonte)) desligarKaraoke();
     if (fonte === karaokeDaMusica) return;
     karaokeDaMusica = fonte;
     desenharKaraoke();
