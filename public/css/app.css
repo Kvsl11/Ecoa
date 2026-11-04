@@ -4990,14 +4990,14 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .pl-mini-borda rect { fill: none; stroke: #b9d1d1; stroke-width: 2; vector-effect: non-scaling-stroke; }
 :root[data-theme="light"] .pl-mini-borda rect { stroke: #9fb0b8; }
 .pl-mini-atras { position: absolute; z-index: 1; top: 6px; bottom: 2px; left: 0; right: -1px; border-radius: 4px; background: #99adac;
-  transform-origin: 100% 100%; transform: rotate(13deg); } /* (inclinado, girando a partir de baixo, como o do Spotify: no alto ele sai
+  transform-origin: 100% 100%; transform: translateX(1.5px) rotate(15deg); } /* (inclinado, girando a partir de baixo, como o do Spotify: no alto ele sai
   bem para a direita e embaixo quase some atrás da tela) */
 /* ao entrar na playlist: o contorno se desenha em volta (dois traços crescendo de cantos opostos) e, no fim, o
    cartão de trás sai para a direita, girando até ficar inclinado */
 .pl-mini.entrando .pl-mini-borda rect { animation: pl-mini-borda 0.7s ease-in-out both; }
 .pl-mini.entrando .pl-mini-atras { animation: pl-mini-atras 0.35s 0.6s ease-out both; }
 @keyframes pl-mini-borda { from { stroke-dasharray: 0 50; } to { stroke-dasharray: 50 0; } }
-@keyframes pl-mini-atras { from { transform: rotate(0deg); opacity: 0; } to { transform: rotate(13deg); opacity: 1; } }
+@keyframes pl-mini-atras { from { transform: translateX(0) rotate(0deg); opacity: 0; } to { transform: translateX(1.5px) rotate(15deg); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pl-mini.entrando .pl-mini-borda rect, .pl-mini.entrando .pl-mini-atras { animation: none; } }
 .pl-mini-anim { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity 0.6s; }
 .pl-mini-anim.on { opacity: 1; }
