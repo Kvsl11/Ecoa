@@ -6,7 +6,8 @@ export const NOVIDADES = [
   {
     versao: 495, data: '2026-11-04', titulo: 'Entre com o Google e tenha o seu perfil',
     itens: [
-      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Entrar é opcional: sem conta, tudo continua funcionando só neste aparelho. Os downloads continuam sendo de cada aparelho.' },
+      { tipo: 'novo', texto: 'O Ecoa agora abre com uma tela de entrada: para usar o app, entre com a sua conta Google. Você entra uma vez e continua entrado no aparelho, mesmo fechando o app, até tocar em Sair da conta (no ⋯ do seu perfil).' },
+      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Os downloads continuam sendo de cada aparelho.' },
       { tipo: 'novo', texto: 'A sua foto aparece no canto de cima, como no Spotify. Tocando nela, abre a gaveta do perfil, com as suas informações: o e-mail da conta e quando ela sincronizou, quantas músicas curtidas, repertórios, artistas e baixadas você tem, a música que você tocou por último e a versão do app. Embaixo ficam Ver perfil, Novidades, Tocadas recentemente e Ajustes.' },
       { tipo: 'novo', texto: 'A página do perfil tem o topo na cor da sua foto, o seu nome com quantos repertórios e músicas você tem, os botões Editar (para mudar o nome), Ajustes e ⋯ (Compartilhar o Ecoa, Sincronizar agora, Sair da conta), os seus repertórios e os artistas que você tocou recentemente.' },
     ],

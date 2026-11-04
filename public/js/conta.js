@@ -1,4 +1,4 @@
-// Conta Google (opcional): entrar com o Gmail e ter a mesma biblioteca (músicas, repertórios e tocadas
+// Conta Google (obrigatória: o app abre com a tela de entrada do index.html): entrar com o Gmail e ter a mesma biblioteca (músicas, repertórios e tocadas
 // recentemente) em todos os aparelhos. Usa o Firebase (Authentication + Firestore) do projeto "ecoa-82a51".
 // - Quem nunca entrou não baixa nada do Firebase: o SDK só carrega ao tocar em "Entrar com Google" ou se a pessoa
 //   já entrou neste aparelho.
@@ -60,7 +60,7 @@ function ouvir({ auth, A }) {
   ouvindo = true;
   A.onAuthStateChanged(auth, (u) => {
     if (u) definir(u);
-    else if (usuarioConta()) { gravarJSON(CHAVE, null); avisar(); } // saiu (ou a sessão acabou) em outro lugar
+    else { if (usuarioConta()) gravarJSON(CHAVE, null); avisar(); } // sem sessão: saiu (ou acabou) em outro lugar, ou voltou do Google sem entrar
   });
 }
 function definir(u) {

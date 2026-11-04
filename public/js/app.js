@@ -15063,7 +15063,7 @@ function viewConta() {
       else { navigator.clipboard?.writeText(url); toast('Link copiado'); }
     } else if (v === 'sinc') sincronizar({ forcar: true });
     else if (v === 'sair') {
-      if (!(await ask({ title: 'Sair da conta?', text: 'As músicas e os repertórios continuam neste aparelho, e a cópia continua na sua conta Google. O que você mudar aqui depois de sair não vai para os outros aparelhos.', ok: 'Sair' }))) return;
+      if (!(await ask({ title: 'Sair da conta?', text: 'Para usar o Ecoa de novo, é só entrar com o Google. As suas músicas e os repertórios continuam guardados na sua conta.', ok: 'Sair' }))) return;
       await sairDaConta();
       viewConta();
     }
@@ -15079,6 +15079,39 @@ function viewConta() {
 }
 
 addEventListener('songbook:conta', desenharFotoDoPerfil);
+
+// A tela de entrada: o app só abre para quem entrou com a conta Google. Ela já vem no index.html (aparece antes de o
+// app carregar, com a classe sem-conta no <html>); entrando, some e o app abre na tela em que estava. Continua entrado
+// (o Firebase guarda a sessão no aparelho) até a pessoa tocar em Sair, que volta para esta tela
+function ligarTelaDeEntrada() {
+  const raiz = document.documentElement.classList;
+  const botao = $('#entrada-google');
+  const rotulo = $('#entrada-rotulo');
+  const erro = $('#entrada-erro');
+  const esperando = (sim) => { botao.disabled = sim; rotulo.textContent = sim ? 'Entrando…' : 'Entrar com o Google'; };
+  // (voltando da página do Google, no jeito sem janelinha: espera o Firebase confirmar)
+  let voltando = false;
+  try { voltando = sessionStorage.getItem('songbook.conta.entrando') === '1'; } catch { /* sem sessionStorage */ }
+  if (voltando && !usuarioConta()) esperando(true);
+  botao.onclick = async () => {
+    erro.textContent = '';
+    esperando(true);
+    try { await entrarComGoogle(); } catch (e) { erro.textContent = e.message; }
+    esperando(false);
+  };
+  const conferir = () => {
+    const sem = !usuarioConta();
+    const estava = raiz.contains('sem-conta');
+    raiz.toggle('sem-conta', sem);
+    if (sem) {
+      if (!estava) { player.fechar(); esperando(false); } // saiu da conta: a música para e volta a tela de entrada
+      else if (voltando && !estadoConta.sincronizando) { voltando = false; esperando(false); }
+      if (estadoConta.erro) erro.textContent = estadoConta.erro;
+    } else if (estava) { erro.textContent = ''; esperando(false); route(); }
+  };
+  addEventListener('songbook:conta', conferir);
+  conferir();
+}
 // chegou da nuvem o que mudou em outro aparelho: as listas na tela se atualizam (as telas de trabalho, como a música
 // aberta, o editor e o player, não são redesenhadas no meio do uso)
 addEventListener('songbook:nuvem', () => {
@@ -18097,6 +18130,7 @@ $('#side-sets').addEventListener('click', (e) => { const li = e.target.closest('
 window.addEventListener('hashchange', route);
 applyTheme();
 desenharFotoDoPerfil();
+ligarTelaDeEntrada();
 iniciarConta();
 let rotaInicial = true; // a 1ª tela ao abrir/recarregar o app
 route();

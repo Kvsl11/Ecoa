@@ -5183,3 +5183,28 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-ultima b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-ultima small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-versao { margin: 8px 16px 0; color: var(--subtle); font-size: 12px; }
+
+/* ---- tela de entrada: o app só abre com a conta Google */
+.entrada { display: none; }
+html.sem-conta body { overflow: hidden; }
+html.sem-conta .shell, html.sem-conta #player { visibility: hidden; }
+html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow-y: auto;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); background: #0b0f12; color: #fff; }
+.entrada-fundo { position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 65%),
+    radial-gradient(80% 50% at 100% 100%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%); }
+.entrada-conteudo { position: relative; width: min(100%, 420px); display: grid; justify-items: center; text-align: center; gap: 14px; }
+.entrada-logo { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.5); }
+.entrada h1 { margin: 4px 0 0; font-size: 44px; font-weight: 900; letter-spacing: -0.03em; }
+.entrada-frase { margin: 0; color: rgb(255 255 255 / 0.78); font-size: 16px; line-height: 1.45; }
+.entrada-lista { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; gap: 10px; width: 100%; text-align: left; }
+.entrada-lista li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: rgb(255 255 255 / 0.06); font-size: 14px; line-height: 1.35; }
+.entrada-lista span { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; font-size: 16px; }
+.entrada-google { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 6px;
+  border: 0; border-radius: 999px; background: #fff; color: #1f1f1f; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+.entrada-google:active { transform: scale(0.98); }
+.entrada-google:disabled { opacity: 0.7; cursor: default; }
+.entrada-google:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.entrada-erro { margin: 0; min-height: 1em; color: #fbbf24; font-size: 14px; line-height: 1.4; }
+.entrada-erro:empty { display: none; }
+.entrada-nota { margin: 0; color: rgb(255 255 255 / 0.55); font-size: 13px; }
