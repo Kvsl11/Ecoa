@@ -1417,6 +1417,10 @@ const REVISOES = [
   // (ele ouvia a letra com a linha errada de referência). v481: e a edição feita para a duração do áudio que toca, se a
   // guardada é de outro master (em "Club Tropicana", 268 s contra 266 s, e a letra 4,5 s atrasada). A feita à mão fica
   { rev: 9, consertarLinhas: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.tempos?.length > 3 && Boolean(s.title) },
+  // v482: a foto do artista da Wikipédia que era a do artigo de outra coisa com o mesmo nome (o Justice com uma estátua
+  // da Justiça: o artigo "Justice" é o do conceito, o da dupla é "Justice (band)"): sai, e a foto é procurada de novo
+  // (paginaDoMusico). A da página certa fica
+  { rev: 10, fotoWikipedia: true, quais: (s) => Boolean(s.fotoArtista && s.artist) && /wikimedia\.org\//.test(s.fotoArtista) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1488,6 +1492,23 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   // a foto do artista que veio de outro artista da busca do Cifra Club (de nome parecido): sai, e também a guardada
   // para o nome, para a do artista certo ser procurada de novo
+  if (quer('fotoWikipedia') && s.fotoArtista) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const certa = await fotoWikipedia(s.artist).catch(() => null);
+      s = db.song(id);
+      if (!s) return true;
+      // (a mesma foto em outro tamanho é a mesma: pelo nome do arquivo)
+      const arquivo = (u) => /\/([^/]+?\.(?:jpe?g|png|webp|gif))(?:\/|$|\?)/i.exec(String(u || '').replace(/\/\d+px-[^/]+$/, ''))?.[1] || u;
+      if (certa === null) completa = false;
+      else if (s.fotoArtista && arquivo(certa) !== arquivo(s.fotoArtista)) {
+        db.updateSong(id, { fotoArtista: undefined });
+        esquecerFotoDoArtista(s.artist);
+      }
+    }
+    s = db.song(id);
+    if (!s) return true;
+  }
   if (quer('fotoOutroArtista')) {
     if (!navigator.onLine) completa = false;
     else {
@@ -7535,7 +7556,10 @@ async function fotosDaWikipedia(nome) {
   };
   for (const lingua of ['en', 'pt']) {
     try {
-      const r = await fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(nome)}&redirects=1&generator=images&gimlimit=60&prop=imageinfo&iiprop=url|size&iiurlwidth=900&format=json&origin=*`).then((x) => x.json());
+      // (o artigo do artista, não o do nome: "Justice" é o da justiça, com as estátuas dela; o da dupla é "Justice (band)")
+      const pagina = (await paginaDoMusico(nome, lingua))?.titulo;
+      if (!pagina) continue;
+      const r = await fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pagina)}&redirects=1&generator=images&gimlimit=60&prop=imageinfo&iiprop=url|size&iiurlwidth=900&format=json&origin=*`).then((x) => x.json());
       const fotos = Object.values(r?.query?.pages || {})
         .filter((pg) => /\.jpe?g$/i.test(pg.title || '') && ehFotoDele(pg.title) && (pg.imageinfo?.[0]?.width || 0) >= 400 && pg.imageinfo?.[0]?.thumburl)
         .map((pg) => pg.imageinfo[0].thumburl);
@@ -7544,7 +7568,8 @@ async function fotosDaWikipedia(nome) {
   }
   return [];
 }
-const fotosDaWikipediaGuardadas = (nome) => comUltimoValor('fotoswiki', nome, fotosDaWikipedia(nome));
+// (a chave nova: as guardadas antes podiam ser as do artigo de outra coisa com o mesmo nome, como as estátuas da Justiça)
+const fotosDaWikipediaGuardadas = (nome) => comUltimoValor('fotoswiki2', nome, fotosDaWikipedia(nome));
 // As fotos em tela cheia (tocando numa foto do "Sobre o artista"), inteiras, no fundo preto: passam para o lado com o
 // dedo (celular e tablet) ou com as setas, na tela e no teclado (computador); puxar para baixo, o X, o Esc ou o voltar
 // fecham (o voltar fecha só as fotos)
@@ -7855,13 +7880,37 @@ async function abrirSobreArtista({ nome, slug = '' }) {
     location.hash = destino;
   });
 }
+// A página da Wikipédia que é mesmo do artista (um músico, uma banda, uma dupla…), pela descrição dela. A página com o
+// nome exato nem sempre é: "Justice", na Wikipédia em inglês, é a do conceito de justiça (e a foto, uma estátua da
+// Justiça), e a da dupla francesa é "Justice (band)"; em português, "Justice" é uma desambiguação. Procura o nome e os
+// nomes com o que a Wikipédia põe entre parênteses para os músicos. { titulo, foto } ou null
+const MUSICO_EN = /\b(singer|band|musician|music|musical|duo|rapper|group|songwriter|composer|producer|dj|vocalist|guitarist|pianist|choir|orchestra|ensemble|trio|quartet|artist)\b/i;
+const VARIANTES_MUSICO = { en: ['band', 'duo', 'musician', 'singer', 'rapper', 'group', 'DJ'], pt: ['banda', 'dupla', 'cantor', 'cantora', 'músico', 'grupo', 'rapper'] };
+const paginasDeMusico = new Map();
+function paginaDoMusico(nome, lingua) {
+  const k = `${lingua}:${normalizar(nome)}`;
+  if (!paginasDeMusico.has(k)) {
+    const titulos = [nome, ...VARIANTES_MUSICO[lingua].map((v) => `${nome} (${v})`)];
+    paginasDeMusico.set(k, fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titulos.join('|'))}&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&format=json&origin=*`)
+      .then((x) => x.json()).then((r) => {
+        const q = r?.query || {};
+        // (o título pedido → o da página, passando pelos redirecionamentos)
+        const destino = (t) => { let x = (q.normalized || []).find((n) => n.from === t)?.to || t; x = (q.redirects || []).find((n) => n.from === x)?.to || x; return x; };
+        const paginas = Object.values(q.pages || {}).filter((pg) => !('missing' in pg));
+        for (const t of titulos) {
+          const pg = paginas.find((x) => x.title === destino(t));
+          const d = pg?.description || '';
+          if (pg && !/desambigua|disambiguation/i.test(d) && (MUSICO.test(d) || MUSICO_EN.test(d))) return { titulo: pg.title, foto: pg.thumbnail?.source || '' };
+        }
+        return null;
+      }).catch(() => { paginasDeMusico.delete(k); return null; }));
+  }
+  return paginasDeMusico.get(k);
+}
 async function fotoWikipedia(nome) {
   for (const lingua of ['pt', 'en']) {
-    try {
-      const r = await fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(nome)}&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json&origin=*`).then((x) => x.json());
-      const pg = Object.values(r?.query?.pages || {})[0];
-      if (pg?.thumbnail?.source) return pg.thumbnail.source;
-    } catch { /* sem internet ou sem página */ }
+    const pg = await paginaDoMusico(nome, lingua);
+    if (pg?.foto) return pg.foto;
   }
   return '';
 }
