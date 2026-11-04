@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 492, data: '2026-11-04', titulo: 'O contorno da capinha dá duas voltas',
+    itens: [
+      { tipo: 'melhoria', texto: 'Ao entrar na playlist, o contorno da capinha da prévia agora faz a animação do Spotify. Ele dá duas voltas: na primeira, dois traços correm em volta da tela e somem; na segunda, voltam e crescem até fechar o contorno. Só depois o cartão de trás sai girando.' },
+      { tipo: 'melhoria', texto: 'O cartão de trás ficou um pouco mais recolhido atrás da tela.' },
+    ],
+  },
+  {
     versao: 491, data: '2026-11-04', titulo: 'O cartão inclinado e a sombra da capinha',
     itens: [
       { tipo: 'melhoria', texto: 'O cartão atrás da capinha da prévia agora fica inclinado, como no Spotify: no alto ele aparece à direita da tela e, embaixo, fica escondido atrás dela. Ao entrar na playlist, ele sai girando até ficar nessa posição.' },
@@ -73,12 +80,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Os chips agora são Repertórios, Playlists, Artistas e Baixadas, numa fileira que rola de lado. Ao escolher um, fica só ele aceso, com o X para voltar a tudo.' },
       { tipo: 'novo', texto: 'Em "Recentes", toque para escolher a ordem: Recentes, Adicionados recentemente, Ordem alfabética ou Criador. O botão ao lado troca entre grade e lista.' },
       { tipo: 'melhoria', texto: 'A grade mostra três por linha no celular, com os artistas em fotos redondas misturados aos repertórios e às playlists. Músicas curtidas e Baixadas continuam fixadas no começo. Para excluir repertórios, segure o dedo num deles.' },
-    ],
-  },
-  {
-    versao: 482, data: '2026-11-04', titulo: 'A foto certa do artista',
-    itens: [
-      { tipo: 'correcao', texto: 'Alguns artistas apareciam com uma foto que não era deles. O Justice, por exemplo, vinha com uma estátua da Justiça. Quando não achava a foto em outro lugar, o app pegava a da página da Wikipédia com o mesmo nome, e "Justice" é a página do conceito de justiça. Agora só vale a página que é mesmo do artista, como "Justice (band)", e as fotos do "Sobre o artista" vêm dela. As músicas já salvas com a foto errada ganham a foto certa sozinhas.' },
     ],
   },
 ];
