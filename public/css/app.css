@@ -5104,3 +5104,67 @@ dialog.pk-varias .pk-item { grid-template-columns: auto auto minmax(0, 1fr); }
 li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-accent); }
 .pk-acts { flex-wrap: nowrap; align-items: center; }
 .pk-acts [hidden] { display: none; }
+
+/* ---- perfil e conta Google (como no Spotify): a foto no topo, a gaveta da esquerda e a página do perfil */
+.avatar { --t: 32px; position: relative; display: inline-grid; place-items: center; width: var(--t); height: var(--t); flex: none;
+  border-radius: 50%; overflow: hidden; background: hsl(var(--h, 190) 45% 42%); color: #fff; font-weight: 800;
+  font-size: calc(var(--t) * 0.45); line-height: 1; user-select: none; }
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar.vazio { background: var(--surface-2); color: var(--muted); }
+.perfil-btn { display: inline-grid; place-items: center; padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; flex: none; }
+.perfil-btn[hidden] { display: none; }
+.perfil-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.perfil-gaveta { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / 0); transition: background 0.25s; touch-action: pan-y; }
+.perfil-gaveta.aberta { background: rgb(0 0 0 / 0.6); }
+.pg-painel { position: absolute; top: 0; bottom: 0; left: 0; width: min(85vw, 340px); background: var(--bg-elev); overflow-y: auto;
+  padding: calc(16px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-100%); transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 8px 0 32px rgb(0 0 0 / 0.4); }
+.perfil-gaveta.aberta .pg-painel { transform: none; }
+.pg-cab { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 16px 16px; border: 0; border-bottom: 1px solid var(--border);
+  background: none; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+.pg-cab .grow { min-width: 0; display: grid; gap: 2px; }
+.pg-cab b { font-size: 18px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-cab small { color: var(--muted); font-size: 13px; }
+.pg-lista { display: grid; padding: 8px 0; }
+.pg-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 16px; border: 0; background: none; color: var(--text);
+  font: inherit; font-size: 16px; text-align: left; text-decoration: none; cursor: pointer; }
+.pg-item svg { color: var(--muted); flex: none; }
+.pg-item:hover, .pg-item:focus-visible { background: var(--surface-2); }
+.pg-estado { margin: 4px 16px 0; color: var(--muted); font-size: 13px; }
+
+.perfil { padding: 0 16px 120px; }
+.perfil-topo { display: flex; align-items: center; gap: 16px; margin: 0 -16px; padding: calc(72px + env(safe-area-inset-top)) 16px 18px;
+  background: linear-gradient(to bottom, var(--tint), color-mix(in srgb, var(--tint) 40%, var(--bg))); }
+.perfil-topo .avatar { box-shadow: 0 8px 28px rgb(0 0 0 / 0.45); }
+.perfil-nome { min-width: 0; }
+.perfil-nome h2 { margin: 0 0 6px; font-size: clamp(24px, 7vw, 40px); font-weight: 900; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.perfil-nome p { margin: 0; color: color-mix(in srgb, var(--text) 75%, transparent); font-size: 14px; }
+.perfil-nome p b { color: var(--text); }
+.perfil-acoes { display: flex; align-items: center; gap: 8px; margin: 0 -16px; padding: 12px 16px 6px;
+  background: color-mix(in srgb, var(--tint) 40%, var(--bg)); }
+.perfil-pilula { border-radius: 999px; border: 1px solid color-mix(in srgb, var(--text) 45%, transparent); background: none; color: var(--text); font-weight: 700; padding: 6px 16px; text-decoration: none; }
+.perfil-acoes .icon-btn { color: var(--text); }
+.perfil-sinc { margin: 0 -16px; padding: 4px 16px 14px; font-size: 13px; color: var(--muted);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--tint) 40%, var(--bg)), var(--bg)); }
+.perfil-sinc.erro { color: #f59e0b; }
+.perfil-entrar { padding: 18px 0 8px; display: grid; gap: 16px; justify-items: start; }
+.perfil-entrar p { margin: 0; color: var(--muted); line-height: 1.5; max-width: 560px; }
+.perfil-google { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; padding: 12px 22px; font-weight: 800; background: #fff; color: #1f1f1f; }
+.perfil-sec { margin-top: 22px; }
+.perfil-sec-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.perfil-sec-cab h3 { margin: 0; font-size: 20px; font-weight: 800; }
+.perfil-sec-cab a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; font-weight: 700; text-decoration: none; }
+.perfil-linha { display: flex; align-items: center; gap: 12px; padding: 8px 0; color: var(--text); text-decoration: none; }
+.perfil-linha[hidden] { display: none; }
+.perfil-linha .cover { width: 52px; height: 52px; flex: none; }
+.perfil-linha .grow { min-width: 0; display: grid; gap: 2px; }
+.perfil-linha b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfil-linha small { color: var(--muted); font-size: 13px; }
+.perfil-artista { position: relative; display: grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 50%; overflow: hidden;
+  background: hsl(var(--h, 190) 30% 30%); color: #fff; }
+.perfil-artista img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.perfil-ver { display: block; width: max-content; margin: 10px auto 0; }
+.perfil-folha-cab { display: flex; align-items: center; gap: 12px; padding: 0 4px 6px; }
+.perfil-folha-cab b { font-size: 16px; }
+.perfil-folha-email { margin: 0 4px 8px; font-size: 13px; }

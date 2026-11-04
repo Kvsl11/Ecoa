@@ -338,6 +338,22 @@ No celular, abra o link e use **"Adicionar à tela inicial"** para instalar como
 > Se o repositório for privado, o GitHub Pages exige um plano pago (Pro/Team). Com o plano gratuito,
 > o repositório precisa ser público.
 
+## Conta Google e perfil (Firebase)
+
+Entrar com o Google é opcional. Quem entra tem as músicas, os repertórios e as tocadas recentemente guardados na conta
+(Firestore) e vê tudo igual em qualquer aparelho. Os downloads, o áudio próprio e o karaokê continuam sendo de cada
+aparelho. A foto da conta aparece no canto de cima das telas principais e abre a gaveta do perfil; a página do perfil
+fica em `#/conta`. O código está em `public/js/conta.js` e a lógica da sincronia em `public/js/lib/sincronia-conta.js`
+(testada em `test/sincronia-conta.test.js`).
+
+Configuração no Firebase (projeto `ecoa-82a51`), uma vez só:
+
+1. **Authentication → Método de login → Google**: ativar.
+2. **Authentication → Configurações → Domínios autorizados**: adicionar `kvsl11.github.io` (o `localhost` já vem).
+3. **Firestore Database → Criar banco de dados** (modo de produção; região `southamerica-east1`, São Paulo).
+4. **Firestore Database → Regras**: colar o conteúdo de [`firestore.rules`](firestore.rules) e **Publicar**. Assim cada
+   pessoa só lê e escreve a própria biblioteca.
+
 ## Rodar localmente (opcional)
 
 Requer Node.js 20+. O servidor também expõe uma API `/api/*`, usada como reserva se a busca direta falhar.

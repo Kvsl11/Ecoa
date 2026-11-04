@@ -19,6 +19,7 @@ import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
+import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
@@ -196,6 +197,7 @@ const titleEl = $('#title');
 const eyebrowEl = $('#eyebrow');
 const actionsEl = $('#top-actions');
 const backBtn = $('#btn-back');
+const perfilBtn = $('#btn-perfil');
 const topbar = $('.topbar');
 
 backBtn.innerHTML = icon('back', 20);
@@ -393,6 +395,8 @@ function setHeader(title, { back = null, actions = [], eyebrow = '' } = {}) {
   eyebrowEl.textContent = eyebrow;
   document.title = `${title} · Ecoa`;
   backBtn.hidden = !back;
+  // a foto do perfil no canto de cima, como no Spotify: nas telas principais (as que não têm a seta de voltar)
+  perfilBtn.hidden = Boolean(back);
   backBtn.onclick = back ? () => (typeof back === 'string' ? (location.hash = back) : back()) : null;
   backBtn.dataset.volta = typeof back === 'string' ? back : ''; // (para onde a seta leva: também ao sair da música presa)
   actionsEl.replaceChildren(...actions.map(({ icon: ic, html, label, onClick, href }) => {
@@ -14541,6 +14545,7 @@ function viewTopicosAjustes() {
   const resumo = (t) => {
     if (t.id === 'qualidade') return `Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}`;
     if (t.id === 'permissoes') return `Notificações: ${ROTULO_PERMISSAO[estadoDasNotificacoes()]} · Microfone`;
+    if (t.id === 'conta') { const u = usuarioConta(); if (u) return `${u.email || u.nome} · ${estadoConta.erro ? 'sem sincronizar' : 'sincronizada'}`; }
     if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Armazenamento · Cache`; }
     return t.s;
   };
@@ -14674,6 +14679,7 @@ function viewQualidade() {
 // Os ajustes por tópicos, como no Spotify: a tela de Ajustes é uma lista (cada tópico com o resumo do que tem) e cada
 // um abre a sua página (antes ficava tudo junto numa tela só, comprida)
 const TOPICOS_AJUSTES = [
+  { id: 'conta', href: '#/conta', ic: 'pessoa', t: 'Conta', s: 'Entre com o Google e tenha a biblioteca em todos os aparelhos' },
   { id: 'aparencia', secao: 'Aparência', ic: 'palette', t: 'Aparência', s: 'Modo escuro ou claro · Cor de destaque' },
   { id: 'musica', secao: 'Música', ic: 'chord', t: 'Música e cifra', s: 'Crossfade e automix · Destaque e diagrama dos acordes · Capa animada' },
   { id: 'qualidade', href: '#/qualidade', ic: 'gauge', t: 'Qualidade de mídia', s: 'Qualidade do download do áudio e do vídeo' },
@@ -14860,7 +14866,10 @@ function viewSettings(topico) {
   $('#exp').onclick = () => download(`songbook-backup-${hojeISO()}.json`, db.exportAll(), 'application/json');
   $('#imp').onclick = openImport;
   $('#clr').onclick = async () => {
-    if (!(await ask({ title: 'Apagar tudo?', text: 'Todas as músicas e repertórios deste aparelho serão removidos. Faça um backup antes.', ok: 'Apagar tudo', danger: true }))) return;
+    const naConta = Boolean(usuarioConta());
+    if (!(await ask({ title: 'Apagar tudo?', text: naConta ? 'Todas as músicas e repertórios deste aparelho serão removidos e a sua conta sai deste aparelho. A cópia na sua conta Google continua: é só entrar de novo para ela voltar.' : 'Todas as músicas e repertórios deste aparelho serão removidos. Faça um backup antes.', ok: 'Apagar tudo', danger: true }))) return;
+    // (com a conta: sai dela antes, senão o apagar iria para a nuvem e para os outros aparelhos)
+    if (naConta) await sairDaConta();
     db.clear();
     applyTheme();
     desenharLateral();
@@ -14868,6 +14877,193 @@ function viewSettings(topico) {
     viewSettings();
   };
 }
+
+// ---------------------------------------------------------------- perfil e conta Google (como no Spotify)
+// A foto redonda no canto de cima (Início, Busca, Biblioteca…) abre a gaveta do perfil, que vem da esquerda; "Ver
+// perfil" abre a página do perfil (#/conta): o topo na cor da foto, o nome, Editar, os ajustes e o ⋯, os repertórios e
+// os artistas tocados recentemente. Sem conta, a foto é o bonequinho e a gaveta convida a entrar com o Google.
+const LOGO_GOOGLE = '<svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+const fotoGrande = (u) => (u?.foto || '').replace(/=s\d+-c$/, '=s400-c');
+function avatarHtml(u, tam, { grande = false } = {}) {
+  if (!u) return `<span class="avatar vazio" style="--t:${tam}px">${icon('pessoa', Math.round(tam * 0.55))}</span>`;
+  const nome = u.nome || u.email || '?';
+  const foto = grande ? fotoGrande(u) : u.foto;
+  // (a inicial fica atrás: se a foto não carregar, aparece ela, como no Spotify)
+  return `<span class="avatar" style="--t:${tam}px;--h:${hue(nome)}">${esc(nome.trim()[0]?.toUpperCase() || '?')}${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+}
+function desenharFotoDoPerfil() {
+  const u = usuarioConta();
+  perfilBtn.innerHTML = avatarHtml(u, 32);
+  perfilBtn.setAttribute('aria-label', u ? `Seu perfil: ${u.nome || u.email}` : 'Seu perfil: entrar com o Google');
+}
+perfilBtn.onclick = () => abrirGavetaDoPerfil();
+
+function resumoDaSincronia() {
+  const u = usuarioConta();
+  if (!u) return '';
+  if (estadoConta.sincronizando) return 'Sincronizando…';
+  if (estadoConta.erro) return estadoConta.erro;
+  if (!estadoConta.ultima) return 'Biblioteca na sua conta Google';
+  const min = Math.round((Date.now() - estadoConta.ultima) / 60e3);
+  return `Sincronizada ${min < 1 ? 'agora' : `há ${min} min`}`;
+}
+
+async function entrarPelaTela() {
+  try {
+    if (await entrarComGoogle()) toast('Pronto! A sua biblioteca está na sua conta Google');
+  } catch (e) {
+    await ask({ title: 'Não deu para entrar', text: e.message, ok: 'Ok' });
+  }
+}
+
+function abrirGavetaDoPerfil() {
+  if (document.querySelector('.perfil-gaveta')) return;
+  const u = usuarioConta();
+  const g = document.createElement('div');
+  g.className = 'perfil-gaveta';
+  const item = (ic, t, attrs) => `<${attrs.startsWith('href') ? 'a' : 'button'} class="pg-item" ${attrs}>${icon(ic, 22)}<span>${t}</span></${attrs.startsWith('href') ? 'a' : 'button'}>`;
+  g.innerHTML = `<nav class="pg-painel" aria-label="Seu perfil">
+      ${u ? `<a class="pg-cab" href="#/conta">${avatarHtml(u, 48)}<span class="grow"><b>${esc(u.nome || u.email)}</b><small>Ver perfil</small></span></a>`
+    : `<button class="pg-cab" data-entrar>${avatarHtml(null, 48)}<span class="grow"><b>Entrar com o Google</b><small>Sua biblioteca em todos os aparelhos</small></span></button>`}
+      <div class="pg-lista">
+        ${item('sparkles', 'Novidades', 'href="#/novidades"')}
+        ${item('clock', 'Tocadas recentemente', 'href="#/biblioteca"')}
+        ${item('settings', 'Ajustes', 'href="#/ajustes"')}
+        ${u ? item('refresh', 'Sincronizar agora', 'data-sinc') : ''}
+      </div>
+      ${u ? `<p class="pg-estado" id="pg-estado">${esc(resumoDaSincronia())}</p>` : ''}
+    </nav>`;
+  document.body.append(g);
+  const fechar = () => {
+    g.classList.remove('aberta');
+    removeEventListener('hashchange', fechar);
+    removeEventListener('songbook:conta', atualizar);
+    removeEventListener('keydown', aoTeclar);
+    setTimeout(() => g.remove(), 260);
+  };
+  const atualizar = () => { const el = $('#pg-estado', g); if (el) el.textContent = resumoDaSincronia(); };
+  g.addEventListener('click', (e) => {
+    if (e.target === g || e.target.closest('a')) { fechar(); return; }
+    if (e.target.closest('[data-entrar]')) { fechar(); entrarPelaTela(); return; }
+    if (e.target.closest('[data-sinc]')) sincronizar({ forcar: true });
+  });
+  // arrastar para a esquerda fecha
+  let x0 = null;
+  g.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+  g.addEventListener('pointerup', (e) => { if (x0 != null && x0 - e.clientX > 60) fechar(); x0 = null; });
+  addEventListener('hashchange', fechar);
+  addEventListener('songbook:conta', atualizar);
+  const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
+  addEventListener('keydown', aoTeclar);
+  requestAnimationFrame(() => requestAnimationFrame(() => g.classList.add('aberta')));
+}
+
+// os artistas das tocadas recentemente (sem repetir), com a foto e quantas músicas dele estão na biblioteca
+function artistasRecentes() {
+  const vistos = new Map();
+  for (const s of db.recent()) {
+    const nome = (s.artist || '').trim();
+    const k = normalizar(nome);
+    if (!nome || vistos.has(k)) continue;
+    vistos.set(k, { nome, foto: s.fotoArtista || fotoConhecida(nome), n: db.songs().filter((x) => !x.soNoRepertorio && normalizar(x.artist || '') === k).length });
+  }
+  return [...vistos.values()];
+}
+
+function viewConta() {
+  setTab('');
+  const u = usuarioConta();
+  setHeader(u ? (u.nome || u.email) : 'Perfil', { back: '#/' });
+  const sets = db.sets();
+  const musicas = db.songs().filter((s) => !s.soNoRepertorio).length;
+  const cor = u ? `hsl(${hue(u.nome || u.email)} 35% 32%)` : '#3a3a3a';
+  setTint(cor);
+  view.innerHTML = `<div class="perfil">
+    <section class="perfil-topo">
+      ${avatarHtml(u, 112, { grande: true })}
+      <div class="perfil-nome">
+        <h2>${esc(u ? (u.nome || u.email) : 'Seu perfil')}</h2>
+        <p>${u ? `<b>${sets.length}</b> repertório${sets.length === 1 ? '' : 's'} · <b>${musicas}</b> música${musicas === 1 ? '' : 's'}` : 'Entre com a sua conta Google'}</p>
+      </div>
+    </section>
+    ${u ? `
+    <div class="perfil-acoes">
+      <button class="btn small perfil-pilula" id="pf-editar">Editar</button>
+      <a class="icon-btn" href="#/ajustes" aria-label="Ajustes" title="Ajustes">${icon('settings', 20)}</a>
+      <button class="icon-btn" id="pf-mais" aria-label="Mais opções" title="Mais opções">${icon('more', 20)}</button>
+    </div>
+    <p class="perfil-sinc" id="pf-sinc">${esc(resumoDaSincronia())}</p>` : `
+    <div class="perfil-entrar">
+      <p>Entrando com o Gmail, as suas músicas, os repertórios e as tocadas recentemente ficam guardados na sua conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá. Sem entrar, tudo continua funcionando, só neste aparelho.</p>
+      <button class="btn primary perfil-google" id="pf-entrar">${LOGO_GOOGLE} Entrar com o Google</button>
+    </div>`}
+    <div id="pf-listas"></div>
+  </div>`;
+  if (u) {
+    // o topo na cor da foto (como o Spotify), quando der para ler a foto
+    corDaCapa({ cover: u.foto, title: u.nome || u.email }).then((c) => { if (c && location.hash === '#/conta') setTint(c); }).catch(() => {});
+  }
+  const listas = () => {
+    const el = $('#pf-listas');
+    if (!el) return;
+    const s = db.sets();
+    const artistas = artistasRecentes();
+    el.innerHTML = `${s.length ? `
+      <section class="perfil-sec"><div class="perfil-sec-cab"><h3>Repertórios</h3><a href="#/repertorios">${icon('edit', 15)} Gerenciar</a></div>
+        ${s.slice(0, 3).map((x) => `<a class="perfil-linha" href="#/repertorio/${encodeURIComponent(x.id)}">${capaRepertorio(x, 'sm')}<span class="grow"><b>${esc(x.name)}</b><small>${tipoDoSet(x)} · ${x.items.length} música${x.items.length === 1 ? '' : 's'}</small></span></a>`).join('')}
+        ${s.length > 3 ? '<a class="btn small perfil-pilula perfil-ver" href="#/repertorios">Ver todos os repertórios</a>' : ''}
+      </section>` : ''}
+      ${artistas.length ? `
+      <section class="perfil-sec"><div class="perfil-sec-cab"><h3>Artistas tocados recentemente</h3></div>
+        <div id="pf-artistas">${artistas.map((a, i) => `<a class="perfil-linha"${i >= 3 ? ' hidden' : ''} href="#/artista-pelo-nome/${encodeURIComponent(a.nome)}"><span class="perfil-artista" style="--h:${hue(a.nome)}">${a.foto ? `<img src="${esc(a.foto)}" alt="" loading="lazy" onerror="this.remove()">` : icon('artistaSemFoto', 22)}</span><span class="grow"><b>${esc(a.nome)}</b><small>${a.n} música${a.n === 1 ? '' : 's'} na biblioteca</small></span></a>`).join('')}</div>
+        ${artistas.length > 3 ? '<button class="btn small perfil-pilula perfil-ver" id="pf-todos-artistas">Ver todos os artistas</button>' : ''}
+      </section>` : ''}`;
+    const todos = $('#pf-todos-artistas');
+    if (todos) todos.onclick = () => { $('#pf-artistas').querySelectorAll('[hidden]').forEach((a) => { a.hidden = false; }); todos.remove(); };
+  };
+  listas();
+  $('#pf-entrar')?.addEventListener('click', entrarPelaTela);
+  $('#pf-editar')?.addEventListener('click', async () => {
+    const nome = await ask({ title: 'Editar perfil', text: 'O nome que aparece no seu perfil.', value: u.nome || '', ok: 'Salvar' });
+    if (!nome) return;
+    try { await editarNomeDaConta(nome); } catch { toast('Não deu para salvar o nome agora'); }
+    viewConta();
+  });
+  $('#pf-mais')?.addEventListener('click', () => openDialog(`
+    <div class="perfil-folha-cab">${avatarHtml(u, 40)}<b>${esc(u.nome || u.email)}</b></div>
+    ${u.email ? `<p class="muted perfil-folha-email">${esc(u.email)}</p>` : ''}
+    <button class="pg-item" data-v="compartilhar">${icon('share', 22)}<span>Compartilhar o Ecoa</span></button>
+    <button class="pg-item" data-v="sinc">${icon('refresh', 22)}<span>Sincronizar agora</span></button>
+    <button class="pg-item" data-v="sair">${icon('porta', 22)}<span>Sair da conta</span></button>`,
+  (dlg, done) => dlg.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) done(b.dataset.v); }), { folha: true }).then(async (v) => {
+    if (v === 'compartilhar') {
+      const url = new URL('./', location.href).href;
+      if (navigator.share) navigator.share({ title: 'Ecoa', text: 'Ouça e cante com o Ecoa', url }).catch(() => {});
+      else { navigator.clipboard?.writeText(url); toast('Link copiado'); }
+    } else if (v === 'sinc') sincronizar({ forcar: true });
+    else if (v === 'sair') {
+      if (!(await ask({ title: 'Sair da conta?', text: 'As músicas e os repertórios continuam neste aparelho, e a cópia continua na sua conta Google. O que você mudar aqui depois de sair não vai para os outros aparelhos.', ok: 'Sair' }))) return;
+      await sairDaConta();
+      viewConta();
+    }
+  }));
+  const aoMudar = () => {
+    if (usuarioConta()?.uid !== u?.uid) { viewConta(); return; }
+    const el = $('#pf-sinc');
+    if (el) { el.textContent = resumoDaSincronia(); el.classList.toggle('erro', Boolean(estadoConta.erro) && !estadoConta.sincronizando); }
+  };
+  addEventListener('songbook:conta', aoMudar);
+  addEventListener('songbook:nuvem', listas);
+  aoSair(() => { removeEventListener('songbook:conta', aoMudar); removeEventListener('songbook:nuvem', listas); });
+}
+
+addEventListener('songbook:conta', desenharFotoDoPerfil);
+// chegou da nuvem o que mudou em outro aparelho: as listas na tela se atualizam (as telas de trabalho, como a música
+// aberta, o editor e o player, não são redesenhadas no meio do uso)
+addEventListener('songbook:nuvem', () => {
+  desenharLateral();
+  if (/^#?\/?(biblioteca(\/[^/]*)?|repertorios|repertorio\/[^/]+)?$/.test(location.hash)) route();
+});
 
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início
@@ -17803,6 +17999,7 @@ function route() {
     case 'repertorio': return c !== undefined ? viewSetSong(b, Number(c)) : viewSet(b);
     case 'liturgia': return viewLiturgia(b);
     case 'ajustes': return viewSettings(b);
+    case 'conta': return viewConta();
     case 'qualidade': return viewQualidade();
     case 'permissoes': return viewPermissoes();
     case 'partituras': return viewPartituras();
@@ -17878,6 +18075,8 @@ new MutationObserver(() => view.querySelectorAll('.shelf').forEach(ligarFileira)
 $('#side-sets').addEventListener('click', (e) => { const li = e.target.closest('li[data-href]'); if (li && !e.target.closest('a')) location.hash = li.dataset.href; });
 window.addEventListener('hashchange', route);
 applyTheme();
+desenharFotoDoPerfil();
+iniciarConta();
 let rotaInicial = true; // a 1ª tela ao abrir/recarregar o app
 route();
 // o app carregou inteiro: a rede de segurança do index.html não precisa agir

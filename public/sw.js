@@ -5,8 +5,8 @@
 //   (a anterior continua) e tenta de novo depois;
 // - dados (liturgia, músicas, partituras, API): "rede primeiro", com a cópia local como reserva offline;
 // - ao publicar uma versão nova, mude VERSION: o app baixa o pacote novo e recarrega sozinho com ele.
-const VERSION = 'songbook-v494';
-const SHELL = ['./', 'index.html', 'css/app.css', 'karaoke-teste.m4a', 'js/app.js', 'js/store.js', 'js/render.js', 'js/chordpro.js', 'js/icons.js', 'js/pdf.js', 'js/powerpoint.js', 'js/lib/pptx-missa.js', 'js/lib/pptx-simples.js', 'js/fonte.js', 'js/lib/html.js', 'js/lib/cnbb.js', 'js/lib/cindy.js', 'js/lib/missa.js', 'js/lib/mpm.js', 'js/lib/pocket.js', 'js/lib/web.js', 'js/lib/acervo.js', 'js/lib/hinario.js', 'js/lib/sugestoes-liturgicas.js', 'js/lib/revisor.js', 'js/lib/ensaio.js', 'js/lib/partitura.js', 'js/lib/alinhamento.js', 'js/lib/harmonizar.js', 'js/lib/transcricao.js', 'js/lib/cores.js', 'js/lib/avisos.js', 'js/lib/novidades.js', 'js/lib/versoes.js', 'js/lib/cifra-sincronizada.js', 'js/lib/violao.js', 'js/lib/casamento.js', 'js/lib/fila.js', 'js/lib/automix.js', 'js/lib/capas.js', 'js/lib/casamento-worker.js', 'js/audios.js', 'js/lib/piano.js', 'js/acordes.js', 'icon.svg', 'badge-96.png', 'icon-192-v10.png', 'icon-512-v10.png', 'apple-touch-icon-v10.png', 'manifest.webmanifest'];
+const VERSION = 'songbook-v495';
+const SHELL = ['./', 'index.html', 'css/app.css', 'karaoke-teste.m4a', 'js/app.js', 'js/store.js', 'js/conta.js', 'js/lib/sincronia-conta.js', 'js/render.js', 'js/chordpro.js', 'js/icons.js', 'js/pdf.js', 'js/powerpoint.js', 'js/lib/pptx-missa.js', 'js/lib/pptx-simples.js', 'js/fonte.js', 'js/lib/html.js', 'js/lib/cnbb.js', 'js/lib/cindy.js', 'js/lib/missa.js', 'js/lib/mpm.js', 'js/lib/pocket.js', 'js/lib/web.js', 'js/lib/acervo.js', 'js/lib/hinario.js', 'js/lib/sugestoes-liturgicas.js', 'js/lib/revisor.js', 'js/lib/ensaio.js', 'js/lib/partitura.js', 'js/lib/alinhamento.js', 'js/lib/harmonizar.js', 'js/lib/transcricao.js', 'js/lib/cores.js', 'js/lib/avisos.js', 'js/lib/novidades.js', 'js/lib/versoes.js', 'js/lib/cifra-sincronizada.js', 'js/lib/violao.js', 'js/lib/casamento.js', 'js/lib/fila.js', 'js/lib/automix.js', 'js/lib/capas.js', 'js/lib/casamento-worker.js', 'js/audios.js', 'js/lib/piano.js', 'js/acordes.js', 'icon.svg', 'badge-96.png', 'icon-192-v10.png', 'icon-512-v10.png', 'apple-touch-icon-v10.png', 'manifest.webmanifest'];
 
 // caminhos (absolutos) dos arquivos do pacote, para reconhecer as requisições
 const DO_APP = new Set(SHELL.map((u) => new URL(u, self.registration.scope).pathname));
@@ -109,7 +109,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   // fontes do Google e bibliotecas (PDF/PowerPoint): cópia guardada, atualizada em segundo plano
-  if (/fonts\.(googleapis|gstatic)\.com$|cdnjs\.cloudflare\.com$|cdn\.jsdelivr\.net$/.test(url.hostname)) {
+  // (e o login com Google: o Firebase, que é de uma versão fixa)
+  if (/fonts\.(googleapis|gstatic)\.com$|cdnjs\.cloudflare\.com$|cdn\.jsdelivr\.net$/.test(url.hostname) || (url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/'))) {
     e.respondWith(caches.open(EXTRAS).then((c) => c.match(req).then((r) => {
       const rede = fetch(req).then((res) => { if (res.ok || res.type === 'opaque') c.put(req, res.clone()); return res; }).catch(() => r || Response.error());
       return r || rede;
