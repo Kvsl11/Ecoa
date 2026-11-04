@@ -5466,7 +5466,7 @@ function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls
   dlg.innerHTML = `${menu ? `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span>${cabeca || `<h3>${esc(titulo || '')}</h3>`}</div>`
     : `<div class="lista-cab${folha ? ' menu-cab' : ''}">${folha ? '<span class="menu-alca" aria-hidden="true"></span>' : ''}<h3>${esc(titulo)}</h3><button class="icon-btn" data-fechar aria-label="Fechar">${icon('x', 20)}</button></div>`}
     <div class="lista-opcoes" role="listbox">${opcoes.map((o, i) => `<button class="lista-op${o.perigo ? ' perigo' : ''}" role="option" data-i="${i}" aria-selected="${o.valor === atual}">
-      ${o.capa || (o.svg || o.ic ? `<span class="lista-ic">${o.svg || icon(o.ic, 18)}</span>` : '')}<span class="lista-txt"><b>${esc(o.rotulo)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</span>
+      ${o.capa || (o.svg || o.ic ? `<span class="lista-ic${o.ic ? ` lista-ic-${o.ic}` : ''}">${o.svg || icon(o.ic, 18)}</span>` : '')}<span class="lista-txt"><b>${esc(o.rotulo)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</span>
       ${o.dir ? `<span class="lista-dir">${esc(o.dir)}</span>` : ''}${o.valor === atual ? `<span class="lista-ok">${icon('check', 18)}</span>` : ''}</button>`).join('')}</div>`;
   document.body.append(dlg);
   return new Promise((resolve) => {
