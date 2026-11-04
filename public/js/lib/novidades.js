@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 486, data: '2026-11-04', titulo: 'A música tocando em todas as listas',
+    itens: [
+      { tipo: 'novo', texto: 'Como no Spotify, a música que está tocando aparece destacada em todas as listas: na Biblioteca, nas Músicas curtidas, na Busca, nas playlists e nos repertórios. O nome fica na cor que você escolheu nos Ajustes e, enquanto ela toca, aparecem as barrinhas animadas antes dele.' },
+      { tipo: 'novo', texto: 'Na playlist com o "Vídeo" ligado, tocar numa música (ou no play) abre o clipe. Com ele desligado, abre a versão música.' },
+      { tipo: 'melhoria', texto: 'Os clipes da prévia da playlist e da capinha não têm mais as faixas pretas em cima e embaixo: o app mede as faixas no vídeo e amplia só o necessário. A capinha ganhou os cartões empilhados atrás, como nos stories do Spotify.' },
+    ],
+  },
+  {
     versao: 485, data: '2026-11-04', titulo: 'A prévia da playlist no refrão',
     itens: [
       { tipo: 'novo', texto: 'A prévia da playlist (os clipes em tela cheia) agora toca o refrão de cada música, achado pela letra sincronizada. Com a música baixada, o clipe e o áudio tocam do aparelho, sem internet.' },
@@ -66,12 +74,6 @@ export const NOVIDADES = [
     versao: 477, data: '2026-11-04', titulo: 'Ícone de importar para cima',
     itens: [
       { tipo: 'melhoria', texto: 'O botão de importar da Busca (e o "Cole aqui", o "Colar copiado" e o "Trazer da internet" do editor) agora tem a seta para cima, como o importar da Biblioteca e dos Ajustes. Antes a seta apontava para baixo, como a de baixar.' },
-    ],
-  },
-  {
-    versao: 476, data: '2026-11-04', titulo: 'Servidor da IA mais claro',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela do Servidor da IA não fala mais em "sem a cota do mês" quando o Codespace está ligado: o app acha o Codespace sozinho, sem QR code, e o aviso de cota de antes some assim que ele responde.' },
     ],
   },
 ];
