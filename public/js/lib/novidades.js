@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 499, data: '2026-11-04', titulo: 'Uma tela de entrada nova',
+    itens: [
+      { tipo: 'melhoria', texto: 'A tela de entrada ficou nova. No fundo, um mural com quadros de clipes famosos passa devagar, em fileiras inclinadas: Michael Jackson, The Beatles, Bruno Mars, Lady Gaga, Sabrina Carpenter, Queen e outros. No alto, aparece o nome de um dos clipes, trocando de tempos em tempos. Na frente ficam o "Ouça. Cante. Ecoe.", o que o app tem e o botão Entrar com o Google. No computador, o convite fica à esquerda e o mural ocupa o resto da tela.' },
+    ],
+  },
+  {
     versao: 498, data: '2026-11-04', titulo: 'O carregamento como no Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'Enquanto uma tela ou parte dela ainda está carregando, aparece só o círculo girando no meio, na cor do app, como no Spotify, no lugar dos textos "Carregando…" e "Buscando…". Vale em todas as telas: Busca, Início, Liturgia, Orações, artistas, álbuns, partituras e as outras.' },
@@ -65,12 +71,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Ao entrar na playlist, a capinha da prévia faz a animação do Spotify. Ela já começa mostrando a primeira música, e não mais a capa da playlist. O contorno claro se desenha em volta e, no fim, o cartão de trás desliza para a direita.' },
       { tipo: 'melhoria', texto: 'A capinha ficou no tamanho e na proporção da do Spotify, um pouco mais estreita e alta que antes.' },
       { tipo: 'melhoria', texto: 'O app guarda no aparelho a medida das faixas pretas de cada clipe. Assim, a capinha e a prévia não precisam medir de novo, e o vídeo entra mais rápido.' },
-    ],
-  },
-  {
-    versao: 489, data: '2026-11-04', titulo: 'Baixada fica verde',
-    itens: [
-      { tipo: 'correcao', texto: 'O botão de baixar da playlist voltava a aparecer cinza com tudo baixado. Agora a música ou playlist baixada mostra o círculo verde cheio com a seta preta em todo lugar: na playlist, na página da música e no "Remover o download" dos ⋮. O que ainda falta baixar fica só com o contorno.' },
     ],
   },
 ];

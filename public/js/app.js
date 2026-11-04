@@ -15107,7 +15107,7 @@ function ligarTelaDeEntrada() {
     const estava = raiz.contains('sem-conta');
     raiz.toggle('sem-conta', sem);
     if (sem) {
-      if (!estava) { player.fechar(); esperando(false); } // saiu da conta: a música para e volta a tela de entrada
+      if (!estava) { player.fechar(); esperando(false); window.__montarMural?.(); } // saiu da conta: a música para e volta a tela de entrada
       else if (voltando && !estadoConta.sincronizando) { voltando = false; esperando(false); }
       if (estadoConta.erro) erro.textContent = estadoConta.erro;
     } else if (estava) { erro.textContent = ''; esperando(false); route(); }
