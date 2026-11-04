@@ -30,7 +30,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1411,6 +1411,11 @@ const REVISOES = [
   // primeira frase em tempos bem diferentes, como "Club Tropicana" e "Everything She Wants" do Wham!) é conferida no
   // áudio pelo servidor. A feita à mão fica
   { rev: 8, conferirLetra: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && Boolean(s.title) },
+  // v480: a linha que a edição escolhida do LRCLIB põe fora do lugar (em "Club Tropicana", a primeira frase 40 s antes
+  // de ser cantada; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living") vai para onde as
+  // outras edições concordam que ela é cantada (lib/web.js: linhasNoConsenso). Também nas já conferidas pelo servidor
+  // (ele ouvia a letra com a linha errada de referência). A feita à mão fica
+  { rev: 9, consertarLinhas: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.tempos?.length > 3 && Boolean(s.title) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1511,12 +1516,31 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   s = db.song(id);
   if (!s) return true;
+  // a letra do LRCLIB de novo (uma vez, para as duas revisões abaixo)
+  // (undefined: o LRCLIB não respondeu agora, e a revisão tenta de novo depois)
+  let lrcDeNovo = null;
+  const lrcDaMusica = () => (lrcDeNovo ||= letraSincronizada({ titulo: s.title, artista: s.artist || '', duracao: Number(s.sincronia?.duracao) || 0 }).catch(() => undefined));
+  // a linha fora do lugar na edição do LRCLIB, no lugar em que as outras edições concordam (antes de conferir no
+  // áudio: o servidor ouve com a letra certa de referência)
+  if (quer('consertarLinhas') && s.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.tempos?.length) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const lrc = await lrcDaMusica();
+      s = db.song(id);
+      if (!s) return true;
+      if (lrc === undefined) completa = false;
+      const tempos = s.sincronia?.fonte === 'lrclib' ? temposCorrigidos(s.sincronia, lrc) : null;
+      if (tempos) guardarSincronia(s, { ...s.sincronia, tempos });
+    }
+    s = db.song(id);
+    if (!s) return true;
+  }
   // a letra sincronizada em dúvida, conferida no áudio (só as em dúvida vão ao servidor)
   if (quer('conferirLetra') && s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && s.sincronia.video && !ehArquivo(s.sincronia.video)) {
     if (!navigator.onLine) completa = false;
     else {
       const sc = s.sincronia;
-      const lrc = await letraSincronizada({ titulo: s.title, artista: s.artist || '', duracao: Number(sc.duracao) || 0 }).catch(() => undefined);
+      const lrc = await lrcDaMusica();
       if (lrc === undefined) completa = false;
       else if (lrc?.duvida) { if (!(await conferirSincronia(s, { ...sc, duvida: true }))) completa = false; }
     }

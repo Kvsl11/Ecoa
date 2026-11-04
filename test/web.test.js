@@ -640,3 +640,34 @@ test('a letra em dúvida: edições com a mesma duração e a primeira frase em 
   assert.equal(letraEmDuvida([r(268, 9.77), r(330, 52)], 268), false); // (a outra é de outra duração: outra gravação)
   assert.equal(letraEmDuvida([r(268, 9.77)], 268), false);
 });
+
+// "Club Tropicana" (Wham!): as edições mais repetidas no LRCLIB põem a primeira frase em 9,8 s (e a segunda em 54 s);
+// as outras, uns 2 s antes da segunda (com a gravação um pouco deslocada em cada uma)
+test('linhasNoConsenso: a linha fora do lugar vai para onde as outras edições concordam', async () => {
+  const { linhasNoConsenso, temposCorrigidos } = await import('../public/js/lib/web.js');
+  const letra = ['Let me take you to the place', "Where membership's a smiling face", 'Brush shoulders with the stars', 'Where strangers take you by the hand', 'And welcome you to wonderland', 'From beneath your wide-brimmed hat'];
+  const ed = (ts, desl = 0) => ({ linhas: letra, tempos: ts.map((t, i) => ({ inicio: t + desl, fim: (ts[i + 1] ?? t + 3) + desl })) });
+  const certa = [52, 54, 56.1, 59, 60.8, 64.3];
+  const escolhida = ed([9.77, ...certa.slice(1)]);
+  const outras = [ed(certa, -5), ed(certa, 2), ed([18.5, ...certa.slice(1)], 0.2), ed(certa, -43)];
+  const r = linhasNoConsenso(escolhida, outras);
+  assert.equal(r.corrigidas.length, 1);
+  assert.equal(r.corrigidas[0].i, 0);
+  assert.ok(Math.abs(r.tempos[0].inicio - 52) < 0.3, `a primeira frase em ${r.tempos[0].inicio}`);
+  assert.equal(r.tempos[0].fim, 54);
+  assert.deepEqual(r.tempos.slice(1), escolhida.tempos.slice(1));
+  // as edições concordando com a escolhida (ou só uma discordando): fica como está
+  assert.equal(linhasNoConsenso(escolhida, [ed([9.77, ...certa.slice(1)], 1), ed(certa, 2)]).corrigidas.length, 0);
+  assert.equal(linhasNoConsenso(escolhida, [ed(certa)]).corrigidas.length, 0);
+  // a mesma letra em outro arranjo bem ali (as vizinhas discordam no deslocamento): não dá para saber, não vota
+  const outroArranjo = ed([...certa.slice(0, 3), ...certa.slice(3).map((t) => t + 6)]);
+  assert.equal(linhasNoConsenso(ed([52, 54, 56.1, 59, 70, 64.3].map((t, i) => (i === 4 ? 62 : t))), [outroArranjo, outroArranjo]).corrigidas.length, 0);
+  // a sincronia já guardada (deslocada 1,5 s pelo servidor): a linha vai junto com o deslocamento; a já corrigida fica
+  const guardada = { linhas: letra, tempos: escolhida.tempos.map((t) => ({ inicio: t.inicio + 1.5, fim: t.fim + 1.5 })) };
+  const lrc = { linhas: letra, tempos: r.tempos, corrigidas: r.corrigidas };
+  const novos = temposCorrigidos(guardada, lrc);
+  assert.ok(Math.abs(novos[0].inicio - 53.5) < 0.3);
+  assert.equal(novos[1].inicio, guardada.tempos[1].inicio);
+  assert.equal(temposCorrigidos({ linhas: letra, tempos: novos }, lrc), null);
+  assert.equal(temposCorrigidos({ linhas: letra.map((l) => l + ' outra'), tempos: guardada.tempos }, lrc), null);
+});

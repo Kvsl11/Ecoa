@@ -564,9 +564,16 @@ export async function letraSincronizada(
     const naDuracao = preferirDuracao && duracao > 0 ? mesmas.filter((r) => r.duration > 0 && Math.abs(r.duration - duracao) <= 3) : [];
     const oficial = gravacaoOficial(naDuracao.length ? naDuracao : mesmas, duracao);
     const bate = !(duracao > 0) || !(oficial.duration > 0) || Math.abs(oficial.duration - duracao) <= 4;
-    const sinc = sincroniaDoLrc(oficial.syncedLyrics, oficial.duration || duracao);
+    const crua = sincroniaDoLrc(oficial.syncedLyrics, oficial.duration || duracao);
+    // (a linha que esta edição põe fora do lugar, e as outras edições concordam onde ela é cantada, vai para lá)
+    // (cada letra diferente vota uma vez: o mesmo LRC repetido em vários álbuns é uma edição só)
+    const vistas = new Set([String(oficial.syncedLyrics).trim()]);
+    const outras = mesmas.filter((r) => { const k = String(r.syncedLyrics).trim(); if (aoVivo(r) || vistas.has(k)) return false; vistas.add(k); return true; })
+      .map((r) => sincroniaDoLrc(r.syncedLyrics, r.duration || duracao));
+    const { tempos, corrigidas } = linhasNoConsenso(crua, outras);
+    const sinc = { ...crua, tempos };
     const duvida = letraEmDuvida(mesmas, oficial.duration || duracao);
-    if (sinc.linhas.length >= 2) return { ...sinc, fonte: 'lrclib', id: oficial.id, duracao: oficial.duration || 0, ...(bate ? {} : { ajustar: true }), ...(duvida ? { duvida: true } : {}) };
+    if (sinc.linhas.length >= 2) return { ...sinc, fonte: 'lrclib', id: oficial.id, duracao: oficial.duration || 0, ...(bate ? {} : { ajustar: true }), ...(duvida ? { duvida: true } : {}), ...(corrigidas.length ? { corrigidas } : {}) };
   }
   // sem a letra no LRCLIB (ou ele fora do ar): a da NetEase, que tem a letra sincronizada de muitas músicas
   const reserva = await pReserva;
@@ -763,6 +770,112 @@ export function semCensura(linhas, letraDaMusica = [], { comoVier = false } = {}
 // (mais de 3 s). São edições diferentes com a mesma duração — "Club Tropicana" do Wham! tem a primeira frase em 9,8 s,
 // 18,5 s, 47 s e 52 s, todas com 263 a 272 s —, e pela duração não dá para saber qual é a do áudio que toca: quem
 // decide é o áudio (o servidor ouve; veja conferirSincronia no app)
+// A linha fora do lugar numa edição do LRCLIB: muitas músicas têm várias edições da mesma letra, e algumas trazem uma
+// linha com o tempo errado. Em "Club Tropicana" (Wham!), as edições mais repetidas põem "Let me take you to the place"
+// em 9,8 s (e a linha seguinte em 54 s): a frase ficava acesa uns 40 s antes de ser cantada. As outras edições a põem
+// uns 2 s antes da seguinte. Em "Everything She Wants", o "Ah, ha-ha" vinha 14 s antes da frase seguinte, onde as
+// outras edições põem 3,6 s.
+// Cada outra edição vota onde cada linha é cantada: as linhas com o mesmo texto são casadas (na ordem), e o tempo da
+// outra edição é trazido para esta pelo deslocamento das linhas vizinhas (as edições de outra gravação, com outra
+// introdução ou uma parte a mais, também servem). A linha muda quando a maioria dos votos concorda num tempo a mais de
+// 3 s do desta edição, e só se ele ficar entre a linha de antes e a de depois. As cópias desta edição (o mesmo LRC em
+// vários álbuns) contam uma vez só: quem chama manda só as letras diferentes.
+// sinc: { linhas, tempos } desta edição; outras: as das outras edições. Devolve { tempos, corrigidas: [{ i, antes, depois }] }
+export function linhasNoConsenso(sinc, outras = []) {
+  const tempos = (sinc?.tempos || []).map((t) => ({ ...t }));
+  const corrigidas = [];
+  const n = tempos.length;
+  if (n < 4 || !outras?.length) return { tempos, corrigidas };
+  const chave = (l) => normalize(String(l || '')).replace(/[^a-z0-9]/g, '');
+  const A = sinc.linhas.map(chave);
+  const mediana = (xs) => { const o = [...xs].sort((x, y) => x - y); const m = o.length >> 1; return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2; };
+  const votos = A.map(() => []);
+  for (const e of outras) {
+    if (!e?.linhas?.length || e.linhas.length !== e.tempos?.length) continue;
+    const B = e.linhas.map(chave);
+    // as linhas casadas pelo texto, na ordem (a maior sequência em comum)
+    const m = B.length;
+    const dp = Array.from({ length: n + 1 }, () => new Int16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = A[i] && A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const pares = [];
+    for (let i = 0, j = 0; i < n && j < m;) {
+      if (A[i] && A[i] === B[j]) { pares.push([i, j]); i++; j++; } else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++;
+    }
+    // (a outra edição precisa ser a mesma letra: a maior parte das linhas casadas)
+    if (pares.length < Math.max(4, Math.min(n, m) * 0.6)) continue;
+    pares.forEach(([i, j], p) => {
+      // o deslocamento das vizinhas (até 3 de cada lado, sem a própria linha): a mediana tolera uma vizinha errada
+      const desl = ([a, b]) => sinc.tempos[a].inicio - e.tempos[b].inicio;
+      const antes = pares.slice(Math.max(0, p - 3), p).map(desl);
+      const depois = pares.slice(p + 1, p + 4).map(desl);
+      const viz = [...antes, ...depois];
+      if (viz.length < 2) return;
+      // (só vale o voto com as vizinhas concordando no deslocamento, as de antes e as de depois: discordando, as
+      // linhas foram casadas no lugar errado, como num refrão repetido, ou a outra edição tem um arranjo diferente
+      // bem ali — a versão estendida, com uns segundos a mais —, e não dá para saber onde fica a linha)
+      const d = mediana(viz);
+      if (viz.some((x) => Math.abs(x - d) > 1)) return;
+      if (antes.length && depois.length && Math.abs(mediana(antes) - mediana(depois)) > 1) return;
+      votos[i].push(e.tempos[j].inicio + d);
+    });
+  }
+  for (let i = 0; i < n; i++) {
+    // (a linha repetida logo antes ou depois, como "Someone / Someone": não dá para saber qual é qual)
+    if (A[i] === A[i - 1] || A[i] === A[i + 1]) continue;
+    const proprio = sinc.tempos[i].inicio;
+    const vs = [proprio, ...votos[i]];
+    if (vs.length < 3) continue;
+    // o tempo em que mais votos concordam (até 1,5 s entre eles): a mediana de todos caía entre dois grupos quando
+    // havia mais de uma edição errada (em "Club Tropicana", 9,8 s, 18,5 s e as outras perto de 51 s)
+    const juntos = vs.map((c) => vs.filter((v) => Math.abs(v - c) <= 1.5)).reduce((x, y) => (y.length > x.length ? y : x));
+    if (Math.abs(mediana(juntos) - proprio) <= 3) continue;
+    const comEla = vs.filter((v) => Math.abs(v - proprio) <= 1.5).length;
+    // (pelo menos duas outras edições juntas, mais que as que concordam com esta, e metade dos votos ou mais)
+    if (juntos.length < 2 || juntos.length <= comEla || juntos.length * 2 < vs.length) continue;
+    const novo = Math.round(mediana(juntos) * 100) / 100;
+    const antes = i > 0 ? tempos[i - 1].inicio : 0;
+    const depois = i + 1 < n ? tempos[i + 1].inicio : Infinity;
+    if (!(novo > antes + 0.1 && novo < depois - 0.1)) continue;
+    // (a linha de antes terminava onde esta começava: passa a terminar no novo começo)
+    if (i > 0 && Math.abs(tempos[i - 1].fim - proprio) < 0.05) tempos[i - 1].fim = novo;
+    const dur = tempos[i].fim - proprio;
+    tempos[i] = { inicio: novo, fim: Math.round(Math.max(novo, Math.min(depois, novo + Math.max(dur, 0))) * 100) / 100 };
+    if (depois !== Infinity && tempos[i].fim < depois && Math.abs(sinc.tempos[i].fim - depois) < 0.05) tempos[i].fim = depois;
+    corrigidas.push({ i, antes: proprio, depois: novo });
+  }
+  return { tempos, corrigidas };
+}
+// As linhas corrigidas pelo consenso (linhasNoConsenso), levadas para a sincronia já guardada na música: a mesma
+// letra, com os tempos como estavam (às vezes deslocados pelo servidor, que ouviu o áudio). Cada linha corrigida
+// recebe o deslocamento da vizinha (a guardada menos a do LRCLIB) e só muda se ainda estava no lugar errado. Devolve
+// os tempos novos, ou null se não há o que mudar (outra letra, já corrigida, ou a vizinha também mexida)
+export function temposCorrigidos(guardada, lrc) {
+  const g = guardada?.tempos;
+  const c = lrc?.corrigidas;
+  if (!g?.length || !c?.length || g.length !== lrc.tempos?.length || guardada.linhas?.length !== lrc.linhas?.length) return null;
+  // (a mesma letra: as palavras escondidas com asteriscos voltam como cantadas ao guardar, por isso pela maioria)
+  const chave = (l) => normalize(String(l || '')).replace(/[^a-z0-9]/g, '');
+  const iguais = guardada.linhas.filter((l, i) => chave(l) === chave(lrc.linhas[i])).length;
+  if (iguais < guardada.linhas.length * 0.9) return null;
+  const mexidas = new Set(c.map((x) => x.i));
+  const tempos = g.map((t) => ({ ...t }));
+  let mudou = false;
+  for (const { i, antes, depois } of c) {
+    const k = [i + 1, i - 1].find((x) => x >= 0 && x < g.length && !mexidas.has(x));
+    if (k === undefined) continue;
+    const desl = g[k].inicio - lrc.tempos[k].inicio;
+    if (Math.abs(g[i].inicio - (antes + desl)) > 0.5) continue; // (já não está onde estava: fica)
+    const novo = Math.round((depois + desl) * 100) / 100;
+    const ant = i > 0 ? tempos[i - 1].inicio : 0;
+    const prox = i + 1 < g.length ? g[i + 1].inicio : Infinity;
+    if (!(novo > ant + 0.1 && novo < prox - 0.1)) continue;
+    if (i > 0 && Math.abs(tempos[i - 1].fim - g[i].inicio) < 0.05) tempos[i - 1].fim = novo;
+    tempos[i] = { ...tempos[i], inicio: novo, fim: Math.round((lrc.tempos[i].fim + desl) * 100) / 100 };
+    if (tempos[i].fim < novo) tempos[i].fim = novo;
+    mudou = true;
+  }
+  return mudou ? tempos : null;
+}
 export function letraEmDuvida(mesmas, duracao = 0) {
   const perto = (mesmas || []).filter((r) => r?.syncedLyrics && (!(duracao > 0) || !(r.duration > 0) || Math.abs(r.duration - duracao) <= 4));
   const primeiras = perto.map((r) => lerLrc(r.syncedLyrics).find((l) => l.texto)?.t).filter((t) => Number.isFinite(t));

@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 480, data: '2026-11-04', titulo: 'A letra no tempo certo em mais músicas',
+    itens: [
+      { tipo: 'correcao', texto: 'Em algumas músicas, uma linha da letra sincronizada aparecia bem antes de ser cantada. Em "Club Tropicana" (Wham!), a primeira frase acendia uns 40 s antes da hora; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living" chegavam adiantados. O LRCLIB tem várias edições da mesma letra, e as mais repetidas traziam essa linha errada. Agora o app compara as edições: a linha fora do lugar vai para onde as outras concordam que ela é cantada, sem precisar do servidor da IA.' },
+      { tipo: 'correcao', texto: 'As músicas já salvas são corrigidas sozinhas, em segundo plano. A letra que você sincronizou à mão fica como está.' },
+    ],
+  },
+  {
     versao: 479, data: '2026-11-04', titulo: 'O microfone do karaokê nas listas',
     itens: [
       { tipo: 'novo', texto: 'Nas listas de músicas (Músicas curtidas, a Biblioteca, os repertórios), o microfone com as estrelinhas aparece ao lado da setinha verde nas músicas que já têm o karaokê pronto no aparelho. Ele aparece assim que o karaokê fica pronto e some se você apagar o karaokê.' },
@@ -61,13 +68,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'A fila não muda mais sozinha. Com a música tocando de uma playlist ou de um repertório, abrir essa mesma música pela biblioteca (ou pela busca) passava a fila, sem aviso, para a da biblioteca, em ordem alfabética: a próxima que tocava não era a que a fila mostrava. Agora a música continua na fila em que estava.' },
       { tipo: 'melhoria', texto: 'Partituras no tablet deitado (e no computador): a tela agora usa a largura toda, em duas colunas. À esquerda, o título, os atalhos (Gerar com IA, Nova partitura) e o Acervo litúrgico; à direita, as suas partituras. Sem nenhuma partitura ainda, o recado ocupa a coluna em vez de deixar metade da tela vazia.' },
-    ],
-  },
-  {
-    versao: 470, data: '2026-11-04', titulo: 'Acordes afinados e música sem acelerar',
-    itens: [
-      { tipo: 'correcao', texto: 'O som dos acordes (tocar no desenho do acorde) não sai mais desafinado. Uma das gravações do violão, a do Ré agudo, soava meio tom acima (era um Ré#): os acordes com essa nota, como o G com capotraste na 7ª casa, saíam com um choque de meio tom, "zoados". Agora cada nota é afinada pela altura medida de cada gravação (algumas outras também estavam um pouco fora).' },
-      { tipo: 'correcao', texto: 'A música não acelera nem desacelera mais. O automix tocava a próxima um pouco mais rápida ou mais lenta para casar com o andamento da anterior (e voltava aos poucos), e às vezes o player ficava com a velocidade mudada e a música seguinte tocava acelerada, mesmo com a transição desligada. Agora a velocidade nunca muda, e o encaixe na batida é só no comecinho, ainda sem som.' },
     ],
   },
 ];
