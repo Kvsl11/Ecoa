@@ -19,6 +19,9 @@ Transforma áudio em notas para a partitura do Songbook, com mais fidelidade que
   e o ffmpeg grava um M4A (AAC) de 4 canais, no arranjo "quad": banda esquerda e direita (a gravação menos a voz), voz
   esquerda e direita. O app escolhe o volume da voz na hora. Fica guardado por vídeo (`IA_KARAOKE_MAX`, padrão 20):
   outro aparelho recebe na hora. Com `IA_SEPARADOR=roformer`, a voz sai do Mel-Band RoFormer.
+  No Modal, o karaokê roda numa **placa de vídeo** (a função `karaoke` de `modal_app.py`, T4): uns 15 a 30 s por
+  música, em vez de 1 a 3 minutos no processador. O site publica o endereço dela (`karaoke` em `data/servidor-ia.json`)
+  e o app manda só o karaokê para lá; sem ela, o karaokê vai para o servidor de sempre.
 
 Medido em 11 trechos de músicas reais (MUSDB18, voz isolada como gabarito): a melodia certa passou de **34%** do
 tempo (a música inteira junta, como no celular) para **70%** (voz separada + limpeza).

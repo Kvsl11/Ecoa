@@ -78,6 +78,10 @@ document.addEventListener('keydown', (e) => { if (!e.metaKey && !e.ctrlKey) docu
 // página dele abre o app com ?ia=<endereço> e o endereço fica guardado (Ajustes → Servidor no computador)
 let SERVIDOR_IA = { url: '', chave: '' };
 const servidorIA = () => SERVIDOR_IA;
+// o karaokê numa placa de vídeo (a função "karaoke" do Modal, data/servidor-ia.json): separa a voz em uns 15 a 30 s, em
+// vez de 1 a 3 minutos no processador. Só o karaokê vai para lá; sem ela (ou sem crédito no Modal), vai para o servidor
+// de sempre
+let SERVIDOR_KARAOKE = null;
 // o servidor do site (o Codespace do GitHub, gravado pela publicação em data/servidor-ia.json): mesmo desligado, o
 // endereço fica sabido, para a tela dizer "ligue o Codespace"
 let servidorDoSite = '';
@@ -131,6 +135,7 @@ function carregarServidor({ forcar = false } = {}) {
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
+    SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
     // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
     let host = '';
@@ -1095,7 +1100,7 @@ function prepararKaraoke(song) {
   };
   estado.promessa = (async () => {
     await carregarServidor().catch(() => {});
-    if (!servidorIA().url) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
+    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
     // o envio (ou o download do áudio pelo servidor) até 10%, a separação até 90% e a vinda do arquivo até 99%
     const aoEtapa = (etapa, p) => {
       if (etapa === 'enviando') passo(10 * (p ?? 0), 'Enviando o áudio');
@@ -1120,16 +1125,30 @@ function prepararKaraoke(song) {
         nome = String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
       }
     }
-    // (o mesmo servidor do começo ao fim: o Codespace pode ligar no meio, e o arquivo pronto está no que separou)
-    const cfg = servidorIA();
+    // a placa de vídeo primeiro (rápida); se ela não atender (sem crédito no Modal, fora do ar), o servidor de sempre.
+    // (o mesmo servidor do começo ao fim: o arquivo pronto fica no que separou)
+    const servidores = [SERVIDOR_KARAOKE, servidorIA()].filter((x, i, l) => x?.url && l.findIndex((y) => y?.url === x.url) === i);
+    let cfg = null;
     let r;
     try {
-      if (arquivo) {
-        const form = new FormData();
-        form.append('arquivo', arquivo, nome);
-        r = await chamarComEtapas(cfg, '/karaoke/arquivo', { form }, aoEtapa);
-      } else {
-        r = await chamarComEtapas(cfg, '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+      for (const [n, s] of servidores.entries()) {
+        cfg = s;
+        try {
+          // (o YouTube conectado também nele, quando o servidor baixa a música)
+          if (!arquivo) await reconectarYoutube(s);
+          if (arquivo) {
+            const form = new FormData();
+            form.append('arquivo', arquivo, nome);
+            r = await chamarComEtapas(s, '/karaoke/arquivo', { form }, aoEtapa);
+          } else {
+            r = await chamarComEtapas(s, '/karaoke', { json: { url: `https://youtu.be/${fonte}` } }, aoEtapa);
+          }
+          break;
+        } catch (e) {
+          // (só falha de servidor passa para o próximo; o erro da música — o YouTube recusou, o áudio não abre — não)
+          const deServidor = e.conexao || e.desativado || !e.status || e.status >= 500 || e.status === 404 || e.status === 405 || e.status === 501;
+          if (n === servidores.length - 1 || !deServidor) throw e;
+        }
       }
     } catch (e) {
       // (o servidor de antes do karaokê: ele se atualiza sozinho quando liga de novo)
@@ -1794,7 +1813,7 @@ const player = (() => {
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
       <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
-      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
+      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><span class="pl-karaoke-pct" aria-hidden="true"><b></b>${icon('up', 14)}</span><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
     <div class="pl-extra" hidden></div>`;
@@ -2944,10 +2963,10 @@ const semLinhasDeAcordes = (sinc) => {
   let somKaraoke = null;
   let grafoKaraoke = null; // { ctx, voz: o volume da voz (GainNode) }
   let karaokeLigado = false;
-  // o controle vai de 0 (sem a voz) a 1 (a gravação inteira); o volume é o quadrado dele: no meio do controle a voz já
-  // fica bem baixinha, só de guia, como no Apple Music
+  // o controle vai de 0 (sem a voz) a 1 (a gravação inteira), e o volume da voz acompanha a barra: no meio, a metade;
+  // ela vai sumindo aos poucos e só some de vez embaixo (com o quadrado da posição, baixar um pouco já parecia tirar tudo)
   const nivelDaVoz = () => { const v = Number(db.prefs().karaokeVoz); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; };
-  const ganhoDaVoz = (n) => n * n;
+  const ganhoDaVoz = (n) => n;
   // (criado no toque do microfone: fora de um toque, o navegador deixa o Web Audio mudo)
   const criarGrafoKaraoke = () => {
     if (grafoKaraoke) return grafoKaraoke;
@@ -3433,6 +3452,10 @@ const semLinhasDeAcordes = (sinc) => {
     kEl.style.setProperty('--nivel', String(nivelVoz));
     // (o microfone fica escuro quando o branco do volume passa por baixo dele)
     kEl.classList.toggle('sobre-branco', nivelVoz >= 0.24);
+    // (a porcentagem da voz no alto do controle aberto; em 0%, a setinha mostra que dá para arrastar para cima)
+    $('.pl-karaoke-pct b', kEl).textContent = `${Math.round(nivelVoz * 100)}%`;
+    kEl.classList.toggle('sem-voz', nivelVoz <= 0.02);
+    kEl.classList.toggle('topo-branco', nivelVoz >= 0.86);
     const bt = $('.pl-karaoke-bt', kEl);
     bt.setAttribute('aria-pressed', String(karaokeLigado));
     const titulo = !karaokeLigado ? 'Karaokê: tirar a voz' : prep ? `Preparando o karaokê: ${prep.etapa} (${prep.pct}%)` : 'Karaokê ligado: toque para a voz voltar';
@@ -3442,7 +3465,6 @@ const semLinhasDeAcordes = (sinc) => {
     trilho.setAttribute('aria-valuenow', String(Math.round(nivelVoz * 100)));
     trilho.setAttribute('aria-valuetext', nivelVoz <= 0 ? 'Sem a voz' : nivelVoz >= 1 ? 'A voz inteira' : `Voz em ${Math.round(nivelVoz * 100)}%`);
     trilho.tabIndex = est === 'ligado' ? 0 : -1;
-    // ("Karaokê" embaixo da barra do tempo, como o "Sing" do Apple Music)
     el.classList.toggle('karaoke-on', est === 'ligado');
     if (est !== 'ligado') el.classList.remove('karaoke-ajustando');
   };

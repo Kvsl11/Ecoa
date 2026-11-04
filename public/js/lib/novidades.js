@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 464, data: '2026-11-03', titulo: 'Karaokê muito mais rápido',
+    itens: [
+      { tipo: 'melhoria', texto: 'O karaokê agora é preparado numa placa de vídeo (no Modal), como nos apps profissionais de separar faixas: a voz sai da música em uns 15 a 30 segundos, em vez de 1 a 3 minutos. Só o karaokê vai para lá; o resto continua no servidor de sempre. Se a placa não estiver disponível, ele é preparado no servidor de sempre, como antes.' },
+      { tipo: 'melhoria', texto: 'O volume da voz no microfone agora acompanha a barra: arrastando para baixo, a voz vai sumindo aos poucos e só some de vez lá embaixo (antes, baixar um pouquinho já tirava quase tudo). E saiu o “Karaokê” escrito embaixo da barra do tempo. O controle aberto mostra a porcentagem da voz e, em 0%, uma setinha para cima, mostrando que dá para arrastar.' },
+    ],
+  },
+  {
     versao: 463, data: '2026-11-03', titulo: 'Microfone do karaokê redesenhado',
     itens: [
       { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade, simples: a cabeça, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
@@ -59,13 +66,6 @@ export const NOVIDADES = [
     versao: 455, data: '2026-11-03', titulo: 'O servidor da IA é o do Codespace',
     itens: [
       { tipo: 'melhoria', texto: 'Tudo o que usava o servidor do Modal agora usa o servidor do Codespace do GitHub: a partitura pela IA, a letra sincronizada e o Lumen. Com o endereço do Codespace gravado no site, qualquer aparelho acha o servidor sozinho, sem ler o QR code. Com o Codespace desligado, a tela avisa para ligá-lo, e a partitura sai no próprio aparelho enquanto isso.' },
-    ],
-  },
-  {
-    versao: 454, data: '2026-11-03', titulo: 'Coral pela IA com vozes de verdade',
-    itens: [
-      { tipo: 'melhoria', texto: 'No coral feito pela IA, o Contralto, o Tenor e o Baixo agora são escritos pela cifra da música, como num hinário: cada voz canta uma nota do acorde, sem cruzar com as outras, perto da nota de antes e no mesmo ritmo e com a mesma letra do Soprano. Antes essas vozes saíam das notas do violão e do teclado, e ficavam emboladas. Se a gravação tem mesmo as 4 vozes, escolha “Coral do áudio” em Ajustar → Vozes.' },
-      { tipo: 'melhoria', texto: 'O servidor separa o cantor principal do backing vocal: a melodia sai só da voz do solista, conferida pela afinação (antes o backing fazia a voz parecer um coral e essa conferência ficava de fora). E as batidas e o primeiro tempo de cada compasso agora são ouvidos por uma rede treinada para isso, então o compasso e a anacruse acertam mais.' },
     ],
   },
 ];

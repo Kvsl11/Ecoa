@@ -10,7 +10,8 @@ E a banda é a gravação menos a voz, então banda + voz é exatamente a grava�
 
 A voz sai do Demucs (htdemucs, o mesmo da partitura, mas aqui em estéreo e a 44,1 kHz, sem reduzir para mono), de 60 em
 60 s com 5 s de sobra de cada lado, cruzados na emenda: a porcentagem anda na tela e a memória não estoura numa música
-longa. Com IA_SEPARADOR=roformer (o PC com placa de vídeo), a voz sai do Mel-Band RoFormer, mais limpa.
+longa. Com placa de vídeo (a função "karaoke" do Modal, modal_app.py), o Demucs roda nela: de 1 a 3 minutos no
+processador para uns 15 a 30 segundos. Com IA_SEPARADOR=roformer (o PC com placa de vídeo), a voz sai do Mel-Band RoFormer, mais limpa.
 """
 
 from __future__ import annotations
@@ -83,6 +84,8 @@ def voz_demucs(x: np.ndarray, progresso=lambda p: None) -> np.ndarray:
     from demucs.apply import apply_model
 
     m = transcricao.modelo_demucs()
+    # (com placa de vídeo, o Demucs roda nela; a música fica na memória comum e vai em pedaços)
+    aparelho = "cuda" if torch.cuda.is_available() else "cpu"
     if m.samplerate != SR:
         raise RuntimeError(f"o Demucs carregado ouve a {m.samplerate} Hz, e o karaokê é a {SR} Hz")
     iv = m.sources.index("vocals")
@@ -96,8 +99,8 @@ def voz_demucs(x: np.ndarray, progresso=lambda p: None) -> np.ndarray:
     for k, (a, b, w) in enumerate(blocos):
         t = torch.from_numpy((x[:, a:b] - media) / desvio)[None]
         with torch.no_grad():
-            fontes = apply_model(m, t, shifts=1, split=True, overlap=0.25, progress=False)[0]
-        voz[:, a:b] += (fontes[iv].numpy() * desvio + media) * w
+            fontes = apply_model(m, t, shifts=1, split=True, overlap=0.25, progress=False, device=aparelho)[0]
+        voz[:, a:b] += (fontes[iv].cpu().numpy() * desvio + media) * w
         progresso((k + 1) / len(blocos))
     return voz
 

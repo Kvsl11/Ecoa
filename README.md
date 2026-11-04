@@ -128,7 +128,7 @@ Visual escuro moderno (cor padrão ciano (a da logo)), com capas, cabeçalhos em
   vidro claro que cresce com mola e vira o controle (a letra atrás se apaga enquanto ele está aberto), tira a voz do
   cantor e deixa a banda. Nas músicas baixadas o karaokê vem junto com o download (Ajustes → Downloads, "Baixar também o
   karaokê", um por vez no servidor). É um controle deslizante: arrastando para
-  cima, a voz volta aos poucos, de guia (o volume é o quadrado da posição: no meio ela já fica baixinha); outro toque e
+  cima, a voz volta aos poucos, de guia (o volume acompanha a barra: no meio, a metade da voz); outro toque e
   a música volta a ser a gravação inteira, sem parar nem trocar de arquivo. Na primeira vez de cada música o servidor da
   IA (`POST /karaoke`, ou `/karaoke/arquivo` com o áudio da pessoa) separa a voz com o **Demucs em estéreo, a 44,1 kHz**
   (de 60 em 60 s, com as emendas cruzadas) e devolve **um M4A de 4 canais**: a banda (a gravação menos a voz) e a voz

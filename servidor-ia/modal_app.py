@@ -12,11 +12,14 @@ import modal
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 
-imagem = (
+def montar(torch_de: str | None):
+    """A imagem do servidor: o torch de torch_de (o de processador) ou, com None, o do PyPI, que já vem com o CUDA (a
+    placa de vídeo do karaokê)."""
+    return (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "libsndfile1")
     # o torchvision junto (o audio-separator o pede): sem ele, o pip trocava este torch pelo com CUDA, de vários GB
-    .pip_install("torch", "torchaudio", "torchvision", index_url="https://download.pytorch.org/whl/cpu")
+    .pip_install("torch", "torchaudio", "torchvision", **({"index_url": torch_de} if torch_de else {}))
     .pip_install_from_requirements(os.path.join(PASTA, "requirements.txt"))
     .run_commands(
         "pip install --no-deps basic-pitch==0.4.0",
@@ -31,7 +34,12 @@ imagem = (
     )
     .env({"IA_WHISPER": "small", "PYTHONUNBUFFERED": "1", "IA_MODELOS_SEPARACAO": "/root/modelos-separacao"})
     .add_local_dir(PASTA, remote_path="/root/app", ignore=["tests", "**/__pycache__", ".pytest_cache", "Dockerfile"])
-)
+    )
+
+
+imagem = montar("https://download.pytorch.org/whl/cpu")
+# o karaokê na placa de vídeo: o torch com CUDA
+imagem_gpu = montar(None)
 
 app = modal.App("songbook-ia")
 
@@ -71,6 +79,25 @@ def web():
 @modal.concurrent(max_inputs=8)
 @modal.asgi_app()
 def lumen():
+    import sys
+
+    sys.path.insert(0, "/root/app")
+    os.chdir("/root/app")
+    from app import app as api
+
+    return api
+
+
+# O karaokê (rotas /karaoke, /tarefa e /baixar) numa placa de vídeo (T4): o Demucs separa a voz de uma música em uns 15 a
+# 30 segundos, em vez de 1 a 3 minutos no processador, por menos de 1 centavo de dólar. O endereço vai em
+# data/servidor-ia.json ("karaoke") e o app manda só o karaokê para cá (o resto fica no Codespace). Uma máquina só (o
+# arquivo pronto e o andamento ficam na memória dela) e desliga 2 minutos depois do último uso
+@app.function(image=imagem_gpu, gpu="T4", cpu=4.0, memory=16384, timeout=900, scaledown_window=120, max_containers=1,
+              secrets=[modal.Secret.from_name("songbook-ia")], volumes={"/cache": guardados},
+              env={"IA_THREADS": "4", "IA_TAREFAS": "1", "IA_CACHE": "/cache"})
+@modal.concurrent(max_inputs=8)
+@modal.asgi_app()
+def karaoke():
     import sys
 
     sys.path.insert(0, "/root/app")
