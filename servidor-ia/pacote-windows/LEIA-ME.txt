@@ -1,0 +1,31 @@
+﻿SERVIDOR DO ECOA PARA WINDOWS (pronto, sem instalar nada)
+==========================================================
+
+Tudo o que o servidor precisa fica dentro desta pasta: o Python, os pacotes, os modelos de IA, o ffmpeg e o túnel.
+Nada é instalado no Windows e não precisa de administrador.
+
+PRIMEIRA VEZ
+1. Descompacte o Ecoa-Servidor.zip numa pasta sua (por exemplo, Documentos). Clique com o botão direito no zip →
+   "Extrair tudo…".
+2. Abra a pasta Ecoa-Servidor e dê dois cliques em "Ligar servidor".
+   - Se o Windows mostrar "O Windows protegeu o computador": "Mais informações" → "Executar assim mesmo".
+3. Na primeira vez, ele monta o resto do servidor (uns 4 GB):
+   - se você já baixou os outros arquivos (Ecoa-Servidor-pacotes.zip, -torch.zip, -modelos…zip, -yt-dlp.zip) pelo
+     navegador para a pasta Downloads, ele usa esses (não precisa descompactar: ele faz isso);
+   - se não, ele mesmo baixa do GitHub. Se a internet cair, rode de novo: ele continua de onde parou.
+4. Quando abrir a página com o QR code (http://localhost:7860), leia com o celular ou o tablet. Pronto.
+
+NAS OUTRAS VEZES
+- Dois cliques em "Ligar servidor". Liga em segundos. Leia o QR code de novo (o endereço muda a cada vez que liga).
+- Deixe a janela aberta enquanto usa o app. Fechar a janela (ou "Desligar servidor") desliga.
+- Ele roda com prioridade baixa e usa metade dos processadores: dá para trabalhar normalmente enquanto ele processa.
+- Com o computador desligado, o app usa o servidor da nuvem sozinho.
+
+ATUALIZAÇÕES (sozinhas)
+- Ao ligar, ele traz o código novo do servidor (poucos KB) e as partes do pacote que mudaram (normalmente só o
+  yt-dlp, uns 10 MB, que o YouTube obriga a atualizar sempre). Se for uma atualização grande, ele pergunta antes.
+
+SE ALGO NÃO FUNCIONAR
+- O QR code não aparece: a rede da empresa pode bloquear o túnel da Cloudflare. Com o VS Code: aba Portas →
+  Encaminhar uma porta → 7860, visibilidade Pública, e abra o endereço que aparece.
+- Os arquivos: https://github.com/Kvsl11/Songbook/releases/tag/servidor-windows
