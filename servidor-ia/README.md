@@ -111,6 +111,22 @@ O workflow **Publicar o servidor da IA** publica o Modal sozinho a cada mudança
 publicação do site grava os dois endereços em `data/servidor-ia.json` (`url`, o Codespace; `reserva` e
 `reservaLumen`, o Modal). Ajustes → Avançado → Servidor da IA mostra qual dos dois atende e por quê.
 
+### No computador da empresa, com o pacote pronto (sem instalar nada)
+
+Para o computador que trava ao instalar pacotes: o GitHub monta uma pasta com tudo dentro (o Python portátil, os
+pacotes, os modelos de IA, o ffmpeg e o túnel) e publica em
+<https://github.com/Kvsl11/Songbook/releases/tag/servidor-windows>.
+
+1. Baixe só o **Ecoa-Servidor.zip** (pequeno) e descompacte numa pasta sua.
+2. Dois cliques em **Ligar servidor**. Na primeira vez ele monta o resto (uns 4 GB): usa os outros zips da página, se já
+   estiverem na pasta Downloads (baixados pelo navegador), ou baixa sozinho, continuando de onde parou se a internet cair.
+3. Leia o QR code da página que abre (<http://localhost:7860>).
+
+Roda com prioridade baixa e com metade dos processadores (`IA_THREADS`): dá para trabalhar no computador enquanto ele
+processa. Ao ligar, traz o código novo do servidor (os `.py`) e só as partes do pacote que mudaram (normalmente o
+yt-dlp). Como é montado: `pacote-windows/montar.py` e `.github/workflows/pacote-windows.yml` (remonta quando o
+`requirements.txt` muda e toda semana); como liga e atualiza: `pacote-windows/pacote.py`.
+
 ### No notebook da empresa, pelo VS Code (sem administrador)
 
 1. Abra a pasta do projeto no VS Code. Precisa de algum Python instalado (o da loja da empresa ou o do python.org

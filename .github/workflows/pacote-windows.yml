@@ -1,0 +1,99 @@
+# O pacote pronto do servidor para Windows (servidor-ia/pacote-windows): uma pasta com tudo dentro (o Python portátil,
+# os pacotes, os modelos de IA, o ffmpeg e o túnel), para ligar o servidor com dois cliques no computador da empresa,
+# sem instalar nada. Publicado em Releases → servidor-windows, em zips de até 2 GB.
+# Remonta quando os pacotes do servidor mudam (requirements.txt), quando o próprio pacote muda e toda semana (o yt-dlp
+# novo, que o YouTube obriga). O código do servidor (os .py) não precisa de pacote novo: o pacote.py traz o novo
+# sozinho ao ligar. Fora do ramo principal, só monta e testa (não publica).
+name: Pacote do servidor para Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'servidor-ia/requirements.txt'
+      - 'servidor-ia/pacote-windows/**'
+      - 'servidor-ia/iniciar_pc.py'
+      - '.github/workflows/pacote-windows.yml'
+  schedule:
+    - cron: '41 7 * * 3'
+
+concurrency:
+  group: pacote-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  pacote:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      PYTHONUTF8: '1'
+      TRABALHO: C:\ecoa\montagem
+      ZIPS: C:\ecoa\zips
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Montar o pacote
+        run: python servidor-ia/pacote-windows/montar.py "$env:TRABALHO" "$env:ZIPS"
+
+      - name: Nada baixado fora do pacote
+        # (um modelo guardado na pasta do usuário do GitHub, e não no pacote, seria baixado de novo no computador)
+        run: |
+          foreach ($p in "$env:USERPROFILE\.cache", "$env:LOCALAPPDATA\torch") {
+            if (Test-Path $p) { Get-ChildItem -Recurse -File $p | Select-Object FullName, Length | Format-Table -AutoSize | Out-String -Width 300 }
+          }
+          Write-Output "O deno (o yt-dlp precisa dele para o YouTube):"
+          Get-ChildItem -Recurse -Filter deno.exe "$env:TRABALHO\Ecoa-Servidor\python" | ForEach-Object { $_.FullName }
+
+      - name: Testar (ligar o servidor da pasta montada)
+        env:
+          ECOA_SEM_ATUALIZAR: '1'
+          IA_SEM_TUNEL: '1'
+          HF_HUB_OFFLINE: '1'
+        run: |
+          $raiz = "$env:TRABALHO\Ecoa-Servidor"
+          $env:TORCH_HOME = "$raiz\modelos\torch"
+          $env:HF_HOME = "$raiz\modelos\huggingface"
+          $env:XDG_CACHE_HOME = "$raiz\modelos\cache"
+          $env:IA_MODELOS_SEPARACAO = "$raiz\modelos\separacao"
+          $proc = Start-Process -FilePath "$raiz\python\python.exe" -ArgumentList "`"$raiz\servidor\pacote-windows\pacote.py`"" `
+            -RedirectStandardOutput C:\ecoa\servidor.log -RedirectStandardError C:\ecoa\servidor.err -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
+            Start-Sleep 5
+            try { $ok = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:7860/saude -TimeoutSec 5).StatusCode -eq 200 } catch {}
+            if ($proc.HasExited) { break }
+          }
+          Get-Content C:\ecoa\servidor.log, C:\ecoa\servidor.err -ErrorAction SilentlyContinue | Select-Object -Last 60
+          if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          if (-not $ok) { throw "O servidor da pasta montada não respondeu em /saude" }
+          Write-Output "O servidor ligou e respondeu."
+
+      - name: Tamanho das partes
+        run: Get-ChildItem $env:ZIPS | Select-Object Name, @{n='MB';e={[math]::Round($_.Length / 1MB)}} | Format-Table -AutoSize
+
+      - name: Publicar (Releases → servidor-windows)
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notas = @"
+          Servidor do Ecoa para Windows, pronto: não instala nada e não precisa de administrador.
+
+          1. Baixe só o **Ecoa-Servidor.zip** e descompacte (botão direito → Extrair tudo).
+          2. Na pasta Ecoa-Servidor, dois cliques em **Ligar servidor**. Na primeira vez ele baixa o resto sozinho (ou usa os
+             outros zips desta página, se você já os baixou para a pasta Downloads).
+          3. Leia o QR code da página que abre com o celular.
+
+          Atualiza sozinho ao ligar (só o que mudou). Montado do commit $env:GITHUB_SHA.
+          "@
+          $notas | Out-File -Encoding utf8 C:\ecoa\notas.md
+          gh release delete servidor-windows --cleanup-tag --yes 2>$null
+          $global:LASTEXITCODE = 0
+          $arquivos = Get-ChildItem $env:ZIPS | ForEach-Object { $_.FullName }
+          gh release create servidor-windows @arquivos --title "Servidor do Ecoa para Windows" --notes-file C:\ecoa\notas.md --target $env:GITHUB_SHA --latest=false
