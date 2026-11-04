@@ -1402,6 +1402,7 @@ body.performance #song.lyrics-mode { background: var(--painel); padding-bottom: 
 .ind-i svg { width: 14px; height: 14px; }
 .ind-i.ind-baixada svg, .ind-i.ind-baixando svg { width: 15px; height: 15px; }
 .ind .selo-e { margin-right: 0; }
+.ind-i.ind-karaoke svg { width: 15px; height: 15px; overflow: visible; }
 .ind-txt { color: var(--muted); }
 .ind-sep { color: var(--muted); margin-left: 1px; }
 
@@ -1990,6 +1991,7 @@ dialog.lista-dlg { max-width: 440px; padding: 0; }
 .lista-op:hover, .lista-op:focus-visible { background: var(--surface-2); }
 .lista-op[aria-selected="true"] { background: var(--accent-soft); }
 .lista-op .cover { width: 44px; height: 44px; flex: none; border-radius: 6px; }
+.lista-ic .mk { width: 21px; height: 21px; overflow: visible; }
 .lista-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); color: var(--muted); }
 .lista-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .lista-dir { flex: none; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
