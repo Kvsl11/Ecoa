@@ -659,7 +659,14 @@ label.setting { cursor: pointer; }
 @keyframes shimmer { to { transform: translateX(100%); } }
 .sk-hero { height: 180px; margin-bottom: 14px; }
 .sk-row { height: 68px; margin-bottom: 8px; }
-.loading-note { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0; display: flex; gap: 10px; justify-content: center; align-items: center; }
+/* carregando, como no Spotify: só o círculo girando no meio (o texto continua para o leitor de tela, sem aparecer) */
+.loading-note { display: flex; justify-content: center; align-items: center; min-height: 110px; margin: 8px 0; font-size: 0; line-height: 0; color: transparent; user-select: none; }
+.loading-note .spin { width: 34px; height: 34px; border-width: 3.5px; border-color: var(--accent); border-bottom-color: color-mix(in srgb, var(--text) 14%, transparent); animation-duration: 0.9s; }
+/* a tela toda ainda carregando: o círculo no meio da tela */
+#view > .loading-note, #view > div > .loading-note:only-child, .partitura > .loading-note:only-child { min-height: calc(100dvh - 220px); }
+#view > .loading-note .spin, #view > div > .loading-note:only-child .spin, .partitura > .loading-note:only-child .spin { width: 44px; height: 44px; border-width: 4px; }
+/* na linha tocada (Busca): o círculo no lugar dos botões, enquanto a música é preparada */
+.track .acts > .spin:only-child { width: 22px; height: 22px; border-width: 3px; border-color: var(--accent); border-bottom-color: color-mix(in srgb, var(--text) 14%, transparent); }
 .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--surface-3); border-top-color: var(--accent); animation: rot 0.8s linear infinite; flex: none; }
 @keyframes rot { to { transform: rotate(360deg); } }
 
@@ -5209,3 +5216,5 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
 .entrada-erro { margin: 0; min-height: 1em; color: #fbbf24; font-size: 14px; line-height: 1.4; }
 .entrada-erro:empty { display: none; }
 .entrada-nota { margin: 0; color: rgb(255 255 255 / 0.55); font-size: 13px; }
+.sinc-estado.procurando { background: none; padding: 4px 0; }
+.sinc-estado.procurando .spin { width: 18px; height: 18px; border-color: var(--accent); border-bottom-color: color-mix(in srgb, var(--text) 14%, transparent); }

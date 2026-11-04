@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 498, data: '2026-11-04', titulo: 'O carregamento como no Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'Enquanto uma tela ou parte dela ainda está carregando, aparece só o círculo girando no meio, na cor do app, como no Spotify, no lugar dos textos "Carregando…" e "Buscando…". Vale em todas as telas: Busca, Início, Liturgia, Orações, artistas, álbuns, partituras e as outras.' },
+      { tipo: 'melhoria', texto: 'Na Busca, ao tocar numa música, os textos que apareciam e sumiam embaixo do nome ("Trazendo a cifra e a letra…", "Sincronizando a letra…") saíram: fica só o círculo girando na linha até a música abrir. No Início, o aviso "buscando sugestões…" da liturgia de hoje também saiu, e na música a procura da letra sincronizada aparece só com o círculo.' },
+    ],
+  },
+  {
     versao: 497, data: '2026-11-04', titulo: 'Ícones novos no menu do perfil',
     itens: [
       { tipo: 'melhoria', texto: 'O menu ⋯ do perfil ganhou ícones novos: a seta saindo da caixa para compartilhar, as duas setas para sincronizar e a porta com a flecha, em vermelho, para sair da conta. O seu e-mail aparece embaixo do nome.' },
@@ -64,14 +71,6 @@ export const NOVIDADES = [
     versao: 489, data: '2026-11-04', titulo: 'Baixada fica verde',
     itens: [
       { tipo: 'correcao', texto: 'O botão de baixar da playlist voltava a aparecer cinza com tudo baixado. Agora a música ou playlist baixada mostra o círculo verde cheio com a seta preta em todo lugar: na playlist, na página da música e no "Remover o download" dos ⋮. O que ainda falta baixar fica só com o contorno.' },
-    ],
-  },
-  {
-    versao: 488, data: '2026-11-04', titulo: 'A capinha da prévia sem piscar',
-    itens: [
-      { tipo: 'correcao', texto: 'A capinha da playlist dava uma piscada mostrando as faixas pretas do clipe antes de ficar normal. Agora o app mede as faixas antes de mostrar o vídeo, e ele já entra sem elas. O mesmo vale para a prévia em tela cheia.' },
-      { tipo: 'melhoria', texto: 'A capinha ficou como a do Spotify: a tela com o contorno claro e um cartão claro atrás, como uma capinha.' },
-      { tipo: 'melhoria', texto: 'Com a música pausada, as barrinhas ao lado do nome viram três quadradinhos, como o "..." do Spotify. Tocando, voltam a se mexer.' },
     ],
   },
 ];
