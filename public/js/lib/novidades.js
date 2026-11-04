@@ -4,9 +4,18 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 496, data: '2026-11-04', titulo: 'A tela de entrada do Ecoa',
+    itens: [
+      { tipo: 'novo', texto: 'O Ecoa agora abre com uma tela de entrada: para usar o app, entre com a sua conta Google. Você entra uma vez e continua entrado no aparelho, mesmo fechando o app, até tocar em Sair da conta (no ⋯ do seu perfil).' },
+      { tipo: 'correcao', texto: 'A sua foto de perfil aparece também no topo da Biblioteca, no lugar do logo do Ecoa, como no Início, na Busca, nas Partituras e na Liturgia. Tocando nela, abre a gaveta do perfil.' },
+      { tipo: 'melhoria', texto: 'Nas suas playlists e repertórios, onde estava o logo do Ecoa e "Você", agora aparecem a sua foto e o seu nome, como no Spotify.' },
+      { tipo: 'melhoria', texto: 'No Início, a engrenagem dos Ajustes saiu do topo: os Ajustes ficam na gaveta que abre ao tocar na sua foto e no seu perfil, como no Spotify.' },
+    ],
+  },
+  {
     versao: 495, data: '2026-11-04', titulo: 'Entre com o Google e tenha o seu perfil',
     itens: [
-      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Entrar é opcional: sem conta, tudo continua funcionando só neste aparelho. Os downloads continuam sendo de cada aparelho.' },
+      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Os downloads continuam sendo de cada aparelho.' },
       { tipo: 'novo', texto: 'A sua foto aparece no canto de cima, como no Spotify. Tocando nela, abre a gaveta do perfil, com as suas informações: o e-mail da conta e quando ela sincronizou, quantas músicas curtidas, repertórios, artistas e baixadas você tem, a música que você tocou por último e a versão do app. Embaixo ficam Ver perfil, Novidades, Tocadas recentemente e Ajustes.' },
       { tipo: 'novo', texto: 'A página do perfil tem o topo na cor da sua foto, o seu nome com quantos repertórios e músicas você tem, os botões Editar (para mudar o nome), Ajustes e ⋯ (Compartilhar o Ecoa, Sincronizar agora, Sair da conta), os seus repertórios e os artistas que você tocou recentemente.' },
     ],
@@ -64,14 +73,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'No "Adicionar" da playlist, dá para marcar várias músicas (ou todas, com "Selecionar todas") e adicionar de uma vez. As que já estão na playlist aparecem apagadas, com "Na playlist". Na aba "Procurar na internet", tocar numa música salva ela na biblioteca e já deixa marcada.' },
       { tipo: 'melhoria', texto: 'A capinha da playlist agora passa um pouco de cada música, uns 4 segundos do refrão de cada uma, como os stories em miniatura. Antes mostrava só a primeira.' },
-    ],
-  },
-  {
-    versao: 486, data: '2026-11-04', titulo: 'A música tocando em todas as listas',
-    itens: [
-      { tipo: 'novo', texto: 'Como no Spotify, a música que está tocando aparece destacada em todas as listas: na Biblioteca, nas Músicas curtidas, na Busca, nas playlists e nos repertórios. O nome fica na cor que você escolheu nos Ajustes e, enquanto ela toca, aparecem as barrinhas animadas antes dele.' },
-      { tipo: 'novo', texto: 'Na playlist com o "Vídeo" ligado, tocar numa música (ou no play) abre o clipe. Com ele desligado, abre a versão música.' },
-      { tipo: 'melhoria', texto: 'Os clipes da prévia da playlist e da capinha não têm mais as faixas pretas em cima e embaixo: o app mede as faixas no vídeo e amplia só o necessário. A capinha ganhou os cartões empilhados atrás, como nos stories do Spotify.' },
     ],
   },
 ];

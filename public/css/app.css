@@ -4305,7 +4305,7 @@ main:has(.bib-cab, .bib-busca-topo)::before { display: none; }
 .bib-cab { display: flex; align-items: center; gap: 10px; min-height: 52px; }
 .bib-cab h2 { flex: 1; min-width: 0; margin: 0 0 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bib-cab .icon-btn { color: var(--text); width: 42px; height: 42px; }
-.bib-avatar { display: grid; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; }
+.bib-avatar { display: grid; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; padding: 0; border: 0; background: none; cursor: pointer; }
 .bib-avatar .logo { width: 100%; height: 100%; }
 /* os chips rolam de lado até a borda da tela; com um escolhido, o X redondo antes dele */
 .bib-fixo .bib-filtros { flex-wrap: nowrap; margin: 4px calc(-1 * var(--gutter)) 0; padding: 4px var(--gutter) 6px; }
@@ -5132,20 +5132,17 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-item svg { color: var(--muted); flex: none; }
 .pg-item:hover, .pg-item:focus-visible { background: var(--surface-2); }
 
-.perfil { padding: 0 16px 120px; }
-.perfil-topo { display: flex; align-items: center; gap: 16px; margin: 0 -16px; padding: calc(72px + env(safe-area-inset-top)) 16px 18px;
-  background: linear-gradient(to bottom, var(--tint), color-mix(in srgb, var(--tint) 40%, var(--bg))); }
+.perfil { padding: 0 0 120px; }
+.perfil-topo { display: flex; align-items: center; gap: 16px; padding: calc(72px + env(safe-area-inset-top)) 0 18px; }
 .perfil-topo .avatar { box-shadow: 0 8px 28px rgb(0 0 0 / 0.45); }
 .perfil-nome { min-width: 0; }
 .perfil-nome h2 { margin: 0 0 6px; font-size: clamp(24px, 7vw, 40px); font-weight: 900; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .perfil-nome p { margin: 0; color: color-mix(in srgb, var(--text) 75%, transparent); font-size: 14px; }
 .perfil-nome p b { color: var(--text); }
-.perfil-acoes { display: flex; align-items: center; gap: 8px; margin: 0 -16px; padding: 12px 16px 6px;
-  background: color-mix(in srgb, var(--tint) 40%, var(--bg)); }
+.perfil-acoes { display: flex; align-items: center; gap: 8px; padding: 12px 0 6px; }
 .perfil-pilula { border-radius: 999px; border: 1px solid color-mix(in srgb, var(--text) 45%, transparent); background: none; color: var(--text); font-weight: 700; padding: 6px 16px; text-decoration: none; }
 .perfil-acoes .icon-btn { color: var(--text); }
-.perfil-sinc { margin: 0 -16px; padding: 4px 16px 14px; font-size: 13px; color: var(--muted);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--tint) 40%, var(--bg)), var(--bg)); }
+.perfil-sinc { margin: 0; padding: 4px 0 14px; font-size: 13px; color: color-mix(in srgb, var(--text) 70%, transparent); }
 .perfil-sinc.erro { color: #f59e0b; }
 .perfil-entrar { padding: 18px 0 8px; display: grid; gap: 16px; justify-items: start; }
 .perfil-entrar p { margin: 0; color: var(--muted); line-height: 1.5; max-width: 560px; }
@@ -5183,3 +5180,28 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-ultima b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-ultima small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-versao { margin: 8px 16px 0; color: var(--subtle); font-size: 12px; }
+
+/* ---- tela de entrada: o app só abre com a conta Google */
+.entrada { display: none; }
+html.sem-conta body { overflow: hidden; }
+html.sem-conta .shell, html.sem-conta #player { visibility: hidden; }
+html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow-y: auto;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); background: #0b0f12; color: #fff; }
+.entrada-fundo { position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 65%),
+    radial-gradient(80% 50% at 100% 100%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%); }
+.entrada-conteudo { position: relative; width: min(100%, 420px); display: grid; justify-items: center; text-align: center; gap: 14px; }
+.entrada-logo { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.5); }
+.entrada h1 { margin: 4px 0 0; font-size: 44px; font-weight: 900; letter-spacing: -0.03em; }
+.entrada-frase { margin: 0; color: rgb(255 255 255 / 0.78); font-size: 16px; line-height: 1.45; }
+.entrada-lista { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; gap: 10px; width: 100%; text-align: left; }
+.entrada-lista li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: rgb(255 255 255 / 0.06); font-size: 14px; line-height: 1.35; }
+.entrada-lista span { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; font-size: 16px; }
+.entrada-google { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 6px;
+  border: 0; border-radius: 999px; background: #fff; color: #1f1f1f; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+.entrada-google:active { transform: scale(0.98); }
+.entrada-google:disabled { opacity: 0.7; cursor: default; }
+.entrada-google:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.entrada-erro { margin: 0; min-height: 1em; color: #fbbf24; font-size: 14px; line-height: 1.4; }
+.entrada-erro:empty { display: none; }
+.entrada-nota { margin: 0; color: rgb(255 255 255 / 0.55); font-size: 13px; }

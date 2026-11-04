@@ -340,7 +340,10 @@ No celular, abra o link e use **"Adicionar à tela inicial"** para instalar como
 
 ## Conta Google e perfil (Firebase)
 
-Entrar com o Google é opcional. Quem entra tem as músicas, os repertórios e as tocadas recentemente guardados na conta
+O app só abre para quem entra com o Google: antes dele vem a tela de entrada (`#entrada`, no `index.html`, que já
+aparece antes de o app carregar). A sessão fica guardada no aparelho até a pessoa tocar em **Sair da conta**. Como o
+site é estático (GitHub Pages), a tela de entrada não esconde os arquivos públicos do site; o que fica protegido de
+verdade é a biblioteca de cada pessoa no Firestore. Quem entra tem as músicas, os repertórios e as tocadas recentemente guardados na conta
 (Firestore) e vê tudo igual em qualquer aparelho. Os downloads, o áudio próprio e o karaokê continuam sendo de cada
 aparelho. A foto da conta aparece no canto de cima das telas principais e abre a gaveta do perfil; a página do perfil
 fica em `#/conta`. O código está em `public/js/conta.js` e a lógica da sincronia em `public/js/lib/sincronia-conta.js`
