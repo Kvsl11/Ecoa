@@ -14953,7 +14953,7 @@ function abrirGavetaDoPerfil() {
         ${item('sparkles', 'Novidades', 'href="#/novidades"')}
         ${item('clock', 'Tocadas recentemente', 'href="#/biblioteca"')}
         ${item('settings', 'Ajustes', 'href="#/ajustes"')}
-        ${u ? item('refresh', 'Sincronizar agora', 'data-sinc') : ''}
+        ${u ? item('sincronizar', 'Sincronizar agora', 'data-sinc') : ''}
       </div>
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
@@ -15054,11 +15054,12 @@ function viewConta() {
     viewConta();
   });
   $('#pf-mais')?.addEventListener('click', () => openDialog(`
-    <div class="perfil-folha-cab">${avatarHtml(u, 40)}<b>${esc(u.nome || u.email)}</b></div>
-    ${u.email ? `<p class="muted perfil-folha-email">${esc(u.email)}</p>` : ''}
-    <button class="pg-item" data-v="compartilhar">${icon('share', 22)}<span>Compartilhar o Ecoa</span></button>
-    <button class="pg-item" data-v="sinc">${icon('refresh', 22)}<span>Sincronizar agora</span></button>
-    <button class="pg-item" data-v="sair">${icon('porta', 22)}<span>Sair da conta</span></button>`,
+    <div class="perfil-folha-cab">${avatarHtml(u, 44)}<span class="grow"><b>${esc(u.nome || u.email)}</b>${u.email ? `<small>${esc(u.email)}</small>` : ''}</span></div>
+    <div class="perfil-folha-lista">
+      <button class="pg-item" data-v="compartilhar">${icon('enviarApp', 22)}<span>Compartilhar o Ecoa</span></button>
+      <button class="pg-item" data-v="sinc">${icon('sincronizar', 22)}<span>Sincronizar agora</span></button>
+      <button class="pg-item pg-sair" data-v="sair">${icon('sair', 22)}<span>Sair da conta</span></button>
+    </div>`,
   (dlg, done) => dlg.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) done(b.dataset.v); }), { folha: true }).then(async (v) => {
     if (v === 'compartilhar') {
       const url = new URL('./', location.href).href;
