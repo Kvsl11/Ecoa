@@ -130,6 +130,8 @@ export const db = {
   saveSet(set) {
     const full = { items: [], date: new Date().toISOString().slice(0, 10), ...set, id: set.id || uid() };
     const i = state.sets.findIndex((s) => s.id === full.id);
+    // quando foi criado (a ordem "Adicionados recentemente" da biblioteca)
+    if (!full.criadoEm) { if (i < 0) full.criadoEm = Date.now(); else if (state.sets[i].criadoEm) full.criadoEm = state.sets[i].criadoEm; }
     if (i >= 0) state.sets[i] = full; else state.sets.push(full);
     tirarSoltas();
     persist();

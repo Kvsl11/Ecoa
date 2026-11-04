@@ -2330,11 +2330,11 @@ dialog.lista-dlg[open] { display: flex; flex-direction: column; overflow: hidden
 .bib-capas .cover { width: 100%; height: auto; aspect-ratio: 1; border-radius: 8px; box-shadow: 0 14px 30px rgb(0 0 0 / 0.5); }
 .bib-capas .cover img { width: 100%; height: 100%; object-fit: cover; }
 .bib-hero h2 { margin: 4px 0 10px; font-size: clamp(26px, 5.5vw, 40px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.04; }
-.bib-titulo { margin: 4px 0 14px; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
-/* os filtros e a busca, presos logo abaixo do topo ao rolar (como no Spotify); com a cor do topo quando ele também a tem */
-.bib-fixo { position: sticky; top: -4px; top: calc(env(safe-area-inset-top) - 4px); /* (a rolagem já desconta os 64px do topo) */ z-index: 15; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 4px var(--gutter) 10px; transition: background 0.25s; }
-.main-col:has(.topbar.scrolled) .bib-fixo { background: color-mix(in srgb, var(--tint) 45%, var(--bg)); }
-.bib-fixo .bib-busca { display: flex; margin: 0; }
+/* o topo da biblioteca (o avatar, "Sua biblioteca", a lupa e o +) e os chips, presos no alto ao rolar, como no Spotify:
+   no fundo da página, com uma sombra quando a lista passa por baixo */
+.bib-fixo { position: sticky; top: 0; z-index: 15; margin: 0 calc(-1 * var(--gutter)) 10px; padding: calc(6px + env(safe-area-inset-top)) var(--gutter) 6px; background: var(--bg); transition: box-shadow 0.25s; }
+.main-col:has(.topbar.scrolled) .bib-fixo { box-shadow: 0 6px 14px rgb(0 0 0 / 0.35); }
+:root[data-theme="light"] .main-col:has(.topbar.scrolled) .bib-fixo { box-shadow: 0 4px 10px rgb(0 0 0 / 0.1); }
 .bib-filtros { margin: 0 0 10px; }
 .bib-filtros .chip { display: inline-flex; align-items: center; gap: 7px; }
 .bib-filtros .chip b { min-width: 20px; padding: 0 6px; border-radius: 999px; background: rgb(127 127 127 / 0.22); font-size: 11.5px; font-weight: 800; line-height: 18px; text-align: center; }
@@ -4263,12 +4263,12 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .bib-card > .cover { width: 100%; height: auto; aspect-ratio: 1; border-radius: 4px; }
 .bib-card > .cover img { width: 100%; height: 100%; object-fit: cover; }
 .bib-card b { display: block; margin-top: 10px; font-size: 15px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; hyphens: manual; }
-.bib-card small { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bib-card small { display: block; margin-top: 3px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (hover: hover) { .bib-card:hover > .cover { filter: brightness(1.08); } }
 .bib-card:active { transform: scale(0.98); opacity: 0.85; }
 /* o alfinete verde das fixadas (como o das Músicas Curtidas) */
 .pino { display: inline-grid; place-items: center; color: #1ed760; flex: none; margin-right: 4px; vertical-align: -2px; }
-.bib-card .pino { margin-right: 0; }
+.bib-card .pino { margin-right: 3px; }
 /* a capa do coração (as músicas curtidas) e a das baixadas */
 .capa-curtidas { display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #450af5 0%, #8e8ee5 60%, #c4efd9 100%); }
 .capa-curtidas .ic { fill: currentColor; width: 38%; height: 38%; }
@@ -4280,14 +4280,48 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 #lib.selecionando .bib-card.bib-fixa { opacity: 0.4; pointer-events: none; }
 .bib-card.marcado { background: none; }
 .bib-card.marcado > .cover { outline: 3px solid var(--accent); outline-offset: 2px; }
-/* a linha da ordem (Recentes / Ordem alfabética) e o botão de grade ou lista */
-.bib-ordem { display: flex; align-items: center; gap: 4px; margin: -4px 0 14px; }
+/* a linha da ordem (⇅ Recentes, que abre a folha "Ordenar por") e o botão de grade ou lista */
+.bib-ordem { display: flex; align-items: center; gap: 4px; margin: 0 0 12px; }
 .bib-ordenar { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; font-weight: 700; padding: 6px 2px; cursor: pointer; }
+.bib-ordem .icon-btn { color: var(--text); }
 .bib-ordem .icon-btn.ativo { color: var(--accent); }
-.bib-artistas { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 22px 16px; }
-@media (min-width: 760px) { .bib-artistas { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
-.bib-artistas .tile { margin: 0; padding: 0; }
-.bib-artistas .tile-artista .cover img { width: 100%; height: 100%; object-fit: cover; }
+/* a página da biblioteca e a busca dela têm o topo próprio: sem a faixa do app nem o degradê de cor (o fundo liso do Spotify) */
+.main-col:has(.bib-cab, .bib-busca-topo) .topbar { display: none; }
+main:has(.bib-cab, .bib-busca-topo) { padding-top: 0; }
+main:has(.bib-cab, .bib-busca-topo)::before { display: none; }
+.bib-cab { display: flex; align-items: center; gap: 10px; min-height: 52px; }
+.bib-cab h2 { flex: 1; min-width: 0; margin: 0 0 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bib-cab .icon-btn { color: var(--text); width: 42px; height: 42px; }
+.bib-avatar { display: grid; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; }
+.bib-avatar .logo { width: 100%; height: 100%; }
+/* os chips rolam de lado até a borda da tela; com um escolhido, o X redondo antes dele */
+.bib-fixo .bib-filtros { flex-wrap: nowrap; margin: 4px calc(-1 * var(--gutter)) 0; padding: 4px var(--gutter) 6px; }
+.bib-fixo .chip { height: 34px; padding: 0 15px; font-size: 14px; font-weight: 500; }
+.bib-fixo .chip-x { width: 34px; padding: 0; justify-content: center; }
+/* as folhas da biblioteca (Ordenar por, Criar): o título no meio, como no Spotify */
+dialog.bib-folha .menu-cab h3 { width: 100%; text-align: center; font-size: 16px; }
+dialog.bib-folha .lista-ok { color: #1ed760; }
+dialog.bib-folha .lista-op[aria-selected="true"] { background: none; }
+/* os artistas na estante: a foto redonda */
+.capa-artista { display: grid; place-items: center; border-radius: 50% !important; color: var(--muted); background: var(--surface-2); overflow: hidden; }
+.capa-artista img { width: 100%; height: 100%; object-fit: cover; }
+.bib-lista .track > .capa-artista { border-radius: 50%; }
+/* no celular, três por linha (como na grade do Spotify), com o nome em até duas linhas e o tipo numa só */
+@media (max-width: 599px) {
+  .bib-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
+  .bib-card b { margin-top: 8px; font-size: 13.5px; font-weight: 500; }
+  .bib-card small { font-size: 12px; gap: 3px; }
+  .bib-card .pino svg { width: 11px; height: 11px; }
+  .bib-card .marca-sel { top: 5px; left: 5px; }
+}
+/* a busca da biblioteca (a lupa): o campo no topo e, sem nada digitado, o "Encontre suas favoritas" no meio */
+.bib-busca-topo { position: sticky; top: 0; z-index: 15; display: flex; align-items: center; gap: 6px; margin: 0 calc(-1 * var(--gutter)) 8px; padding: calc(8px + env(safe-area-inset-top)) var(--gutter) 8px 8px; background: var(--bg); }
+.bib-busca-topo .icon-btn { color: var(--text); }
+.bib-busca-campo { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 15px; outline: none; }
+.bib-busca-campo::placeholder { color: var(--muted); }
+.bib-busca-vazia { display: grid; place-items: center; align-content: center; min-height: 55vh; padding: 0 24px; text-align: center; }
+.bib-busca-vazia h3 { margin: 0 0 8px; font-size: 22px; font-weight: 800; }
+.bib-busca-vazia p { margin: 0; color: var(--muted); font-size: 14px; }
 /* ============================================================ dentro da playlist (repertório) e das Músicas curtidas,
    no jeito do Spotify */
 /* a capa grande no meio, o nome à esquerda, o tipo e a data, a duração */
@@ -4338,7 +4372,7 @@ html.tablet .ver-fotos .vf-seta { display: none; }
    degradê e o topo ao rolar são bem mais suaves, e o "Tocando agora" (o painel e a tela cheia) vai até a borda */
 :root[data-theme="light"] { --black: #ffffff; }
 :root[data-theme="light"] main::before { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 24%, transparent) 0%, transparent 100%); }
-:root[data-theme="light"] .topbar.scrolled, :root[data-theme="light"] .main-col:has(.topbar.scrolled) .bib-fixo { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
+:root[data-theme="light"] .topbar.scrolled { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
 /* (o painel aberto, no tablet e no computador; não a barrinha do player recolhido nem o celular) */
 html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
 html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .main-col { margin-right: var(--painel-w); }
@@ -4367,7 +4401,7 @@ html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .mai
 @media (prefers-color-scheme: light) {
   :root[data-theme="auto"] { --black: #ffffff; }
   :root[data-theme="auto"] main::before { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 24%, transparent) 0%, transparent 100%); }
-  :root[data-theme="auto"] .topbar.scrolled, :root[data-theme="auto"] .main-col:has(.topbar.scrolled) .bib-fixo { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
+  :root[data-theme="auto"] .topbar.scrolled { background: color-mix(in srgb, var(--tint) 12%, var(--bg)); }
   html.pp.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido) #player { top: 0; right: 0; bottom: 0; border-radius: 0; }
   html.tablet:root[data-theme="auto"] body.com-player:not(.painel-recolhido) .main-col { margin-right: var(--painel-w); }
 }

@@ -2,6 +2,9 @@
 const P = {
   // mudar de posição (o ≡ das filas): três tracinhos curtos
   reordenar: '<path d="M7 8.5h10M7 12h10M7 15.5h10"/>',
+  // a ordem da biblioteca (as duas setas, para cima e para baixo) e o "ver em lista" (os tracinhos com bolinhas)
+  ordenar: '<path d="M7.5 20V4M3.5 8l4-4 4 4M16.5 4v16M12.5 16l4 4 4-4"/>',
+  emLista: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/>',
   grip: '<circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/>',
   // aleatório, repetir, voltar, pular, play e pause no desenho do Spotify (as setas cruzadas, o laço arredondado, os
   // triângulos cheios com a barra)
