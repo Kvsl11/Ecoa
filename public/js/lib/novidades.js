@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 491, data: '2026-11-04', titulo: 'O cartão inclinado da capinha',
+    itens: [
+      { tipo: 'melhoria', texto: 'O cartão atrás da capinha da prévia agora fica inclinado, como no Spotify: no alto ele aparece à direita da tela e, embaixo, fica escondido atrás dela. Ao entrar na playlist, ele sai girando até ficar nessa posição.' },
+    ],
+  },
+  {
     versao: 490, data: '2026-11-04', titulo: 'A capinha da prévia ao entrar na playlist',
     itens: [
       { tipo: 'melhoria', texto: 'Ao entrar na playlist, a capinha da prévia faz a animação do Spotify. Ela já começa mostrando a primeira música, e não mais a capa da playlist. O contorno claro se desenha em volta e, no fim, o cartão de trás desliza para a direita.' },
@@ -72,12 +78,6 @@ export const NOVIDADES = [
     versao: 482, data: '2026-11-04', titulo: 'A foto certa do artista',
     itens: [
       { tipo: 'correcao', texto: 'Alguns artistas apareciam com uma foto que não era deles. O Justice, por exemplo, vinha com uma estátua da Justiça. Quando não achava a foto em outro lugar, o app pegava a da página da Wikipédia com o mesmo nome, e "Justice" é a página do conceito de justiça. Agora só vale a página que é mesmo do artista, como "Justice (band)", e as fotos do "Sobre o artista" vêm dela. As músicas já salvas com a foto errada ganham a foto certa sozinhas.' },
-    ],
-  },
-  {
-    versao: 481, data: '2026-11-04', titulo: 'A letra sem atraso',
-    itens: [
-      { tipo: 'correcao', texto: 'Em algumas músicas, a letra sincronizada vinha uns segundos atrasada, como em "Club Tropicana" (Wham!), uns 4,5 s. O LRCLIB tem edições da mesma música feitas para gravações um pouco diferentes (o áudio oficial tem 266 s, e a maioria das edições, 268 a 270 s), e o app ficava com a mais repetida. Agora, assim que o app sabe a duração do áudio que toca, ele usa a edição feita para ela. As músicas já salvas são corrigidas sozinhas; a letra que você sincronizou à mão fica como está.' },
     ],
   },
 ];
