@@ -1757,12 +1757,18 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 window.addEventListener('songbook:nova-musica', (e) => { if (db.song(e.detail.id)) db.updateSong(e.detail.id, { revisao: REVISAO_MUSICAS }); });
 
 // endereço do player do YouTube embutido (enablejsapi permite pausar/tocar pelo botão verde)
-function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false } = {}) {
+// semConta: os players de apoio (a capa animada, a outra versão que espera por baixo para a troca música/clipe, a próxima
+// que entra muda no crossfade, a prévia das playlists) vêm do youtube-nocookie.com, que não leva a conta do YouTube do
+// navegador. Com a conta em todos, cada um contava como outra reprodução dela ao mesmo tempo, e o YouTube parava o
+// vídeo ("sua conta está sendo usada em outro dispositivo", o limite do Premium). Só o player que se ouve leva a conta
+const YT_COM_CONTA = 'https://www.youtube.com/embed/';
+const YT_SEM_CONTA = 'https://www.youtube-nocookie.com/embed/';
+function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false, semConta = false } = {}) {
   const p = new URLSearchParams({ autoplay: autoplay ? '1' : '0', playsinline: '1', enablejsapi: '1', rel: '0', modestbranding: '1' });
   if (mudo) p.set('mute', '1'); // (a próxima na transição: começa sem som e sobe aos poucos)
   if (inicio > 0) p.set('start', String(Math.floor(inicio)));
   if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
-  return `https://www.youtube.com/embed/${encodeURIComponent(id)}?${p}`;
+  return `${semConta ? YT_SEM_CONTA : YT_COM_CONTA}${encodeURIComponent(id)}?${p}`;
 }
 
 // nome e canal de um vídeo do YouTube (para o cartão das Referências): pergunta uma vez e guarda enquanto
@@ -2428,7 +2434,7 @@ const player = (() => {
       if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
       const f = document.createElement('iframe');
       f.className = 'pl-canvas pl-canvas-yt';
-      f.src = `https://www.youtube.com/embed/${encodeURIComponent(id)}?${p}`;
+      f.src = `${YT_SEM_CONTA}${encodeURIComponent(id)}?${p}`; // (a capa animada: sem a conta, não conta como outra reprodução)
       f.allow = 'autoplay; encrypted-media';
       f.tabIndex = -1;
       f.title = '';
@@ -3183,7 +3189,7 @@ const semLinhasDeAcordes = (sinc) => {
     estadoYt = -1;
     // (a música que sai na transição continua tocando por baixo, descendo o volume: não sai junto)
     [...tela.children].forEach((x) => { if (!x.classList.contains('pl-saindo')) x.remove(); });
-    tela.insertAdjacentHTML('beforeend', `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay, mudo: Boolean(transicao && !transicao.para) }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`);
+    tela.insertAdjacentHTML('beforeend', `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay, mudo: Boolean(transicao && !transicao.para), semConta: Boolean(transicao && !transicao.para) }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`);
     const f = iframeAtual();
     anuncio = false;
     montadoEm = performance.now();
@@ -3603,7 +3609,7 @@ const semLinhasDeAcordes = (sinc) => {
     f.className = 'pl-reserva';
     f.dataset.yt = outra;
     conhecerDuracao(outra);
-    f.src = ytEmbed(outra, { autoplay: false });
+    f.src = ytEmbed(outra, { autoplay: false, semConta: true });
     f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
     f.title = '';
     f.tabIndex = -1;
@@ -13555,7 +13561,7 @@ function previaDaPlaylist(set, inicio = 0) {
     } else {
       faixasNoYoutube(s.youtube).then(zoom);
       const f = document.createElement('iframe');
-      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
+      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true, semConta: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
       f.allow = 'autoplay; encrypted-media';
       f.title = s.title;
       f.tabIndex = -1;
