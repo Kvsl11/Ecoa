@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 500, data: '2026-11-04', titulo: 'Justin Bieber no mural da entrada',
+    itens: [
+      { tipo: 'correcao', texto: 'No mural da tela de entrada, o Billie Jean aparecia todo preto: os quadros que o YouTube tira desse clipe são pretos. Agora cada clipe mostra só os quadros que têm imagem, e o Billie Jean aparece com a capa do vídeo.' },
+      { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Sorry, Peaches, Love Yourself e What Do You Mean?.' },
+    ],
+  },
+  {
     versao: 499, data: '2026-11-04', titulo: 'Uma tela de entrada nova',
     itens: [
       { tipo: 'melhoria', texto: 'A tela de entrada ficou nova. No fundo, um mural com quadros de clipes famosos passa devagar, em fileiras inclinadas: Michael Jackson, The Beatles, Bruno Mars, Lady Gaga, Sabrina Carpenter, Queen e outros. No alto, aparece o nome de um dos clipes, trocando de tempos em tempos. Na frente ficam o "Ouça. Cante. Ecoe.", o que o app tem e o botão Entrar com o Google. No computador, o convite fica à esquerda e o mural ocupa o resto da tela.' },
@@ -63,14 +70,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O cartão atrás da capinha da prévia agora fica inclinado, como no Spotify: no alto ele aparece à direita da tela e, embaixo, fica escondido atrás dela. Ao entrar na playlist, ele sai girando até ficar nessa posição.' },
       { tipo: 'melhoria', texto: 'A capinha ganhou a faixa escura em volta da tela, a sombra que separa a tela do cartão de trás, como no Spotify. O contorno e o cartão ficaram nos tons de cinza-azulado dele.' },
-    ],
-  },
-  {
-    versao: 490, data: '2026-11-04', titulo: 'A capinha da prévia ao entrar na playlist',
-    itens: [
-      { tipo: 'melhoria', texto: 'Ao entrar na playlist, a capinha da prévia faz a animação do Spotify. Ela já começa mostrando a primeira música, e não mais a capa da playlist. O contorno claro se desenha em volta e, no fim, o cartão de trás desliza para a direita.' },
-      { tipo: 'melhoria', texto: 'A capinha ficou no tamanho e na proporção da do Spotify, um pouco mais estreita e alta que antes.' },
-      { tipo: 'melhoria', texto: 'O app guarda no aparelho a medida das faixas pretas de cada clipe. Assim, a capinha e a prévia não precisam medir de novo, e o vídeo entra mais rápido.' },
     ],
   },
 ];
