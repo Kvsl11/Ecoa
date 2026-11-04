@@ -98,12 +98,18 @@ if (doLink !== null) {
 const responde = (url) => fetch(url + '/saude', {
   headers: cabecalhos(url), signal: AbortSignal.timeout(10000), cache: 'no-store',
 }).then((r) => r.ok).catch(() => false);
+// (o Modal liga só quando alguém usa: a primeira resposta pode levar uns 20 s. Desativado — sem crédito —, ele responde
+// na hora com erro)
+const respondeDevagar = (url) => fetch(url + '/saude', {
+  headers: cabecalhos(url), signal: AbortSignal.timeout(30000), cache: 'no-store',
+}).then((r) => r.ok).catch(() => false);
 let carregamentoServidor = null;
 let servidorVerificadoEm = 0;
 // O Codespace é o servidor principal e o Modal, o de reserva (data/servidor-ia.json: "url" e "reserva"). Tudo sozinho:
 // com o Codespace de pé, ele atende; desligado, o Modal atende na hora e manda o GitHub ligar o Codespace
 // (POST /codespace/ligar, na máquina pequena do Modal), e quando ele responder o app volta para ele. Sem a cota do mês
 // no Codespace, fica no Modal (e só pergunta de novo meia hora depois). Ninguém liga nada, lê QR code nem cola endereço
+let reservaFora = false; // o Modal publicado, mas sem responder (desativado por falta de crédito, fora do ar)
 let estadoCodespace = ''; // o que o Modal disse por último: ligado | ligando | criando | sem-cota | sem-token | erro
 let acordandoEm = 0;
 const CODESPACE_SEM_COTA = 'songbook.codespaceSemCota';
@@ -129,32 +135,49 @@ function carregarServidor({ forcar = false } = {}) {
   if (carregamentoServidor) return carregamentoServidor;
   if (!forcar && Date.now() - servidorVerificadoEm < 15000) return Promise.resolve(SERVIDOR_IA);
   carregamentoServidor = (async () => {
+    // O Codespace é achado sozinho, sem QR code: o endereço publicado no site primeiro e, se ele não responder, o último
+    // Codespace que respondeu neste aparelho (o site demora uns minutos para publicar o endereço novo, quando o
+    // Codespace muda). Só depois o endereço colado à mão (o QR code de um computador) e, por fim, o Modal, se ele
+    // responder. Antes o endereço do QR code vinha primeiro e, quando era o próprio Codespace e falhava uma vez, o
+    // Codespace nem era tentado de novo; e o app ia para o Modal mesmo com ele desativado (sem crédito), e nada
+    // funcionava
     const pc = baseDoServidor(db.prefs().servidorPc);
-    if (pc && await responde(pc)) {
-      SERVIDOR_IA = { url: pc, chave: '', pc: true, lumen: pc };
-      return SERVIDOR_IA;
-    }
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
     SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
     // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
-    let host = '';
-    try { host = url ? new URL(url).host : ''; } catch { /* endereço inválido */ }
-    if (url && doCodespace(host)) {
-      // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, o Modal atende enquanto ele
-      // liga sozinho; sem o Modal, fica sem servidor e a partitura sai no aparelho (a tela pede para ligar o Codespace)
-      servidorDoSite = url;
-      if (url !== pc && await responde(url)) { SERVIDOR_IA = { url, chave: d.chave || '', pc: true, lumen: url }; estadoCodespace = 'ligado'; }
-      else if (reserva) { SERVIDOR_IA = reserva; void acordarCodespace(reserva); }
-      else SERVIDOR_IA = { url: '', chave: '' };
-    } else if (url) {
+    const ehCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
+    const ultimo = baseDoServidor(db.prefs().codespaceAchado);
+    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : ''].filter(Boolean))];
+    servidorDoSite = codespaces[0] || '';
+    reservaFora = false;
+    for (const c of codespaces) {
+      if (!(await responde(c))) continue;
+      SERVIDOR_IA = { url: c, chave: d?.chave || '', pc: true, lumen: c };
+      estadoCodespace = 'ligado';
+      if (db.prefs().codespaceAchado !== c) db.setPref('codespaceAchado', c);
+      // (o QR code do próprio Codespace, guardado de antes, não é mais preciso)
+      if (pc && ehCodespace(pc)) db.setPref('servidorPc', '');
+      return SERVIDOR_IA;
+    }
+    // o servidor do computador (o endereço colado ou o do QR code de um computador)
+    if (pc && !ehCodespace(pc) && await responde(pc)) {
+      SERVIDOR_IA = { url: pc, chave: '', pc: true, lumen: pc };
+      return SERVIDOR_IA;
+    }
+    if (url && !ehCodespace(url) && await responde(url)) {
       SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
-    } else if (reserva) {
-      // (nenhum Codespace publicado ainda: o Modal atende e cria um, que publica o endereço sozinho)
+    } else if (reserva && await respondeDevagar(reserva.url)) {
+      // o Modal atende enquanto o Codespace liga (ele manda o GitHub ligar)
       SERVIDOR_IA = reserva;
       void acordarCodespace(reserva);
+    } else {
+      // (nenhum respondeu: sem servidor por enquanto; o próximo uso tenta de novo, e o Codespace entra assim que ligar)
+      SERVIDOR_IA = { url: '', chave: '' };
+      if (estadoCodespace === 'ligado') estadoCodespace = '';
+      reservaFora = Boolean(reserva);
     }
     // o YouTube conectado de novo sozinho, se o servidor perdeu a conexão (ver reconectarYoutube)
     if (SERVIDOR_IA.url) setTimeout(() => reconectarYoutube(SERVIDOR_IA), 0);
@@ -14153,7 +14176,9 @@ function viewServidorIA() {
     if (!saude) {
       st.dataset.estado = conhecido ? 'nao' : 'erro';
       $('#sv-estado-t').textContent = conhecido ? 'Desligado' : 'Nenhum servidor ainda';
-      $('#sv-estado-d').textContent = conhecido ? `Codespace ${hostCurto(conhecido)}` : 'Ligue o Codespace: ele publica o endereço sozinho';
+      // (e o Modal, a reserva, quando ele também não responde: desativado por falta de crédito, ou fora do ar)
+      const semReserva = reservaFora ? ' · o Modal (reserva) não respondeu: sem crédito ou fora do ar' : '';
+      $('#sv-estado-d').textContent = (conhecido ? `Codespace ${hostCurto(conhecido)} não respondeu` : 'Ligue o Codespace: ele publica o endereço sozinho') + semReserva;
       $('#sv-ligar').hidden = false;
       const off = 'Precisa do servidor ligado';
       item('youtube', 'off', off); item('lumen', 'off', off); item('voz', 'off', 'No aparelho, a partitura sai sem separar a voz'); item('batidas', 'off', off);

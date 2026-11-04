@@ -4,8 +4,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 475, data: '2026-11-04', titulo: 'Letra no tempo certo, conferida no áudio',
+    versao: 475, data: '2026-11-04', titulo: 'Codespace achado sozinho e letra no tempo certo',
     itens: [
+      { tipo: 'correcao', texto: 'O app acha o Codespace sozinho, sem QR code: o endereço publicado no site e, se ele ainda não foi atualizado, o último Codespace que funcionou neste aparelho. Um endereço velho de QR code guardado não atrapalha mais (sai sozinho). E o Modal (a reserva) só é usado se responder de verdade: desativado por falta de crédito, o app continua tentando o Codespace, e o Servidor da IA, nos Ajustes, diz o que está acontecendo.' },
       { tipo: 'correcao', texto: 'Algumas músicas tinham a letra sincronizada fora do tempo, como "Club Tropicana" e "Everything She Wants" do Wham!. A letra vem do LRCLIB, que tem várias edições da mesma música com a mesma duração, mas com a primeira frase em tempos bem diferentes (em "Club Tropicana", de 10 s a 52 s), e o app escolhia uma pela duração. Agora, quando as edições discordam, o servidor da IA ouve o áudio e acerta a letra no ponto em que ela é cantada. As músicas já salvas são conferidas sozinhas (só as que estão nesse caso).' },
     ],
   },
