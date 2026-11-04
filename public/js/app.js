@@ -6819,7 +6819,7 @@ function importarDaInternet({ titulo = '', artista = '', url = '', back = locati
     <div class="row" style="gap:8px">
       ${url ? `<a class="btn small" href="${esc(url)}" target="_blank" rel="noopener">${icon('external', 15)} Abrir no ${esc(host(url))}</a>` : ''}
       ${busca ? `<a class="btn small" href="https://www.google.com/search?q=${encodeURIComponent('cifra ' + busca)}" target="_blank" rel="noopener">${icon('search', 15)} Procurar na internet</a>` : ''}
-      <button class="btn small" data-colar>${icon('download', 15)} Colar copiado</button>
+      <button class="btn small" data-colar>${icon('upload', 15)} Colar copiado</button>
     </div>
     ${url ? '' : `<label class="campo-livre">Link da cifra (Cifra Club) — opcional<input class="input" id="imp-url" placeholder="https://www.cifraclub.com.br/artista/musica/"></label>`}
     <div class="campos-2"><label class="campo-livre">Título<input class="input" id="imp-titulo" value="${esc(titulo)}"></label>
@@ -7997,7 +7997,7 @@ async function viewEstilo(k) {
 function viewSearch() {
   setTab('buscar');
   setTint('#2d2d2d');
-  setHeader('Buscar', { actions: [{ icon: 'download', label: 'Importar cifra ou letra da internet', onClick: () => importarDaInternet() }] });
+  setHeader('Buscar', { actions: [{ icon: 'upload', label: 'Importar cifra ou letra da internet', onClick: () => importarDaInternet() }] });
   const q = sessionStorage.getItem('busca') || '';
   // (os vídeos não ficam mais à parte: entram nas músicas, cada um junto da sua)
   const FILTROS = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['acervo', 'Acervo litúrgico'], ['artistas', 'Artistas'], ['biblioteca', 'Biblioteca']];
@@ -8040,7 +8040,7 @@ function viewSearch() {
         <div class="shelf-head"><h2>Navegar por tudo</h2></div>
         <h3 class="nav-sub">Estilos musicais</h3><div class="nav-grade" id="nav-estilos">${cardsEstilos()}</div>
         <h3 class="nav-sub">Partes da missa</h3><div class="nav-grade">${cardsPartes()}</div>
-        <button class="busca-colar" id="btn-importar">${icon('download', 16)} Achou a cifra em outro site? <b>Cole aqui</b></button>`;
+        <button class="busca-colar" id="btn-importar">${icon('upload', 16)} Achou a cifra em outro site? <b>Cole aqui</b></button>`;
       $('#btn-importar').onclick = () => importarDaInternet();
       fotosDosCards($('#nav-estilos'));
       const meu = ++seq;
@@ -12239,7 +12239,7 @@ function viewEditor(id, setId) {
           <div class="ed-resumo" id="ed-resumo"></div>
         </div>
       </section>
-      ${isNew ? `<button class="ed-trazer" id="trazer"><span class="ed-trazer-ic">${icon('download', 22)}</span>
+      ${isNew ? `<button class="ed-trazer" id="trazer"><span class="ed-trazer-ic">${icon('upload', 22)}</span>
         <span><b>Trazer da internet</b><small>Busque no Cifra Club ou cole a cifra ou a letra de qualquer site: ela entra aqui organizada.</small></span>${icon('next', 18)}</button>` : ''}
       <div class="ed-rascunho" id="ed-rascunho" hidden></div>
       <details class="ed-detalhes" ${isNew ? 'open' : ''}><summary>${icon('settings', 18)}<span><b>Detalhes da música</b><small>Tom, composição, vídeo de referência e parte da missa</small></span>${icon('down', 18)}</summary>
@@ -12269,7 +12269,7 @@ function viewEditor(id, setId) {
           <button class="chip" data-parte-ed="(" title="Uma observação, ex.: (2x) ou (só vozes)">${icon('info', 14)} Observação</button>
           <button class="chip" id="completar" title="Repete a sequência de acordes da estrofe cifrada nas estrofes que estão sem acordes">${icon('sparkles', 14)} Completar cifra</button>
           <button class="chip" id="conv" title="Organiza cifra colada de outro site (acordes numa linha, letra na outra)">${icon('sparkles', 14)} Organizar colada</button>
-          ${isNew ? '' : `<button class="chip" id="trazer" title="Buscar no Cifra Club ou colar cifra/letra de qualquer site">${icon('download', 14)} Trazer da internet</button>`}
+          ${isNew ? '' : `<button class="chip" id="trazer" title="Buscar no Cifra Club ou colar cifra/letra de qualquer site">${icon('upload', 14)} Trazer da internet</button>`}
         </div>
         <div class="chord-pal" id="pal"></div>
         <div class="ed-estrutura" id="ed-estrutura"></div>
