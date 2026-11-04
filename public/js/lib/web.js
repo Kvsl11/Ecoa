@@ -889,7 +889,18 @@ export function gravacaoOficial(mesmas, duracao = 0) {
     if (g) g.itens.push(r); else grupos.push({ d, itens: [r] });
   }
   const nota = (g) => g.itens.length * 10 + (g.itens.some((r) => !aoVivo(r)) ? 5 : 0) + (duracao > 0 && Math.abs(g.d - duracao) <= 4 ? 1 : 0);
-  const melhor = grupos.reduce((x, y) => (nota(y) > nota(x) ? y : x));
+  let melhor = grupos.reduce((x, y) => (nota(y) > nota(x) ? y : x));
+  // Com a duração do áudio que toca: a edição feita para ela, se a da maioria fica a mais de 2 s. As edições de
+  // gravações (masters) um pouco diferentes têm a letra deslocada: em "Club Tropicana" (Wham!), o áudio oficial tem
+  // 266 s e a maioria das edições, 268 a 270 s, com a letra uns 4,5 s depois da cantada nele
+  const distancia = (g) => Math.min(...g.itens.map((r) => Math.abs((r.duration || 0) - duracao)));
+  // (só com a da maioria ainda perto, até 4 s: bem mais longe, a duração é a de outra coisa, como a do clipe de "Tears")
+  if (duracao > 0 && distancia(melhor) > 2 && distancia(melhor) <= 4) {
+    const perto = grupos.filter((g) => distancia(g) <= 1.5);
+    if (perto.length) melhor = perto.reduce((x, y) => (distancia(y) < distancia(x) || (distancia(y) === distancia(x) && nota(y) > nota(x)) ? y : x));
+  }
+  // (no grupo, as da duração mais perto primeiro)
+  if (duracao > 0 && distancia(melhor) <= 4) melhor = { ...melhor, itens: [...melhor.itens].sort((x, y) => Math.abs((x.duration || 0) - duracao) - Math.abs((y.duration || 0) - duracao)) };
   // (a letra sem as palavras escondidas com asteriscos, quando há uma: a música explícita aparece como é cantada)
   // (mas não a versão limpa, com outras palavras no lugar dos palavrões escondidos pela censurada)
   const linhasLrc = (r) => String(r.syncedLyrics || '').split('\n').map((l) => l.replace(/^(\s*\[[^\]]*\])+/, '').trim()).filter(Boolean);

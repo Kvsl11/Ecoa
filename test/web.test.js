@@ -671,3 +671,14 @@ test('linhasNoConsenso: a linha fora do lugar vai para onde as outras edições 
   assert.equal(temposCorrigidos({ linhas: letra, tempos: novos }, lrc), null);
   assert.equal(temposCorrigidos({ linhas: letra.map((l) => l + ' outra'), tempos: guardada.tempos }, lrc), null);
 });
+
+// "Club Tropicana": o áudio oficial tem 266 s; a maioria das edições do LRCLIB, 268 a 270 s (outro master, com a letra
+// uns 4,5 s depois). Sabendo a duração, vale a edição feita para ela; sem saber, a da maioria
+test('gravacaoOficial: com a duração do áudio, a edição do mesmo master, não a da maioria', async () => {
+  const { gravacaoOficial } = await import('../public/js/lib/web.js');
+  const r = (id, duration) => ({ id, trackName: 'Club Tropicana', artistName: 'Wham!', duration, syncedLyrics: `[00:${id}.00] Let me take you to the place\n[01:00.00] Club Tropicana` });
+  const lista = [r(10, 268.5), r(11, 269.2), r(12, 269.3), r(13, 269.4), r(20, 265.6), r(21, 266.1), r(30, 271.8)];
+  assert.equal(gravacaoOficial(lista, 266).id, 21);
+  assert.ok([10, 11, 12, 13].includes(gravacaoOficial(lista, 0).id));
+  assert.ok([10, 11, 12, 13].includes(gravacaoOficial(lista, 269).id));
+});

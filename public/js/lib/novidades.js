@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 481, data: '2026-11-04', titulo: 'A letra sem atraso',
+    itens: [
+      { tipo: 'correcao', texto: 'Em algumas músicas, a letra sincronizada vinha uns segundos atrasada, como em "Club Tropicana" (Wham!), uns 4,5 s. O LRCLIB tem edições da mesma música feitas para gravações um pouco diferentes (o áudio oficial tem 266 s, e a maioria das edições, 268 a 270 s), e o app ficava com a mais repetida. Agora, assim que o app sabe a duração do áudio que toca, ele usa a edição feita para ela. As músicas já salvas são corrigidas sozinhas; a letra que você sincronizou à mão fica como está.' },
+    ],
+  },
+  {
     versao: 480, data: '2026-11-04', titulo: 'A letra no tempo certo em mais músicas',
     itens: [
       { tipo: 'correcao', texto: 'Em algumas músicas, uma linha da letra sincronizada aparecia bem antes de ser cantada. Em "Club Tropicana" (Wham!), a primeira frase acendia uns 40 s antes da hora; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living" chegavam adiantados. O LRCLIB tem várias edições da mesma letra, e as mais repetidas traziam essa linha errada. Agora o app compara as edições: a linha fora do lugar vai para onde as outras concordam que ela é cantada, sem precisar do servidor da IA.' },
@@ -61,13 +67,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A fila começa pela música que está tocando, seguida das próximas. As que já tocaram somem dela; com "repetir todas", elas aparecem no fim, que é quando tocam de novo. A que está tocando fica sempre no topo (não dá para arrastar para baixo dela).' },
       { tipo: 'correcao', texto: 'Sumiu a linha fininha que aparecia no degradê do Tocando agora, logo acima do cartão da letra (no tablet e no celular).' },
       { tipo: 'novo', texto: 'Trocar a capa: no ⋮ da música, escolha entre as capas achadas (o álbum, o single, as outras gravações) ou uma foto do aparelho. A capa escolhida fica; para voltar, toque em "Automática".' },
-    ],
-  },
-  {
-    versao: 471, data: '2026-11-04', titulo: 'A fila que você vê é a que toca',
-    itens: [
-      { tipo: 'correcao', texto: 'A fila não muda mais sozinha. Com a música tocando de uma playlist ou de um repertório, abrir essa mesma música pela biblioteca (ou pela busca) passava a fila, sem aviso, para a da biblioteca, em ordem alfabética: a próxima que tocava não era a que a fila mostrava. Agora a música continua na fila em que estava.' },
-      { tipo: 'melhoria', texto: 'Partituras no tablet deitado (e no computador): a tela agora usa a largura toda, em duas colunas. À esquerda, o título, os atalhos (Gerar com IA, Nova partitura) e o Acervo litúrgico; à direita, as suas partituras. Sem nenhuma partitura ainda, o recado ocupa a coluna em vez de deixar metade da tela vazia.' },
     ],
   },
 ];
