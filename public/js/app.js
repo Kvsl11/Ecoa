@@ -1927,6 +1927,15 @@ const player = (() => {
   fundoCasa.className = 'pl-fundo-casa';
   fundoCasa.setAttribute('aria-hidden', 'true');
   if (ehTablet()) { casa.insertBefore(fundoCasa, el); fundoCasa.append(fundo); }
+  // Os quadros e o vídeo da capa animada ficam numa caixa um pouco mais curta que o fundo (24 px): a borda que corta as
+  // imagens fica onde o degradê por cima já é a cor do fundo, inteira. Cortadas na borda do próprio fundo, as imagens
+  // (cada uma numa camada, com o zoom lento) passavam por baixo do degradê no último pixel, quando a borda caía no meio
+  // de um pixel da tela, e aparecia uma linha clara logo acima do cartão da letra
+  const caixaDoFundo = () => {
+    let c = fundo.querySelector(':scope > .pl-fundo-caixa');
+    if (!c) { c = document.createElement('div'); c.className = 'pl-fundo-caixa'; fundo.prepend(c); }
+    return c;
+  };
   const medirFundo = () => {
     if (fundo.hidden || el.classList.contains('letra-cheia')) return;
     const ate = [$('.pl-letra', el), $('.pl-extra', el)].find((x) => !x.hidden);
@@ -2234,7 +2243,7 @@ const player = (() => {
       f.setAttribute('aria-hidden', 'true');
       f.addEventListener('load', () => { f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 3 }), '*'); ytCmd('mute'); });
       yt = { f, estado: -1, tempo: 0, duracao: 0, tocandoDesde: 0 };
-      fundo.append(f);
+      caixaDoFundo().append(f);
       relogio = setInterval(() => {
         if (!yt || !atual) return;
         const visivel = !fundo.hidden && !el.hidden && !el.classList.contains('letra-cheia') && fundo.getClientRects().length > 0;
@@ -2358,7 +2367,7 @@ const player = (() => {
         if (quer === de) {
           // o fundo foi redesenhado (ex.: chegou a capa oficial) com o mesmo vídeo: os mesmos vídeos voltam para ele, já
           // andando (recriar fazia piscar e mostrar um quadro parado antes de rolar)
-          if (quer && caixa && reserva && !caixa.isConnected) { fundo.append(caixa, reserva); return; }
+          if (quer && caixa && reserva && !caixa.isConnected) { caixaDoFundo().append(caixa, reserva); return; }
           if (caixa?.isConnected || yt?.f.isConnected || !quer || carregando) return;
         }
         tirar();
@@ -2396,7 +2405,7 @@ const player = (() => {
         if (!caixa || !reserva) { de = ''; semArquivo(); return; }
         // (o arquivo não abre: ficam as imagens do clipe)
         caixa.addEventListener('error', () => { if (vez === montagem) semArquivo(); }, { once: true });
-        fundo.append(caixa, reserva);
+        caixaDoFundo().append(caixa, reserva);
         relogio = setInterval(acompanhar, 180);
       },
       tirar,
@@ -2465,7 +2474,7 @@ const player = (() => {
       const tipoQuadros = (song && renderSong(song.content).meta.x_canvas) || 'sd';
       const porQuadros = () => {
         if (!q || fundo.querySelector('img.q')) return;
-        fundo.insertAdjacentHTML('afterbegin', htmlQuadros(q, tipoQuadros));
+        caixaDoFundo().insertAdjacentHTML('afterbegin', htmlQuadros(q, tipoQuadros));
         // todos os quadros já carregados (com "lazy", o quadro que chegava no meio da rolagem aparecia de repente)
         fundo.querySelectorAll('img[loading]').forEach((img) => { img.loading = 'eager'; });
       };
@@ -5987,7 +5996,7 @@ function escolherCapaDaMusica(song) {
       escolher(u, false);
     };
     $('[data-no]', dlg).onclick = () => done(false);
-  });
+  }, { folha: true });
 }
 
 // Escolhe a parte da missa de uma música no repertório. Devolve o nome, '' (sem parte) ou null (cancelou)

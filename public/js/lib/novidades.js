@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 474, data: '2026-11-04', titulo: 'Sem a linha no Tocando agora',
+    itens: [
+      { tipo: 'correcao', texto: 'A linha clara que ainda aparecia no degradê do Tocando agora, logo acima do cartão da letra, sumiu de vez (no celular e no tablet). Eram os quadros do clipe, no fundo, aparecendo por baixo do degradê bem na borda.' },
+      { tipo: 'melhoria', texto: 'Trocar a capa: o contorno da capa escolhida aparece inteiro, e no tablet a tela sobe do rodapé, como os menus do ⋮, em vez de ficar flutuando.' },
+    ],
+  },
+  {
     versao: 473, data: '2026-11-04', titulo: 'Ícones certos no ⋮ da música',
     itens: [
       { tipo: 'melhoria', texto: 'No ⋮ da música, cada opção tem o seu ícone: "Trocar música" com as setas de trocar, "Abrir a música" com a seta de abrir (antes as duas tinham a mesma nota musical) e "Criar partitura" com o ícone de partitura, a pauta com a nota (antes eram umas estrelinhas).' },
@@ -68,13 +75,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O microfone: com o karaokê ligado, tocar nele abre o volume da voz (para desligar, toque no microfone com o controle aberto); tocar fora do controle fecha ele na hora e a letra volta ao normal; e o microfone e a porcentagem ficam escuros quando o branco passa por eles, sem sumir.' },
       { tipo: 'correcao', texto: 'O clipe escolhido não some mais: quando ele é outra gravação da música (outra edição, cenas a mais), o “Mudar para vídeo” continua e toca o clipe. Antes a música ficava só com o áudio, as duas versões iguais.' },
       { tipo: 'melhoria', texto: 'O Lumen responde mais rápido: o Gemini responde direto, sem a etapa de “pensar” antes (que levava vários segundos a mais em toda pergunta).' },
-    ],
-  },
-  {
-    versao: 464, data: '2026-11-03', titulo: 'Karaokê muito mais rápido',
-    itens: [
-      { tipo: 'melhoria', texto: 'O karaokê agora é preparado numa placa de vídeo (no Modal), como nos apps profissionais de separar faixas: a voz sai da música em uns 15 a 30 segundos, em vez de 1 a 3 minutos. Só o karaokê vai para lá; o resto continua no servidor de sempre. Se a placa não estiver disponível, ele é preparado no servidor de sempre, como antes.' },
-      { tipo: 'melhoria', texto: 'O volume da voz no microfone agora acompanha a barra: arrastando para baixo, a voz vai sumindo aos poucos e só some de vez lá embaixo (antes, baixar um pouquinho já tirava quase tudo). E saiu o “Karaokê” escrito embaixo da barra do tempo. O controle aberto mostra a porcentagem da voz e, em 0%, uma setinha para cima, mostrando que dá para arrastar.' },
     ],
   },
 ];
