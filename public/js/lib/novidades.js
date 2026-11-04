@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 497, data: '2026-11-04', titulo: 'Ícones novos no menu do perfil',
+    itens: [
+      { tipo: 'melhoria', texto: 'O menu ⋯ do perfil ganhou ícones novos: a seta saindo da caixa para compartilhar, as duas setas para sincronizar e a porta com a flecha, em vermelho, para sair da conta. O seu e-mail aparece embaixo do nome.' },
+    ],
+  },
+  {
     versao: 496, data: '2026-11-04', titulo: 'A tela de entrada do Ecoa',
     itens: [
       { tipo: 'novo', texto: 'O Ecoa agora abre com uma tela de entrada: para usar o app, entre com a sua conta Google. Você entra uma vez e continua entrado no aparelho, mesmo fechando o app, até tocar em Sair da conta (no ⋯ do seu perfil).' },
@@ -66,13 +72,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'A capinha da playlist dava uma piscada mostrando as faixas pretas do clipe antes de ficar normal. Agora o app mede as faixas antes de mostrar o vídeo, e ele já entra sem elas. O mesmo vale para a prévia em tela cheia.' },
       { tipo: 'melhoria', texto: 'A capinha ficou como a do Spotify: a tela com o contorno claro e um cartão claro atrás, como uma capinha.' },
       { tipo: 'melhoria', texto: 'Com a música pausada, as barrinhas ao lado do nome viram três quadradinhos, como o "..." do Spotify. Tocando, voltam a se mexer.' },
-    ],
-  },
-  {
-    versao: 487, data: '2026-11-04', titulo: 'Adicionar várias de uma vez',
-    itens: [
-      { tipo: 'novo', texto: 'No "Adicionar" da playlist, dá para marcar várias músicas (ou todas, com "Selecionar todas") e adicionar de uma vez. As que já estão na playlist aparecem apagadas, com "Na playlist". Na aba "Procurar na internet", tocar numa música salva ela na biblioteca e já deixa marcada.' },
-      { tipo: 'melhoria', texto: 'A capinha da playlist agora passa um pouco de cada música, uns 4 segundos do refrão de cada uma, como os stories em miniatura. Antes mostrava só a primeira.' },
     ],
   },
 ];
