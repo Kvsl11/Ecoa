@@ -4,9 +4,11 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 472, data: '2026-11-04', titulo: 'A capa certa, e dá para trocar',
+    versao: 472, data: '2026-11-04', titulo: 'A capa certa, a fila a partir da que toca',
     itens: [
       { tipo: 'correcao', texto: 'As músicas não ganham mais a capa de outra gravação. O app pegava a primeira capa com o título igual, mesmo de outro artista de nome parecido: "Here Comes The Sun" saía com a capa de um disco de ukulele, e "Aba" do Kemuel com a de uma coletânea. Agora vale o artista com o nome igual e, entre as gravações dele, a mais ouvida (o álbum ou o single que todo mundo conhece). As músicas que já estavam com a capa errada são corrigidas sozinhas.' },
+      { tipo: 'melhoria', texto: 'A fila começa pela música que está tocando, seguida das próximas. As que já tocaram somem dela; com "repetir todas", elas aparecem no fim, que é quando tocam de novo. A que está tocando fica sempre no topo (não dá para arrastar para baixo dela).' },
+      { tipo: 'correcao', texto: 'Sumiu a linha fininha que aparecia no degradê do Tocando agora, logo acima do cartão da letra (no tablet e no celular).' },
       { tipo: 'novo', texto: 'Trocar a capa: no ⋮ da música, escolha entre as capas achadas (o álbum, o single, as outras gravações) ou uma foto do aparelho. A capa escolhida fica; para voltar, toque em "Automática".' },
     ],
   },

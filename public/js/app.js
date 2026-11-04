@@ -4430,10 +4430,33 @@ const semLinhasDeAcordes = (sinc) => {
       <p class="fila-dica muted">Segure uma música e arraste para mudar a ordem</p>
       <div class="lista-opcoes" role="listbox" aria-label="Músicas na fila"></div>`;
     const lista = $('.lista-opcoes', dlg);
+    // O que a fila mostra: a música tocando primeiro e as próximas, como no Spotify. As que já tocaram somem; com
+    // "repetir todas", elas voltam no fim (é quando tocam de novo). Antes a fila mostrava a lista inteira desde o
+    // começo, e a que tocava ficava no meio, depois das que já tinham tocado
+    const posicoesNaTela = (f) => {
+      const todas = f.ids.map((_, pos) => pos);
+      if (f.i < 0) return todas;
+      return repetir === 'todas' ? [...todas.slice(f.i), ...todas.slice(0, f.i)] : todas.slice(f.i);
+    };
+    // a nova ordem do que está na tela (arrastou, ou as setas do teclado) vale para a fila inteira: a tocando sempre
+    // primeiro; as que já tocaram (escondidas) continuam antes dela, e no "repetir todas" a fila começa na tocando
+    const aplicarOrdemDaTela = (nova) => {
+      const f = fila();
+      if (!f) return false;
+      const tocando = f.i >= 0 ? f.indices[f.i] : null;
+      if (tocando !== null) nova = [tocando, ...nova.filter((x) => x !== tocando)];
+      const antes = f.i >= 0 && repetir !== 'todas' ? filaOrdem.slice(0, f.i) : [];
+      const completa = [...antes, ...nova];
+      if (completa.length !== filaOrdem.length || completa.every((x, i) => x === filaOrdem[i])) return false;
+      filaOrdem = completa;
+      historico = [];
+      return true;
+    };
     const desenharLista = () => {
       const f = fila();
       if (!f) { dlg.close(); return; }
-      lista.innerHTML = f.ids.map((id, pos) => {
+      lista.innerHTML = posicoesNaTela(f).map((pos) => {
+        const id = f.ids[pos];
         const s = db.song(id) || {};
         const tocando = pos === f.i;
         const original = f.indices[pos];
@@ -4445,7 +4468,7 @@ const semLinhasDeAcordes = (sinc) => {
           <span class="fila-capa${tocando ? ' tocando' : ''}">${capa(s)}${tocando ? '<span class="fila-eq" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}</span>
           <span class="lista-txt"><b>${esc(s.title || 'Música')}</b><small>${esc([parte, s.artist].filter(Boolean).join(' · '))}</small></span>
           <span class="lista-dir">${duracao ? fmtTempo(duracao) : procurando ? '<span class="spin"></span>' : '—:—'}</span>
-          <span class="fila-reordenar" aria-hidden="true" title="Segure e arraste para mudar a ordem">${icon('reordenar', 20)}</span>
+          ${tocando ? '' : `<span class="fila-reordenar" aria-hidden="true" title="Segure e arraste para mudar a ordem">${icon('reordenar', 20)}</span>`}
         </div>`;
       }).join('');
     };
@@ -4510,7 +4533,8 @@ const semLinhasDeAcordes = (sinc) => {
     lista.addEventListener('pointerdown', (e) => {
       if (e.button > 0 || arrastando) return;
       const linha = e.target.closest('[data-fila-pos]');
-      if (!linha) return;
+      // (a que está tocando fica no topo: ela não se arrasta)
+      if (!linha || linha.classList.contains('atual')) return;
       cancelarSegurar();
       const toque = e.pointerType !== 'mouse';
       segurando = { id: e.pointerId, x: e.clientX, y: e.clientY, linha, toque,
@@ -4547,10 +4571,9 @@ const semLinhasDeAcordes = (sinc) => {
       linha.style.transform = '';
       dlg.classList.remove('arrastando-fila');
       const nova = [...lista.querySelectorAll('[data-original]')].map((x) => Number(x.dataset.original));
-      const mudou = nova.length === filaOrdem.length && nova.some((x, i) => x !== filaOrdem[i]);
       setTimeout(() => {
         linha.classList.remove('arrastando', 'soltando');
-        if (mudou) { filaOrdem = nova; historico = []; desenhar(); }
+        if (aplicarOrdemDaTela(nova)) desenhar();
         if (!arrastando) desenharLista();
       }, 200);
     };
@@ -4578,14 +4601,15 @@ const semLinhasDeAcordes = (sinc) => {
       if (!linha) return;
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const pos = Number(linha.dataset.filaPos);
-        const destino = pos + (e.key === 'ArrowUp' ? -1 : 1);
-        if (destino < 0 || destino >= filaOrdem.length) return;
-        filaOrdem = moverIndice(filaOrdem, pos, destino);
-        historico = [];
-        desenhar();
+        // (na ordem da tela; a tocando fica no topo)
+        const linhas = [...lista.querySelectorAll('[data-original]')];
+        const k = linhas.indexOf(linha);
+        const destino = k + (e.key === 'ArrowUp' ? -1 : 1);
+        if (k < 1 || destino < 1 || destino >= linhas.length) return;
+        const original = Number(linha.dataset.original);
+        if (aplicarOrdemDaTela(moverIndice(linhas.map((x) => Number(x.dataset.original)), k, destino))) desenhar();
         desenharLista();
-        lista.querySelector(`[data-fila-pos="${destino}"]`)?.focus();
+        lista.querySelector(`[data-original="${original}"]`)?.focus();
         return;
       }
       if (!['Enter', ' '].includes(e.key)) return;

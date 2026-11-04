@@ -4075,9 +4075,13 @@ html.tablet .cat .ic, html.tablet .hero, html.tablet .song-hero > .cover { anima
    degradê por cima leva a capa até uma cor só (--pe-fundo), e o fundo do player fica nessa mesma cor exatamente onde
    a capa acaba (--fundo-h): não fica emenda nenhuma */
 html.pp #player, html.pp .pl-fundo-casa { --pe-fundo: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #121212); }
-html.pp #player .pl-fundo:not([hidden]), html.pp .pl-fundo-casa .pl-fundo:not([hidden]) { -webkit-mask-image: none !important; mask-image: none !important; will-change: auto; }
+html.pp #player .pl-fundo:not([hidden]), html.pp .pl-fundo-casa .pl-fundo:not([hidden]) { -webkit-mask-image: none !important; mask-image: none !important; will-change: auto;
+  /* (o último pixel fora: na tela de densidade quebrada — o tablet, muitos celulares — a borda caía no meio de um pixel
+     da tela, e um fio do vídeo ou da capa aparecia por baixo do degradê, uma linha fina logo acima do cartão da letra) */
+  clip-path: inset(0 0 1px 0); }
+/* (a cor do fundo já inteira nos últimos 12 px, e não só no último: a emenda com o fundo do player não aparece) */
 html.pp .pl-fundo::after { background: linear-gradient(180deg, rgb(0 0 0 / 0.35) 0%, transparent 22%, transparent 45%,
-  color-mix(in srgb, var(--pe-fundo) 55%, transparent) 72%, color-mix(in srgb, var(--pe-fundo) 90%, transparent) 90%, var(--pe-fundo) 100%); }
+  color-mix(in srgb, var(--pe-fundo) 55%, transparent) 72%, color-mix(in srgb, var(--pe-fundo) 90%, transparent) 88%, var(--pe-fundo) calc(100% - 12px), var(--pe-fundo) 100%); }
 /* (o fundo: a cor da música em cima, a cor do pé da capa onde ela acaba e o escuro mais embaixo; no celular ele rola
    junto com o conteúdo, como a capa) */
 html.pp:not(.tablet) #player.modo-capa:has(> .pl-fundo:not([hidden])) {
