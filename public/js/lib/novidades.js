@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 466, data: '2026-11-04', titulo: 'Karaokê só na música em que você ligou',
+    itens: [
+      { tipo: 'correcao', texto: 'O karaokê agora vale só para a música em que você tocou no microfone. Ao passar para outra música, ele desliga sozinho e ela toca normal, sem o servidor preparar o karaokê dela (antes ele continuava ligado e preparava o karaokê de cada música seguinte, gastando os créditos). Para usar em outra música, é só tocar no microfone dela.' },
+    ],
+  },
+  {
     versao: 465, data: '2026-11-04', titulo: 'Karaokê sem estalos e o clipe de volta',
     itens: [
       { tipo: 'correcao', texto: 'O karaokê podia dar estalos e chiadinhos: o celular, ocupado com a tela, engasgava o som, e a banda com a voz às vezes passava do limite. Agora o som do karaokê tem mais folga e não estala, nem ao arrastar o volume da voz. Os karaokês novos também saem com mais qualidade (menos chiado onde a voz estava).' },
@@ -62,13 +68,6 @@ export const NOVIDADES = [
     versao: 457, data: '2026-11-03', titulo: 'Codespace liga o servidor sozinho',
     itens: [
       { tipo: 'correcao', texto: 'O Codespace não ligava o servidor sozinho, nem deixava a porta pública. Agora, ao ligar, o servidor sobe na hora (os pacotes novos instalam por trás e ele reinicia sozinho no fim) e, quando o GitHub não deixa a porta pública, o Codespace abre um túnel seguro e publica esse endereço no site. Os aparelhos acham o servidor sozinhos em uns 2 minutos, sem QR code.' },
-    ],
-  },
-  {
-    versao: 456, data: '2026-11-03', titulo: 'Servidor da IA sem nada para configurar',
-    itens: [
-      { tipo: 'melhoria', texto: 'Sem passo manual: o Codespace publica o próprio endereço no site quando liga, e o app acha o servidor sozinho em qualquer aparelho. A conexão do YouTube também volta sozinha: se o servidor perdeu a conexão (um Codespace novo, por exemplo), o app manda de novo a que está guardada no aparelho. Só quando o YouTube recusa a conta (os cookies venceram) é preciso conectar outra vez.' },
-      { tipo: 'novo', texto: 'Tela nova Ajustes → Avançado → Servidor da IA: mostra numa olhada se o servidor está ligado, se o YouTube está conectado, se o Lumen está com a IA e se a voz e os tempos estão sendo ouvidos pelos modelos melhores. Desligado, o botão Ligar no GitHub leva direto ao Codespace. O campo para colar o endereço do servidor saiu do caminho (fica em “Usar outro servidor”, só para o servidor no computador).' },
     ],
   },
 ];
