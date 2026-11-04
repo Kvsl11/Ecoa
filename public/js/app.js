@@ -926,6 +926,28 @@ async function baixarMusica(song, { perguntou = false } = {}) {
     andandoFila = null;
   })();
 }
+// um arquivo do download pelo servidor, com as tentativas: o vídeo na qualidade escolhida e depois nas mais baixas; o
+// áudio, de novo na mesma. Entre uma e outra, uma espera curta (o servidor pode estar ligando)
+const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'] };
+async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar) {
+  const q = qualidadeDoDownload(video);
+  const qualidades = video ? [q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
+  let erro;
+  for (let t = 0; t < qualidades.length; t++) {
+    if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 4000 * t)); }
+    try {
+      const r = await chamarComEtapas(cfg, '/baixar', { json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidades[t] } },
+        (etapa, p) => { if (etapa === 'baixando' && p !== null) aoProgresso(p); });
+      // (pediu o clipe e veio só o som: não vale, tenta de novo)
+      if (video && r?.tipo && !String(r.tipo).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
+      return r;
+    } catch (e) {
+      erro = e;
+      if (!navigator.onLine) break; // sem internet, as outras tentativas falhariam também
+    }
+  }
+  throw erro;
+}
 async function baixarAgora(id) {
   const song = db.song(id);
   if (!song) return;
@@ -967,9 +989,10 @@ async function baixarAgora(id) {
       if (!/^[\w-]{11}$/.test(yt || '')) throw new Error('o vídeo desta versão não é do YouTube');
       // (o mesmo servidor do começo ao fim: o arquivo baixado fica no que baixou, e o Codespace pode ligar no meio)
       const cfg = servidorIA();
-      const r = await chamarComEtapas(cfg, '/baixar', {
-        json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidadeDoDownload(video) },
-      }, (etapa, p) => { if (etapa === 'baixando' && p !== null) atualizarProgresso(yt, p * 0.8); });
+      // O videoclipe é o arquivo grande e o que mais falha (o servidor demora, o YouTube não entrega aquela qualidade):
+      // antes ele falhava uma vez e a música ficava só com o áudio. Agora cada arquivo tenta até 3 vezes e o vídeo desce
+      // de qualidade a cada tentativa (muito alta → alta → normal), para o clipe vir sempre junto com a música
+      const r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0));
 
       const resp = await baixarArquivoDoServidor(cfg, r.arquivo);
 
@@ -1026,6 +1049,7 @@ async function baixarAgora(id) {
   if (!db.song(id)) return;
   const tamanho = Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0);
   db.updateSong(id, { baixado: { arquivos, tamanho, em: Date.now() }, rebaixar: undefined });
+  if (falhas.length) completarDepois(id);
   // (e o karaokê dela, em segundo plano, se a letra é sincronizada)
   setTimeout(() => karaokeDoDownload(id), 0);
   // A música fica pronta assim que áudio/vídeo forem guardados. Capas, fotos,
@@ -1041,6 +1065,26 @@ async function baixarAgora(id) {
     imagem: capaDaNotificacao(song),
   });
 }
+// O download que ficou parcial (só o áudio, sem o clipe) se completa sozinho: tenta de novo daqui a alguns minutos (até
+// 3 vezes nesta abertura do app) e, ao abrir o app, as baixadas pela metade voltam para a fila. Só baixa o que falta
+// (o arquivo que já veio fica)
+const tentativasDeCompletar = new Map();
+function completarDepois(id, ms = 3 * 60e3) {
+  const n = tentativasDeCompletar.get(id) || 0;
+  if (n >= 3) return;
+  tentativasDeCompletar.set(id, n + 1);
+  setTimeout(async () => {
+    const s = db.song(id);
+    if (!s?.baixado || !precisaBaixar(s) || baixando.has(id) || !(await podeBaixarSozinho())) return;
+    baixarMusica(s, { perguntou: true });
+  }, ms * (n + 1));
+}
+setTimeout(async () => {
+  const pelaMetade = db.songs().filter((s) => s.baixado && precisaBaixar(s) && midiaDe(s) && !baixando.has(s.id));
+  if (!pelaMetade.length || !(await podeBaixarSozinho())) return;
+  for (const s of pelaMetade) baixarMusica(s, { perguntou: true });
+}, 45e3);
+
 // as capas e a partitura da música no cache dos downloads (o service worker usa sem internet)
 async function guardarImagensDaMusica(song) {
   if (!('caches' in window)) return;
@@ -1428,6 +1472,9 @@ const REVISOES = [
   // da Justiça: o artigo "Justice" é o do conceito, o da dupla é "Justice (band)"): sai, e a foto é procurada de novo
   // (paginaDoMusico). A da página certa fica
   { rev: 10, fotoWikipedia: true, quais: (s) => Boolean(s.fotoArtista && s.artist) && /wikimedia\.org\//.test(s.fotoArtista) },
+  // v501: as músicas baixadas só com o áudio (o videoclipe falhava uma vez e não tentava de novo): confere os arquivos e
+  // baixa o que falta, com as tentativas novas (o vídeo descendo de qualidade). O arquivo que já veio fica
+  { rev: 11, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
