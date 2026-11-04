@@ -1,6 +1,6 @@
 // A transição entre as músicas, como no Spotify e no Apple Music: o crossfade (a que acaba desce enquanto a próxima
 // sobe, de 1 a 12 s) e o automix, que escolhe sozinho onde e como cruzar: depois da última frase cantada (sem cortar a
-// voz), no tempo da batida da que acaba, e com a próxima entrando na primeira batida dela e no mesmo andamento.
+// voz), no tempo da batida da que acaba, e com a próxima entrando na primeira batida dela.
 // A batida só se acha no som que está no aparelho (os downloads e o áudio da pessoa): o YouTube não deixa o app ouvir
 // o som do vídeo. Sem ela, o automix ainda escolhe o ponto pela letra sincronizada.
 
@@ -20,7 +20,7 @@ export function volumes(x) {
 export function planoCrossfade(duracao, seg) {
   const dur = Math.max(MIN_TRANSICAO, Math.min(MAX_TRANSICAO, Number(seg) || 6));
   if (!(duracao > dur * 3)) return null;
-  return { inicio: duracao - dur, dur, entradaEm: 0, taxa: 1 };
+  return { inicio: duracao - dur, dur, entradaEm: 0, encaixar: false };
 }
 
 const HOP = 128; // amostras entre um quadro e outro (11,6 ms a 11025 Hz)
@@ -127,20 +127,11 @@ export function batida(amostras, taxa = 11025) {
 export const BATIDA_OK = 0.35;
 const boa = (b) => Boolean(b && b.confianca >= BATIDA_OK && b.periodo > 0);
 
-// A taxa para a próxima entrar no andamento da que acaba (sem mudar o tom): só quando estão perto (até 8%, contando o
-// dobro e a metade); longe, cada uma no seu (esticar mais do que isso se ouve)
-export function taxaDoEncaixe(saida, entrada) {
-  if (!boa(saida) || !boa(entrada)) return 1;
-  for (const m of [1, 2, 0.5]) {
-    const r = (saida.bpm * m) / entrada.bpm;
-    if (Math.abs(r - 1) <= 0.08) return Math.round(r * 1000) / 1000;
-  }
-  return 1;
-}
-
 // O plano do automix. duracao: a da música que acaba; fimCanto: o fim da última frase cantada (da letra
 // sincronizada), ou null; saida: a batida da que acaba (com a fase contada do começo da música), ou null; entrada: a
-// da próxima (do começo dela), ou null. { inicio, dur, entradaEm (onde a próxima começa), taxa }
+// da próxima (do começo dela), ou null. { inicio, dur, entradaEm (onde a próxima começa), encaixar (as duas batidas
+// conhecidas: a próxima entra na batida da que sai) }. A velocidade das músicas nunca muda (esticar para casar o
+// andamento se ouvia)
 export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada = null }) {
   if (!(duracao > 20)) return null;
   const temBatida = boa(saida);
@@ -185,5 +176,5 @@ export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada =
   // a próxima entra na primeira batida dela (pula o silêncio do começo, até 3 s)
   const primeira = Number.isFinite(entrada?.primeira) ? entrada.primeira : entrada?.fase;
   const entradaEm = boa(entrada) && primeira >= 0 && primeira < 3 ? primeira : 0;
-  return { inicio, dur, entradaEm, taxa: taxaDoEncaixe(saida, entrada) };
+  return { inicio, dur, entradaEm, encaixar: temBatida && boa(entrada) };
 }

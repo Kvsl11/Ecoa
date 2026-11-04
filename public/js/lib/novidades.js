@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 470, data: '2026-11-04', titulo: 'Acordes afinados e música sem acelerar',
+    itens: [
+      { tipo: 'correcao', texto: 'O som dos acordes (tocar no desenho do acorde) não sai mais desafinado. Uma das gravações do violão, a do Ré agudo, soava meio tom acima (era um Ré#): os acordes com essa nota, como o G com capotraste na 7ª casa, saíam com um choque de meio tom, "zoados". Agora cada nota é afinada pela altura medida de cada gravação (algumas outras também estavam um pouco fora).' },
+      { tipo: 'correcao', texto: 'A música não acelera nem desacelera mais. O automix tocava a próxima um pouco mais rápida ou mais lenta para casar com o andamento da anterior (e voltava aos poucos), e às vezes o player ficava com a velocidade mudada e a música seguinte tocava acelerada, mesmo com a transição desligada. Agora a velocidade nunca muda, e o encaixe na batida é só no comecinho, ainda sem som.' },
+    ],
+  },
+  {
     versao: 469, data: '2026-11-04', titulo: 'Crossfade de verdade e karaokês atualizados sozinhos',
     itens: [
       { tipo: 'correcao', texto: 'O crossfade e o automix agora baixam o volume da música que está acabando: ela vai sumindo enquanto a próxima sobe. Antes, logo que a próxima começava, o app trocava ela para o áudio oficial e a transição se cancelava: a anterior era cortada e a próxima entrava no volume cheio.' },
@@ -65,14 +72,6 @@ export const NOVIDADES = [
     versao: 461, data: '2026-11-03', titulo: 'Karaokê sem depender do YouTube no servidor',
     itens: [
       { tipo: 'melhoria', texto: 'Nas músicas baixadas, o karaokê usa o próprio áudio do aparelho: ele vai para o servidor da IA, que só separa a voz da banda, sem precisar baixar a música do YouTube (que costuma recusar os servidores na nuvem). Funciona com o servidor no seu computador, no Codespace ou no Modal.' },
-    ],
-  },
-  {
-    versao: 460, data: '2026-11-03', titulo: 'Karaokê: tire a voz da música',
-    itens: [
-      { tipo: 'novo', texto: 'Karaokê, como o do Apple Music, nas músicas com a letra sincronizada: na letra na tela toda, toque no microfone com as estrelinhas (à direita, em cima da barra do tempo) e a voz do cantor some, ficando só a banda, para você cantar no lugar. É um controle deslizante: arraste o microfone para cima e a voz volta um pouco, de guia, para a música que você ainda está aprendendo (a letra atrás se apaga enquanto você arrasta). Toque de novo e a música volta a ser a gravação inteira, sem parar. Também no ⋯ do Tocando agora.' },
-      { tipo: 'novo', texto: 'Nas músicas baixadas, o karaokê vem junto com o download (Ajustes → Downloads → “Baixar também o karaokê”): o microfone liga na hora, até sem internet. Nas outras, a primeira vez leva de 1 a 3 minutos (o servidor da IA separa a voz da banda, com a música tocando normal enquanto isso; o anel do microfone mostra quanto falta), e depois fica guardado. Com o karaokê ligado, a próxima música da fila já começa sem a voz.' },
-      { tipo: 'melhoria', texto: 'A voz e a banda vêm separadas em estéreo e na qualidade cheia, no mesmo arquivo: nunca se desencontram, e com a voz no máximo o som é exatamente o da gravação. Funciona com o áudio oficial, com o vídeo e com o áudio que você importou.' },
     ],
   },
 ];

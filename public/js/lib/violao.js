@@ -6,9 +6,17 @@
 import { formaDoAcorde } from '../acordes.js';
 
 const BASE = 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments@622c2f1c32c8cfce4158ddc3eb26e518ddef37e5/samples/guitar-nylon/';
-// as notas gravadas (MIDI), de Ré2 a Lá#5
-const GRAVADAS = [38, 40, 42, 44, 45, 47, 49, 50, 52, 54, 55, 57, 59, 61, 63, 64, 66, 68, 69, 71, 73, 74, 76, 78, 79, 80, 81, 82];
-const NOMES = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+// As gravações, de Ré2 a Lá#5, com a altura em que cada uma soa DE VERDADE (MIDI, com os cents medidos): nem todas estão
+// na nota do nome. A "D5.mp3" soa um semitom acima (é um Ré#5, 621,8 Hz): com ela, a nota Ré5 saía Ré#5, e o acorde que
+// tinha Ré5 (o G com capotraste na 7ª, a corda Mi aguda) soava com meio tom de choque contra o Ré4, "zoado". A Dó#5 está
+// 12 cents acima e as Lá5 e Lá#5, 10 abaixo (dava para ouvir batendo contra as outras cordas). Cada nota é afinada a
+// partir da altura medida, não do nome do arquivo. (Medido pela fundamental, de 0,15 a 0,65 s depois do ataque)
+const GRAVADAS = [
+  ['D2', 37.97], ['E2', 39.99], ['Fs2', 42.02], ['Gs2', 44], ['A2', 45], ['B2', 47], ['Cs3', 49.01], ['D3', 49.98],
+  ['E3', 52], ['Fs3', 54], ['G3', 55.01], ['A3', 56.99], ['B3', 59.01], ['Cs4', 60.96], ['Ds4', 63.01], ['E4', 64],
+  ['Fs4', 66.02], ['Gs4', 68.02], ['A4', 69.05], ['B4', 71], ['Cs5', 73.12], ['D5', 74.99], ['E5', 75.96], ['Fs5', 78.07],
+  ['G5', 78.98], ['Gs5', 80.03], ['A5', 80.9], ['As5', 81.9],
+];
 
 // as cordas soltas na afinação padrão (MIDI), da 6ª (Mi grave) para a 1ª (Mi agudo)
 const CORDAS = [40, 45, 50, 55, 59, 64];
@@ -21,10 +29,10 @@ export function notasNoViolao(nome, capo = 0) {
   return forma.casas.map((c, s) => (c >= 0 ? CORDAS[s] + c + (Number(capo) || 0) : null)).filter((n) => n !== null);
 }
 
-// a gravação usada para uma nota: a mais perto, e quanto afinar (playbackRate)
+// a gravação usada para uma nota: a que soa mais perto dela, e quanto afinar (playbackRate) a partir de onde ela soa
 export function gravacaoPara(midi) {
-  const m = GRAVADAS.reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a));
-  return { midi: m, arquivo: `${NOMES[m % 12]}${Math.floor(m / 12) - 1}.mp3`, afinacao: 2 ** ((midi - m) / 12) };
+  const [nome, altura] = GRAVADAS.reduce((a, b) => (Math.abs(b[1] - midi) < Math.abs(a[1] - midi) ? b : a));
+  return { midi: Math.round(altura), arquivo: `${nome}.mp3`, afinacao: 2 ** ((midi - altura) / 12) };
 }
 
 let ctx = null;
