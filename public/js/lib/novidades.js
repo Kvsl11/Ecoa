@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 485, data: '2026-11-04', titulo: 'A prévia da playlist no refrão',
+    itens: [
+      { tipo: 'novo', texto: 'A prévia da playlist (os clipes em tela cheia) agora toca o refrão de cada música, achado pela letra sincronizada. Com a música baixada, o clipe e o áudio tocam do aparelho, sem internet.' },
+      { tipo: 'novo', texto: 'A capinha ao lado do baixar ganhou movimento: mostra, sem som, o clipe baixado de uma das músicas no refrão. Sem clipe baixado, as imagens dos clipes vão passando.' },
+      { tipo: 'melhoria', texto: 'O "Salvar" das telas da playlist, o ✓ da prévia e a marca da ordem escolhida agora ficam na cor que você escolheu nos Ajustes, em vez de verde. Saiu o chip Mix da playlist.' },
+      { tipo: 'correcao', texto: 'Com a playlist toda baixada, o botão de baixar aparecia cinza. Agora fica verde e cheio, e só o contorno quando ainda falta baixar.' },
+      { tipo: 'correcao', texto: 'Na playlist, o nome de uma música que já tinha tocado continuava destacado. Agora só a música que está tocando fica destacada, e o destaque acompanha o player quando ele passa para a próxima.' },
+    ],
+  },
+  {
     versao: 484, data: '2026-11-04', titulo: 'As playlists no jeito do Spotify',
     itens: [
       { tipo: 'novo', texto: 'As playlists que você cria ganharam a página do Spotify: a capa grande no meio (ela encolhe ao rolar), o nome, a descrição, "Você" e a duração. Embaixo ficam a capinha, baixar e compartilhar, e à direita o aleatório e o play. Os chips são Adicionar, Mix, Vídeo, Editar, Nome e detalhes e Ordenar.' },
@@ -62,13 +72,6 @@ export const NOVIDADES = [
     versao: 476, data: '2026-11-04', titulo: 'Servidor da IA mais claro',
     itens: [
       { tipo: 'melhoria', texto: 'A tela do Servidor da IA não fala mais em "sem a cota do mês" quando o Codespace está ligado: o app acha o Codespace sozinho, sem QR code, e o aviso de cota de antes some assim que ele responde.' },
-    ],
-  },
-  {
-    versao: 475, data: '2026-11-04', titulo: 'Codespace achado sozinho e letra no tempo certo',
-    itens: [
-      { tipo: 'correcao', texto: 'O app acha o Codespace sozinho, sem QR code: o endereço publicado no site e, se ele ainda não foi atualizado, o último Codespace que funcionou neste aparelho. Um endereço velho de QR code guardado não atrapalha mais (sai sozinho). E o Modal (a reserva) só é usado se responder de verdade: desativado por falta de crédito, o app continua tentando o Codespace, e o Servidor da IA, nos Ajustes, diz o que está acontecendo.' },
-      { tipo: 'correcao', texto: 'Algumas músicas tinham a letra sincronizada fora do tempo, como "Club Tropicana" e "Everything She Wants" do Wham!. A letra vem do LRCLIB, que tem várias edições da mesma música com a mesma duração, mas com a primeira frase em tempos bem diferentes (em "Club Tropicana", de 10 s a 52 s), e o app escolhia uma pela duração. Agora, quando as edições discordam, o servidor da IA ouve o áudio e acerta a letra no ponto em que ela é cantada. As músicas já salvas são conferidas sozinhas (só as que estão nesse caso).' },
     ],
   },
 ];
