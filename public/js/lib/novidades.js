@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 472, data: '2026-11-04', titulo: 'A capa certa, e dá para trocar',
+    itens: [
+      { tipo: 'correcao', texto: 'As músicas não ganham mais a capa de outra gravação. O app pegava a primeira capa com o título igual, mesmo de outro artista de nome parecido: "Here Comes The Sun" saía com a capa de um disco de ukulele, e "Aba" do Kemuel com a de uma coletânea. Agora vale o artista com o nome igual e, entre as gravações dele, a mais ouvida (o álbum ou o single que todo mundo conhece). As músicas que já estavam com a capa errada são corrigidas sozinhas.' },
+      { tipo: 'novo', texto: 'Trocar a capa: no ⋮ da música, escolha entre as capas achadas (o álbum, o single, as outras gravações) ou uma foto do aparelho. A capa escolhida fica; para voltar, toque em "Automática".' },
+    ],
+  },
+  {
     versao: 471, data: '2026-11-04', titulo: 'A fila que você vê é a que toca',
     itens: [
       { tipo: 'correcao', texto: 'A fila não muda mais sozinha. Com a música tocando de uma playlist ou de um repertório, abrir essa mesma música pela biblioteca (ou pela busca) passava a fila, sem aviso, para a da biblioteca, em ordem alfabética: a próxima que tocava não era a que a fila mostrava. Agora a música continua na fila em que estava.' },
@@ -66,13 +73,6 @@ export const NOVIDADES = [
     versao: 463, data: '2026-11-03', titulo: 'Microfone do karaokê redesenhado',
     itens: [
       { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade, simples: a cabeça, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
-    ],
-  },
-  {
-    versao: 462, data: '2026-11-03', titulo: 'Servidor da IA sempre ligado, sozinho',
-    itens: [
-      { tipo: 'melhoria', texto: 'O servidor da IA agora se ajeita sozinho: o Codespace do GitHub é o principal e, quando ele está desligado, o servidor de reserva (o Modal) atende na hora e manda o GitHub ligar o Codespace, que assume em uns 2 minutos. Sem a cota grátis do mês no Codespace, tudo fica no Modal. Não é mais preciso ir ao GitHub ligar nada, ler QR code ou colar endereço.' },
-      { tipo: 'melhoria', texto: 'Ajustes → Avançado → Servidor da IA mostra qual dos dois está atendendo e por quê (o Codespace ligando, sem cota…).' },
     ],
   },
 ];
