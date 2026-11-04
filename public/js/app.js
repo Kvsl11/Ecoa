@@ -6017,7 +6017,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     midiaDe(song) && db.song(song.id) && (baixando.has(song.id) ? { valor: 'baixando', rotulo: `Baixando… ${baixando.get(song.id).pct}%`, ic: 'baixar' }
       : song.baixado ? { valor: 'tirar-download', rotulo: 'Remover o download', ic: 'baixada' } : { valor: 'baixar', rotulo: 'Baixar', ic: 'baixar' }),
     set && { valor: 'remover', rotulo: pl ? 'Remover desta playlist' : 'Remover deste repertório', ic: 'menosCirculo' },
-    set && { valor: 'parte', rotulo: set.items[i]?.label ? `Parte da missa: ${set.items[i].label}` : 'Definir a parte da missa', ic: 'list' },
+    set && !pl && { valor: 'parte', rotulo: set.items[i]?.label ? `Parte da missa: ${set.items[i].label}` : 'Definir a parte da missa', ic: 'list' },
     song.youtube && { valor: 'tocar', rotulo: player.tocandoAgora(song.youtube) ? 'Pausar' : 'Tocar a referência', ic: player.tocandoAgora(song.youtube) ? 'pause' : 'play' },
     { valor: 'video', rotulo: song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo', ic: song.youtube ? 'refresh' : 'youtube' },
     song.youtube && { valor: 'modo', rotulo: player.modoMusica ? 'Mudar para vídeo' : 'Mudar para música', ic: player.modoMusica ? 'videoclipe' : 'music' },
@@ -12887,10 +12887,425 @@ async function novoRepertorio(tipo = '') {
   location.hash = '#/repertorio/' + s.id;
 }
 
+// ---- A playlist no jeito do Spotify (as criadas por você; as Músicas curtidas e as Baixadas têm a página delas).
+// Em cima, a seta e os ⋮; a capa grande no meio (encolhe ao rolar, e o nome passa para o topo), o nome, a descrição,
+// o dono e a duração. Na linha dos botões, a capinha, baixar e compartilhar à esquerda; o aleatório e o play à
+// direita. Nos chips: Adicionar, Mix (as músicas se emendam, como num DJ), Vídeo (as faixas com a imagem do clipe),
+// Editar (tela própria: tirar e mudar a ordem), Nome e detalhes (folha) e Ordenar (só a vista; a ordem salva não muda)
+const ORDENS_PLAYLIST = [['personalizada', 'Ordem personalizada'], ['titulo', 'Título'], ['artista', 'Artista'], ['adicionadas', 'Adicionadas recentemente']];
+const fmtDuracaoCurta = (seg) => { const m = Math.round(seg / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+function resumoPlaylist(set) {
+  const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
+  const total = songs.reduce((t, x) => t + (x.duracao || 0), 0);
+  return `${qtdMusicas(set.items.length)}${total ? ` • ${songs.some((x) => !x.duracao) ? 'cerca de ' : ''}${fmtDuracaoCurta(total)}` : ''}`;
+}
+// a capa grande encolhe e some aos poucos ao rolar a página da playlist
+view.addEventListener('scroll', () => {
+  const c = view.querySelector('.pl-capa');
+  if (c) c.style.setProperty('--enc', Math.min(1, view.scrollTop / 280).toFixed(3));
+}, { passive: true });
+function linhaDaPlaylist(set, it, i, comVideo) {
+  const s = db.song(it.songId);
+  const tocando = player.atual?.setId === set.id && player.atual?.index === i;
+  const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" alt="" loading="lazy"></div>` : capa(s || {});
+  return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
+    <div class="info"><div class="t${tocando ? ' playing' : ''}">${esc(s?.title || '(música removida)')}</div>
+      <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${esc(s?.artist || '')}</div></div>
+    <span class="acts">${s ? botaoMais(s.title) : `<button class="icon-btn danger" data-rm aria-label="Remover da playlist" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
+}
+function viewPlaylist(set) {
+  const id = set.id;
+  setTab('biblioteca');
+  setTint(corDaMusica(set.name));
+  const comVideo = prefBib(`pl.${id}.video`, '') === '1';
+  const ordem = ORDENS_PLAYLIST.find(([k]) => k === prefBib(`pl.${id}.ordem`, ''))?.[0] || 'personalizada';
+  const alternarVideo = () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewPlaylist(db.set(id)); };
+  setHeader(set.name, { back: '#/biblioteca/playlists', actions: [{ icon: 'more', label: 'Mais opções', onClick: () => menuDaPlaylist(set, { comVideo, alternarVideo }) }] });
+  const aleat = Boolean(db.prefs().aleatorio);
+  const mix = db.prefs().transicao === 'automix';
+  // a ordem da vista (a salva continua a mesma: é a do "Ordem personalizada" e a do player)
+  const lista = set.items.map((it, i) => ({ it, i, s: db.song(it.songId) }));
+  const porTexto = (f) => (a, b) => (f(a) || '').localeCompare(f(b) || '', 'pt-BR');
+  if (ordem === 'titulo') lista.sort(porTexto((x) => x.s?.title));
+  if (ordem === 'artista') lista.sort((a, b) => porTexto((x) => x.s?.artist)(a, b) || porTexto((x) => x.s?.title)(a, b));
+  if (ordem === 'adicionadas') lista.sort((a, b) => (b.it.em || 0) - (a.it.em || 0) || b.i - a.i);
+  view.innerHTML = `
+    <section class="pl-topo">
+      <button class="pl-capa" id="pl-capa" aria-label="Nome e detalhes" title="Nome e detalhes">${capaRepertorio(set)}</button>
+      <h2 class="pl-nome" id="pl-nome">${esc(set.name)}</h2>
+      ${set.descricao ? `<p class="pl-desc">${esc(set.descricao)}</p>` : ''}
+      <div class="pl-dono"><span class="pl-avatar">${logo(22)}</span><b>Você</b></div>
+      <div class="pl-dur">${icon('clock', 14)}<span id="set-resumo">${resumoPlaylist(set)}</span></div>
+    </section>
+    <div class="spot-acoes pl-acoes">
+      ${set.items.length ? `<button class="pl-mini" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">${capaRepertorio(set)}</button>` : ''}
+      ${set.items.length ? botaoBaixarSet(set) : ''}
+      <button class="icon-btn" id="pl-share" aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
+      <span class="spacer"></span>
+      ${set.items.length ? `<button class="icon-btn spot-aleat${aleat ? ' ligado' : ''}" id="set-aleat" aria-pressed="${aleat}" aria-label="Aleatório" title="Aleatório">${icon('shuffle', 24)}</button>
+      <button class="play-big" id="set-play" aria-label="Ouvir a playlist" title="Ouvir">${icon('play', 24)}</button>` : ''}
+    </div>
+    <nav class="chips spot-chips pl-chips" aria-label="Ações da playlist">
+      <button class="chip" id="add">${icon('plus', 16)} Adicionar</button>
+      <button class="chip" id="pl-mix" aria-pressed="${mix}" title="As músicas se emendam, como num DJ">${icon('mix', 16)} Mix</button>
+      <button class="chip" id="pl-video" aria-pressed="${comVideo}" title="Mostrar as faixas com a imagem do clipe">${icon('videoclipe', 15)} Vídeo</button>
+      ${set.items.length ? `<button class="chip" id="pl-editar" title="Tirar músicas e mudar a ordem">${icon('rows', 15)} Editar</button>` : ''}
+      <button class="chip" id="pl-detalhes">${icon('edit', 15)} Nome e detalhes</button>
+      ${set.items.length > 1 ? `<button class="chip" id="pl-ordenar">${icon('ordenar', 15)} Ordenar</button>` : ''}
+    </nav>
+    ${set.items.length ? `<ul class="tracks pl-faixas">${lista.map(({ it, i }) => linhaDaPlaylist(set, it, i, comVideo)).join('')}</ul>`
+    : `<div class="empty pl-vazia"><h3>Vamos montar sua playlist</h3><div class="row"><button class="btn primary" id="add2">Adicionar a esta playlist</button></div></div>`}`;
+  const adicionar = async () => {
+    const songId = await pickSong();
+    if (songId === 'nova') { location.hash = '#/editar/novo/' + id; return; }
+    if (!songId) return;
+    const atual = db.set(id);
+    atual.items.push({ songId, label: '', em: Date.now() });
+    db.saveSet(atual);
+    desenharLateral();
+    viewPlaylist(atual);
+  };
+  $('#add').onclick = adicionar;
+  $('#add2')?.addEventListener('click', adicionar);
+  const detalhes = async () => { if (await detalhesDaPlaylist(set)) { desenharLateral(); if (db.set(id)) viewSet(id); } };
+  $('#pl-detalhes').onclick = detalhes;
+  $('#pl-capa').onclick = detalhes;
+  $('#pl-nome').onclick = detalhes;
+  $('#pl-mini')?.addEventListener('click', () => previaDaPlaylist(set));
+  $('#pl-share').onclick = () => compartilharPlaylist(set);
+  $('#pl-video').onclick = alternarVideo;
+  $('#pl-editar')?.addEventListener('click', () => editarPlaylist(set));
+  $('#pl-mix').onclick = (e) => {
+    const v = db.prefs().transicao !== 'automix';
+    db.setPref('transicao', v ? 'automix' : '');
+    e.currentTarget.setAttribute('aria-pressed', String(v));
+    toast(v ? (ehIOS() ? 'Mix ligado (no iPhone as músicas trocam no fim, sem emendar)' : 'Mix ligado: as músicas se emendam, como num DJ') : 'Mix desligado');
+  };
+  $('#pl-ordenar')?.addEventListener('click', async () => {
+    const v = await escolherNaLista({ menu: true, titulo: 'Ordenar por', cls: 'bib-folha', atual: ordem, opcoes: ORDENS_PLAYLIST.map(([valor, rotulo]) => ({ valor, rotulo })) });
+    if (v && v !== ordem) { guardarPrefBib(`pl.${id}.ordem`, v); viewPlaylist(db.set(id)); }
+  });
+  // durações que faltam: procura (três de cada vez) e atualiza o total
+  const faltando = set.items.map((it) => db.song(it.songId)).filter((sg) => sg?.youtube && !sg.duracao);
+  const proximaDuracao = async () => {
+    const sg = faltando.shift();
+    if (!sg || !$('#set-resumo')) return;
+    await duracaoDaMusica(sg).catch(() => 0);
+    const atual = db.set(id);
+    if (atual && $('#set-resumo')) $('#set-resumo').textContent = resumoPlaylist(atual);
+    return proximaDuracao();
+  };
+  proximaDuracao(); proximaDuracao(); proximaDuracao();
+  videosDaPlaylist(set, () => db.set(id) && $('#set-resumo') && location.hash === '#/repertorio/' + id && viewSet(id));
+  $('#set-aleat')?.addEventListener('click', (e) => {
+    const v = !player.aleatorio();
+    player.definirAleatorio(v);
+    e.currentTarget.classList.toggle('ligado', v);
+    e.currentTarget.setAttribute('aria-pressed', String(v));
+    toast(v ? 'Aleatório ligado' : 'Aleatório desligado');
+  });
+  $('#set-play')?.addEventListener('click', () => {
+    const com = set.items.map((it, k) => (midiaDe(db.song(it.songId)) ? k : -1)).filter((k) => k >= 0);
+    const k = player.aleatorio() && com.length ? com[Math.floor(Math.random() * com.length)] : lista.find((x) => midiaDe(x.s))?.i ?? 0;
+    const jaTocava = playerAberto();
+    tocarPlaylist(set, k);
+    if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
+  });
+  const ul = view.querySelector('.pl-faixas');
+  ul?.addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-i]');
+    if (!li) return;
+    const i = Number(li.dataset.i);
+    if (e.target.closest('[data-rm]')) { const atual = db.set(id); atual.items.splice(i, 1); db.saveSet(atual); desenharLateral(); viewPlaylist(atual); return; }
+    if (e.target.closest('[data-menu]')) {
+      menuDaMusica(db.song(set.items[i]?.songId), { set, i }).then((r) => {
+        if (r === 'remover') { const atual = db.set(id); atual.items.splice(i, 1); db.saveSet(atual); desenharLateral(); toast('Removida da playlist'); viewPlaylist(atual); }
+      });
+      return;
+    }
+    const jaTocava = playerAberto(); // (com o player já aberto, a música só troca nele)
+    tocarPlaylist(set, i);
+    if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
+  });
+}
+// A prévia da playlist (a capinha ao lado do baixar), como a do Spotify: as músicas em tela cheia, uma de cada vez,
+// com o clipe rodando (30 s de um trecho do meio), o artista e o cartão da música embaixo, com a barrinha do tempo.
+// Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Começa sem som; o alto-falante do
+// topo liga (e pausa o que estiver tocando no player, que volta ao fechar). Tocar no cartão toca a playlist dali
+const PREVIA_SEG = 30;
+function previaDaPlaylist(set, inicio = 0) {
+  const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => x.s?.youtube);
+  if (!faixas.length) { toast('Nenhuma música desta playlist tem vídeo ainda'); return; }
+  let comSom = false;
+  let pausouPlayer = false;
+  let ativa = -1;
+  let t0 = 0;
+  let raf = 0;
+  const dlg = document.createElement('dialog');
+  dlg.className = 'pl-previa';
+  dlg.innerHTML = `<div class="pv-cab"><button class="icon-btn" data-fechar aria-label="Fechar" title="Fechar">${icon('back', 24)}</button><b>${esc(set.name)}</b>
+      <button class="icon-btn" data-som aria-label="Ligar o som" title="Ligar o som">${icon('mudo', 22)}</button></div>
+    <div class="pv-feed">${faixas.map(({ s }, k) => {
+      const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
+      return `<section class="pv-slide" data-k="${k}">
+      <div class="pv-video" style="background-image:url('https://i.ytimg.com/vi/${esc(s.youtube)}/hqdefault.jpg')"></div><div class="pv-sombra"></div>
+      <div class="pv-info">
+        <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
+          <a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a>` : ''}<span class="spacer"></span>
+          <button class="icon-btn" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 20)}</button>
+          <button class="icon-btn" data-mais aria-label="Mais opções" title="Mais opções">${icon('more', 20)}</button></div>
+        <button class="pv-cartao" data-tocar aria-label="Tocar ${esc(s.title)}">${capa(s)}<span class="lista-txt"><b>${esc(s.title)}</b><small>${icon('videoclipe', 12)} Vídeo${s.artist ? ` • ${esc(s.artist)}` : ''}</small></span>
+          <span class="pv-ok" title="Na sua biblioteca">${icon('check', 14)}</span><i class="pv-prog"><b></b></i></button>
+      </div></section>`;
+    }).join('')}</div>`;
+  document.body.append(dlg);
+  const feed = $('.pv-feed', dlg);
+  const slides = [...dlg.querySelectorAll('.pv-slide')];
+  const iframe = () => slides[ativa]?.querySelector('iframe');
+  const comando = (func, args = []) => { try { iframe()?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
+  const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
+  const ativar = (k) => {
+    if (k === ativa || k < 0 || k >= slides.length) return;
+    slides[ativa]?.querySelector('iframe')?.remove();
+    ativa = k;
+    const { s } = faixas[k];
+    const meio = s.duracao ? Math.max(0, Math.floor(s.duracao * 0.3)) : 45;
+    const f = document.createElement('iframe');
+    f.src = `${ytEmbed(s.youtube, { inicio: meio, mudo: !comSom })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
+    f.allow = 'autoplay; encrypted-media';
+    f.title = s.title;
+    f.tabIndex = -1;
+    slides[k].querySelector('.pv-video').append(f);
+    t0 = performance.now();
+  };
+  const andar = () => {
+    const p = Math.min(1, (performance.now() - t0) / (PREVIA_SEG * 1000));
+    slides[ativa]?.querySelector('.pv-prog b')?.style.setProperty('width', `${p * 100}%`);
+    if (p >= 1 && ativa < slides.length - 1) irPara(ativa + 1);
+    else if (p >= 1) t0 = performance.now(); // (a última: começa o trecho de novo)
+    raf = requestAnimationFrame(andar);
+  };
+  const irPara = (k) => slides[k]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const obs = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) ativar(Number(e.target.dataset.k)); }, { root: feed, threshold: 0.6 });
+  slides.forEach((x) => obs.observe(x));
+  enriquecerTilesArtistas(dlg);
+  const fechar = () => dlg.close();
+  dlg.addEventListener('close', () => {
+    obs.disconnect();
+    cancelAnimationFrame(raf);
+    dlg.remove();
+    if (pausouPlayer && player.atual && !player.tocandoAlgo()) player.alternar();
+  });
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); irPara(ativa + 1); }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); irPara(ativa - 1); }
+  });
+  dlg.addEventListener('click', (e) => {
+    if (e.target.closest('[data-fechar]')) { fechar(); return; }
+    if (e.target.closest('[data-som]')) {
+      comSom = !comSom;
+      if (comSom && player.tocandoAlgo()) { player.alternar(); pausouPlayer = true; }
+      comando(comSom ? 'unMute' : 'mute');
+      if (comSom) comando('setVolume', [100]);
+      desenharSom();
+      return;
+    }
+    const slide = e.target.closest('.pv-slide');
+    if (!slide) return;
+    const { i, s } = faixas[Number(slide.dataset.k)];
+    if (e.target.closest('.pv-nome')) { fechar(); return; }
+    if (e.target.closest('[data-compartilhar]')) {
+      compartilhar({ title: s.title, text: [s.title, s.artist].filter(Boolean).join(' — '), url: `https://www.youtube.com/watch?v=${s.youtube}` });
+      return;
+    }
+    if (e.target.closest('[data-mais]')) { menuDaMusica(s, { set, i }); return; }
+    if (e.target.closest('[data-tocar]')) {
+      pausouPlayer = false;
+      fechar();
+      const jaTocava = playerAberto();
+      tocarPlaylist(set, i);
+      if (telaDeCelular() && player.atual && !jaTocava) player.expandir();
+    }
+  });
+  dlg.showModal();
+  const k0 = Math.max(0, faixas.findIndex((x) => x.i >= inicio));
+  if (k0) slides[k0].scrollIntoView({ block: 'start' });
+  ativar(k0);
+  raf = requestAnimationFrame(andar);
+}
+function compartilharPlaylist(set) {
+  const linhas = set.items.map((it, i) => { const s = db.song(it.songId); return s ? `${i + 1}. ${s.title}${s.artist ? ` — ${s.artist}` : ''}` : ''; }).filter(Boolean);
+  compartilhar({ title: set.name, text: [set.name, set.descricao, '', ...linhas].filter((x) => x !== undefined).join('\n').trim() });
+}
+// escolhe uma foto do aparelho para a capa
+function trocarCapaDoSet(set) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files[0];
+    if (!f) return;
+    try {
+      const atual = db.set(set.id);
+      atual.capa = await capaDeArquivo(f);
+      db.saveSet(atual);
+      desenharLateral();
+      viewSet(set.id);
+    } catch { toast('Não foi possível abrir esta imagem'); }
+  };
+  inp.click();
+}
+// os ⋮ do topo da playlist
+async function menuDaPlaylist(set, { comVideo, alternarVideo }) {
+  const ss = musicasDoSet(set);
+  const baixada = ss.length > 0 && ss.every((x) => !precisaBaixar(x));
+  const outras = db.sets().filter((x) => x.id !== set.id);
+  const v = await escolherNaLista({ menu: true, cabeca: `${capaRepertorio(set)}<span class="lista-txt"><b>${esc(set.name)}</b><small>de Você • Playlist</small></span>`, opcoes: [
+    { valor: 'compartilhar', rotulo: 'Compartilhar', ic: 'share' },
+    { valor: 'adicionar', rotulo: 'Adicionar a esta playlist', ic: 'maisCirculo' },
+    set.items.length && { valor: 'editar', rotulo: 'Editar playlist', ic: 'rows' },
+    { valor: 'detalhes', rotulo: 'Nome e detalhes', ic: 'edit' },
+    { valor: 'capa', rotulo: 'Trocar a capa', ic: 'imagem' },
+    { valor: 'excluir', rotulo: 'Excluir playlist', ic: 'trash' },
+    ss.length && { valor: 'baixar', rotulo: baixada ? 'Remover o download' : 'Baixar', ic: baixada ? 'baixada' : 'baixar' },
+    { valor: 'video', rotulo: comVideo ? 'Mudar para música' : 'Mudar para vídeo', ic: comVideo ? 'music' : 'videoclipe' },
+    set.items.length && outras.length && { valor: 'outra', rotulo: 'Adicionar a outra playlist', ic: 'maisCirculo' },
+    { valor: 'repertorio', rotulo: 'Transformar em repertório', ic: 'list' },
+    set.items.length && { valor: 'pdf', rotulo: 'Exportar em PDF', ic: 'file' },
+  ].filter(Boolean) });
+  if (v === 'compartilhar') compartilharPlaylist(set);
+  if (v === 'adicionar') $('#add')?.click();
+  if (v === 'editar') editarPlaylist(set);
+  if (v === 'detalhes') $('#pl-detalhes')?.click();
+  if (v === 'capa') trocarCapaDoSet(set);
+  if (v === 'baixar') view.querySelector('[data-baixar-set]')?.click();
+  if (v === 'video') alternarVideo();
+  if (v === 'pdf') exportarRepertorioPdf(set);
+  if (v === 'excluir') excluirPlaylist(set);
+  if (v === 'repertorio') { const atual = db.set(set.id); delete atual.tipo; db.saveSet(atual); desenharLateral(); toast('Agora é um repertório'); viewSet(set.id); }
+  if (v === 'outra') {
+    const alvoId = await escolherNaLista({ menu: true, titulo: 'Adicionar a outra playlist', cls: 'bib-folha', opcoes: outras.map((o) => ({ valor: o.id, rotulo: o.name, sub: `${tipoDoSet(o)} • ${qtdMusicas(o.items.length)}`, capa: capaRepertorio(o) })) });
+    const alvo = alvoId && db.set(alvoId);
+    if (!alvo) return;
+    const ja = new Set(alvo.items.map((it) => it.songId));
+    const novas = set.items.filter((it) => !ja.has(it.songId) && ja.add(it.songId));
+    alvo.items.push(...novas.map((it) => ({ songId: it.songId, label: '', em: Date.now() })));
+    db.saveSet(alvo);
+    desenharLateral();
+    toast(novas.length ? `${qtdMusicas(novas.length)} em “${alvo.name}”` : `As músicas já estavam em “${alvo.name}”`);
+  }
+}
+async function excluirPlaylist(set) {
+  if (!(await ask({ title: 'Excluir playlist?', text: `“${set.name}” será apagada. As músicas continuam na biblioteca.`, ok: 'Excluir', danger: true }))) return false;
+  db.deleteSet(set.id);
+  desenharLateral();
+  toast('Playlist excluída');
+  location.hash = '#/biblioteca/playlists';
+  return true;
+}
+// "Nome e detalhes", como no Spotify: uma folha com Cancelar e Salvar no topo, a capa (tocar para escolher uma foto),
+// o nome e a descrição; embaixo, transformar em repertório e excluir
+function detalhesDaPlaylist(set) {
+  let capaNova = set.capa || '';
+  const previa = () => capaRepertorio({ ...set, capa: capaNova });
+  return new Promise((resolve) => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'lista-dlg lista-menu pl-det';
+    dlg.innerHTML = `<div class="pl-det-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span><button class="link-btn" data-no>Cancelar</button><h3>Nome e detalhes</h3><button class="link-btn pl-det-salvar" data-ok>Salvar</button></div>
+      <div class="pl-det-corpo">
+        <button class="pl-det-capa" data-foto aria-label="Escolher foto" title="Escolher foto"><span data-previa>${previa()}</span><span class="lapis">${icon('edit', 20)}</span></button>
+        <div class="pl-det-campos"><input class="input" data-nome value="${esc(set.name)}" placeholder="Nome da playlist" aria-label="Nome">
+          <textarea class="input" data-desc rows="3" placeholder="Adicionar descrição" aria-label="Descrição">${esc(set.descricao || '')}</textarea></div>
+      </div>
+      <div class="lista-opcoes">
+        ${capaNova ? `<button class="lista-op" data-sem-foto><span class="lista-ic">${icon('imagem', 18)}</span><span class="lista-txt"><b>Usar a capa automática</b></span></button>` : ''}
+        <button class="lista-op" data-rep><span class="lista-ic">${icon('list', 18)}</span><span class="lista-txt"><b>Transformar em repertório</b><small>Para cantar: abre a cifra e a letra de cada música</small></span></button>
+        <button class="lista-op" data-excluir><span class="lista-ic">${icon('trash', 18)}</span><span class="lista-txt"><b>Excluir playlist</b></span></button>
+      </div>
+      <input type="file" accept="image/*" data-arquivo hidden>`;
+    document.body.append(dlg);
+    let resultado = false;
+    const fechar = (r) => { resultado = r; dlg.close(); };
+    dlg.addEventListener('close', () => { dlg.remove(); resolve(resultado); });
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    $('[data-no]', dlg).onclick = () => fechar(false);
+    $('[data-foto]', dlg).onclick = () => $('[data-arquivo]', dlg).click();
+    $('[data-arquivo]', dlg).onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try { capaNova = await capaDeArquivo(f); $('[data-previa]', dlg).innerHTML = previa(); } catch { toast('Não foi possível abrir esta imagem'); }
+    };
+    $('[data-sem-foto]', dlg)?.addEventListener('click', (e) => { capaNova = ''; $('[data-previa]', dlg).innerHTML = previa(); e.currentTarget.remove(); });
+    const salvar = (extra = {}) => {
+      const nome = $('[data-nome]', dlg).value.trim();
+      if (!nome) { $('[data-nome]', dlg).focus(); return false; }
+      const novo = { ...db.set(set.id), name: nome, descricao: $('[data-desc]', dlg).value.trim(), capa: capaNova, ...extra };
+      for (const k of ['capa', 'descricao', 'tipo']) if (!novo[k]) delete novo[k];
+      db.saveSet(novo);
+      Object.assign(set, novo);
+      return true;
+    };
+    $('[data-ok]', dlg).onclick = () => { if (salvar()) fechar(true); };
+    $('[data-rep]', dlg).onclick = () => { if (salvar({ tipo: '' })) { toast('Agora é um repertório'); fechar(true); } };
+    $('[data-excluir]', dlg).onclick = async () => { dlg.close(); await excluirPlaylist(set); };
+    arrastarFolha(dlg);
+    dlg.showModal();
+  });
+}
+// "Editar playlist": uma tela só dela, com a lista para tirar (⊖) e mudar a ordem (segurar e arrastar pelo ≡), e o
+// Selecionar embaixo para tirar várias de uma vez. Nada muda até tocar em Salvar
+function editarPlaylist(set) {
+  let itens = set.items.map((it) => ({ ...it }));
+  let selecionando = false;
+  const marcados = new Set();
+  const dlg = document.createElement('dialog');
+  dlg.className = 'pl-editar';
+  document.body.append(dlg);
+  const mudou = () => JSON.stringify(itens) !== JSON.stringify(set.items);
+  const desenhar = () => {
+    dlg.innerHTML = `<div class="pl-ed-cab"><button class="icon-btn" data-voltar aria-label="Voltar" title="Voltar">${icon('back', 24)}</button><h3>Editar playlist</h3>
+        <button class="link-btn pl-det-salvar" data-pl-salvar ${mudou() ? '' : 'disabled'}>Salvar</button></div>
+      <ul class="tracks pl-ed-lista${selecionando ? ' selecionando' : ''}">${itens.map((it, i) => { const s = db.song(it.songId); return `<li class="track pl-ed-item${marcados.has(i) ? ' marcado' : ''}" data-i="${i}">
+        ${selecionando ? `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>` : `<button class="icon-btn pl-ed-tirar" data-rm aria-label="Tirar ${esc(s?.title || '')}" title="Tirar">${icon('menosCirculo', 22)}</button>`}
+        ${capa(s || {})}<div class="info"><div class="t">${esc(s?.title || '(música removida)')}</div><div class="s">${esc(s?.artist || '')}</div></div>
+        <span class="pl-ed-alca" aria-hidden="true">${icon('reordenar', 22)}</span></li>`; }).join('')}</ul>
+      <div class="pl-ed-pe">${selecionando ? `<button class="btn ghost" data-cancelar>Cancelar</button><button class="btn danger solid" data-tirar-marcadas ${marcados.size ? '' : 'disabled'}>Tirar ${marcados.size || ''}</button>`
+        : `<button class="btn pl-ed-sel" data-selecionar>Selecionar</button>`}</div>`;
+    const ul = $('.pl-ed-lista', dlg);
+    if (!selecionando) ativarArrastar(ul, (de, para) => { mover(itens, de, para); desenhar(); });
+  };
+  dlg.addEventListener('click', async (e) => {
+    const li = e.target.closest('li[data-i]');
+    if (e.target.closest('[data-rm]') && li) { itens.splice(Number(li.dataset.i), 1); desenhar(); return; }
+    if (selecionando && li) { const i = Number(li.dataset.i); if (marcados.has(i)) marcados.delete(i); else marcados.add(i); desenhar(); return; }
+    if (e.target.closest('[data-selecionar]')) { selecionando = true; desenhar(); return; }
+    if (e.target.closest('[data-cancelar]')) { selecionando = false; marcados.clear(); desenhar(); return; }
+    if (e.target.closest('[data-tirar-marcadas]')) { itens = itens.filter((_, i) => !marcados.has(i)); marcados.clear(); selecionando = false; desenhar(); return; }
+    if (e.target.closest('[data-pl-salvar]')) {
+      const atual = db.set(set.id);
+      atual.items = itens;
+      db.saveSet(atual);
+      desenharLateral();
+      dlg.close();
+      viewSet(set.id);
+      return;
+    }
+    if (e.target.closest('[data-voltar]')) {
+      if (mudou() && !(await ask({ title: 'Descartar as mudanças?', text: 'O que você tirou ou mudou de lugar volta a ser como era.', ok: 'Descartar', danger: true }))) return;
+      dlg.close();
+    }
+  });
+  dlg.addEventListener('cancel', (e) => { if (mudou()) { e.preventDefault(); $('[data-voltar]', dlg).click(); } });
+  dlg.addEventListener('close', () => dlg.remove());
+  desenhar();
+  dlg.showModal();
+}
+
 function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   if (db.set(id)) marcarAbertoBib('set:' + id); // (a ordem "Recentes" da biblioteca)
   const set = db.set(id);
   if (!set) return viewNotFound();
+  if (ehPlaylist(set)) return viewPlaylist(set);
   setTab('biblioteca');
   setTint(corDaMusica(set.name));
   const pl = ehPlaylist(set);
