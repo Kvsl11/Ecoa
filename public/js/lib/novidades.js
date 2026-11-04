@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 487, data: '2026-11-04', titulo: 'Adicionar várias de uma vez',
+    itens: [
+      { tipo: 'novo', texto: 'No "Adicionar" da playlist, dá para marcar várias músicas (ou todas, com "Selecionar todas") e adicionar de uma vez. As que já estão na playlist aparecem apagadas, com "Na playlist". Na aba "Procurar na internet", tocar numa música salva ela na biblioteca e já deixa marcada.' },
+      { tipo: 'melhoria', texto: 'A capinha da playlist agora passa um pouco de cada música, uns 4 segundos do refrão de cada uma, como os stories em miniatura. Antes mostrava só a primeira.' },
+    ],
+  },
+  {
     versao: 486, data: '2026-11-04', titulo: 'A música tocando em todas as listas',
     itens: [
       { tipo: 'novo', texto: 'Como no Spotify, a música que está tocando aparece destacada em todas as listas: na Biblioteca, nas Músicas curtidas, na Busca, nas playlists e nos repertórios. O nome fica na cor que você escolheu nos Ajustes e, enquanto ela toca, aparecem as barrinhas animadas antes dele.' },
@@ -68,12 +75,6 @@ export const NOVIDADES = [
     versao: 478, data: '2026-11-04', titulo: 'O microfone do karaokê no ⋮',
     itens: [
       { tipo: 'melhoria', texto: 'No ⋮ do Tocando agora, a opção "Karaokê (tirar a voz)" agora tem o mesmo microfone com as estrelinhas do botão de karaokê da letra, em vez do microfone simples.' },
-    ],
-  },
-  {
-    versao: 477, data: '2026-11-04', titulo: 'Ícone de importar para cima',
-    itens: [
-      { tipo: 'melhoria', texto: 'O botão de importar da Busca (e o "Cole aqui", o "Colar copiado" e o "Trazer da internet" do editor) agora tem a seta para cima, como o importar da Biblioteca e dos Ajustes. Antes a seta apontava para baixo, como a de baixar.' },
     ],
   },
 ];

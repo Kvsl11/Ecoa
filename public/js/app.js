@@ -5726,14 +5726,19 @@ const linhaMusica = (s, extra = '') => `
 
 // Escolhe uma música: da biblioteca ou procurando na internet (Cifra Club, cantos da missa, letras,
 // vídeos do YouTube). O que vem da internet é salvo na biblioteca. Devolve o id, 'nova' ou null.
-async function pickSong() {
+// varias: marca várias (ou todas) de uma vez, como o "Adicionar a esta playlist" do Spotify, e devolve a lista de ids
+// (as achadas na internet são salvas ao tocar e já ficam marcadas); ja: as que já estão na lista (não entram de novo)
+async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar música' } = {}) {
+  const marcadas = [];
   const r = await openDialog(`
-    <h3>Adicionar música</h3>
+    <h3>${esc(titulo)}</h3>
     <div class="chips" id="pk-abas"><button class="chip" data-aba="biblioteca" aria-pressed="false">${icon('library', 14)} Biblioteca</button><button class="chip" data-aba="internet" aria-pressed="false">${icon('search', 14)} Procurar na internet</button></div>
     <label class="field">${icon('search', 18)}<input class="search" type="search" id="pk-q"></label>
     <div id="pk-res" class="pk-res"></div>
-    <div class="acts"><button class="btn ghost" data-nova>${icon('edit', 16)} Criar do zero</button><span class="spacer"></span><button class="btn ghost" data-no>Fechar</button></div>`,
+    ${varias ? `<div class="acts pk-acts"><button class="btn ghost small" data-todas>Selecionar todas</button><span class="spacer"></span><button class="btn ghost" data-no>Cancelar</button><button class="btn primary" data-adicionar disabled>Adicionar</button></div>`
+    : `<div class="acts"><button class="btn ghost" data-nova>${icon('edit', 16)} Criar do zero</button><span class="spacer"></span><button class="btn ghost" data-no>Fechar</button></div>`}`,
   (dlg, done) => {
+    if (varias) dlg.classList.add('pk-varias');
     const box = $('#pk-res', dlg);
     const input = $('#pk-q', dlg);
     let aba = db.songs().length ? 'biblioteca' : 'internet';
@@ -5749,7 +5754,9 @@ async function pickSong() {
       const q = input.value.trim();
       if (aba === 'biblioteca') {
         const songs = db.songs().filter((s) => normalizar(s.title + ' ' + s.artist).includes(normalizar(q)));
-        box.innerHTML = `<ul class="tracks">${songs.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>`
+        box.innerHTML = varias ? `<ul class="tracks">${songs.map(linhaMarcavel).join('')}</ul>`
+          + (songs.length ? '' : `<p class="muted">Nada na biblioteca. <button class="link-btn" data-ir-internet>Procurar “${esc(q)}” na internet</button></p>`)
+          : `<ul class="tracks">${songs.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>`
           + (songs.length ? '' : `<p class="muted">Nada na biblioteca. <button class="link-btn" data-ir-internet>Procurar “${esc(q)}” na internet</button></p>`);
         return;
       }
@@ -5764,21 +5771,73 @@ async function pickSong() {
         encher('pk-mu', 'musica', buscarTudo(q, 8, 5));
       }, 400);
     };
-    input.oninput = desenhar;
-    $('#pk-abas', dlg).onclick = (e) => { const b = e.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; desenhar(); input.focus(); } };
-    box.onclick = (e) => {
-      if (e.target.closest('[data-ir-internet]')) { aba = 'internet'; desenhar(); return; }
+    // (várias: a linha com a bolinha de marcar; a que já está na lista vem apagada, com "Na playlist")
+    const linhaMarcavel = (s) => `<li class="track clickable pk-item${marcadas.includes(s.id) ? ' marcado' : ''}${ja.has(s.id) ? ' pk-ja' : ''}" data-id="${s.id}">
+      <span class="pk-marca" aria-hidden="true">${icon('check', 14)}</span>${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${ja.has(s.id) ? '<b class="pk-ja-tag">Na playlist</b> ' : ''}${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div></li>`;
+    const visiveis = () => [...box.querySelectorAll('li.pk-item:not(.pk-ja)')].map((li) => li.dataset.id);
+    const atualizarBarra = () => {
+      if (!varias) return;
+      const b = $('[data-adicionar]', dlg);
+      b.disabled = !marcadas.length;
+      b.textContent = marcadas.length ? `Adicionar ${marcadas.length}` : 'Adicionar';
+      const vs = visiveis();
+      $('[data-todas]', dlg).textContent = vs.length && vs.every((id) => marcadas.includes(id)) ? 'Desmarcar todas' : 'Selecionar todas';
+      $('[data-todas]', dlg).hidden = aba !== 'biblioteca' || !vs.length;
+    };
+    const marcar = (id, sim) => {
+      const i = marcadas.indexOf(id);
+      if (sim && i < 0) marcadas.push(id);
+      if (!sim && i >= 0) marcadas.splice(i, 1);
+      box.querySelector(`li.pk-item[data-id="${id}"]`)?.classList.toggle('marcado', sim);
+    };
+    if (varias) {
+      $('[data-todas]', dlg).onclick = () => {
+        const vs = visiveis();
+        const todas = vs.every((id) => marcadas.includes(id));
+        vs.forEach((id) => marcar(id, !todas));
+        atualizarBarra();
+      };
+      $('[data-adicionar]', dlg).onclick = () => done([...marcadas]);
+    }
+    const desenharAntes = desenhar;
+    const desenharTudo = () => { desenharAntes(); atualizarBarra(); };
+    input.oninput = desenharTudo;
+    $('#pk-abas', dlg).onclick = (e) => { const b = e.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; desenharTudo(); input.focus(); } };
+    box.onclick = async (e) => {
+      if (e.target.closest('[data-ir-internet]')) { aba = 'internet'; desenharTudo(); return; }
       const web = e.target.closest('li[data-tipo]');
+      if (web && varias) {
+        // (várias: a achada na internet é salva agora e fica marcada; dá para continuar procurando outras)
+        if (web.classList.contains('pk-salvando') || web.classList.contains('marcado')) return;
+        web.classList.add('pk-salvando');
+        const chip = web.querySelector('.acts .chip');
+        if (chip) chip.innerHTML = '<span class="spin"></span> Salvando';
+        const id = await salvarDaInternet(web.dataset.tipo, achados[web.dataset.tipo][Number(web.dataset.n)]).catch(() => null);
+        web.classList.remove('pk-salvando');
+        if (!id) { if (chip) chip.innerHTML = `${icon('plus', 13)} Adicionar`; toast('Não consegui trazer esta música agora'); return; }
+        if (ja.has(id)) { if (chip) chip.innerHTML = 'Na playlist'; return; }
+        marcar(id, true);
+        web.classList.add('marcado');
+        if (chip) chip.innerHTML = `${icon('check', 13)} Marcada`;
+        atualizarBarra();
+        return;
+      }
       if (web) { done({ tipo: web.dataset.tipo, item: achados[web.dataset.tipo][Number(web.dataset.n)] }); return; }
       const li = e.target.closest('li[data-id]');
+      if (li && varias) {
+        if (li.classList.contains('pk-ja')) { toast('Esta música já está na playlist'); return; }
+        marcar(li.dataset.id, !marcadas.includes(li.dataset.id));
+        atualizarBarra();
+        return;
+      }
       if (li) done(li.dataset.id);
     };
     $('[data-no]', dlg).onclick = () => done(null);
-    $('[data-nova]', dlg).onclick = () => done('nova');
-    desenhar();
+    $('[data-nova]', dlg)?.addEventListener('click', () => done('nova'));
+    desenharTudo();
     setTimeout(() => input.focus(), 50);
   });
-  if (!r || typeof r === 'string') return r;
+  if (!r || typeof r === 'string' || Array.isArray(r)) return r;
   return salvarDaInternet(r.tipo, r.item);
 }
 
@@ -13001,14 +13060,16 @@ function viewPlaylist(set) {
     </nav>
     ${set.items.length ? `<ul class="tracks pl-faixas">${lista.map(({ it, i }) => linhaDaPlaylist(set, it, i, comVideo)).join('')}</ul>`
     : `<div class="empty pl-vazia"><h3>Vamos montar sua playlist</h3><div class="row"><button class="btn primary" id="add2">Adicionar a esta playlist</button></div></div>`}`;
+  // Adicionar: marca várias (ou todas) de uma vez; as que já estão na playlist não entram de novo
   const adicionar = async () => {
-    const songId = await pickSong();
-    if (songId === 'nova') { location.hash = '#/editar/novo/' + id; return; }
-    if (!songId) return;
+    const ids = await pickSong({ varias: true, ja: new Set(db.set(id).items.map((it) => it.songId)), titulo: 'Adicionar a esta playlist' });
+    if (!ids?.length) return;
     const atual = db.set(id);
-    atual.items.push({ songId, label: '', em: Date.now() });
+    const em = Date.now();
+    atual.items.push(...ids.map((songId, k) => ({ songId, label: '', em: em + k })));
     db.saveSet(atual);
     desenharLateral();
+    toast(`${qtdMusicas(ids.length)} na playlist`);
     viewPlaylist(atual);
   };
   $('#add').onclick = adicionar;
@@ -13149,8 +13210,9 @@ function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
   el.src = url;
   return el;
 }
-// a capinha da playlist com movimento, como no Spotify: o clipe baixado de uma das músicas, sem som, no refrão; sem
-// clipe baixado, as imagens dos clipes passando devagar
+// a capinha da playlist com movimento, como no Spotify: um pouco de cada música da playlist, uma depois da outra (uns
+// 4 s do refrão, sem som), como os stories em miniatura. A música baixada mostra o clipe do aparelho; a que não está
+// baixada, a imagem do clipe passando devagar
 let urlsDaCapinha = [];
 // os cartões atrás da capinha (as próximas músicas, empilhadas para a direita), como os stories do Spotify
 function pilhaDaCapinha(set) {
@@ -13159,33 +13221,55 @@ function pilhaDaCapinha(set) {
 }
 async function animarCapinha(set) {
   urlsDaCapinha.forEach((u) => URL.revokeObjectURL(u));
-  urlsDaCapinha = [];
+  const meus = (urlsDaCapinha = []);
   const box = $('#pl-mini .pl-mini-tela');
   if (!box) return;
-  const songs = set.items.map((it) => db.song(it.songId)).filter((x) => x?.youtube);
-  for (const s of songs) {
-    const url = await arquivoBaixado(s.youtube, true);
-    if (!url) continue;
-    if (!box.isConnected) { URL.revokeObjectURL(url); return; }
-    urlsDaCapinha.push(url);
-    const v = elementoDoRefrao('video', url, tempoDoRefrao(s).tVideo);
-    v.className = 'pl-mini-anim';
-    box.append(v);
-    medirFaixasDoVideo(v, s.youtube, (f) => box.style.setProperty('--zoom', zoomDasFaixas(f)));
-    return;
-  }
-  if (!songs.length || !box.isConnected) return;
-  const fotos = [...new Set(songs.map((x) => x.youtube))].slice(0, 6);
-  box.insertAdjacentHTML('beforeend', `<span class="pl-mini-anim pl-mini-fotos">${fotos.map((y) => `<img src="https://i.ytimg.com/vi/${esc(y)}/mqdefault.jpg" alt="">`).join('')}</span>`);
-  const imgs = [...box.querySelectorAll('.pl-mini-fotos img')];
+  const songs = [...new Map(set.items.map((it) => db.song(it.songId)).filter((x) => x?.youtube).map((x) => [x.youtube, x])).values()];
+  if (!songs.length) return;
+  const arquivos = new Map(); // vídeo → endereço do clipe baixado ('' sem download)
   let k = 0;
-  const passar = () => {
-    if (!box.isConnected) { clearInterval(vez); return; }
-    imgs.forEach((img, j) => img.classList.toggle('on', j === k));
-    k = (k + 1) % imgs.length;
+  let naTela = null;
+  const tirar = (el) => {
+    if (!el) return;
+    if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); }
+    el.remove();
   };
-  const vez = setInterval(passar, 2600);
-  requestAnimationFrame(passar);
+  const passo = async () => {
+    if (!box.isConnected) return;
+    const s = songs[k++ % songs.length];
+    if (!arquivos.has(s.youtube)) {
+      const u = await arquivoBaixado(s.youtube, true);
+      if (u) meus.push(u);
+      arquivos.set(s.youtube, u || '');
+    }
+    if (!box.isConnected) return;
+    const url = arquivos.get(s.youtube);
+    let el;
+    if (url) {
+      el = elementoDoRefrao('video', url, tempoDoRefrao(s).tVideo);
+      medirFaixasDoVideo(el, s.youtube, (f) => el.style.setProperty('--zoom', zoomDasFaixas(f)));
+    } else {
+      el = document.createElement('img');
+      el.alt = '';
+      el.className = 'pl-mini-foto';
+      el.src = `https://i.ytimg.com/vi/${s.youtube}/mqdefault.jpg`;
+    }
+    el.classList.add('pl-mini-anim');
+    box.append(el);
+    // (entra quando o primeiro quadro chegou, por cima da anterior, sem piscar preto)
+    await new Promise((ok) => {
+      el.addEventListener(url ? 'playing' : 'load', ok, { once: true });
+      el.addEventListener('error', ok, { once: true });
+      setTimeout(ok, 2500);
+    });
+    if (!box.isConnected) { tirar(el); return; }
+    requestAnimationFrame(() => el.classList.add('on'));
+    const antes = naTela;
+    naTela = el;
+    setTimeout(() => tirar(antes), 800);
+    if (songs.length > 1) setTimeout(passo, url ? 4000 : 3000);
+  };
+  passo();
 }
 // A prévia da playlist (a capinha ao lado do baixar), como a do Spotify: as músicas em tela cheia, uma de cada vez,
 // com o clipe rodando (30 s do refrão, achado pela letra sincronizada; do aparelho, quando a música está baixada), o
