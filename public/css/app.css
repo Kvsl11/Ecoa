@@ -3969,7 +3969,10 @@ html.pp #player .pl-artista-bio.so-mais .pl-artista-mais { position: static; pad
 
 /* ============================================================ downloads (como no Spotify) */
 .btn-baixar { position: relative; color: var(--muted); }
-.btn-baixar.baixada { color: #1ed760; }
+/* baixada: o círculo verde cheio com a seta preta, em todo lugar (o botão da playlist, o da música, o "Remover o
+   download" dos ⋮), como no Spotify; nenhuma cor de botão da tela passa por cima. Para baixar: só o contorno */
+.btn-baixar.baixada, .lista-ic.lista-ic-baixada { color: #1ed760 !important; }
+.btn-baixar.baixada .ic path, .lista-ic-baixada .ic path { stroke: #000 !important; }
 /* baixando: um anel que se completa com a porcentagem */
 .btn-baixar.baixando { color: var(--text); }
 .btn-baixar.baixando::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; pointer-events: none;

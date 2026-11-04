@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 489, data: '2026-11-04', titulo: 'Baixada fica verde',
+    itens: [
+      { tipo: 'correcao', texto: 'O botão de baixar da playlist voltava a aparecer cinza com tudo baixado. Agora a música ou playlist baixada mostra o círculo verde cheio com a seta preta em todo lugar: na playlist, na página da música e no "Remover o download" dos ⋮. O que ainda falta baixar fica só com o contorno.' },
+    ],
+  },
+  {
     versao: 488, data: '2026-11-04', titulo: 'A capinha da prévia sem piscar',
     itens: [
       { tipo: 'correcao', texto: 'A capinha da playlist dava uma piscada mostrando as faixas pretas do clipe antes de ficar normal. Agora o app mede as faixas antes de mostrar o vídeo, e ele já entra sem elas. O mesmo vale para a prévia em tela cheia.' },
@@ -71,12 +77,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Em algumas músicas, uma linha da letra sincronizada aparecia bem antes de ser cantada. Em "Club Tropicana" (Wham!), a primeira frase acendia uns 40 s antes da hora; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living" chegavam adiantados. O LRCLIB tem várias edições da mesma letra, e as mais repetidas traziam essa linha errada. Agora o app compara as edições: a linha fora do lugar vai para onde as outras concordam que ela é cantada, sem precisar do servidor da IA.' },
       { tipo: 'correcao', texto: 'As músicas já salvas são corrigidas sozinhas, em segundo plano. A letra que você sincronizou à mão fica como está.' },
-    ],
-  },
-  {
-    versao: 479, data: '2026-11-04', titulo: 'O microfone do karaokê nas listas',
-    itens: [
-      { tipo: 'novo', texto: 'Nas listas de músicas (Músicas curtidas, a Biblioteca, os repertórios), o microfone com as estrelinhas aparece ao lado da setinha verde nas músicas que já têm o karaokê pronto no aparelho. Ele aparece assim que o karaokê fica pronto e some se você apagar o karaokê.' },
     ],
   },
 ];
