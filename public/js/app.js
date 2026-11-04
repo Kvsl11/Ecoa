@@ -13024,6 +13024,11 @@ function linhaDaPlaylist(set, it, i, comVideo) {
 }
 function viewPlaylist(set) {
   const id = set.id;
+  // a animação da capinha (o contorno se desenhando e o cartão de trás saindo) é só ao entrar na playlist, não a cada
+  // vez que a página é desenhada de novo (ligar o Vídeo, adicionar, ordenar)
+  const entrando = capinhaEntrou !== id;
+  capinhaEntrou = id;
+  aoSair(() => { capinhaEntrou = null; });
   setTab('biblioteca');
   setTint(corDaMusica(set.name));
   const comVideo = videoNaPlaylist(set);
@@ -13046,7 +13051,7 @@ function viewPlaylist(set) {
       <div class="pl-dur">${icon('clock', 14)}<span id="set-resumo">${resumoPlaylist(set)}</span></div>
     </section>
     <div class="spot-acoes pl-acoes">
-      ${set.items.length ? `<button class="pl-mini" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">${pilhaDaCapinha()}<span class="pl-mini-tela">${capaRepertorio(set)}</span></button>` : ''}
+      ${set.items.length ? htmlDaCapinha(set, entrando) : ''}
       ${set.items.length ? botaoBaixarSet(set) : ''}
       <button class="icon-btn" id="pl-share" aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
       <span class="spacer"></span>
@@ -13134,7 +13139,15 @@ function viewPlaylist(set) {
 // As faixas pretas do clipe (em cima e embaixo) na prévia e na capinha: o vídeo é ampliado só o bastante para elas
 // ficarem fora da tela. No vídeo do aparelho, medidas em alguns quadros dele (fica a menor: uma cena escura não é
 // faixa); no do YouTube, nos quadros que ele publica do meio do clipe (o i.ytimg.com libera ler os pixels)
-const faixasDoClipe = new Map(); // 'arq:'|'yt:' + vídeo → fração da altura em faixa (em cima e embaixo)
+// (as medidas ficam guardadas no aparelho: na próxima vez o clipe já entra no tamanho certo, sem medir de novo)
+const CHAVE_FAIXAS = 'songbook.faixas';
+const faixasDoClipe = new Map(Object.entries((() => { try { return JSON.parse(localStorage.getItem(CHAVE_FAIXAS) || '{}') || {}; } catch { return {}; } })())); // 'arq:'|'yt:' + vídeo → fração da altura em faixa (em cima e embaixo)
+function guardarFaixas() {
+  try {
+    const medidas = [...faixasDoClipe].filter(([, v]) => typeof v === 'number').slice(-400).map(([k, v]) => [k, Math.round(v * 1e4) / 1e4]);
+    localStorage.setItem(CHAVE_FAIXAS, JSON.stringify(Object.fromEntries(medidas)));
+  } catch { /* sem armazenamento */ }
+}
 const zoomDasFaixas = (f) => (f > 0.01 ? (1 / (1 - 2 * f)).toFixed(4) : '1');
 // no arquivo baixado: medidas antes de o vídeo aparecer (sem a piscada das faixas), num vídeo fora da tela, em quatro
 // pontos do clipe (fica a menor); uma vez por clipe
@@ -13149,7 +13162,7 @@ function faixasDoArquivo(url, yt) {
       const medidas = [];
       let pontos = [];
       let limite = 0;
-      const fim = () => { clearTimeout(limite); v.removeAttribute('src'); v.load(); ok(medidas.length ? Math.min(...medidas) : 0); };
+      const fim = () => { clearTimeout(limite); v.removeAttribute('src'); v.load(); ok(medidas.length ? Math.min(...medidas) : null); };
       limite = setTimeout(fim, 4000);
       const proximo = () => { if (pontos.length) v.currentTime = pontos.shift(); else fim(); };
       v.addEventListener('seeked', () => {
@@ -13163,7 +13176,7 @@ function faixasDoArquivo(url, yt) {
       }, { once: true });
       v.addEventListener('error', fim, { once: true });
       v.src = url;
-    }).then((f) => { faixasDoClipe.set(k, f); return f; }));
+    }).then((f) => { faixasDoClipe.set(k, f ?? 0); if (f !== null) guardarFaixas(); return f ?? 0; }));
   }
   return Promise.resolve(faixasDoClipe.get(k));
 }
@@ -13191,6 +13204,7 @@ function faixasNoYoutube(yt) {
       const ok = fs.filter((f) => typeof f === 'number');
       const f = ok.length ? Math.min(...ok) : 0;
       faixasDoClipe.set(k, f);
+      if (ok.length) guardarFaixas(); // (sem internet não mediu: não guarda o zero)
       return f;
     }));
   }
@@ -13243,10 +13257,16 @@ function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
 // 4 s do refrão, sem som), como os stories em miniatura. A música baixada mostra o clipe do aparelho; a que não está
 // baixada, a imagem do clipe passando devagar
 let urlsDaCapinha = [];
-// o cartão claro atrás da capinha (como uma capinha de celular: a tela na frente, com o contorno claro), como os
-// stories do Spotify
-function pilhaDaCapinha() {
-  return '<span class="pl-mini-atras" aria-hidden="true"></span>';
+// A capinha, como a dos stories do Spotify: a tela da frente com o contorno claro e o cartão claro atrás (como uma
+// capinha de celular). Ao entrar na playlist, ela já mostra a primeira música (a imagem do clipe, até o vídeo chegar
+// por cima; nunca a capa da playlist), o contorno se desenha em volta e o cartão de trás sai para a direita
+let capinhaEntrou = null;
+function htmlDaCapinha(set, entrando) {
+  const yt = set.items.map((it) => db.song(it.songId)?.youtube).find(Boolean);
+  const tela = yt ? `<img class="pl-mini-anim pl-mini-ini on" src="https://i.ytimg.com/vi/${esc(yt)}/mqdefault.jpg" alt="">` : capaRepertorio(set);
+  return `<button class="pl-mini${entrando ? ' entrando' : ''}" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">
+    <span class="pl-mini-atras" aria-hidden="true"></span><span class="pl-mini-tela">${tela}</span>
+    <svg class="pl-mini-borda" viewBox="0 0 30 42" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="28" height="40" rx="5" pathLength="100"/></svg></button>`;
 }
 async function animarCapinha(set) {
   urlsDaCapinha.forEach((u) => URL.revokeObjectURL(u));
@@ -13257,7 +13277,7 @@ async function animarCapinha(set) {
   if (!songs.length) return;
   const arquivos = new Map(); // vídeo → endereço do clipe baixado ('' sem download)
   let k = 0;
-  let naTela = null;
+  let naTela = box.querySelector('.pl-mini-ini'); // (a imagem da primeira música, que sai quando o vídeo entra)
   const tirar = (el) => {
     if (!el) return;
     if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); }
