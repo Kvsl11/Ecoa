@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 471, data: '2026-11-04', titulo: 'A fila que você vê é a que toca',
+    itens: [
+      { tipo: 'correcao', texto: 'A fila não muda mais sozinha. Com a música tocando de uma playlist ou de um repertório, abrir essa mesma música pela biblioteca (ou pela busca) passava a fila, sem aviso, para a da biblioteca, em ordem alfabética: a próxima que tocava não era a que a fila mostrava. Agora a música continua na fila em que estava.' },
+      { tipo: 'melhoria', texto: 'Partituras no tablet deitado (e no computador): a tela agora usa a largura toda, em duas colunas. À esquerda, o título, os atalhos (Gerar com IA, Nova partitura) e o Acervo litúrgico; à direita, as suas partituras. Sem nenhuma partitura ainda, o recado ocupa a coluna em vez de deixar metade da tela vazia.' },
+    ],
+  },
+  {
     versao: 470, data: '2026-11-04', titulo: 'Acordes afinados e música sem acelerar',
     itens: [
       { tipo: 'correcao', texto: 'O som dos acordes (tocar no desenho do acorde) não sai mais desafinado. Uma das gravações do violão, a do Ré agudo, soava meio tom acima (era um Ré#): os acordes com essa nota, como o G com capotraste na 7ª casa, saíam com um choque de meio tom, "zoados". Agora cada nota é afinada pela altura medida de cada gravação (algumas outras também estavam um pouco fora).' },
@@ -66,12 +73,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O servidor da IA agora se ajeita sozinho: o Codespace do GitHub é o principal e, quando ele está desligado, o servidor de reserva (o Modal) atende na hora e manda o GitHub ligar o Codespace, que assume em uns 2 minutos. Sem a cota grátis do mês no Codespace, tudo fica no Modal. Não é mais preciso ir ao GitHub ligar nada, ler QR code ou colar endereço.' },
       { tipo: 'melhoria', texto: 'Ajustes → Avançado → Servidor da IA mostra qual dos dois está atendendo e por quê (o Codespace ligando, sem cota…).' },
-    ],
-  },
-  {
-    versao: 461, data: '2026-11-03', titulo: 'Karaokê sem depender do YouTube no servidor',
-    itens: [
-      { tipo: 'melhoria', texto: 'Nas músicas baixadas, o karaokê usa o próprio áudio do aparelho: ele vai para o servidor da IA, que só separa a voz da banda, sem precisar baixar a música do YouTube (que costuma recusar os servidores na nuvem). Funciona com o servidor no seu computador, no Codespace ou no Modal.' },
     ],
   },
 ];

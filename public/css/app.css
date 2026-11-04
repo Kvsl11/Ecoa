@@ -4459,6 +4459,27 @@ dialog.lista-dlg.folha .lista-cab h3 { flex: 1; min-width: 0; }
 .pt-acervo:hover b { color: var(--accent-ink); }
 html.tablet .pt-topo h2 { font-size: 34px; }
 html.tablet .pt-atalho-txt b { font-size: 17px; }
+/* Com espaço (o tablet deitado, o computador): duas colunas. À esquerda o título, os atalhos (um embaixo do outro) e o
+   acervo; à direita as partituras (em duas colunas quando são muitas). Numa coluna só, metade da tela ficava vazia */
+@media (min-width: 900px) and (orientation: landscape) {
+  .pt-pagina { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "topo listas" "atalhos listas" "acervo listas"; column-gap: clamp(24px, 4vw, 56px); align-items: start; }
+  .pt-topo { grid-area: topo; margin-top: 10px; }
+  .pt-atalhos { grid-area: atalhos; grid-template-columns: 1fr; max-width: none; margin: 0; }
+  .pt-atalho { grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 16px 18px; }
+  .pt-listas { grid-area: listas; min-width: 0; }
+  .pt-listas > .shelf-head:first-child { margin-top: 10px; }
+  .pt-listas .pt-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); column-gap: 16px; }
+  .pt-acervo { grid-area: acervo; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--pt-linha); border-radius: var(--pt-raio); }
+  .pt-acervo:hover { background: var(--surface-2); }
+  /* sem partitura nenhuma: o recado ocupa a coluna inteira, no meio (antes era uma faixa fina, com a tela vazia embaixo) */
+  .pt-vazio { flex-direction: column; justify-content: center; text-align: center; gap: 16px; min-height: min(52vh, 420px); padding: 32px; }
+  .pt-vazio-ic { width: 72px; height: 72px; }
+  .pt-vazio-ic .ic { width: 32px; height: 32px; }
+  .pt-vazio > span:last-child { justify-items: center; gap: 6px; }
+  .pt-vazio b { font-size: 18px; }
+  .pt-vazio small { font-size: 14px; max-width: 34ch; }
+}
 
 /* ---- Criar a partitura */
 .compor-inicio { display: grid; gap: 10px; max-width: 720px; }
