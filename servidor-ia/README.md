@@ -27,6 +27,8 @@ Transforma áudio em notas para a partitura do Songbook, com mais fidelidade que
   `IA_KARAOKE_VOZ`, `IA_KARAOKE_PLATEIA` e `IA_KARAOKE_SOLISTA` trocam o modelo de cada passo (`0` desliga; com o
   solista desligado sai a voz inteira, como antes). O site publica o endereço da placa (`karaoke` em
   `data/servidor-ia.json`) e o app manda só o karaokê para lá; sem ela, o karaokê vai para o servidor de sempre.
+  `/karaoke/atualizar` recebe um karaokê de antes (o que tirava a voz inteira) e só separa o cantor da voz que já está
+  nele (os passos 2 e 3): sem baixar a música e sem o passo mais pesado. O app atualiza assim os que já tinha.
 
 Medido em 11 trechos de músicas reais (MUSDB18, voz isolada como gabarito): a melodia certa passou de **34%** do
 tempo (a música inteira junta, como no celular) para **70%** (voz separada + limpeza).

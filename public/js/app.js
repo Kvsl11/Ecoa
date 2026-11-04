@@ -1052,7 +1052,8 @@ function botaoBaixar(song, cls = '') {
 // song.karaoke: { [fonte]: { tipo, tamanho, em, versao, duracao } }. A fonte é a gravação em que a letra acompanha (o
 // áudio oficial, o vídeo da música ou o áudio da pessoa, "arq:" + id); o arquivo fica guardado em "kar:" + fonte
 // 2: só o cantor principal sai (o back vocal fica), a plateia das gravações ao vivo não engana a separação e sem o chiado
-// nas emendas. O de antes é refeito quando a pessoa toca no microfone (nunca sozinho: cada um gasta o servidor)
+// nas emendas. O de antes é atualizado (a revisão 6, ou o toque no microfone): o servidor só separa o cantor da voz que
+// já estava no arquivo (servidor-ia: /karaoke/atualizar)
 const KARAOKE_VERSAO = 2;
 const chaveKaraoke = (fonte) => `kar:${fonte}`;
 const fonteDoKaraoke = (song) => (song ? videoDaLetra(song) : '');
@@ -1068,6 +1069,17 @@ function karaokeDe(fonte) {
   }
   // (sem internet, o de antes ainda serve: melhor que nenhum)
   return karaokesAvulsos.get(fonte) || (antigo && !navigator.onLine ? antigo : null);
+}
+// o karaokê de antes desta gravação (que tirava a voz inteira, com o back vocal), se é o que está no aparelho
+function karaokeAntigoDe(fonte) {
+  if (!fonte || karaokesAvulsos.has(fonte)) return null;
+  let antigo = null;
+  for (const s of db.songs()) {
+    const k = s.karaoke?.[fonte];
+    if (k && (k.versao || 1) >= KARAOKE_VERSAO) return null;
+    antigo ||= k || null;
+  }
+  return antigo;
 }
 // o karaokê é das músicas com a letra sincronizada (a letra acompanha a gravação, e é nela que se canta junto)
 const letraSincronizadaDe = (s) => Boolean(s?.sincronia?.fonte === 'lrclib' && s.sincronia.video === videoDaLetra(s) && s.sincronia.tempos?.length);
@@ -1135,6 +1147,10 @@ function prepararKaraoke(song) {
         nome = String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
       }
     }
+    // O karaokê de antes (que tirava também o back vocal) não é feito do zero: vai ele mesmo, e o servidor só separa o
+    // cantor da voz que já estava separada (sem baixar a música e sem a separação mais pesada: bem mais rápido)
+    const antigo = karaokeAntigoDe(fonte) ? await lerAudio(chaveKaraoke(fonte)).catch(() => null) : null;
+    const aoEtapaAntigo = (etapa, p) => (etapa === 'separando' ? passo(10 + 80 * (p ?? 0), 'Atualizando o karaokê: o back vocal volta') : aoEtapa(etapa, p));
     // a placa de vídeo primeiro (rápida); se ela não atender (sem crédito no Modal, fora do ar), o servidor de sempre.
     // (o mesmo servidor do começo ao fim: o arquivo pronto fica no que separou)
     const servidores = [SERVIDOR_KARAOKE, servidorIA()].filter((x, i, l) => x?.url && l.findIndex((y) => y?.url === x.url) === i);
@@ -1144,6 +1160,18 @@ function prepararKaraoke(song) {
       for (const [n, s] of servidores.entries()) {
         cfg = s;
         try {
+          if (antigo) {
+            try {
+              const form = new FormData();
+              form.append('arquivo', antigo, 'karaoke.m4a');
+              if (!ehArquivo(fonte)) form.append('video', fonte);
+              r = await chamarComEtapas(s, '/karaoke/atualizar', { form }, aoEtapaAntigo);
+              break;
+            } catch (e) {
+              // (o servidor que ainda não atualiza, ou que não tem o modelo do cantor: faz do zero)
+              if (!(e.status === 404 || e.status === 405 || e.status === 501)) throw e;
+            }
+          }
           // (o YouTube conectado também nele, quando o servidor baixa a música)
           if (!arquivo) await reconectarYoutube(s);
           if (arquivo) {
@@ -1329,6 +1357,9 @@ const REVISOES = [
   // v412: a foto do artista que era a de outra pessoa com o nome parecido (o Justice com a foto da Victoria Justice):
   // sai, e a do artista certo é procurada de novo
   { rev: 5, fotoOutroArtista: true, quais: (s) => Boolean(s.fotoArtista && s.artist) && /sscdn\.co\/letras\/[^/]+\/fotos\//.test(s.fotoArtista) },
+  // v469: o karaokê de antes tirava a voz inteira (o back vocal junto): o que já está no aparelho é atualizado (o
+  // servidor só separa o cantor da voz que já estava separada; não faz do zero nem baixa a música de novo)
+  { rev: 6, karaoke: true, quais: (s) => Object.values(s.karaoke || {}).some((k) => (k?.versao || 1) < KARAOKE_VERSAO) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1425,6 +1456,17 @@ async function revisarMusica(id, pendentes, chaves) {
     else await noMaximo(descobrirVersoes(s), 45000).catch(() => {});
   }
   s = db.song(id);
+  // o karaokê de antes (com o back vocal tirado junto): atualizado, um por vez, com internet e fora dos dados móveis
+  // (vai e volta um arquivo de uns 10 MB). Só o da gravação de agora da música; o arquivo que sumiu sai da música
+  if (s && quer('karaoke')) {
+    for (const [fonte, k] of Object.entries(s.karaoke || {})) {
+      if ((k?.versao || 1) >= KARAOKE_VERSAO || fonte !== fonteDoKaraoke(s)) continue;
+      if (!chaves.has(chaveKaraoke(fonte))) { esquecerKaraoke(fonte); continue; }
+      if (!navigator.onLine || (navigator.connection?.type === 'cellular' && !db.prefs().baixarDadosMoveis)) { completa = false; continue; }
+      try { await prepararKaraoke(s); } catch { completa = false; }
+    }
+    s = db.song(id);
+  }
   if (!s?.baixado && !s?.rebaixar) return completa;
   // os downloads: o arquivo que sumiu do aparelho ou que não abre sai da lista, para ser baixado de novo
   const rebaixar = quer('rebaixar');
@@ -3225,7 +3267,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (!jaNoPonto) { if (m.readyState >= 1) ir(); else m.addEventListener('loadedmetadata', ir, { once: true }); }
     if (velho) cruzarLocal(velho, m, alvoAgora, jaNoPonto);
     // (a próxima na transição entre as músicas começa sem som e sobe aos poucos: veja andarTransicao)
-    else m.volume = transicao && atual?.youtube === transicao.para && !transicao.entrou ? 0 : 1;
+    else m.volume = transicao && chaveDaTransicao() === transicao.para && !transicao.entrou ? 0 : 1;
     if (tocar) m.play().catch(() => { velho?.pause(); estado = 'pausado'; desenhar(); avisar(); });
     else m.pause();
     setTimeout(prepararLocalOutra, 1500);
@@ -3386,7 +3428,9 @@ const semLinhasDeAcordes = (sinc) => {
     pendenteEm = performance.now();
     estadoYt = -1;
     if (l) { comandoYt('pauseVideo'); tocarLocal(l, tempo, tocando); }
-    else if (tocando && !local && !mesmo && trocaSuave(antigo, id, tempo)) { /* a outra versão já estava carregada */ }
+    // (na transição entre as músicas, a troca é no mesmo player: a troca suave tem a rampa de volume dela, que brigava com a
+    // da transição)
+    else if (tocando && !local && !mesmo && !transicao && trocaSuave(antigo, id, tempo)) { /* a outra versão já estava carregada */ }
     else {
       pararLocal();
       // (a reserva, se era desta versão, sai: este player passa a tocar ela)
@@ -4186,8 +4230,10 @@ const semLinhasDeAcordes = (sinc) => {
   };
   const andarTransicao = () => {
     const t = transicao;
-    // pulou, escolheu outra música, pausou, fechou ou começou um anúncio: a que sai some logo
-    if (!atual || atual.youtube !== t.para || estado !== 'tocando' || anuncio) { acabarTransicao(); return; }
+    // pulou, escolheu outra música, pausou, fechou ou começou um anúncio: a que sai some logo. (A próxima passar para
+    // a outra versão dela — o áudio oficial no modo música, o download — é a mesma música: a transição continua. Antes
+    // ela acabava aí, logo no começo: a que saía era cortada e a próxima entrava no volume cheio)
+    if (!atual || chaveDaTransicao() !== t.para || estado !== 'tocando' || anuncio) { acabarTransicao(); return; }
     const agora = performance.now();
     const dur = t.plano.dur * 1000;
     volumeDaQueSai(t, volumes((agora - t.desde) / dur)[0]);
@@ -4224,6 +4270,8 @@ const semLinhasDeAcordes = (sinc) => {
     }
     if ((agora - t.desde >= dur && y >= 1) || agora - t.desde > dur + 10000) acabarTransicao();
   };
+  // a música (não o vídeo: a mesma música troca de versão) que entra na transição
+  const chaveDaTransicao = () => (atual ? `${atual.songId || atual.youtube}|${atual.setId || ''}|${atual.index ?? ''}` : '');
   const comecarTransicao = (plano) => {
     let saindo;
     if (local && som) {
@@ -4245,7 +4293,7 @@ const semLinhasDeAcordes = (sinc) => {
     const atraso = Math.max(0, api.tempoAgora - plano.inicio);
     transicao = { saindo, plano: { ...plano, dur: Math.max(1, plano.dur - atraso) }, atraso, desde: performance.now(), para: '', entrou: 0, acertos: 0, acertouEm: 0, adianta: 0, vSai: 1 };
     if (!pular(1)) { acabarTransicao(true); return; }
-    transicao.para = atual.youtube;
+    transicao.para = chaveDaTransicao();
     if (local && som) som.volume = 0;
   };
   setInterval(() => {

@@ -253,7 +253,14 @@ def voz_principal(x: np.ndarray, progresso=lambda p: None) -> tuple[np.ndarray, 
     """O cantor principal (2, amostras) da gravação x, e o que foi feito (os modelos, a plateia)."""
     m = modelos()
     info: dict = {"modelos": m}
-    # 1. a voz inteira
+    voz = voz_inteira(x, m, info, lambda p: progresso(0.5 * p))
+    progresso(0.5)
+    voz = so_o_cantor(voz, m, info, lambda p: progresso(0.5 + 0.5 * p))
+    return voz, info
+
+
+def voz_inteira(x: np.ndarray, m: dict, info: dict, progresso=lambda p: None) -> np.ndarray:
+    """1. A voz inteira da gravação (o cantor, o back vocal e o coro)."""
     voz = None
     if m["voz"] != "demucs":
         try:
@@ -262,8 +269,12 @@ def voz_principal(x: np.ndarray, progresso=lambda p: None) -> tuple[np.ndarray, 
             log.warning("karaokê: %s falhou, separando com o Demucs", m["voz"], exc_info=True)
             info["modelos"] = {**m, "voz": "demucs"}
     if voz is None:
-        voz = voz_demucs(x, lambda p: progresso(0.5 * p))
-    progresso(0.5)
+        voz = voz_demucs(x, progresso)
+    return voz
+
+
+def so_o_cantor(voz: np.ndarray, m: dict, info: dict, progresso=lambda p: None) -> np.ndarray:
+    """2 e 3. Da voz inteira, só o cantor principal: a plateia sai antes (ao vivo) e o back vocal fica de fora."""
     # 2. a plateia (ao vivo)
     if m["plateia"]:
         try:
@@ -272,7 +283,7 @@ def voz_principal(x: np.ndarray, progresso=lambda p: None) -> tuple[np.ndarray, 
             info["plateia"] = round(parte, 3)
         except Exception:  # sem o modelo (não baixou): segue com a voz como veio
             log.warning("karaokê: não deu para tirar a plateia", exc_info=True)
-    progresso(0.65)
+    progresso(0.3)
     # 3. o cantor principal (o back vocal fica na banda)
     if m["solista"]:
         try:
@@ -283,7 +294,7 @@ def voz_principal(x: np.ndarray, progresso=lambda p: None) -> tuple[np.ndarray, 
             log.warning("karaokê: não deu para separar o cantor do back vocal", exc_info=True)
             info["solista"] = False
     progresso(1.0)
-    return voz, info
+    return voz
 
 
 def quatro_canais(x: np.ndarray, voz: np.ndarray) -> np.ndarray:
@@ -313,6 +324,42 @@ def fazer(entrada: str, saida: str, etapa=lambda nome, progresso=None: None) -> 
     etapa("gravando")
     gravar(quatro_canais(x, voz), saida)
     return {"duracao": round(x.shape[1] / SR, 2), "separador": nome_dos_modelos(),
+            **({"plateia": info["plateia"]} if "plateia" in info else {}), "solista": bool(info.get("solista"))}
+
+
+def ler_quatro(caminho: str) -> np.ndarray:
+    """Um karaokê já feito (os 4 canais, na ordem dos CANAIS): (4, amostras), float32, 44,1 kHz."""
+    # (os canais como estão no arquivo: o "-ac 4" do ffmpeg remisturava o "quad" para o "4.0", e um canal sumia)
+    cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", caminho, "-f", "f32le", "-acodec", "pcm_f32le", "-ar", str(SR), "-"]
+    r = subprocess.run(cmd, capture_output=True, check=False)
+    if r.returncode != 0:
+        raise ValueError("não consegui abrir este karaokê (" + r.stderr.decode(errors="replace").strip()[-160:] + ")")
+    q = np.frombuffer(r.stdout, dtype="<f4")
+    if len(q) < 4 * SR:
+        raise ValueError("karaokê curto demais ou sem som")
+    return q[: len(q) // 4 * 4].reshape(-1, 4).T.copy()
+
+
+def pode_atualizar() -> bool:
+    """O servidor tem o modelo que separa o cantor do back vocal (sem ele, atualizar não mudaria nada)."""
+    return disponivel() and modelos()["solista"] is not None
+
+
+def atualizar(entrada: str, saida: str, etapa=lambda nome, progresso=None: None) -> dict:
+    """O karaokê de antes (a voz inteira separada) atualizado para o de agora, sem separar a gravação de novo: a voz que
+    já estava separada (os canais 3 e 4) passa só pelos passos 2 e 3 (a plateia e o cantor principal), e a gravação é a
+    banda mais a voz. Bem mais rápido que fazer do zero (o passo 1 é o mais pesado, e nem precisa baixar a música)."""
+    q = ler_quatro(entrada)
+    x = q[:2] + q[2:]
+    m = modelos()
+    info: dict = {"modelos": m}
+    etapa("separando", 0)
+    voz = so_o_cantor(np.ascontiguousarray(q[2:]), m, info, lambda p: etapa("separando", p))
+    if not info.get("solista"):  # (sem o cantor separado, o "atualizado" seria o mesmo de antes)
+        raise RuntimeError("não deu para separar o cantor do back vocal agora")
+    etapa("gravando")
+    gravar(quatro_canais(x, voz), saida)
+    return {"duracao": round(x.shape[1] / SR, 2), "separador": nome_dos_modelos(), "atualizado": True,
             **({"plateia": info["plateia"]} if "plateia" in info else {}), "solista": bool(info.get("solista"))}
 
 
