@@ -4,9 +4,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 491, data: '2026-11-04', titulo: 'O cartão inclinado da capinha',
+    versao: 491, data: '2026-11-04', titulo: 'O cartão inclinado e a sombra da capinha',
     itens: [
       { tipo: 'melhoria', texto: 'O cartão atrás da capinha da prévia agora fica inclinado, como no Spotify: no alto ele aparece à direita da tela e, embaixo, fica escondido atrás dela. Ao entrar na playlist, ele sai girando até ficar nessa posição.' },
+      { tipo: 'melhoria', texto: 'A capinha ganhou a faixa escura em volta da tela, a sombra que separa a tela do cartão de trás, como no Spotify. O contorno e o cartão ficaram nos tons de cinza-azulado dele.' },
     ],
   },
   {
