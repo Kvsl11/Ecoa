@@ -217,3 +217,46 @@ export function paresPelaLegenda(doAudio, cues) {
     return [Math.round(a * 100) / 100, Math.round((a + d) * 100) / 100];
   });
 }
+
+// O vídeo é só o áudio (sem as cenas do clipe): o "Nome - Topic" do YouTube Music, o "Official Audio", o vídeo com a
+// letra ou o visualizer. Baixar a música em "Áudio e vídeo" com ele trazia só a capa parada: o app procura o clipe
+export function pareceSoAudio({ titulo = '', canal = '' } = {}) {
+  if (/ - Topic$/i.test(String(canal || '').trim())) return true;
+  const nome = normal(titulo);
+  if (CLIPE.test(nome)) return false;
+  return /\b(official audio|audio oficial|audio|lyrics?|lyric video|letra|visualizer|visualiser)\b/.test(nome);
+}
+
+// os vídeos sobre o clipe, que não são ele: os bastidores, o teaser, a reação, a coreografia
+const SOBRE_O_CLIPE = /\b(behind the scenes|making of|bastidores|teaser|trailer|reaction|react|reage|tutorial|dance (practice|tutorial)|choreography|coreografia|shorts|interview|entrevista|explica|breakdown|4k 60 ?fps|upscaled?|remastered by)\b/;
+// O videoclipe oficial da música entre os vídeos achados: o mesmo título, do canal do artista (ou o VEVO dele) e, sem
+// ele, com "official video" / "music video" / "clipe" no nome; nunca o áudio, a letra, a versão ao vivo, o cover, o
+// karaokê ou os bastidores. O canal do artista vale mais que o nome: as cópias de outros canais também se dizem
+// "Official Video". null se nenhum servir
+export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' } = {}) {
+  const t = normal(titulo).replace(/\b(feat|ft)\b.*$/, '').trim();
+  const a = normal(artista).replace(/\b(feat|ft)\b.*$/, '').trim();
+  if (!t) return null;
+  let melhor = null;
+  let nota = -Infinity;
+  for (const v of videos || []) {
+    if (!v?.id || v.id === evitar || v.tipo === 'music') continue;
+    if (v.segundos > 0 && (v.segundos < 90 || v.segundos > 15 * 60)) continue;
+    const nome = normal(v.titulo);
+    const canal = normal(v.canal);
+    if (!` ${nome} `.includes(` ${t} `)) continue;
+    if (pareceSoAudio({ titulo: v.titulo, canal: v.canal })) continue;
+    if ((OUTRA_GRAVACAO.test(nome) && !OUTRA_GRAVACAO.test(t)) || (SEM_VOZ.test(nome) && !SEM_VOZ.test(t)) || CANAL_SEM_VOZ.test(canal)) continue;
+    if (SOBRE_O_CLIPE.test(nome) && !SOBRE_O_CLIPE.test(t)) continue;
+    const doArtista = a && (canal === a || canal.startsWith(`${a} `) || canal === `${a.replace(/ /g, '')}vevo` || canal.replace(/ /g, '') === `${a.replace(/ /g, '')}vevo`);
+    const temNome = CLIPE.test(nome);
+    if (!doArtista && !temNome) continue;
+    let n = 0;
+    if (doArtista) n += 10;
+    if (temNome) n += 4;
+    if (doArtista && /vevo$/.test(canal.replace(/ /g, ''))) n += 2;
+    if (a && ` ${nome} `.includes(` ${a} `)) n += 2;
+    if (n > nota) { nota = n; melhor = v; }
+  }
+  return melhor;
+}
