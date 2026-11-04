@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 484, data: '2026-11-04', titulo: 'As playlists no jeito do Spotify',
+    itens: [
+      { tipo: 'novo', texto: 'As playlists que você cria ganharam a página do Spotify: a capa grande no meio (ela encolhe ao rolar), o nome, a descrição, "Você" e a duração. Embaixo ficam a capinha, baixar e compartilhar, e à direita o aleatório e o play. Os chips são Adicionar, Mix, Vídeo, Editar, Nome e detalhes e Ordenar.' },
+      { tipo: 'novo', texto: 'A capinha ao lado do baixar abre a prévia: as músicas em tela cheia, uma de cada vez, com o clipe rodando um trecho de 30 s. Arraste para cima para passar para a próxima. O alto-falante liga o som, e tocar no cartão da música toca a playlist a partir dela.' },
+      { tipo: 'novo', texto: '"Editar" abre uma tela para tirar músicas (⊖), mudar a ordem (segure e arraste) e selecionar várias de uma vez. Nada muda até tocar em Salvar. "Nome e detalhes" muda a capa, o nome e a descrição.' },
+      { tipo: 'novo', texto: '"Vídeo" mostra as faixas com a imagem do clipe. "Mix" faz as músicas se emendarem, como num DJ. "Ordenar" mostra por título, artista ou pelas adicionadas por último, sem mudar a ordem da playlist. O ⋮ do topo tem compartilhar, trocar a capa, baixar, adicionar a outra playlist, transformar em repertório e excluir.' },
+    ],
+  },
+  {
     versao: 483, data: '2026-11-04', titulo: 'A Biblioteca no jeito do Spotify',
     itens: [
       { tipo: 'novo', texto: 'A Biblioteca ganhou o topo do Spotify: o ícone do app (abre os Ajustes), "Sua biblioteca", a lupa e o +. A lupa abre a busca numa tela só dela, que acha repertórios, playlists, artistas e músicas salvas. O + cria um repertório, uma playlist ou uma música, ou importa arquivos.' },
@@ -60,13 +69,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O app acha o Codespace sozinho, sem QR code: o endereço publicado no site e, se ele ainda não foi atualizado, o último Codespace que funcionou neste aparelho. Um endereço velho de QR code guardado não atrapalha mais (sai sozinho). E o Modal (a reserva) só é usado se responder de verdade: desativado por falta de crédito, o app continua tentando o Codespace, e o Servidor da IA, nos Ajustes, diz o que está acontecendo.' },
       { tipo: 'correcao', texto: 'Algumas músicas tinham a letra sincronizada fora do tempo, como "Club Tropicana" e "Everything She Wants" do Wham!. A letra vem do LRCLIB, que tem várias edições da mesma música com a mesma duração, mas com a primeira frase em tempos bem diferentes (em "Club Tropicana", de 10 s a 52 s), e o app escolhia uma pela duração. Agora, quando as edições discordam, o servidor da IA ouve o áudio e acerta a letra no ponto em que ela é cantada. As músicas já salvas são conferidas sozinhas (só as que estão nesse caso).' },
-    ],
-  },
-  {
-    versao: 474, data: '2026-11-04', titulo: 'Sem a linha no Tocando agora',
-    itens: [
-      { tipo: 'correcao', texto: 'A linha clara que ainda aparecia no degradê do Tocando agora, logo acima do cartão da letra, sumiu de vez (no celular e no tablet). Eram os quadros do clipe, no fundo, aparecendo por baixo do degradê bem na borda.' },
-      { tipo: 'melhoria', texto: 'Trocar a capa: o contorno da capa escolhida aparece inteiro, e no tablet a tela sobe do rodapé, como os menus do ⋮, em vez de ficar flutuando.' },
     ],
   },
 ];
