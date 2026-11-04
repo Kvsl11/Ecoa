@@ -157,6 +157,8 @@ function carregarServidor({ forcar = false } = {}) {
       if (!(await responde(c))) continue;
       SERVIDOR_IA = { url: c, chave: d?.chave || '', pc: true, lumen: c };
       estadoCodespace = 'ligado';
+      // (respondeu: a marca de "sem cota" de antes, se havia, não vale mais)
+      try { localStorage.removeItem(CODESPACE_SEM_COTA); } catch { /* sem armazenamento */ }
       if (db.prefs().codespaceAchado !== c) db.setPref('codespaceAchado', c);
       // (o QR code do próprio Codespace, guardado de antes, não é mais preciso)
       if (pc && ehCodespace(pc)) db.setPref('servidorPc', '');
@@ -14119,7 +14121,7 @@ function viewServidorIA() {
     <div class="sv-item-txt"><b>${t}</b><small>Verificando…</small></div><span class="cy-ponto"></span></div>`;
   view.innerHTML = `<div class="conectar-yt servidor-ia">
     <section class="cy-topo"><span class="cy-ic sv-ic">${icon('sparkles', 26)}</span>
-      <div><h2>Servidor da IA</h2><p>Partitura, karaokê e Lumen. Tudo automático: o Codespace liga sozinho e, enquanto ele liga ou sem a cota do mês, o Modal atende.</p></div></section>
+      <div><h2>Servidor da IA</h2><p>Partitura, karaokê e Lumen. Tudo automático: com o Codespace ligado, o app acha ele sozinho, sem QR code. O Modal (a reserva) atende só quando o Codespace não responde e ele mesmo está ativo.</p></div></section>
     <section class="cy-card cy-status" id="sv-status" data-estado="verificando">
       <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small><small class="sv-vivo" id="sv-quando"></small></div>
       <button class="btn small" id="sv-verificar" type="button" aria-label="Verificar de novo">${icon('refresh', 16)}</button></section>
