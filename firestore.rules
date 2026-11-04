@@ -1,0 +1,14 @@
+// Regras do Firestore do Ecoa (projeto ecoa-82a51): cada pessoa só lê e escreve a própria biblioteca.
+// Para aplicar: console.firebase.google.com → Firestore Database → Regras → cole este arquivo → Publicar.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{uid}/itens/{item} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['dados', 'mod'])
+        && (request.resource.data.dados == null || request.resource.data.dados is string)
+        && request.resource.data.mod == request.time;
+    }
+  }
+}

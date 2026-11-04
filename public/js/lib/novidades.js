@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 495, data: '2026-11-04', titulo: 'Entre com o Google e tenha o seu perfil',
+    itens: [
+      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Entrar é opcional: sem conta, tudo continua funcionando só neste aparelho. Os downloads continuam sendo de cada aparelho.' },
+      { tipo: 'novo', texto: 'A sua foto aparece no canto de cima, como no Spotify. Tocando nela, abre a gaveta do perfil, com as suas informações: o e-mail da conta e quando ela sincronizou, quantas músicas curtidas, repertórios, artistas e baixadas você tem, a música que você tocou por último e a versão do app. Embaixo ficam Ver perfil, Novidades, Tocadas recentemente e Ajustes.' },
+      { tipo: 'novo', texto: 'A página do perfil tem o topo na cor da sua foto, o seu nome com quantos repertórios e músicas você tem, os botões Editar (para mudar o nome), Ajustes e ⋯ (Compartilhar o Ecoa, Sincronizar agora, Sair da conta), os seus repertórios e os artistas que você tocou recentemente.' },
+    ],
+  },
+  {
     versao: 494, data: '2026-11-04', titulo: 'O karaokê entra sem travar a música',
     itens: [
       { tipo: 'correcao', texto: 'Ao tocar no microfone do karaokê, a música dava uma travada: sumia por quase um segundo e voltava. No celular, mais ainda com fone Bluetooth, o som do karaokê leva um instante para começar a sair, e o app baixava a música antes disso. Agora a música segue tocando normal até o karaokê estar soando de verdade, e só então uma passa para a outra, sem buraco.' },
@@ -64,16 +72,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Como no Spotify, a música que está tocando aparece destacada em todas as listas: na Biblioteca, nas Músicas curtidas, na Busca, nas playlists e nos repertórios. O nome fica na cor que você escolheu nos Ajustes e, enquanto ela toca, aparecem as barrinhas animadas antes dele.' },
       { tipo: 'novo', texto: 'Na playlist com o "Vídeo" ligado, tocar numa música (ou no play) abre o clipe. Com ele desligado, abre a versão música.' },
       { tipo: 'melhoria', texto: 'Os clipes da prévia da playlist e da capinha não têm mais as faixas pretas em cima e embaixo: o app mede as faixas no vídeo e amplia só o necessário. A capinha ganhou os cartões empilhados atrás, como nos stories do Spotify.' },
-    ],
-  },
-  {
-    versao: 485, data: '2026-11-04', titulo: 'A prévia da playlist no refrão',
-    itens: [
-      { tipo: 'novo', texto: 'A prévia da playlist (os clipes em tela cheia) agora toca o refrão de cada música, achado pela letra sincronizada. Com a música baixada, o clipe e o áudio tocam do aparelho, sem internet.' },
-      { tipo: 'novo', texto: 'A capinha ao lado do baixar ganhou movimento: mostra, sem som, o clipe baixado de uma das músicas no refrão. Sem clipe baixado, as imagens dos clipes vão passando.' },
-      { tipo: 'melhoria', texto: 'O "Salvar" das telas da playlist, o ✓ da prévia e a marca da ordem escolhida agora ficam na cor que você escolheu nos Ajustes, em vez de verde. Saiu o chip Mix da playlist.' },
-      { tipo: 'correcao', texto: 'Com a playlist toda baixada, o botão de baixar aparecia cinza. Agora fica verde e cheio, e só o contorno quando ainda falta baixar.' },
-      { tipo: 'correcao', texto: 'Na playlist, o nome de uma música que já tinha tocado continuava destacado. Agora só a música que está tocando fica destacada, e o destaque acompanha o player quando ele passa para a próxima.' },
     ],
   },
 ];

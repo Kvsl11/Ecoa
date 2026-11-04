@@ -1,5 +1,6 @@
 // Persistência local (localStorage) da biblioteca, repertórios e preferências.
 import { parseChordPro, guessKey } from './chordpro.js';
+import { LOCAIS } from './lib/sincronia-conta.js';
 
 const KEY = 'songbook.v1';
 const DEFAULT_PREFS = { theme: 'dark', fontScale: 1, showChords: true, scrollSpeed: 3, destaqueCifra: 'forte', videoFundo: true };
@@ -24,6 +25,8 @@ function persist() {
     console.warn('Não foi possível salvar', e);
   }
   copiaSegura(json);
+  // a conta Google (conta.js) sobe o que mudou para a nuvem
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('songbook:salvo'));
 }
 
 // ---- a biblioteca e os repertórios não se perdem: o navegador é avisado de que os dados do app são para guardar (não
@@ -170,6 +173,24 @@ export const db = {
     for (const s of data.sets || []) if (!state.sets.some((x) => x.id === s.id)) state.sets.push(s);
     persist();
     return n;
+  },
+  // ---- conta Google (conta.js): a biblioteca como vai para a nuvem e o que chega dela
+  paraNuvem: () => ({ songs: state.songs, sets: state.sets, recent: state.recent || [] }),
+  // mudancas: Map item ("m_<id>", "r_<id>", "recentes") -> JSON, ou null quando o item foi apagado em outro aparelho
+  daNuvem(mudancas) {
+    for (const [k, json] of mudancas) {
+      const obj = json ? JSON.parse(json) : null;
+      if (k === 'recentes') { state.recent = Array.isArray(obj) ? obj : []; continue; }
+      const lista = k.startsWith('m_') ? 'songs' : k.startsWith('r_') ? 'sets' : null;
+      if (!lista) continue;
+      const id = k.slice(2);
+      const i = state[lista].findIndex((x) => x.id === id);
+      if (!obj) { if (i >= 0) state[lista].splice(i, 1); continue; }
+      // o que é só deste aparelho (downloads, áudio próprio, karaokê) continua como estava aqui
+      if (lista === 'songs' && i >= 0) for (const c of LOCAIS) if (state.songs[i][c] !== undefined) obj[c] = state.songs[i][c];
+      if (i >= 0) state[lista][i] = obj; else state[lista].push(obj);
+    }
+    persist();
   },
   clear() {
     state = { songs: [], sets: [], recent: [], prefs: { ...DEFAULT_PREFS } };
