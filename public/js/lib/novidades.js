@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 483, data: '2026-11-04', titulo: 'A Biblioteca no jeito do Spotify',
+    itens: [
+      { tipo: 'novo', texto: 'A Biblioteca ganhou o topo do Spotify: o ícone do app (abre os Ajustes), "Sua biblioteca", a lupa e o +. A lupa abre a busca numa tela só dela, que acha repertórios, playlists, artistas e músicas salvas. O + cria um repertório, uma playlist ou uma música, ou importa arquivos.' },
+      { tipo: 'novo', texto: 'Os chips agora são Repertórios, Playlists, Artistas e Baixadas, numa fileira que rola de lado. Ao escolher um, fica só ele aceso, com o X para voltar a tudo.' },
+      { tipo: 'novo', texto: 'Em "Recentes", toque para escolher a ordem: Recentes, Adicionados recentemente, Ordem alfabética ou Criador. O botão ao lado troca entre grade e lista.' },
+      { tipo: 'melhoria', texto: 'A grade mostra três por linha no celular, com os artistas em fotos redondas misturados aos repertórios e às playlists. Músicas curtidas e Baixadas continuam fixadas no começo. Para excluir repertórios, segure o dedo num deles.' },
+    ],
+  },
+  {
     versao: 482, data: '2026-11-04', titulo: 'A foto certa do artista',
     itens: [
       { tipo: 'correcao', texto: 'Alguns artistas apareciam com uma foto que não era deles. O Justice, por exemplo, vinha com uma estátua da Justiça. Quando não achava a foto em outro lugar, o app pegava a da página da Wikipédia com o mesmo nome, e "Justice" é a página do conceito de justiça. Agora só vale a página que é mesmo do artista, como "Justice (band)", e as fotos do "Sobre o artista" vêm dela. As músicas já salvas com a foto errada ganham a foto certa sozinhas.' },
@@ -58,12 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'A linha clara que ainda aparecia no degradê do Tocando agora, logo acima do cartão da letra, sumiu de vez (no celular e no tablet). Eram os quadros do clipe, no fundo, aparecendo por baixo do degradê bem na borda.' },
       { tipo: 'melhoria', texto: 'Trocar a capa: o contorno da capa escolhida aparece inteiro, e no tablet a tela sobe do rodapé, como os menus do ⋮, em vez de ficar flutuando.' },
-    ],
-  },
-  {
-    versao: 473, data: '2026-11-04', titulo: 'Ícones certos no ⋮ da música',
-    itens: [
-      { tipo: 'melhoria', texto: 'No ⋮ da música, cada opção tem o seu ícone: "Trocar música" com as setas de trocar, "Abrir a música" com a seta de abrir (antes as duas tinham a mesma nota musical) e "Criar partitura" com o ícone de partitura, a pauta com a nota (antes eram umas estrelinhas).' },
     ],
   },
 ];
