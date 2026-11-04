@@ -5192,29 +5192,73 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-ultima small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-versao { margin: 8px 16px 0; color: var(--subtle); font-size: 12px; }
 
-/* ---- tela de entrada: o app só abre com a conta Google */
+/* ---- tela de entrada: o app só abre com a conta Google. O fundo é um mural de quadros de clipes, em fileiras inclinadas
+   que passam devagar; por cima, o véu escuro na cor do app e o convite para entrar */
 .entrada { display: none; }
 html.sem-conta body { overflow: hidden; }
 html.sem-conta .shell, html.sem-conta #player { visibility: hidden; }
-html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow-y: auto;
-  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); background: #0b0f12; color: #fff; }
-.entrada-fundo { position: fixed; inset: 0; pointer-events: none;
-  background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 65%),
-    radial-gradient(80% 50% at 100% 100%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%); }
-.entrada-conteudo { position: relative; width: min(100%, 420px); display: grid; justify-items: center; text-align: center; gap: 14px; }
-.entrada-logo { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.5); }
-.entrada h1 { margin: 4px 0 0; font-size: 44px; font-weight: 900; letter-spacing: -0.03em; }
-.entrada-frase { margin: 0; color: rgb(255 255 255 / 0.78); font-size: 16px; line-height: 1.45; }
-.entrada-lista { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; gap: 10px; width: 100%; text-align: left; }
-.entrada-lista li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: rgb(255 255 255 / 0.06); font-size: 14px; line-height: 1.35; }
-.entrada-lista span { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; font-size: 16px; }
-.entrada-google { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 6px;
-  border: 0; border-radius: 999px; background: #fff; color: #1f1f1f; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid; overflow: hidden; background: #050607; color: #fff; isolation: isolate; }
+.entrada-mural { position: absolute; inset: -30% -40%; display: grid; align-content: center; gap: 14px; transform: rotate(-12deg); z-index: -2; }
+.em-fila { overflow: hidden; }
+.em-trilho { display: flex; gap: 14px; width: max-content; animation: em-passa var(--dur, 80s) linear infinite; }
+.em-fila.volta .em-trilho { animation-direction: reverse; }
+@keyframes em-passa { to { transform: translateX(-50%); } }
+.em-quadro { position: relative; margin: 0; width: clamp(180px, 26vw, 320px); aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #15181b; flex: none;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5); }
+/* (os quadros do YouTube são 4:3 com faixas pretas: cortados em 16:9, fica só o clipe) */
+.em-quadro img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.15) contrast(1.05); animation: em-respira 14s ease-in-out infinite alternate; }
+.em-quadro:nth-child(3n) img { animation-delay: -5s; }
+.em-quadro:nth-child(3n + 1) img { animation-delay: -9s; }
+@keyframes em-respira { from { transform: scale(1.02); } to { transform: scale(1.14); } }
+.em-quadro figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 8px; font-size: 11px; line-height: 1.25; color: rgb(255 255 255 / 0.75);
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.75)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.em-quadro figcaption b { display: block; color: #fff; font-size: 12px; }
+.entrada-veu { position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(90% 60% at 50% 100%, rgb(5 6 7 / 0.98) 30%, transparent 75%),
+    linear-gradient(to bottom, rgb(5 6 7 / 0.35), rgb(5 6 7 / 0.55) 40%, rgb(5 6 7 / 0.96) 78%),
+    radial-gradient(70% 50% at 15% 0%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%); }
+.entrada-conteudo { align-self: end; justify-self: center; width: min(100%, 460px); display: grid; gap: 14px;
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); animation: entrada-sobe 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes entrada-sobe { from { opacity: 0; transform: translateY(24px); } }
+.entrada-marca { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 20px; letter-spacing: -0.01em; }
+.entrada-logo { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 20px rgb(0 0 0 / 0.5); }
+.entrada h1 { margin: 6px 0 0; font-size: clamp(46px, 13vw, 76px); line-height: 0.95; font-weight: 900; letter-spacing: -0.045em; }
+.entrada h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #fff)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.entrada-frase { margin: 0; color: rgb(255 255 255 / 0.78); font-size: 16px; line-height: 1.45; max-width: 400px; }
+.entrada-lista { list-style: none; margin: 2px 0 4px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.entrada-lista li { padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; color: rgb(255 255 255 / 0.9);
+  background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.entrada-google { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 54px; margin-top: 4px;
+  border: 0; border-radius: 999px; background: #fff; color: #1f1f1f; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45); transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s; }
+.entrada-google:hover { box-shadow: 0 12px 36px color-mix(in srgb, var(--accent) 40%, transparent); }
 .entrada-google:active { transform: scale(0.98); }
 .entrada-google:disabled { opacity: 0.7; cursor: default; }
 .entrada-google:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.entrada-erro { margin: 0; min-height: 1em; color: #fbbf24; font-size: 14px; line-height: 1.4; }
+.entrada-erro { margin: 0; color: #fbbf24; font-size: 14px; line-height: 1.4; }
 .entrada-erro:empty { display: none; }
-.entrada-nota { margin: 0; color: rgb(255 255 255 / 0.55); font-size: 13px; }
+.entrada-nota { margin: 0; color: rgb(255 255 255 / 0.5); font-size: 12.5px; text-align: center; }
+.entrada-tocando { position: absolute; top: calc(18px + env(safe-area-inset-top)); right: 16px; margin: 0; display: flex; align-items: center; gap: 8px;
+  max-width: calc(100% - 32px); padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff;
+  background: rgb(0 0 0 / 0.45); border: 1px solid rgb(255 255 255 / 0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(-6px); transition: opacity 0.4s, transform 0.4s; }
+.entrada-tocando.vis { opacity: 1; transform: none; }
+.entrada-tocando .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
+.entrada-tocando .eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--accent); animation: em-eq 0.9s ease-in-out infinite alternate; }
+.entrada-tocando .eq i:nth-child(2) { animation-delay: -0.3s; }
+.entrada-tocando .eq i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes em-eq { from { transform: scaleY(0.3); } to { transform: scaleY(1); } }
+/* no computador: o convite à esquerda, o mural ocupando o resto */
+@media (min-width: 900px) {
+  .entrada-conteudo { align-self: center; justify-self: start; margin-left: max(48px, 8vw); width: 480px; }
+  .entrada-veu { background:
+    linear-gradient(to right, rgb(5 6 7 / 0.97) 25%, rgb(5 6 7 / 0.6) 55%, rgb(5 6 7 / 0.25)),
+    radial-gradient(60% 60% at 0% 0%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%); }
+  .entrada-nota { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .em-trilho, .em-quadro img, .entrada-tocando .eq i, .entrada-conteudo { animation: none; }
+}
 .sinc-estado.procurando { background: none; padding: 4px 0; }
 .sinc-estado.procurando .spin { width: 18px; height: 18px; border-color: var(--accent); border-bottom-color: color-mix(in srgb, var(--text) 14%, transparent); }
