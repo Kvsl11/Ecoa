@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 473, data: '2026-11-04', titulo: 'Ícones certos no ⋮ da música',
+    itens: [
+      { tipo: 'melhoria', texto: 'No ⋮ da música, cada opção tem o seu ícone: "Trocar música" com as setas de trocar, "Abrir a música" com a seta de abrir (antes as duas tinham a mesma nota musical) e "Criar partitura" com o ícone de partitura, a pauta com a nota (antes eram umas estrelinhas).' },
+    ],
+  },
+  {
     versao: 472, data: '2026-11-04', titulo: 'A capa certa, a fila a partir da que toca',
     itens: [
       { tipo: 'correcao', texto: 'As músicas não ganham mais a capa de outra gravação. O app pegava a primeira capa com o título igual, mesmo de outro artista de nome parecido: "Here Comes The Sun" saía com a capa de um disco de ukulele, e "Aba" do Kemuel com a de uma coletânea. Agora vale o artista com o nome igual e, entre as gravações dele, a mais ouvida (o álbum ou o single que todo mundo conhece). As músicas que já estavam com a capa errada são corrigidas sozinhas.' },
@@ -69,12 +75,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O karaokê agora é preparado numa placa de vídeo (no Modal), como nos apps profissionais de separar faixas: a voz sai da música em uns 15 a 30 segundos, em vez de 1 a 3 minutos. Só o karaokê vai para lá; o resto continua no servidor de sempre. Se a placa não estiver disponível, ele é preparado no servidor de sempre, como antes.' },
       { tipo: 'melhoria', texto: 'O volume da voz no microfone agora acompanha a barra: arrastando para baixo, a voz vai sumindo aos poucos e só some de vez lá embaixo (antes, baixar um pouquinho já tirava quase tudo). E saiu o “Karaokê” escrito embaixo da barra do tempo. O controle aberto mostra a porcentagem da voz e, em 0%, uma setinha para cima, mostrando que dá para arrastar.' },
-    ],
-  },
-  {
-    versao: 463, data: '2026-11-03', titulo: 'Microfone do karaokê redesenhado',
-    itens: [
-      { tipo: 'melhoria', texto: 'O microfone do karaokê agora parece um microfone de verdade, simples: a cabeça, o anel e o cabo, deitado como o do Apple Music, com as estrelinhas piscando em volta.' },
     ],
   },
 ];
