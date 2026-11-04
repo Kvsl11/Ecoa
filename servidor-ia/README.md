@@ -14,14 +14,19 @@ Transforma áudio em notas para a partitura do Songbook, com mais fidelidade que
   trechos falados ficam de fora). Sem ele, o **Whisper** ouve e as palavras são casadas com a letra. Com a letra da
   internet (LRCLIB) e um vídeo mais longo, o servidor só acha onde a música começa e a devolve no lugar certo.
 
-- **Karaokê** (`/karaoke` com o link do YouTube, `/karaoke/arquivo` com o áudio enviado): o **Demucs** separa a voz em
-  estéreo e a 44,1 kHz (de 60 em 60 s, com 5 s cruzados nas emendas, para a porcentagem andar e a memória não estourar)
-  e o ffmpeg grava um M4A (AAC) de 4 canais, no arranjo "quad": banda esquerda e direita (a gravação menos a voz), voz
-  esquerda e direita. O app escolhe o volume da voz na hora. Fica guardado por vídeo (`IA_KARAOKE_MAX`, padrão 20):
-  outro aparelho recebe na hora. Com `IA_SEPARADOR=roformer`, a voz sai do Mel-Band RoFormer.
-  No Modal, o karaokê roda numa **placa de vídeo** (a função `karaoke` de `modal_app.py`, T4): uns 15 a 30 s por
-  música, em vez de 1 a 3 minutos no processador. O site publica o endereço dela (`karaoke` em `data/servidor-ia.json`)
-  e o app manda só o karaokê para lá; sem ela, o karaokê vai para o servidor de sempre.
+- **Karaokê** (`/karaoke` com o link do YouTube, `/karaoke/arquivo` com o áudio enviado): sai **só o cantor
+  principal**; o back vocal, o coro e a plateia ficam na banda. Três passos (`karaoke.py`): a voz inteira, a plateia
+  tirada dela (só nas gravações ao vivo, quando passa de 3% da energia da voz) e o modelo karaokê, que separa o cantor do
+  back vocal. A banda é a gravação menos o cantor, sem passar por modelo nenhum. Os modelos rodam direto na memória (sem
+  a normalização e os 16 bits dos arquivos do audio-separator) e os RoFormer andam meio pedaço por vez (sem chiado nas
+  emendas). O ffmpeg grava um M4A (AAC, 384 kb/s) de 4 canais, no arranjo "quad": banda esquerda e direita, cantor
+  esquerda e direita. O app escolhe o volume da voz na hora. Fica guardado por vídeo (`IA_KARAOKE_MAX`, padrão 20).
+  No Modal, o karaokê roda numa **placa de vídeo** (a função `karaoke` de `modal_app.py`, T4) com os RoFormer: a voz
+  pelo BS-RoFormer 1297, a plateia pelo Mel-RoFormer Crowd e o cantor pelo Mel-RoFormer Karaoke (1 a 2 minutos por
+  música). No processador: o Demucs (ou o RoFormer de `IA_SEPARADOR`), o UVR Crowd HQ e o UVR Karaoke 2.
+  `IA_KARAOKE_VOZ`, `IA_KARAOKE_PLATEIA` e `IA_KARAOKE_SOLISTA` trocam o modelo de cada passo (`0` desliga; com o
+  solista desligado sai a voz inteira, como antes). O site publica o endereço da placa (`karaoke` em
+  `data/servidor-ia.json`) e o app manda só o karaokê para lá; sem ela, o karaokê vai para o servidor de sempre.
 
 Medido em 11 trechos de músicas reais (MUSDB18, voz isolada como gabarito): a melodia certa passou de **34%** do
 tempo (a música inteira junta, como no celular) para **70%** (voz separada + limpeza).

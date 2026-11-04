@@ -79,8 +79,8 @@ document.addEventListener('keydown', (e) => { if (!e.metaKey && !e.ctrlKey) docu
 // página dele abre o app com ?ia=<endereço> e o endereço fica guardado (Ajustes → Servidor no computador)
 let SERVIDOR_IA = { url: '', chave: '' };
 const servidorIA = () => SERVIDOR_IA;
-// o karaokê numa placa de vídeo (a função "karaoke" do Modal, data/servidor-ia.json): separa a voz em uns 15 a 30 s, em
-// vez de 1 a 3 minutos no processador. Só o karaokê vai para lá; sem ela (ou sem crédito no Modal), vai para o servidor
+// o karaokê numa placa de vídeo (a função "karaoke" do Modal, data/servidor-ia.json): os modelos mais precisos, que
+// separam o cantor principal do back vocal, em 1 a 2 minutos. Só o karaokê vai para lá; sem ela (ou sem crédito no Modal), vai para o servidor
 // de sempre
 let SERVIDOR_KARAOKE = null;
 // o servidor do site (o Codespace do GitHub, gravado pela publicação em data/servidor-ia.json): mesmo desligado, o
@@ -1044,22 +1044,30 @@ function botaoBaixar(song, cls = '') {
 }
 
 // ---------------------------------------------------------------- karaokê (como o "Sing" do Apple Music)
-// O microfone da letra tira a voz da música e deixa a banda, com o volume da voz num controle deslizante. O servidor da
-// IA separa a voz da banda (Demucs, em estéreo e qualidade cheia) e manda um arquivo só, de 4 canais: a banda (a
-// gravação menos a voz) e a voz. O app guarda o arquivo no aparelho (como os downloads) e o player toca ele pelo Web
+// O microfone da letra tira a voz do cantor principal e deixa a banda (com o back vocal e o coro), com o volume da voz
+// num controle deslizante. O servidor da IA separa o cantor (servidor-ia/karaoke.py: em estéreo e qualidade cheia) e
+// manda um arquivo só, de 4 canais: a banda (a gravação menos o cantor) e o cantor. O app guarda o arquivo no aparelho (como os downloads) e o player toca ele pelo Web
 // Audio, que dá a cada par de canais o seu volume. A voz e a banda são as mesmas amostras do mesmo arquivo: nunca se
 // desencontram, e com a voz em 100% o som é a gravação original. Fica pronto uma vez por música, e toca sem internet.
 // song.karaoke: { [fonte]: { tipo, tamanho, em, versao, duracao } }. A fonte é a gravação em que a letra acompanha (o
 // áudio oficial, o vídeo da música ou o áudio da pessoa, "arq:" + id); o arquivo fica guardado em "kar:" + fonte
-const KARAOKE_VERSAO = 1;
+// 2: só o cantor principal sai (o back vocal fica), a plateia das gravações ao vivo não engana a separação e sem o chiado
+// nas emendas. O de antes é refeito quando a pessoa toca no microfone (nunca sozinho: cada um gasta o servidor)
+const KARAOKE_VERSAO = 2;
 const chaveKaraoke = (fonte) => `kar:${fonte}`;
 const fonteDoKaraoke = (song) => (song ? videoDaLetra(song) : '');
 // o da música ainda não salva (a prévia da busca): só enquanto o app está aberto
 const karaokesAvulsos = new Map();
 function karaokeDe(fonte) {
   if (!fonte) return null;
-  for (const s of db.songs()) { const k = s.karaoke?.[fonte]; if (k && (k.versao || 1) >= KARAOKE_VERSAO) return k; }
-  return karaokesAvulsos.get(fonte) || null;
+  let antigo = null;
+  for (const s of db.songs()) {
+    const k = s.karaoke?.[fonte];
+    if (k && (k.versao || 1) >= KARAOKE_VERSAO) return k;
+    antigo ||= k || null;
+  }
+  // (sem internet, o de antes ainda serve: melhor que nenhum)
+  return karaokesAvulsos.get(fonte) || (antigo && !navigator.onLine ? antigo : null);
 }
 // o karaokê é das músicas com a letra sincronizada (a letra acompanha a gravação, e é nela que se canta junto)
 const letraSincronizadaDe = (s) => Boolean(s?.sincronia?.fonte === 'lrclib' && s.sincronia.video === videoDaLetra(s) && s.sincronia.tempos?.length);

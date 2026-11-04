@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 468, data: '2026-11-04', titulo: 'Karaokê tira só o cantor',
+    itens: [
+      { tipo: 'melhoria', texto: 'O karaokê agora tira só a voz do cantor principal: o back vocal e o coro continuam tocando, como no Apple Music. A separação também ficou mais precisa (modelos melhores na placa de vídeo) e sem o chiado que aparecia nas emendas, e o resto da música sai exatamente como na gravação, sem perder qualidade.' },
+      { tipo: 'melhoria', texto: 'Músicas ao vivo: a plateia (gritos, palmas, o povo cantando junto) não confunde mais a separação, e continua no karaokê junto com a banda.' },
+      { tipo: 'melhoria', texto: 'Os karaokês que você já tinha são refeitos com a separação nova quando você tocar no microfone da música (nunca sozinhos, para não gastar o servidor). Sem internet, o de antes continua funcionando.' },
+    ],
+  },
+  {
     versao: 467, data: '2026-11-04', titulo: 'Crossfade e automix entre as músicas',
     itens: [
       { tipo: 'novo', texto: 'Transição entre as músicas, como no Spotify e no Apple Music (Ajustes → Música e cifra). No crossfade, a música que acaba vai sumindo enquanto a próxima já começa, nos últimos 1 a 12 segundos (você escolhe). No automix, o app escolhe sozinho onde e como passar: depois da última frase cantada (sem cortar a voz) e, nas músicas baixadas, no tempo da batida, com a próxima entrando na primeira batida dela e no mesmo andamento.' },
@@ -63,12 +71,6 @@ export const NOVIDADES = [
     versao: 459, data: '2026-11-03', titulo: 'Artista e álbum em todas as músicas',
     itens: [
       { tipo: 'correcao', texto: 'No ⋯ das músicas da biblioteca, das playlists e dos repertórios, “Ir para o artista” e “Ver álbum” aparecem em toda música que tem artista. Antes só apareciam nas cifras que vieram do Cifra Club; as outras (de outros sites, do acervo, importadas) agora acham o artista pelo nome e o álbum pelo título.' },
-    ],
-  },
-  {
-    versao: 458, data: '2026-11-03', titulo: 'Servidor da IA ao vivo',
-    itens: [
-      { tipo: 'melhoria', texto: 'Os indicadores do Servidor da IA e da conta do YouTube atualizam sozinhos, sem precisar sair da tela: com o Codespace desligado, a tela confere a cada 5 segundos e fica verde assim que ele liga; ligado, confere a cada 15 segundos (o Lumen fica verde sozinho quando a chave da IA chega). Embaixo do estado aparece a hora da última conferência.' },
     ],
   },
 ];

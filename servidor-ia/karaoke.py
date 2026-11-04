@@ -8,10 +8,10 @@ O app toca esse arquivo e escolhe o volume da voz na hora, de 0 a 100%, com o co
 quatro canais estão no mesmo arquivo, a voz e a banda nunca se desencontram (nem um instante: são as mesmas amostras).
 E a banda é a gravação menos a voz, então banda + voz é exatamente a gravação: com a voz em 100% o som é o original.
 
-A voz sai do Demucs (htdemucs, o mesmo da partitura, mas aqui em estéreo e a 44,1 kHz, sem reduzir para mono), de 60 em
-60 s com 5 s de sobra de cada lado, cruzados na emenda: a porcentagem anda na tela e a memória não estoura numa música
-longa. Com placa de vídeo (a função "karaoke" do Modal, modal_app.py), o Demucs roda nela: de 1 a 3 minutos no
-processador para uns 15 a 30 segundos. Com IA_SEPARADOR=roformer (o PC com placa de vídeo), a voz sai do Mel-Band RoFormer, mais limpa.
+Só o cantor principal sai: o back vocal, o coro e a plateia ficam na banda (veja voz_principal). Na placa de vídeo (a
+função "karaoke" do Modal, modal_app.py) a separação é pelos RoFormer, os modelos mais precisos; no processador, pelo
+Demucs (htdemucs, em estéreo e a 44,1 kHz, de 60 em 60 s com 5 s de sobra de cada lado, cruzados na emenda) e pelos
+modelos UVR mais leves.
 """
 
 from __future__ import annotations
@@ -32,11 +32,13 @@ log = logging.getLogger("songbook-ia")
 SR = 44100
 # O formato do arquivo (o app guarda junto da música). Mudou a separação ou o arquivo de um jeito que vale refazer os
 # karaokês já prontos: suba este número (o app pede de novo os de número menor)
-VERSAO = 1
+# 2: só o cantor principal sai (o back vocal fica), a plateia das gravações ao vivo não engana a separação e sem o
+# chiado nas emendas dos pedaços
+VERSAO = 2
 CANAIS = ["banda-esquerda", "banda-direita", "voz-esquerda", "voz-direita"]
 BLOCO = 60  # segundos de música por vez no Demucs
 SOBRA = 5  # segundos a mais de cada lado do bloco, cruzados com o bloco vizinho
-TAXA = os.environ.get("IA_KARAOKE_TAXA") or "320k"  # os 4 canais juntos (160 kb/s por par: menos chiado onde a voz saiu)
+TAXA = os.environ.get("IA_KARAOKE_TAXA") or "384k"  # os 4 canais juntos (192 kb/s por par: menos chiado onde a voz saiu)
 # o karaokê pronto de cada vídeo fica guardado (outro aparelho, ou a mesma música de novo, recebe na hora)
 GUARDAR = int(os.environ.get("IA_KARAOKE_MAX") or 20)
 _trava = threading.Lock()
@@ -105,33 +107,183 @@ def voz_demucs(x: np.ndarray, progresso=lambda p: None) -> np.ndarray:
     return voz
 
 
-def voz_roformer(x: np.ndarray) -> np.ndarray:
-    """A voz (2, amostras) pelo modelo do audio-separator (IA_SEPARADOR=roformer), em estéreo."""
-    import soundfile as sf
+# ------------------------------------------------------------------ a voz principal (só ela sai)
+# O karaokê tira só o cantor principal: o back vocal e o coro ficam na banda (como no "Sing" do Apple Music). São três
+# passos, cada um num modelo do audio-separator:
+#   1. a voz inteira da gravação (o cantor, o back vocal e o coro juntos);
+#   2. só nas gravações ao vivo: a plateia (os gritos, as palmas, o povo cantando junto) sai dessa voz, para o passo 3
+#      não confundir a plateia com o cantor. Ela fica na banda;
+#   3. o modelo "karaokê" separa, dessa voz, o cantor principal do back vocal.
+# A banda é a gravação menos o cantor principal: o back vocal, a plateia e os instrumentos ficam exatamente como na
+# gravação (sem passar por modelo nenhum, sem perder qualidade).
+# Na placa de vídeo (o Modal): os RoFormer, os melhores (a voz do BS-RoFormer 1297, SDR 11,8 contra 9,9 do htdemucs; o
+# cantor do Mel-RoFormer Karaoke, SDR 8,4 contra 5,4 do UVR Karaoke 2). No processador, para não levar 10 minutos por
+# música: o Demucs (ou o RoFormer de IA_SEPARADOR), o UVR Karaoke 2 e o UVR Crowd, bem mais leves.
+# IA_KARAOKE_VOZ, IA_KARAOKE_PLATEIA e IA_KARAOKE_SOLISTA trocam o modelo de cada passo ("0" desliga o passo; com o
+# solista desligado, sai a voz inteira, como no karaokê de antes)
+VOZ_GPU = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
+PLATEIA_GPU = "mel_band_roformer_crowd_aufr33_viperx_sdr_8.7144.ckpt"
+SOLISTA_GPU = "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
+PLATEIA_CPU = "UVR-MDX-NET_Crowd_HQ_1.onnx"
+SOLISTA_CPU = "UVR_MDXNET_KARA_2.onnx"
+# a plateia só sai da voz quando é de verdade parte dela (o modelo, numa gravação de estúdio, ainda acha um pouquinho
+# de "plateia" na respiração e no eco; tirar isso estragaria o cantor): a partir de 3% da energia da voz
+PLATEIA_MINIMA = 0.03
+
+
+def _desligado(v: str) -> bool:
+    return v.strip().lower() in ("0", "nao", "não", "off")
+
+
+def com_placa() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except ImportError:
+        return False
+
+
+def modelos() -> dict:
+    """Os modelos de cada passo: {"voz": nome ou "demucs", "plateia": nome ou None, "solista": nome ou None}."""
+    tem = transcricao._tem_audio_separator()
+    gpu = com_placa()
+    voz = (os.environ.get("IA_KARAOKE_VOZ") or "").strip()
+    if not voz:
+        voz = VOZ_GPU if gpu and tem else ("demucs" if transcricao.separador() == "htdemucs" else transcricao.separador())
+    if not tem:
+        voz = "demucs"
+
+    def passo(env: str, gpu_modelo: str, cpu_modelo: str):
+        pedido = (os.environ.get(env) or "").strip()
+        if not tem or _desligado(pedido):
+            return None
+        return pedido or (gpu_modelo if gpu else cpu_modelo)
+
+    return {"voz": voz, "plateia": passo("IA_KARAOKE_PLATEIA", PLATEIA_GPU, PLATEIA_CPU),
+            "solista": passo("IA_KARAOKE_SOLISTA", SOLISTA_GPU, SOLISTA_CPU)}
+
+
+def nome_dos_modelos() -> str:
+    """O que fez o karaokê (vai no nome do arquivo guardado: outro jeito de separar, outro arquivo)."""
+    m = modelos()
+    curto = lambda x: (x or "nao").split(".")[0][:24]  # noqa: E731
+    return f"{curto(m['voz'])}+{curto(m['plateia'])}+{curto(m['solista'])}"
+
+
+_separadores: dict = {}
+
+
+def _ajustar(v: np.ndarray, n: int) -> np.ndarray:
+    """(2, n) float32, do jeito que vier do modelo ((n, 2), mais curto ou mais longo)."""
+    v = np.asarray(v, dtype=np.float32)
+    if v.ndim == 1:
+        v = np.stack([v, v])
+    if v.shape[0] != 2 and v.shape[-1] == 2:
+        v = v.T
+    return np.pad(v, ((0, 0), (0, max(0, n - v.shape[1]))))[:, :n]
+
+
+def separar_com(modelo: str, x: np.ndarray) -> dict[str, np.ndarray]:
+    """Um modelo do audio-separator no áudio (2, amostras) a 44,1 kHz: {nome da faixa (minúsculo): (2, amostras)}, as
+    duas faixas do modelo (a que ele não dá é a gravação menos a outra), na mesma escala da entrada.
+    Direto na memória: pelo arquivo, o audio-separator mudava o volume das faixas (para o pico ficar em 0,9) e as gravava
+    em 16 bits, e a banda (a gravação menos a voz) ficava com sobra da voz e chiado."""
     from audio_separator.separator import Separator
 
-    modelo = transcricao.separador()
-    with tempfile.TemporaryDirectory(prefix="songbook-karaoke-sep-") as pasta:
-        entrada = os.path.join(pasta, "entrada.wav")
-        sf.write(entrada, x.T, SR, subtype="FLOAT")
-        with transcricao._trava_sep:
-            sep = transcricao._separadores.get(modelo)
-            if sep is None:
-                sep = Separator(output_dir=pasta, model_file_dir=os.environ.get("IA_MODELOS_SEPARACAO", "/tmp/audio-separator-models/"),
-                                log_level=logging.WARNING)
-                sep.load_model(modelo)
-                transcricao._separadores[modelo] = sep
-            sep.output_dir = pasta
-            if getattr(sep, "model_instance", None) is not None:
-                sep.model_instance.output_dir = pasta
-            saidas = sep.separate(entrada)
-        caminhos = [s if os.path.isabs(s) else os.path.join(pasta, s) for s in saidas]
-        voz = next((c for c in caminhos if "(vocals)" in os.path.basename(c).lower()), None)
-        if not voz:
-            raise RuntimeError(f"saídas inesperadas do {modelo}: {saidas}")
-        v = ler(voz)
+    transcricao._threads_do_torch()
     n = x.shape[1]
-    return np.pad(v, ((0, 0), (0, max(0, n - v.shape[1]))))[:, :n]
+    with transcricao._trava_sep:
+        sep = _separadores.get(modelo)
+        if sep is None:
+            sep = Separator(output_dir=tempfile.gettempdir(), log_level=logging.WARNING,
+                            model_file_dir=os.environ.get("IA_MODELOS_SEPARACAO", "/tmp/audio-separator-models/"),
+                            normalization_threshold=1e9, use_autocast=com_placa(),
+                            mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.5, "batch_size": 1, "enable_denoise": False})
+            sep.load_model(modelo)
+            m = sep.model_instance
+            # Os RoFormer ouvem a música em pedaços de uns 8 s e, no padrão, andam 8 s por vez: sem sobreposição, a
+            # janela de cada pedaço quase zera nas bordas, e a emenda (a cada 8 s) chiava. Andando meio pedaço por vez,
+            # as janelas somam por igual em toda a música
+            cfg = getattr(m, "model_data_cfgdict", None)
+            if getattr(m, "is_roformer", False) and cfg is not None:
+                pedaco = cfg.audio.hop_length * (cfg.inference.dim_t - 1) / cfg.audio.sample_rate
+                m.overlap = max(1.0, pedaco / 2)
+            _separadores[modelo] = sep
+        m = sep.model_instance
+        r = m.demix(np.ascontiguousarray(x, dtype=np.float32))
+    if isinstance(r, dict):
+        faixas = {str(k).lower(): _ajustar(v, n) for k, v in r.items()}
+    else:
+        # (a faixa única: a que o modelo tem como alvo; sem alvo, a principal dele)
+        cfg = getattr(m, "model_data_cfgdict", None)
+        alvo = getattr(getattr(cfg, "training", None), "target_instrument", None) if getattr(m, "is_roformer", False) else None
+        faixas = {str(alvo or m.primary_stem_name).lower(): _ajustar(r, n)}
+    if len(faixas) == 1:
+        (nome, v), = faixas.items()
+        outro = str(m.secondary_stem_name).lower()
+        if outro == nome:
+            outro = "resto"
+        faixas[outro] = (x - v).astype(np.float32)
+    return faixas
+
+
+def _faixa(faixas: dict[str, np.ndarray], *nomes: str) -> np.ndarray:
+    for nome in nomes:
+        for k, v in faixas.items():
+            if k == nome:
+                return v
+    raise RuntimeError(f"o modelo não devolveu {' nem '.join(nomes)}: {sorted(faixas)}")
+
+
+def energia(v: np.ndarray) -> float:
+    return float(np.mean(np.square(v, dtype=np.float64)))
+
+
+def tirar_plateia(voz: np.ndarray, plateia: np.ndarray) -> tuple[np.ndarray, float]:
+    """A voz sem a plateia, se ela é mesmo parte da voz (PLATEIA_MINIMA); senão, a voz como veio. E quanto da energia da
+    voz era plateia."""
+    parte = energia(plateia) / (energia(voz) + 1e-12)
+    if parte < PLATEIA_MINIMA:
+        return voz, parte
+    return (voz - plateia).astype(np.float32), parte
+
+
+def voz_principal(x: np.ndarray, progresso=lambda p: None) -> tuple[np.ndarray, dict]:
+    """O cantor principal (2, amostras) da gravação x, e o que foi feito (os modelos, a plateia)."""
+    m = modelos()
+    info: dict = {"modelos": m}
+    # 1. a voz inteira
+    voz = None
+    if m["voz"] != "demucs":
+        try:
+            voz = _faixa(separar_com(m["voz"], x), "vocals", "vocal")
+        except Exception:  # o modelo não baixou ou não abriu: o Demucs, como antes
+            log.warning("karaokê: %s falhou, separando com o Demucs", m["voz"], exc_info=True)
+            info["modelos"] = {**m, "voz": "demucs"}
+    if voz is None:
+        voz = voz_demucs(x, lambda p: progresso(0.5 * p))
+    progresso(0.5)
+    # 2. a plateia (ao vivo)
+    if m["plateia"]:
+        try:
+            faixas = separar_com(m["plateia"], voz)
+            voz, parte = tirar_plateia(voz, _faixa(faixas, "crowd"))
+            info["plateia"] = round(parte, 3)
+        except Exception:  # sem o modelo (não baixou): segue com a voz como veio
+            log.warning("karaokê: não deu para tirar a plateia", exc_info=True)
+    progresso(0.65)
+    # 3. o cantor principal (o back vocal fica na banda)
+    if m["solista"]:
+        try:
+            faixas = separar_com(m["solista"], voz)
+            voz = _faixa(faixas, "vocals", "vocal", "lead vocals")
+            info["solista"] = True
+        except Exception:  # sem o modelo: sai a voz inteira, como antes
+            log.warning("karaokê: não deu para separar o cantor do back vocal", exc_info=True)
+            info["solista"] = False
+    progresso(1.0)
+    return voz, info
 
 
 def quatro_canais(x: np.ndarray, voz: np.ndarray) -> np.ndarray:
@@ -157,14 +309,11 @@ def fazer(entrada: str, saida: str, etapa=lambda nome, progresso=None: None) -> 
     """Do áudio da música (qualquer formato que o ffmpeg abre) ao karaokê em saida (.m4a)."""
     x = ler(entrada, transcricao.MAX_SEGUNDOS_VIDEO)
     etapa("separando", 0)
-    if transcricao.separador() != "htdemucs":
-        voz = voz_roformer(x)
-    else:
-        voz = voz_demucs(x, lambda p: etapa("separando", p))
-    etapa("separando", 1.0)
+    voz, info = voz_principal(x, lambda p: etapa("separando", p))
     etapa("gravando")
     gravar(quatro_canais(x, voz), saida)
-    return {"duracao": round(x.shape[1] / SR, 2), "separador": transcricao.separador()}
+    return {"duracao": round(x.shape[1] / SR, 2), "separador": nome_dos_modelos(),
+            **({"plateia": info["plateia"]} if "plateia" in info else {}), "solista": bool(info.get("solista"))}
 
 
 # ------------------------------------------------------------------ guardado por vídeo
@@ -174,7 +323,7 @@ def _pasta() -> str:
 
 
 def _arquivo(video: str) -> str:
-    return os.path.join(_pasta(), f"{video}-v{VERSAO}-{transcricao.separador().split('.')[0]}.m4a")
+    return os.path.join(_pasta(), f"{video}-v{VERSAO}-{nome_dos_modelos()}.m4a")
 
 
 def guardado(video: str, destino: str) -> bool:
