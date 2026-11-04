@@ -630,3 +630,13 @@ test('página do artista no Cifra Club: a imagem padrão do site não é a foto 
   assert.ok(!ehImagemPadrao('https://yt3.ggpht.com/abc=s480-c-k-c0x00ffffff-no-rj'));
   assert.ok(!ehImagemPadrao(''));
 });
+
+test('a letra em dúvida: edições com a mesma duração e a primeira frase em tempos bem diferentes (Club Tropicana)', async () => {
+  const { letraEmDuvida } = await import('../public/js/lib/web.js');
+  const r = (duration, t) => ({ duration, syncedLyrics: `[00:${String(Math.floor(t)).padStart(2, '0')}.${String(Math.round((t % 1) * 100)).padStart(2, '0')}] Let me take you to the place\n[01:10.00] Club Tropicana` });
+  // (o que o LRCLIB tem de verdade: 9,8 s, 18,5 s e 52 s, todas perto de 268 s)
+  assert.equal(letraEmDuvida([r(268, 9.77), r(271, 18.47), r(270, 52.09)], 269), true);
+  assert.equal(letraEmDuvida([r(268, 9.77), r(269, 9.77), r(267, 10.5)], 268), false); // (concordam)
+  assert.equal(letraEmDuvida([r(268, 9.77), r(330, 52)], 268), false); // (a outra é de outra duração: outra gravação)
+  assert.equal(letraEmDuvida([r(268, 9.77)], 268), false);
+});

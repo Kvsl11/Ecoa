@@ -565,7 +565,8 @@ export async function letraSincronizada(
     const oficial = gravacaoOficial(naDuracao.length ? naDuracao : mesmas, duracao);
     const bate = !(duracao > 0) || !(oficial.duration > 0) || Math.abs(oficial.duration - duracao) <= 4;
     const sinc = sincroniaDoLrc(oficial.syncedLyrics, oficial.duration || duracao);
-    if (sinc.linhas.length >= 2) return { ...sinc, fonte: 'lrclib', id: oficial.id, duracao: oficial.duration || 0, ...(bate ? {} : { ajustar: true }) };
+    const duvida = letraEmDuvida(mesmas, oficial.duration || duracao);
+    if (sinc.linhas.length >= 2) return { ...sinc, fonte: 'lrclib', id: oficial.id, duracao: oficial.duration || 0, ...(bate ? {} : { ajustar: true }), ...(duvida ? { duvida: true } : {}) };
   }
   // sem a letra no LRCLIB (ou ele fora do ar): a da NetEase, que tem a letra sincronizada de muitas músicas
   const reserva = await pReserva;
@@ -757,6 +758,15 @@ export function semCensura(linhas, letraDaMusica = [], { comoVier = false } = {}
       return palavraEscondida(t) || t;
     }).join('');
   });
+}
+// A letra em dúvida: entre as do LRCLIB com a mesma duração (até 4 s), a primeira frase começa em tempos bem diferentes
+// (mais de 3 s). São edições diferentes com a mesma duração — "Club Tropicana" do Wham! tem a primeira frase em 9,8 s,
+// 18,5 s, 47 s e 52 s, todas com 263 a 272 s —, e pela duração não dá para saber qual é a do áudio que toca: quem
+// decide é o áudio (o servidor ouve; veja conferirSincronia no app)
+export function letraEmDuvida(mesmas, duracao = 0) {
+  const perto = (mesmas || []).filter((r) => r?.syncedLyrics && (!(duracao > 0) || !(r.duration > 0) || Math.abs(r.duration - duracao) <= 4));
+  const primeiras = perto.map((r) => lerLrc(r.syncedLyrics).find((l) => l.texto)?.t).filter((t) => Number.isFinite(t));
+  return primeiras.length >= 2 && Math.max(...primeiras) - Math.min(...primeiras) > 3;
 }
 export function gravacaoOficial(mesmas, duracao = 0) {
   const grupos = [];

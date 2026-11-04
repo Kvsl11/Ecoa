@@ -98,12 +98,18 @@ if (doLink !== null) {
 const responde = (url) => fetch(url + '/saude', {
   headers: cabecalhos(url), signal: AbortSignal.timeout(10000), cache: 'no-store',
 }).then((r) => r.ok).catch(() => false);
+// (o Modal liga só quando alguém usa: a primeira resposta pode levar uns 20 s. Desativado — sem crédito —, ele responde
+// na hora com erro)
+const respondeDevagar = (url) => fetch(url + '/saude', {
+  headers: cabecalhos(url), signal: AbortSignal.timeout(30000), cache: 'no-store',
+}).then((r) => r.ok).catch(() => false);
 let carregamentoServidor = null;
 let servidorVerificadoEm = 0;
 // O Codespace é o servidor principal e o Modal, o de reserva (data/servidor-ia.json: "url" e "reserva"). Tudo sozinho:
 // com o Codespace de pé, ele atende; desligado, o Modal atende na hora e manda o GitHub ligar o Codespace
 // (POST /codespace/ligar, na máquina pequena do Modal), e quando ele responder o app volta para ele. Sem a cota do mês
 // no Codespace, fica no Modal (e só pergunta de novo meia hora depois). Ninguém liga nada, lê QR code nem cola endereço
+let reservaFora = false; // o Modal publicado, mas sem responder (desativado por falta de crédito, fora do ar)
 let estadoCodespace = ''; // o que o Modal disse por último: ligado | ligando | criando | sem-cota | sem-token | erro
 let acordandoEm = 0;
 const CODESPACE_SEM_COTA = 'songbook.codespaceSemCota';
@@ -129,32 +135,49 @@ function carregarServidor({ forcar = false } = {}) {
   if (carregamentoServidor) return carregamentoServidor;
   if (!forcar && Date.now() - servidorVerificadoEm < 15000) return Promise.resolve(SERVIDOR_IA);
   carregamentoServidor = (async () => {
+    // O Codespace é achado sozinho, sem QR code: o endereço publicado no site primeiro e, se ele não responder, o último
+    // Codespace que respondeu neste aparelho (o site demora uns minutos para publicar o endereço novo, quando o
+    // Codespace muda). Só depois o endereço colado à mão (o QR code de um computador) e, por fim, o Modal, se ele
+    // responder. Antes o endereço do QR code vinha primeiro e, quando era o próprio Codespace e falhava uma vez, o
+    // Codespace nem era tentado de novo; e o app ia para o Modal mesmo com ele desativado (sem crédito), e nada
+    // funcionava
     const pc = baseDoServidor(db.prefs().servidorPc);
-    if (pc && await responde(pc)) {
-      SERVIDOR_IA = { url: pc, chave: '', pc: true, lumen: pc };
-      return SERVIDOR_IA;
-    }
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
     SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
     // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
-    let host = '';
-    try { host = url ? new URL(url).host : ''; } catch { /* endereço inválido */ }
-    if (url && doCodespace(host)) {
-      // o Codespace: como o do QR code (o arquivo vai para ele, o Lumen também); desligado, o Modal atende enquanto ele
-      // liga sozinho; sem o Modal, fica sem servidor e a partitura sai no aparelho (a tela pede para ligar o Codespace)
-      servidorDoSite = url;
-      if (url !== pc && await responde(url)) { SERVIDOR_IA = { url, chave: d.chave || '', pc: true, lumen: url }; estadoCodespace = 'ligado'; }
-      else if (reserva) { SERVIDOR_IA = reserva; void acordarCodespace(reserva); }
-      else SERVIDOR_IA = { url: '', chave: '' };
-    } else if (url) {
+    const ehCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
+    const ultimo = baseDoServidor(db.prefs().codespaceAchado);
+    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : ''].filter(Boolean))];
+    servidorDoSite = codespaces[0] || '';
+    reservaFora = false;
+    for (const c of codespaces) {
+      if (!(await responde(c))) continue;
+      SERVIDOR_IA = { url: c, chave: d?.chave || '', pc: true, lumen: c };
+      estadoCodespace = 'ligado';
+      if (db.prefs().codespaceAchado !== c) db.setPref('codespaceAchado', c);
+      // (o QR code do próprio Codespace, guardado de antes, não é mais preciso)
+      if (pc && ehCodespace(pc)) db.setPref('servidorPc', '');
+      return SERVIDOR_IA;
+    }
+    // o servidor do computador (o endereço colado ou o do QR code de um computador)
+    if (pc && !ehCodespace(pc) && await responde(pc)) {
+      SERVIDOR_IA = { url: pc, chave: '', pc: true, lumen: pc };
+      return SERVIDOR_IA;
+    }
+    if (url && !ehCodespace(url) && await responde(url)) {
       SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
-    } else if (reserva) {
-      // (nenhum Codespace publicado ainda: o Modal atende e cria um, que publica o endereço sozinho)
+    } else if (reserva && await respondeDevagar(reserva.url)) {
+      // o Modal atende enquanto o Codespace liga (ele manda o GitHub ligar)
       SERVIDOR_IA = reserva;
       void acordarCodespace(reserva);
+    } else {
+      // (nenhum respondeu: sem servidor por enquanto; o próximo uso tenta de novo, e o Codespace entra assim que ligar)
+      SERVIDOR_IA = { url: '', chave: '' };
+      if (estadoCodespace === 'ligado') estadoCodespace = '';
+      reservaFora = Boolean(reserva);
     }
     // o YouTube conectado de novo sozinho, se o servidor perdeu a conexão (ver reconectarYoutube)
     if (SERVIDOR_IA.url) setTimeout(() => reconectarYoutube(SERVIDOR_IA), 0);
@@ -1377,6 +1400,10 @@ const REVISOES = [
   // disco de ukulele, "Aba" do Kemuel com a de uma coletânea — é escolhida de novo (lib/capas.js). A que a pessoa
   // escolheu ("Trocar a capa", uma foto do aparelho) fica
   { rev: 7, capa: true, quais: (s) => !s.capaEscolhida && capaAutomatica(s.cover) },
+  // v475: a letra sincronizada que pode ser de outra edição da música (no LRCLIB, edições com a mesma duração e a
+  // primeira frase em tempos bem diferentes, como "Club Tropicana" e "Everything She Wants" do Wham!) é conferida no
+  // áudio pelo servidor. A feita à mão fica
+  { rev: 8, conferirLetra: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && Boolean(s.title) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1477,6 +1504,18 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   s = db.song(id);
   if (!s) return true;
+  // a letra sincronizada em dúvida, conferida no áudio (só as em dúvida vão ao servidor)
+  if (quer('conferirLetra') && s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && s.sincronia.video && !ehArquivo(s.sincronia.video)) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const sc = s.sincronia;
+      const lrc = await letraSincronizada({ titulo: s.title, artista: s.artist || '', duracao: Number(sc.duracao) || 0 }).catch(() => undefined);
+      if (lrc === undefined) completa = false;
+      else if (lrc?.duvida) { if (!(await conferirSincronia(s, { ...sc, duvida: true }))) completa = false; }
+    }
+    s = db.song(id);
+    if (!s) return true;
+  }
   // o áudio oficial que ainda não foi achado
   if (quer('versoes') && s.youtube && !s.audioProprio && !versoesDe(s)?.audio) {
     if (!navigator.onLine) completa = false;
@@ -14137,7 +14176,9 @@ function viewServidorIA() {
     if (!saude) {
       st.dataset.estado = conhecido ? 'nao' : 'erro';
       $('#sv-estado-t').textContent = conhecido ? 'Desligado' : 'Nenhum servidor ainda';
-      $('#sv-estado-d').textContent = conhecido ? `Codespace ${hostCurto(conhecido)}` : 'Ligue o Codespace: ele publica o endereço sozinho';
+      // (e o Modal, a reserva, quando ele também não responde: desativado por falta de crédito, ou fora do ar)
+      const semReserva = reservaFora ? ' · o Modal (reserva) não respondeu: sem crédito ou fora do ar' : '';
+      $('#sv-estado-d').textContent = (conhecido ? `Codespace ${hostCurto(conhecido)} não respondeu` : 'Ligue o Codespace: ele publica o endereço sozinho') + semReserva;
       $('#sv-ligar').hidden = false;
       const off = 'Precisa do servidor ligado';
       item('youtube', 'off', off); item('lumen', 'off', off); item('voz', 'off', 'No aparelho, a partitura sai sem separar a voz'); item('batidas', 'off', off);
@@ -14415,7 +14456,7 @@ async function sincronizarMusica(song, { noVideo = '', audioPromise = null } = {
     if (!lrc?.linhas?.length || !lrc?.tempos?.length) return 'nada';
     if (!agora()) return 'nada'; // (a pessoa já abriu outra música)
     const durLrc = Number(lrc.duracao) || 0;
-    const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}) });
+    const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}), ...(lrc.duvida ? { duvida: true } : {}) });
 
     // 2. o áudio oficial já conhecido e da mesma gravação: exata nele
     vs = versoesDe(agora());
@@ -14459,7 +14500,7 @@ async function melhorarSincronia(song, previaOriginal, { lrc, descoberta, titulo
   melhorando.add(chave);
   const agora = () => (song.id === 'previa' ? (preview === previaOriginal ? preview : null) : db.song(song.id));
   const durLrc = Number(lrc.duracao) || 0;
-  const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}) });
+  const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}), ...(lrc.duvida ? { duvida: true } : {}) });
   const exata = (s) => s?.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.video === videoDaLetra(s);
   try {
     await descoberta;
@@ -14792,6 +14833,46 @@ function guardarSincronia(song, sinc) {
   // quem está mostrando esta música (a página dela, o Tocando agora) passa a usar a sincronia na hora, mesmo com a
   // música já tocando: antes só pegava ao sair e voltar para a música
   window.dispatchEvent(new CustomEvent('songbook:sincronia', { detail: { video: sinc?.video, sinc } }));
+  // a letra em dúvida (edições com a mesma duração e tempos diferentes no LRCLIB): o servidor confere no áudio
+  if (sinc?.duvida && !sinc.provisoria) void conferirSincronia(song, sinc);
+}
+// Confere a letra em dúvida no áudio que toca: o servidor da IA ouve o vídeo (a voz separada, com o Whisper ou o
+// alinhamento forçado) e devolve a letra do LRCLIB deslocada para onde ela é cantada nele (o "referencia" do /letra).
+// Só nas músicas em dúvida (poucas): cada conferência ocupa o servidor por um ou dois minutos. Sem o servidor, fica
+// como está, marcada, e a revisão tenta de novo depois. true: conferida (ou não precisa); false: não deu agora
+const conferindoLetra = new Map();
+function conferirSincronia(song, sinc) {
+  const id = song?.id;
+  const video = sinc?.video;
+  if (!id || id === 'previa' || !video || ehArquivo(video) || !sinc.linhas?.length || sinc.linhas.length !== sinc.tempos?.length) return Promise.resolve(true);
+  if (conferindoLetra.has(id)) return conferindoLetra.get(id);
+  const p = (async () => {
+    await carregarServidor().catch(() => {});
+    const cfg = servidorIA();
+    if (!cfg.url || !navigator.onLine) return false;
+    let r;
+    try {
+      r = await chamarComEtapas(cfg, '/letra', { json: { url: `https://youtu.be/${video}`, linhas: sinc.linhas, referencia: sinc.tempos } }, () => {});
+    } catch (e) {
+      // (o servidor sem o Whisper, ou o vídeo que ele não baixa: não adianta tentar de novo)
+      if (e?.status === 501 || e?.status === 422 || e?.status === 400) { marcarConferida(id, video, sinc, null); return true; }
+      return false;
+    }
+    // só vale com a letra do LRCLIB inteira deslocada (o "+internet": a voz ouvida concordou com ela em vários
+    // trechos); sem acordo, a do LRCLIB fica como estava
+    const ok = /\+internet/.test(r?.metodo || '') && r.linhas?.length === sinc.tempos.length;
+    marcarConferida(id, video, sinc, ok ? r.linhas.map((t) => ({ inicio: Math.round(t.inicio * 100) / 100, fim: Math.round(t.fim * 100) / 100 })) : null);
+    return true;
+  })().finally(() => conferindoLetra.delete(id));
+  conferindoLetra.set(id, p);
+  return p;
+}
+function marcarConferida(id, video, sinc, tempos) {
+  const s = db.song(id);
+  // (a letra mudou enquanto isso — outra gravação, sincronizada à mão —: fica a de agora)
+  if (!s?.sincronia || s.sincronia.video !== video || s.sincronia.fonte !== 'lrclib' || s.sincronia.linhas?.length !== sinc.linhas.length) return;
+  const { duvida, ...resto } = s.sincronia;
+  guardarSincronia(s, { ...resto, ...(tempos ? { tempos } : {}), conferida: tempos ? 'audio' : 'sem-acordo' });
 }
 // Os pares pelas letras: a sincronia da música (a do áudio oficial) e, no LRCLIB, a letra feita para a duração do
 // clipe (muitas músicas têm as duas). Uma tentativa por par de vídeos na sessão

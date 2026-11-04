@@ -96,7 +96,10 @@ a dormir: <https://github.com/settings/codespaces> → **Default idle timeout** 
 O app usa o **Codespace** quando ele está de pé. Desligado, o **Modal** (o servidor de reserva) atende na hora e manda
 o GitHub ligar o Codespace (`POST /codespace/ligar`, `ligar_codespace.py`), que assume em uns 2 minutos; sem nenhum
 Codespace do projeto, ele cria um. Sem a cota do mês no Codespace, tudo fica no Modal (o app só pergunta de novo meia
-hora depois). Ninguém liga nada, lê QR code ou cola endereço. Para isso, uma vez, nos **secrets das Actions** (Settings
+hora depois). Ninguém liga nada, lê QR code ou cola endereço. O app procura o Codespace pelo endereço publicado no site e, se o site ainda
+não publicou o endereço novo (o Codespace mudou de nome), pelo último Codespace que respondeu no aparelho. O Modal só é
+usado se responder de verdade: desativado (sem crédito), o app continua tentando o Codespace, e Ajustes → Avançado →
+Servidor da IA mostra que nenhum dos dois respondeu. Para isso, uma vez, nos **secrets das Actions** (Settings
 → Secrets and variables → **Actions** → New repository secret):
 
 - `MODAL_TOKEN_ID` e `MODAL_TOKEN_SECRET` (o token do Modal, veja "Publicar no Modal" abaixo);
