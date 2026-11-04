@@ -7,11 +7,13 @@
 export const MAX_TRANSICAO = 12; // segundos (como no Spotify)
 export const MIN_TRANSICAO = 1;
 
-// os volumes nas duas pontas da transição, com x de 0 a 1: a mesma potência somada no meio (sem o buraco no volume
-// que a reta dá)
+// os volumes nas duas pontas da transição, com x de 0 a 1. A que sai desce desde o começo, de um jeito que se ouve (a
+// metade do caminho já é um quarto do volume, -12 dB), e a que entra sobe rápido no começo e devagar no fim; somadas,
+// não fica buraco no meio. (Antes, com a mesma potência, a que saía ficava quase cheia na primeira metade: parecia que
+// ela não baixava, só que a próxima começava por cima)
 export function volumes(x) {
   const t = Math.max(0, Math.min(1, x));
-  return [Math.cos((t * Math.PI) / 2), Math.sin((t * Math.PI) / 2)];
+  return [(1 - t) ** 2, 1 - (1 - t) ** 2];
 }
 
 // o crossfade simples: os últimos `seg` segundos da música
@@ -142,7 +144,7 @@ export function taxaDoEncaixe(saida, entrada) {
 export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada = null }) {
   if (!(duracao > 20)) return null;
   const temBatida = boa(saida);
-  // a duração: compassos inteiros (16 batidas; 8 nas lentas; 32 nas muito rápidas), entre 4 e 12 s
+  // a duração: compassos inteiros (16 batidas; 8 nas lentas; 32 nas muito rápidas), entre 4 e 12 s; sem a batida, 8 s
   let dur = 8;
   if (temBatida) {
     let batidas = 16;
@@ -153,14 +155,19 @@ export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada =
   const fim = duracao - 0.4; // (um respiro antes do fim de verdade, onde o vídeo às vezes já para)
   let inicio = fim - dur;
   if (Number.isFinite(fimCanto) && fimCanto > 0 && fimCanto < duracao) {
-    // a voz nunca é cortada: começa depois da última frase. Com o final instrumental comprido, não espera ele
-    // inteiro (como o Apple Music): começa um pouco depois da voz, até 25 s antes do fim
+    // a voz nunca é cortada: começa depois da última frase
     const depoisDaVoz = fimCanto + 1;
-    if (inicio < depoisDaVoz) {
+    const final = fim - depoisDaVoz; // o final instrumental
+    if (final <= MAX_TRANSICAO) {
+      // curto: a transição cobre ele inteiro, desde logo depois da voz
       inicio = depoisDaVoz;
-      dur = Math.max(3, Math.min(dur, fim - inicio));
-    } else inicio = Math.min(inicio, Math.max(fimCanto + 4, duracao - 25));
-    inicio = Math.max(depoisDaVoz, Math.min(inicio, fim - dur));
+      dur = Math.max(3, final);
+    } else if (temBatida) {
+      // comprido e com a batida (como o Apple Music): não espera ele inteiro; começa umas batidas depois da voz, até
+      // 25 s antes do fim, e o encaixe na batida faz a emenda soar de propósito
+      inicio = Math.min(fim - dur, Math.max(fimCanto + 4, duracao - 25));
+    }
+    // (comprido e sem a batida: o fim de sempre, sem cortar; cortar no meio da música, fora da batida, soava estranho)
   }
   // na batida da que acaba
   if (temBatida) {

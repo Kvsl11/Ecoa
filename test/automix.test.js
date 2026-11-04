@@ -67,9 +67,20 @@ test('automix: nunca corta a voz', () => {
   assert.ok(p.dur >= 3 && p.inicio + p.dur <= 200);
 });
 
-test('automix: com o final instrumental comprido, não espera ele inteiro', () => {
-  const p = planoAutomix({ duracao: 240, fimCanto: 180 });
+test('automix: com o final instrumental comprido e a batida, não espera ele inteiro', () => {
+  const saida = { bpm: 120, periodo: 0.5, fase: 0.2, confianca: 0.8 };
+  const p = planoAutomix({ duracao: 240, fimCanto: 180, saida });
   assert.ok(p.inicio >= 181 && p.inicio <= 216, `começou em ${p.inicio}`);
+});
+
+test('automix: sem a batida, o final comprido não é cortado (a transição fica no fim)', () => {
+  const p = planoAutomix({ duracao: 240, fimCanto: 180 });
+  assert.ok(p.inicio >= 230 && p.inicio + p.dur <= 240, `começou em ${p.inicio}`);
+});
+
+test('automix: o final curto é coberto inteiro, desde logo depois da voz', () => {
+  const p = planoAutomix({ duracao: 200, fimCanto: 190 });
+  assert.ok(perto(p.inicio, 191, 1e-6) && perto(p.inicio + p.dur, 199.6, 1e-6), JSON.stringify(p));
 });
 
 test('automix: começa numa batida da que acaba, em batidas inteiras, e a próxima entra na batida dela', () => {
@@ -85,9 +96,14 @@ test('automix: começa numa batida da que acaba, em batidas inteiras, e a próxi
   assert.ok(p.taxa < 1 && p.taxa > 0.98);
 });
 
-test('volumes: uma desce enquanto a outra sobe, com a mesma potência', () => {
+test('volumes: a que sai desce desde o começo (se ouve) e a que entra sobe, sem buraco no meio', () => {
   assert.deepEqual(volumes(0).map((v) => Math.round(v * 1000) / 1000), [1, 0]);
   assert.deepEqual(volumes(1).map((v) => Math.round(v * 1000) / 1000), [0, 1]);
-  const [a, b] = volumes(0.5);
-  assert.ok(perto(a * a + b * b, 1, 1e-9));
+  assert.ok(volumes(0.25)[0] < 0.6, 'com um quarto da transição, a que sai já está bem mais baixa');
+  assert.ok(volumes(0.5)[0] <= 0.25);
+  for (let x = 0; x <= 1; x += 0.05) {
+    const [a, b] = volumes(x);
+    assert.ok(a + b >= 0.99 && a + b <= 1.01, `soma em ${x}: ${a + b}`);
+    if (x > 0) assert.ok(a <= volumes(x - 0.05)[0] && b >= volumes(x - 0.05)[1]);
+  }
 });

@@ -4,11 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 469, data: '2026-11-04', titulo: 'Crossfade de verdade e karaokês atualizados sozinhos',
+    itens: [
+      { tipo: 'correcao', texto: 'O crossfade e o automix agora baixam o volume da música que está acabando: ela vai sumindo enquanto a próxima sobe. Antes, logo que a próxima começava, o app trocava ela para o áudio oficial e a transição se cancelava: a anterior era cortada e a próxima entrava no volume cheio.' },
+      { tipo: 'melhoria', texto: 'O volume da música que sai desce desde o começo da transição, de um jeito que dá para ouvir (antes ficava quase cheio na primeira metade). E o automix não corta mais o final instrumental de músicas que tocam pelo YouTube: ele só encurta o final quando consegue encaixar na batida (nas músicas baixadas).' },
+      { tipo: 'melhoria', texto: 'Os karaokês que você já tinha são atualizados sozinhos, em segundo plano, para tirar só o cantor (o back vocal volta). Não são feitos do zero: o servidor aproveita a voz que já estava separada, sem baixar a música de novo, e fica bem mais rápido. Tocando no microfone de um que ainda não foi atualizado, ele atualiza na hora do mesmo jeito.' },
+    ],
+  },
+  {
     versao: 468, data: '2026-11-04', titulo: 'Karaokê tira só o cantor',
     itens: [
       { tipo: 'melhoria', texto: 'O karaokê agora tira só a voz do cantor principal: o back vocal e o coro continuam tocando, como no Apple Music. A separação também ficou mais precisa (modelos melhores na placa de vídeo) e sem o chiado que aparecia nas emendas, e o resto da música sai exatamente como na gravação, sem perder qualidade.' },
       { tipo: 'melhoria', texto: 'Músicas ao vivo: a plateia (gritos, palmas, o povo cantando junto) não confunde mais a separação, e continua no karaokê junto com a banda.' },
-      { tipo: 'melhoria', texto: 'Os karaokês que você já tinha são refeitos com a separação nova quando você tocar no microfone da música (nunca sozinhos, para não gastar o servidor). Sem internet, o de antes continua funcionando.' },
+      { tipo: 'melhoria', texto: 'Sem internet, o karaokê de antes continua funcionando até ser atualizado.' },
     ],
   },
   {
@@ -65,12 +73,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Karaokê, como o do Apple Music, nas músicas com a letra sincronizada: na letra na tela toda, toque no microfone com as estrelinhas (à direita, em cima da barra do tempo) e a voz do cantor some, ficando só a banda, para você cantar no lugar. É um controle deslizante: arraste o microfone para cima e a voz volta um pouco, de guia, para a música que você ainda está aprendendo (a letra atrás se apaga enquanto você arrasta). Toque de novo e a música volta a ser a gravação inteira, sem parar. Também no ⋯ do Tocando agora.' },
       { tipo: 'novo', texto: 'Nas músicas baixadas, o karaokê vem junto com o download (Ajustes → Downloads → “Baixar também o karaokê”): o microfone liga na hora, até sem internet. Nas outras, a primeira vez leva de 1 a 3 minutos (o servidor da IA separa a voz da banda, com a música tocando normal enquanto isso; o anel do microfone mostra quanto falta), e depois fica guardado. Com o karaokê ligado, a próxima música da fila já começa sem a voz.' },
       { tipo: 'melhoria', texto: 'A voz e a banda vêm separadas em estéreo e na qualidade cheia, no mesmo arquivo: nunca se desencontram, e com a voz no máximo o som é exatamente o da gravação. Funciona com o áudio oficial, com o vídeo e com o áudio que você importou.' },
-    ],
-  },
-  {
-    versao: 459, data: '2026-11-03', titulo: 'Artista e álbum em todas as músicas',
-    itens: [
-      { tipo: 'correcao', texto: 'No ⋯ das músicas da biblioteca, das playlists e dos repertórios, “Ir para o artista” e “Ver álbum” aparecem em toda música que tem artista. Antes só apareciam nas cifras que vieram do Cifra Club; as outras (de outros sites, do acervo, importadas) agora acham o artista pelo nome e o álbum pelo título.' },
     ],
   },
 ];

@@ -661,6 +661,52 @@ def karaoke_do_arquivo(arquivo: UploadFile = File(...), etapas: bool = Query(Fal
     return com_etapas(trabalho, etapas, None, tarefa)
 
 
+@app.post("/karaoke/atualizar", dependencies=[Depends(conferir_chave)])
+def karaoke_atualizado(arquivo: UploadFile = File(...), video: str = Form(""), etapas: bool = Query(False),
+                       tarefa: bool = Query(False)):
+    """O karaokê de antes (que tirava a voz inteira, com o back vocal) atualizado para o de agora (só o cantor
+    principal), a partir do próprio arquivo de 4 canais que o app guardou: sem baixar a música e sem a separação mais
+    pesada. video: o vídeo do YouTube dele (o atualizado fica guardado, para outro aparelho receber na hora)."""
+    if not karaoke.pode_atualizar():
+        raise HTTPException(501, "este servidor não separa o cantor do back vocal (veja servidor-ia/README.md)")
+    video = youtube.id_do_video(video) if video else None
+    _apagar_prontos_velhos()
+    pasta = tempfile.mkdtemp(prefix="songbook-karaoke-")
+    entrada = os.path.join(pasta, "antigo.m4a")
+    total = 0
+    with open(entrada, "wb") as f:
+        while bloco := arquivo.file.read(1 << 20):
+            total += len(bloco)
+            if total > MAX_MB << 20:
+                shutil.rmtree(pasta, ignore_errors=True)
+                raise HTTPException(413, f"arquivo grande demais (máximo {MAX_MB} MB)")
+            f.write(bloco)
+
+    def trabalho(etapa):
+        try:
+            saida = os.path.join(pasta, "karaoke.m4a")
+            if video and karaoke.guardado(video, saida):  # (outro aparelho já fez o de agora)
+                etapa("separando", 1.0)
+                return _entregar_karaoke(saida, pasta, video)
+            esperar_vaga(etapa)
+            try:
+                info = karaoke.atualizar(entrada, saida, etapa)
+            except ValueError as e:
+                raise HTTPException(422, str(e))
+            finally:
+                vagas.release()
+            os.remove(entrada)
+            if video:
+                karaoke.guardar(video, saida)
+            log.warning("karaokê atualizado (%s): %.0f s", video or "arquivo", info["duracao"])
+            return _entregar_karaoke(saida, pasta, video, info)
+        except Exception:
+            shutil.rmtree(pasta, ignore_errors=True)
+            raise
+
+    return com_etapas(trabalho, etapas, None, tarefa)
+
+
 class PedidoLigar(BaseModel):
     codespace: str = ""  # o nome (ou o endereço) do Codespace que o app conhece
 

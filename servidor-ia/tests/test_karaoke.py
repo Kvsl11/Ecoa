@@ -298,3 +298,72 @@ def test_separar_com_roformer_anda_meio_pedaco_por_vez(monkeypatch):
     assert r.overlap == pytest.approx(4.0)  # (o pedaço de 8 s, andando 4 s por vez)
     assert f["crowd"].shape == (2, n) and np.allclose(f["crowd"][:, : n - 10], 0.5) and np.allclose(f["crowd"][:, n - 10:], 0)
     assert np.allclose(f["other"], x - f["crowd"])
+
+
+# ------------------------------------------------------------------ o karaokê de antes, atualizado
+
+@tem_ffmpeg
+def test_atualizar_tira_so_o_cantor_da_voz_ja_separada(tmp_path, monkeypatch):
+    sr = karaoke.SR
+    n = sr * 2
+    banda, cantor, back = _tom(300, n), _tom(1200, n), _tom(2400, n, 0.1)
+    antigo = tmp_path / "antigo.m4a"
+    # (o karaokê de antes: a voz inteira — o cantor e o back vocal — nos canais 3 e 4)
+    karaoke.gravar(karaoke.quatro_canais(banda + cantor + back, cantor + back), str(antigo))
+    vistos = []
+
+    def separar_com(modelo, entrada):
+        vistos.append(modelo)
+        # (o modelo karaokê de mentira: o cantor é o tom de 1200 Hz da voz que chegou)
+        espectro = np.fft.rfft(entrada, axis=1)
+        f = np.fft.rfftfreq(entrada.shape[1], 1 / sr)
+        so = np.fft.irfft(np.where(np.abs(f - 1200) < 50, espectro, 0), n=entrada.shape[1], axis=1).astype(np.float32)
+        return {"vocals": so, "instrumental": entrada - so}
+
+    monkeypatch.setattr(karaoke, "separar_com", separar_com)
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "nao-usa", "plateia": None, "solista": "solista"})
+    saida = tmp_path / "novo.m4a"
+    info = karaoke.atualizar(str(antigo), str(saida))
+    assert vistos == ["solista"] and info["atualizado"] and info["solista"]
+    q = karaoke.ler_quatro(str(saida))[:, sr // 2: sr + sr // 2]
+    pico = lambda c: np.abs(np.fft.rfft(c))  # noqa: E731
+    f = np.fft.rfftfreq(q.shape[1], 1 / sr)
+    em = lambda c, hz: float(pico(c)[np.argmin(np.abs(f - hz))])  # noqa: E731
+    # a voz agora é só o cantor; o back vocal (2400 Hz) voltou para a banda
+    assert em(q[2], 1200) > 20 * em(q[2], 2400)
+    assert em(q[0], 2400) > 20 * em(q[0], 1200) / 5 and em(q[0], 300) > 0
+
+
+def test_atualizar_sem_o_cantor_separado_nao_finge_que_atualizou(tmp_path, monkeypatch):
+    q = np.zeros((4, karaoke.SR * 2), dtype=np.float32)
+    monkeypatch.setattr(karaoke, "ler_quatro", lambda c: q)
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "x", "plateia": None, "solista": "solista"})
+    monkeypatch.setattr(karaoke, "separar_com", lambda m, e: (_ for _ in ()).throw(RuntimeError("não baixou")))
+    with pytest.raises(RuntimeError):
+        karaoke.atualizar("antigo.m4a", str(tmp_path / "novo.m4a"))
+
+
+def test_rota_de_atualizar(monkeypatch, tmp_path):
+    import app
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(karaoke.transcricao, "CACHE", str(tmp_path))
+    monkeypatch.setattr(karaoke, "pode_atualizar", lambda: True)
+    recebido = []
+
+    def atualizar(entrada, saida, etapa):
+        recebido.append(open(entrada, "rb").read())
+        open(saida, "wb").write(b"NOVO")
+        return {"duracao": 3.0, "separador": "x", "atualizado": True, "solista": True}
+
+    monkeypatch.setattr(karaoke, "atualizar", atualizar)
+    c = TestClient(app.app)
+    res = c.post("/karaoke/atualizar", files={"arquivo": ("karaoke.m4a", b"VELHO", "audio/mp4")}, data={"video": "abcdefghijk"}).json()
+    assert recebido == [b"VELHO"] and res["versao"] == karaoke.VERSAO and res["atualizado"]
+    assert c.get(f"/baixar/{res['arquivo']}").content == b"NOVO"
+    # (guardado pelo vídeo: outro aparelho recebe o atualizado na hora)
+    monkeypatch.setattr(karaoke, "atualizar", lambda *a: (_ for _ in ()).throw(AssertionError("atualizou de novo")))
+    res2 = c.post("/karaoke/atualizar", files={"arquivo": ("k.m4a", b"VELHO", "audio/mp4")}, data={"video": "abcdefghijk"}).json()
+    assert c.get(f"/baixar/{res2['arquivo']}").content == b"NOVO"
+    monkeypatch.setattr(karaoke, "pode_atualizar", lambda: False)
+    assert c.post("/karaoke/atualizar", files={"arquivo": ("k.m4a", b"V", "audio/mp4")}).status_code == 501
