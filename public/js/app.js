@@ -25,6 +25,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { escolherAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
@@ -1487,8 +1488,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 window.addEventListener('songbook:nova-musica', (e) => { if (db.song(e.detail.id)) db.updateSong(e.detail.id, { revisao: REVISAO_MUSICAS }); });
 
 // endereço do player do YouTube embutido (enablejsapi permite pausar/tocar pelo botão verde)
-function ytEmbed(id, { inicio = 0, autoplay = true } = {}) {
+function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false } = {}) {
   const p = new URLSearchParams({ autoplay: autoplay ? '1' : '0', playsinline: '1', enablejsapi: '1', rel: '0', modestbranding: '1' });
+  if (mudo) p.set('mute', '1'); // (a próxima na transição: começa sem som e sobe aos poucos)
   if (inicio > 0) p.set('start', String(Math.floor(inicio)));
   if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
   return `https://www.youtube.com/embed/${encodeURIComponent(id)}?${p}`;
@@ -1746,6 +1748,9 @@ function escolherVideo(song, tipo = 'video') {
 const player = (() => {
   let atual = null;
   let local = null; // tocando do aparelho (o áudio da pessoa ou um download): veja localDe
+  // a transição entre as músicas em andamento (o crossfade ou o automix) e o plano da próxima: veja modoTransicao
+  let transicao = null;
+  let planoPronto = null;
   let estado = 'parado'; // tocando | pausado | parado
   let tempo = 0;
   let marcaTempo = 0;
@@ -1864,7 +1869,7 @@ const player = (() => {
   const desta = (id) => Boolean(atual && id && (atual.youtube === id || atual.video === id || atual.audio === id));
   const noPalco = () => Boolean(atual && palco?.isConnected && desta(palcoDe)) && !document.body.classList.contains('painel-cheio');
   // (o player que toca; o .pl-reserva é a outra versão da música, já carregada para a troca sem engasgo)
-  const iframeAtual = () => tela.querySelector('iframe:not(.pl-reserva)');
+  const iframeAtual = () => tela.querySelector('iframe:not(.pl-reserva):not(.pl-saindo)');
   // Na página da música o vídeo toca na telinha das Referências, com os controles do YouTube (dá para pular
   // o anúncio). O topo da música não toca o vídeo: continua só com os quadros do clipe passando.
   // Quando o vídeo sai da telinha (outra música tocando, player fechado), ela volta a mostrar a miniatura
@@ -2898,8 +2903,10 @@ const semLinhasDeAcordes = (sinc) => {
     }
     pararLocal();
     estadoYt = -1;
-    tela.innerHTML = `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
-    const f = $('iframe', tela);
+    // (a música que sai na transição continua tocando por baixo, descendo o volume: não sai junto)
+    [...tela.children].forEach((x) => { if (!x.classList.contains('pl-saindo')) x.remove(); });
+    tela.insertAdjacentHTML('beforeend', `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay, mudo: Boolean(transicao && !transicao.para) }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`);
+    const f = iframeAtual();
     anuncio = false;
     montadoEm = performance.now();
     conhecerDuracao(atual.youtube);
@@ -3209,7 +3216,8 @@ const semLinhasDeAcordes = (sinc) => {
     const ir = () => { try { m.currentTime = alvoAgora() + (velho ? 0.06 : 0); } catch { /* ainda abrindo */ } };
     if (!jaNoPonto) { if (m.readyState >= 1) ir(); else m.addEventListener('loadedmetadata', ir, { once: true }); }
     if (velho) cruzarLocal(velho, m, alvoAgora, jaNoPonto);
-    else m.volume = 1;
+    // (a próxima na transição entre as músicas começa sem som e sobe aos poucos: veja andarTransicao)
+    else m.volume = transicao && atual?.youtube === transicao.para && !transicao.entrou ? 0 : 1;
     if (tocar) m.play().catch(() => { velho?.pause(); estado = 'pausado'; desenhar(); avisar(); });
     else m.pause();
     setTimeout(prepararLocalOutra, 1500);
@@ -3887,6 +3895,7 @@ const semLinhasDeAcordes = (sinc) => {
       if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }
       sessaoDe = '';
       mudo?.pause();
+      acabarTransicao(true);
       som?.pause();
       local = null;
       tela.innerHTML = '';
@@ -4038,6 +4047,211 @@ const semLinhasDeAcordes = (sinc) => {
     if (repetir === 'uma' || (repetir === 'todas' && !fila())) { api.irPara(0); return true; }
     return pular(1);
   };
+  // ---- A transição entre as músicas (Ajustes → Música), como no Spotify e no Apple Music: o crossfade (de 1 a 12 s)
+  // ou o automix (o app escolhe onde e como cruzar: depois da última frase cantada, na batida, com a próxima entrando
+  // na batida e no andamento dela). Perto do fim, a música que acaba vira a "que sai": continua tocando por baixo (o
+  // player do YouTube ou o arquivo do aparelho, soltos do player) e desce o volume, enquanto a próxima já começa, sem
+  // som, e sobe. No iPhone o app não consegue mudar o volume (nem do YouTube nem do arquivo): lá a música troca como
+  // sempre, no fim
+  const modoTransicao = () => {
+    const m = db.prefs().transicao;
+    return !ehIOS() && (m === 'crossfade' || m === 'automix') ? m : '';
+  };
+  const segundosCrossfade = () => Math.max(1, Math.min(MAX_TRANSICAO, Math.round(Number(db.prefs().crossfadeSeg) || 6)));
+  // a batida de um arquivo do aparelho: do fim (o último minuto, da que acaba) ou do começo (os primeiros 30 s, da
+  // próxima). Só do que está no aparelho: o som do YouTube o app não consegue ouvir
+  const analises = new Map();
+  const batidaDoArquivo = (chave, fim) => {
+    const k = `${chave}|${fim ? 'fim' : 'inicio'}`;
+    if (!analises.has(k)) {
+      if (analises.size > 24) analises.delete(analises.keys().next().value);
+      analises.set(k, (async () => {
+        const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const blob = Ctx && await lerAudio(chave).catch(() => null);
+        if (!blob) return null;
+        const buf = await new Ctx(1, 1, TAXA_CASAMENTO).decodeAudioData(await blob.arrayBuffer());
+        const taxa = buf.sampleRate;
+        const ini = fim ? Math.max(0, buf.length - Math.round(60 * taxa)) : 0;
+        const ate = fim ? buf.length : Math.min(buf.length, Math.round(30 * taxa));
+        const mono = new Float32Array(ate - ini);
+        for (let c = 0; c < buf.numberOfChannels; c++) {
+          const d = buf.getChannelData(c);
+          for (let i = 0; i < mono.length; i++) mono[i] += d[ini + i] / buf.numberOfChannels;
+        }
+        const b = batida(mono, taxa);
+        // (a fase contada do começo da música)
+        return b && { ...b, fase: b.fase + ini / taxa, primeira: b.primeira + ini / taxa };
+      })().catch(() => null));
+    }
+    return analises.get(k);
+  };
+  // a próxima da fila (null no fim dela, quando volta ao começo)
+  const proximaDaFila = () => {
+    const f = fila();
+    const i = vizinha(1);
+    const s = f && i >= 0 ? db.song(f.ids[i]) : null;
+    return s ? itemDoPlayer(s, f.set, f.set ? f.indices[i] : -1) : null;
+  };
+  const planejarTransicao = (modo, prox) => {
+    const chave = `${atual.youtube}>${prox?.youtube || ''}|${modo}|${segundosCrossfade()}|${Math.round(duracao)}|${local?.chave || ''}`;
+    if (planoPronto?.chave === chave) return planoPronto.plano;
+    if (modo === 'crossfade') {
+      planoPronto = { chave, plano: planoCrossfade(duracao, segundosCrossfade()) };
+      return planoPronto.plano;
+    }
+    // o automix: já com a letra (o fim da última frase cantada, quando a letra acompanha esta gravação); a batida chega
+    // depois (o arquivo leva um instante para ser lido) e o plano melhora
+    const song = musicaTocando();
+    const tempos = song && letraSincronizadaDe(song) && song.sincronia.video === atual.youtube ? song.sincronia.tempos : null;
+    const ult = tempos?.[tempos.length - 1];
+    const fimCanto = ult ? Number(ult.fim ?? ult.inicio) : null;
+    const base = { duracao, fimCanto: Number.isFinite(fimCanto) ? fimCanto : null };
+    const meu = { chave, plano: planoAutomix(base) };
+    planoPronto = meu;
+    const sai = local?.chave || '';
+    const entra = (prox && localDe(prox.youtube)?.chave) || '';
+    if (sai || entra) {
+      Promise.all([sai ? batidaDoArquivo(sai, true) : null, entra ? batidaDoArquivo(entra, false) : null]).then(([saida, entrada]) => {
+        if (planoPronto === meu && !transicao) meu.plano = planoAutomix({ ...base, saida, entrada }) || meu.plano;
+      });
+    }
+    return meu.plano;
+  };
+  const volumeDaQueSai = (t, v) => {
+    t.vSai = v;
+    if (t.saindo.m) t.saindo.m.volume = Math.max(0, Math.min(1, v));
+    else cmdEm(t.saindo.f, 'setVolume', [Math.round(v * 100)]);
+    // (o karaokê passa pelo Web Audio, onde o volume do elemento nem sempre vale: desce a saída dele também)
+    if (t.saindo.karaoke && grafoKaraoke) grafoKaraoke.saida.gain.value = 0.89 * Math.max(0, Math.min(1, v));
+  };
+  // o fim da transição (ou ela interrompida: pulou, pausou, fechou): a que sai some (num instante, ou na hora) e a que
+  // entra fica no volume cheio e, aos poucos, no andamento dela
+  const acabarTransicao = (naHora = false) => {
+    const t = transicao;
+    if (!t) return;
+    transicao = null;
+    planoPronto = null;
+    const tirar = () => {
+      const { f, m } = t.saindo;
+      if (m) {
+        m.pause();
+        const src = m.src;
+        m.removeAttribute('src');
+        if (src?.startsWith('blob:')) URL.revokeObjectURL(src);
+        m.remove();
+      }
+      f?.remove();
+      if (t.saindo.karaoke && grafoKaraoke) grafoKaraoke.saida.gain.value = 0.89;
+      // (o último volume pedido ao YouTube vale para os próximos players: o da que entra, cheio)
+      if (!local && iframeAtual()) comandoYt('setVolume', [100]);
+    };
+    if (naHora) tirar();
+    else {
+      const v0 = t.vSai ?? 1;
+      let k = 0;
+      const passo = setInterval(() => {
+        k++;
+        volumeDaQueSai(t, v0 * (1 - k / 6));
+        if (k < 6) return;
+        clearInterval(passo);
+        tirar();
+      }, 50);
+    }
+    if (local && som) {
+      som.volume = 1;
+      const m = som;
+      if (m.playbackRate !== 1) {
+        const r0 = m.playbackRate;
+        let k = 0;
+        const volta = setInterval(() => {
+          k++;
+          if (som !== m) { m.playbackRate = 1; clearInterval(volta); return; }
+          m.playbackRate = r0 + (1 - r0) * Math.min(1, k / 30);
+          if (k >= 30) clearInterval(volta);
+        }, 100);
+      }
+    } else if (iframeAtual()) {
+      // (o player da próxima pode ainda estar abrindo e perder o pedido: repete algumas vezes)
+      const f = iframeAtual();
+      [0, 500, 1500, 3000].forEach((ms) => setTimeout(() => { if (iframeAtual() === f && !transicao) { comandoYt('unMute'); comandoYt('setVolume', [100]); } }, ms));
+    }
+  };
+  const andarTransicao = () => {
+    const t = transicao;
+    // pulou, escolheu outra música, pausou, fechou ou começou um anúncio: a que sai some logo
+    if (!atual || atual.youtube !== t.para || estado !== 'tocando' || anuncio) { acabarTransicao(); return; }
+    const agora = performance.now();
+    const dur = t.plano.dur * 1000;
+    volumeDaQueSai(t, volumes((agora - t.desde) / dur)[0]);
+    const tocandoJa = local ? Boolean(som && !som.paused && som.readyState >= 3) : estadoYt === 1;
+    if (!t.entrou && tocandoJa) {
+      t.entrou = agora;
+      // (no andamento da que sai, sem mudar o tom)
+      if (local && som && t.plano.taxa !== 1) {
+        som.preservesPitch = true;
+        som.webkitPreservesPitch = true;
+        som.playbackRate = t.plano.taxa;
+      }
+      if (!local) comandoYt('unMute');
+    }
+    // a que entra sobe a partir de quando começou a tocar (o tempo de abrir não engole a subida), terminando junto
+    const durEntra = Math.max(800, dur - (t.entrou ? t.entrou - t.desde : 0));
+    const y = t.entrou ? Math.min(1, (agora - t.entrou) / durEntra) : 0;
+    const vEntra = volumes(y)[1];
+    if (local && som) som.volume = vEntra;
+    else if (t.entrou) comandoYt('setVolume', [Math.round(vEntra * 100)]);
+    // o encaixe na batida: a próxima no ponto que corresponde ao da que sai (a primeira batida dela na batida em que a
+    // transição começou). Acertado ainda baixinho, no começo da subida (o pulo não se ouve). Cada pulo para o som um
+    // instante (o tempo de ir ao ponto): o que sobrar depois do primeiro é essa parada, e os seguintes já vão adiantados
+    if (local && som && t.entrou && (t.plano.entradaEm > 0 || t.plano.taxa !== 1) && y < 0.5 && t.acertos < 6 && !som.seeking && agora - t.acertouEm > 300) {
+      const passou = t.saindo.m ? t.saindo.m.currentTime - t.plano.inicio : (agora - t.desde) / 1000 + t.atraso;
+      const alvo = t.plano.entradaEm + Math.max(0, passou) * t.plano.taxa;
+      const erro = som.currentTime - alvo;
+      if (Math.abs(erro) > 0.03) {
+        if (t.acertos) t.adianta = Math.max(0, Math.min(0.4, t.adianta - erro));
+        try { som.currentTime = alvo + t.adianta; } catch { /* ainda abrindo */ }
+        t.acertos++;
+        t.acertouEm = agora;
+      }
+    }
+    if ((agora - t.desde >= dur && y >= 1) || agora - t.desde > dur + 10000) acabarTransicao();
+  };
+  const comecarTransicao = (plano) => {
+    let saindo;
+    if (local && som) {
+      const m = som;
+      if (m === somAudio) somAudio = null;
+      if (m === somVideo) somVideo = null;
+      const eraKaraoke = m === somKaraoke;
+      if (eraKaraoke) somKaraoke = null;
+      m.classList.add('pl-saindo');
+      som = null;
+      saindo = { m, karaoke: eraKaraoke };
+    } else {
+      const f = iframeAtual();
+      if (!f) return;
+      f.classList.add('pl-saindo');
+      saindo = { f };
+    }
+    reservaDe()?.remove(); // (a outra versão da que sai, que esperava por baixo)
+    const atraso = Math.max(0, api.tempoAgora - plano.inicio);
+    transicao = { saindo, plano: { ...plano, dur: Math.max(1, plano.dur - atraso) }, atraso, desde: performance.now(), para: '', entrou: 0, acertos: 0, acertouEm: 0, adianta: 0, vSai: 1 };
+    if (!pular(1)) { acabarTransicao(true); return; }
+    transicao.para = atual.youtube;
+    if (local && som) som.volume = 0;
+  };
+  setInterval(() => {
+    if (transicao) { andarTransicao(); return; }
+    const modo = modoTransicao();
+    if (!modo || !atual || atual.semVideo || estado !== 'tocando' || anuncio || pendente !== null || trocando || !(duracao > 20)) return;
+    const falta = duracao - api.tempoAgora;
+    if (falta > 45 || falta < 0.6) return;
+    if (repetir === 'uma' || !fila() || (vizinha(1) < 0 && repetir !== 'todas')) return;
+    const prox = proximaDaFila();
+    if (prox && prox.youtube === atual.youtube) return; // (a mesma gravação de novo: só volta ao começo)
+    const plano = planejarTransicao(modo, prox);
+    if (plano && api.tempoAgora >= plano.inicio - 0.05) comecarTransicao(plano);
+  }, 50);
   const desenharModos = () => {
     const bA = $('[data-pl="aleatorio"]', el);
     const bR = $('[data-pl="repetir"]', el);
@@ -13203,7 +13417,7 @@ function viewQualidade() {
 // um abre a sua página (antes ficava tudo junto numa tela só, comprida)
 const TOPICOS_AJUSTES = [
   { id: 'aparencia', secao: 'Aparência', ic: 'palette', t: 'Aparência', s: 'Modo escuro ou claro · Cor de destaque' },
-  { id: 'musica', secao: 'Música', ic: 'chord', t: 'Música e cifra', s: 'Destaque e diagrama dos acordes · Capa animada' },
+  { id: 'musica', secao: 'Música', ic: 'chord', t: 'Música e cifra', s: 'Crossfade e automix · Destaque e diagrama dos acordes · Capa animada' },
   { id: 'qualidade', href: '#/qualidade', ic: 'gauge', t: 'Qualidade de mídia', s: 'Qualidade do download do áudio e do vídeo' },
   { id: 'offline', href: '#/offline', ic: 'baixar', t: 'Downloads e economia de dados', s: 'Músicas baixadas · Armazenamento · Cache' },
   { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
@@ -13253,6 +13467,10 @@ function viewSettings(topico) {
       <div class="setting wrap"><span class="ico">${icon('chord', 18)}</span><div class="grow"><div class="t">Destaque dos acordes</div></div>
         <div class="seg" id="destaque">${[['suave', 'Suave'], ['forte', 'Forte'], ['maximo', 'Máximo']].map(([v, n]) => `<button data-v="${v}" aria-pressed="${(p.destaqueCifra || 'forte') === v}">${n}</button>`).join('')}</div></div>
       ${chave('diagramas', 'diagrama', 'Diagrama dos acordes', 'Como montar cada acorde no violão', p.diagramas)}
+      <div class="setting wrap"><span class="ico">${icon('shuffle', 18)}</span><div class="grow"><div class="t">Transição entre as músicas</div><div class="s" id="transicao-s"></div></div>
+        <div class="seg" id="transicao">${[['', 'Desligada'], ['crossfade', 'Crossfade'], ['automix', 'Automix']].map(([v, n]) => `<button data-v="${v}" aria-pressed="${(['crossfade', 'automix'].includes(p.transicao) ? p.transicao : '') === v}">${n}</button>`).join('')}</div></div>
+      <div class="setting wrap aj-crossfade" id="crossfade-linha"${p.transicao === 'crossfade' ? '' : ' hidden'}><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Duração do crossfade</div></div>
+        <div class="aj-crossfade-barra"><input type="range" id="crossfade-seg" min="1" max="${MAX_TRANSICAO}" step="1" value="${Math.max(1, Math.min(MAX_TRANSICAO, Math.round(Number(p.crossfadeSeg) || 6)))}" aria-label="Duração do crossfade, em segundos"><b id="crossfade-num"></b></div></div>
       ${chave('video-fundo', 'video', 'Capa animada', 'Trechos do clipe passam atrás da música, sem som, como o Canvas do Spotify (nas músicas baixadas, o próprio vídeo)', p.videoFundo !== false)}
     </div>`)}
 
@@ -13349,6 +13567,26 @@ function viewSettings(topico) {
   };
   // vale na hora também no player (o Tocando agora no modo música)
   $('#video-fundo').onchange = (e) => { db.setPref('videoFundo', e.target.checked); player.atualizar({}); };
+  // a transição entre as músicas: o crossfade (com a duração) ou o automix
+  const desenharTransicao = () => {
+    const m = db.prefs().transicao;
+    const seg = Number($('#crossfade-seg').value);
+    $('#crossfade-num').textContent = `${seg} s`;
+    $('#crossfade-linha').hidden = m !== 'crossfade';
+    $('#transicao-s').textContent = ehIOS() ? 'No iPhone e no iPad o sistema não deixa o app mudar o volume da música: lá elas trocam como sempre, no fim'
+      : m === 'crossfade' ? `A música que acaba vai sumindo enquanto a próxima já começa, nos últimos ${seg} segundos`
+        : m === 'automix' ? 'O app escolhe onde e como passar para a próxima: depois da última frase cantada e, nas músicas baixadas, no tempo da batida, com a próxima entrando na batida dela'
+          : 'Uma música termina e a próxima começa do zero';
+  };
+  desenharTransicao();
+  $('#transicao').onclick = (e) => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    db.setPref('transicao', b.dataset.v || '');
+    $('#transicao').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    desenharTransicao();
+  };
+  $('#crossfade-seg').oninput = (e) => { db.setPref('crossfadeSeg', Number(e.target.value)); desenharTransicao(); };
   // o servidor da IA: só o estado (tudo automático; os detalhes ficam na tela Servidor da IA)
   // (ao vivo: confere de novo a cada 10 s enquanto a tela está aberta)
   const resumoServidor = (forcar) => carregarServidor({ forcar }).then((cfg) => {

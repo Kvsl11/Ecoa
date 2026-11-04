@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 467, data: '2026-11-04', titulo: 'Crossfade e automix entre as músicas',
+    itens: [
+      { tipo: 'novo', texto: 'Transição entre as músicas, como no Spotify e no Apple Music (Ajustes → Música e cifra). No crossfade, a música que acaba vai sumindo enquanto a próxima já começa, nos últimos 1 a 12 segundos (você escolhe). No automix, o app escolhe sozinho onde e como passar: depois da última frase cantada (sem cortar a voz) e, nas músicas baixadas, no tempo da batida, com a próxima entrando na primeira batida dela e no mesmo andamento.' },
+      { tipo: 'melhoria', texto: 'No iPhone e no iPad o sistema não deixa o app mudar o volume da música: lá elas continuam trocando como antes, no fim.' },
+    ],
+  },
+  {
     versao: 466, data: '2026-11-04', titulo: 'Karaokê só na música em que você ligou',
     itens: [
       { tipo: 'correcao', texto: 'O karaokê agora vale só para a música em que você tocou no microfone. Ao passar para outra música, ele desliga sozinho e ela toca normal, sem o servidor preparar o karaokê dela (antes ele continuava ligado e preparava o karaokê de cada música seguinte, gastando os créditos). Para usar em outra música, é só tocar no microfone dela.' },
@@ -62,12 +69,6 @@ export const NOVIDADES = [
     versao: 458, data: '2026-11-03', titulo: 'Servidor da IA ao vivo',
     itens: [
       { tipo: 'melhoria', texto: 'Os indicadores do Servidor da IA e da conta do YouTube atualizam sozinhos, sem precisar sair da tela: com o Codespace desligado, a tela confere a cada 5 segundos e fica verde assim que ele liga; ligado, confere a cada 15 segundos (o Lumen fica verde sozinho quando a chave da IA chega). Embaixo do estado aparece a hora da última conferência.' },
-    ],
-  },
-  {
-    versao: 457, data: '2026-11-03', titulo: 'Codespace liga o servidor sozinho',
-    itens: [
-      { tipo: 'correcao', texto: 'O Codespace não ligava o servidor sozinho, nem deixava a porta pública. Agora, ao ligar, o servidor sobe na hora (os pacotes novos instalam por trás e ele reinicia sozinho no fim) e, quando o GitHub não deixa a porta pública, o Codespace abre um túnel seguro e publica esse endereço no site. Os aparelhos acham o servidor sozinhos em uns 2 minutos, sem QR code.' },
     ],
   },
 ];

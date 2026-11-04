@@ -4063,6 +4063,12 @@ html.tablet .cat .ic, html.tablet .hero, html.tablet .song-hero > .cover { anima
 /* o player escondido da outra versão (a sombra, para a troca sem engasgo): invisível de verdade (visibility), sem uma
    camada transparente de vídeo por cima de tudo */
 #pl-tela iframe.pl-reserva { visibility: hidden; }
+/* a música que sai na transição (o crossfade, o automix): continua tocando por baixo da próxima, sem receber o toque */
+#pl-tela .pl-saindo { z-index: 0; pointer-events: none; }
+/* a duração do crossfade (de 1 a 12 s) */
+.aj-crossfade-barra { display: flex; align-items: center; gap: 12px; width: 100%; }
+.aj-crossfade-barra input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.aj-crossfade-barra b { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* A capa animada (os quadros ou os trechinhos do clipe) sem a máscara de esmaecido: com o vídeo de verdade tocando, o
    Android ignorava a máscara e o vídeo terminava num traço seco, perto da letra (e no tablet a tela piscava). Agora um
