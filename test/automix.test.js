@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { batida, planoAutomix, planoCrossfade, taxaDoEncaixe, volumes } from '../public/js/lib/automix.js';
+import { batida, planoAutomix, planoCrossfade, volumes } from '../public/js/lib/automix.js';
 
 const TAXA = 11025;
 // uma batida sintética: um estalo (ruído que some rápido) a cada batida, com um ruído baixinho por baixo
@@ -45,17 +45,8 @@ test('silêncio ou trecho curto não têm batida', () => {
   assert.equal(batida(batidas(120, 0, 3), TAXA), null);
 });
 
-test('o andamento da próxima só se ajusta quando está perto', () => {
-  const b = (bpm) => ({ bpm, periodo: 60 / bpm, fase: 0, confianca: 0.8 });
-  assert.equal(taxaDoEncaixe(b(120), b(118)), Math.round((120 / 118) * 1000) / 1000);
-  assert.equal(taxaDoEncaixe(b(120), b(61)), Math.round((60 / 61) * 1000) / 1000);
-  assert.equal(taxaDoEncaixe(b(120), b(100)), 1);
-  assert.equal(taxaDoEncaixe(b(120), null), 1);
-  assert.equal(taxaDoEncaixe(b(120), { ...b(119), confianca: 0.1 }), 1);
-});
-
 test('crossfade: os últimos segundos escolhidos, de 1 a 12', () => {
-  assert.deepEqual(planoCrossfade(200, 6), { inicio: 194, dur: 6, entradaEm: 0, taxa: 1 });
+  assert.deepEqual(planoCrossfade(200, 6), { inicio: 194, dur: 6, entradaEm: 0, encaixar: false });
   assert.equal(planoCrossfade(200, 30).dur, 12);
   assert.equal(planoCrossfade(200, 0.2).dur, 1);
   assert.equal(planoCrossfade(10, 6), null); // (música curta demais)
@@ -93,7 +84,9 @@ test('automix: começa numa batida da que acaba, em batidas inteiras, e a próxi
   assert.ok(p.dur >= 4 && p.dur <= 12);
   assert.ok(p.inicio + p.dur <= 200);
   assert.equal(p.entradaEm, 0.7);
-  assert.ok(p.taxa < 1 && p.taxa > 0.98);
+  assert.equal(p.encaixar, true);
+  assert.equal('taxa' in p, false); // (a velocidade das músicas nunca muda)
+  assert.equal(planoAutomix({ duracao: 200, fimCanto: 180, saida, entrada: null }).encaixar, false);
 });
 
 test('volumes: a que sai desce desde o começo (se ouve) e a que entra sobe, sem buraco no meio', () => {

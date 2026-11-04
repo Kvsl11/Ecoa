@@ -3268,6 +3268,10 @@ const semLinhasDeAcordes = (sinc) => {
     if (velho) cruzarLocal(velho, m, alvoAgora, jaNoPonto);
     // (a próxima na transição entre as músicas começa sem som e sobe aos poucos: veja andarTransicao)
     else m.volume = transicao && chaveDaTransicao() === transicao.para && !transicao.entrou ? 0 : 1;
+    // (sempre na velocidade normal: a versão de antes do automix podia deixar o player um pouco mais rápido ou mais lento,
+    // e a música seguinte nele tocava acelerada, mesmo com a transição desligada)
+    m.defaultPlaybackRate = 1;
+    m.playbackRate = 1;
     if (tocar) m.play().catch(() => { velho?.pause(); estado = 'pausado'; desenhar(); avisar(); });
     else m.pause();
     setTimeout(prepararLocalOutra, 1500);
@@ -4209,20 +4213,8 @@ const semLinhasDeAcordes = (sinc) => {
         tirar();
       }, 50);
     }
-    if (local && som) {
-      som.volume = 1;
-      const m = som;
-      if (m.playbackRate !== 1) {
-        const r0 = m.playbackRate;
-        let k = 0;
-        const volta = setInterval(() => {
-          k++;
-          if (som !== m) { m.playbackRate = 1; clearInterval(volta); return; }
-          m.playbackRate = r0 + (1 - r0) * Math.min(1, k / 30);
-          if (k >= 30) clearInterval(volta);
-        }, 100);
-      }
-    } else if (iframeAtual()) {
+    if (local && som) som.volume = 1;
+    else if (iframeAtual()) {
       // (o player da próxima pode ainda estar abrindo e perder o pedido: repete algumas vezes)
       const f = iframeAtual();
       [0, 500, 1500, 3000].forEach((ms) => setTimeout(() => { if (iframeAtual() === f && !transicao) { comandoYt('unMute'); comandoYt('setVolume', [100]); } }, ms));
@@ -4240,12 +4232,6 @@ const semLinhasDeAcordes = (sinc) => {
     const tocandoJa = local ? Boolean(som && !som.paused && som.readyState >= 3) : estadoYt === 1;
     if (!t.entrou && tocandoJa) {
       t.entrou = agora;
-      // (no andamento da que sai, sem mudar o tom)
-      if (local && som && t.plano.taxa !== 1) {
-        som.preservesPitch = true;
-        som.webkitPreservesPitch = true;
-        som.playbackRate = t.plano.taxa;
-      }
       if (!local) comandoYt('unMute');
     }
     // a que entra sobe a partir de quando começou a tocar (o tempo de abrir não engole a subida), terminando junto
@@ -4255,11 +4241,12 @@ const semLinhasDeAcordes = (sinc) => {
     if (local && som) som.volume = vEntra;
     else if (t.entrou) comandoYt('setVolume', [Math.round(vEntra * 100)]);
     // o encaixe na batida: a próxima no ponto que corresponde ao da que sai (a primeira batida dela na batida em que a
-    // transição começou). Acertado ainda baixinho, no começo da subida (o pulo não se ouve). Cada pulo para o som um
-    // instante (o tempo de ir ao ponto): o que sobrar depois do primeiro é essa parada, e os seguintes já vão adiantados
-    if (local && som && t.entrou && (t.plano.entradaEm > 0 || t.plano.taxa !== 1) && y < 0.5 && t.acertos < 6 && !som.seeking && agora - t.acertouEm > 300) {
-      const passou = t.saindo.m ? t.saindo.m.currentTime - t.plano.inicio : (agora - t.desde) / 1000 + t.atraso;
-      const alvo = t.plano.entradaEm + Math.max(0, passou) * t.plano.taxa;
+    // transição começou). Só no comecinho da subida, com ela ainda quase sem som (o pulo não se ouve; antes ele seguia
+    // até a metade, já alto, e se ouvia a música pular). Cada pulo para o som um instante (o tempo de ir ao ponto): o
+    // que sobrar depois do primeiro é essa parada, e os seguintes já vão adiantados. (Sem mudar a velocidade: esticar a
+    // música para casar o andamento se ouvia, acelerando e voltando)
+    if (local && som && t.entrou && t.plano.encaixar && t.saindo.m && y < 0.12 && t.acertos < 4 && !som.seeking && agora - t.acertouEm > 200) {
+      const alvo = t.plano.entradaEm + Math.max(0, t.saindo.m.currentTime - t.plano.inicio);
       const erro = som.currentTime - alvo;
       if (Math.abs(erro) > 0.03) {
         if (t.acertos) t.adianta = Math.max(0, Math.min(0.4, t.adianta - erro));
