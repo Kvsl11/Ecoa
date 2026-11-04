@@ -12,6 +12,14 @@ import modal
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 
+# os modelos do karaokê (karaoke.py): na placa de vídeo, os RoFormer (a voz, a plateia e o cantor principal, ~2 GB);
+# no processador, o UVR Crowd (o UVR Karaoke 2 já vem para a partitura)
+BAIXAR = "python -c \"from audio_separator.separator import Separator; Separator(model_file_dir='/root/modelos-separacao').load_model('{}')\""
+MODELOS_GPU = ["model_bs_roformer_ep_317_sdr_12.9755.ckpt", "mel_band_roformer_crowd_aufr33_viperx_sdr_8.7144.ckpt",
+               "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"]
+MODELOS_CPU = ["UVR-MDX-NET_Crowd_HQ_1.onnx"]
+
+
 def montar(torch_de: str | None):
     """A imagem do servidor: o torch de torch_de (o de processador) ou, com None, o do PyPI, que já vem com o CUDA (a
     placa de vídeo do karaokê)."""
@@ -31,6 +39,7 @@ def montar(torch_de: str | None):
         "python -c \"from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')\"",
         # o "medium", do "sincronizar de novo" (mais preciso)
         "python -c \"from faster_whisper import WhisperModel; WhisperModel('medium', device='cpu', compute_type='int8')\"",
+        *[BAIXAR.format(m) for m in MODELOS_CPU + (MODELOS_GPU if torch_de is None else [])],
     )
     .env({"IA_WHISPER": "small", "PYTHONUNBUFFERED": "1", "IA_MODELOS_SEPARACAO": "/root/modelos-separacao"})
     .add_local_dir(PASTA, remote_path="/root/app", ignore=["tests", "**/__pycache__", ".pytest_cache", "Dockerfile"])
@@ -88,8 +97,8 @@ def lumen():
     return api
 
 
-# O karaokê (rotas /karaoke, /tarefa e /baixar) numa placa de vídeo (T4): o Demucs separa a voz de uma música em uns 15 a
-# 30 segundos, em vez de 1 a 3 minutos no processador, por menos de 1 centavo de dólar. O endereço vai em
+# O karaokê (rotas /karaoke, /tarefa e /baixar) numa placa de vídeo (T4): os RoFormer tiram só o cantor principal (a
+# voz, a plateia das gravações ao vivo e o cantor, veja karaoke.py) em 1 a 2 minutos, por uns 2 centavos de dólar. O endereço vai em
 # data/servidor-ia.json ("karaoke") e o app manda só o karaokê para cá (o resto fica no Codespace). Uma máquina só (o
 # arquivo pronto e o andamento ficam na memória dela) e desliga 2 minutos depois do último uso
 @app.function(image=imagem_gpu, gpu="T4", cpu=4.0, memory=16384, timeout=900, scaledown_window=120, max_containers=1,

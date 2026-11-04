@@ -46,6 +46,7 @@ def test_fazer_grava_4_canais_na_ordem_banda_e_voz(tmp_path, monkeypatch):
     # (o Demucs de mentira: acha a voz perfeita)
     monkeypatch.setattr(karaoke, "voz_demucs", lambda x, progresso: (progresso(1.0), voz[:, : x.shape[1]].copy())[1])
     monkeypatch.setattr(karaoke.transcricao, "separador", lambda: "htdemucs")
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "demucs", "plateia": None, "solista": None})
     saida = tmp_path / "k.m4a"
     info = karaoke.fazer(str(entrada), str(saida), lambda nome, p=None: etapas.append(nome))
     assert info["duracao"] == pytest.approx(3, abs=0.05)
@@ -135,3 +136,165 @@ def test_karaoke_do_arquivo_enviado(monkeypatch, tmp_path):
     c = TestClient(app.app)
     res = c.post("/karaoke/arquivo", files={"arquivo": ("ensaio.mp3", b"MP3", "audio/mpeg")}).json()
     assert recebido == [b"MP3"] and res["video"] is None and c.get(f"/baixar/{res['arquivo']}").content == b"K4"
+
+
+# ------------------------------------------------------------------ só o cantor principal sai
+
+def _tom(hz, n, amp=0.2, lado=0.0):
+    t = np.arange(n) / karaoke.SR
+    s = amp * np.sin(2 * np.pi * hz * t)
+    return np.stack([s * (1 - lado), s * (1 + lado)]).astype(np.float32)
+
+
+def test_so_o_cantor_principal_sai_e_o_back_vocal_e_a_plateia_ficam_na_banda(monkeypatch):
+    n = karaoke.SR
+    instrumentos, cantor, back, plateia = _tom(110, n), _tom(440, n), _tom(660, n, 0.1), _tom(3000, n, 0.08)
+    x = instrumentos + cantor + back + plateia
+    chamados = []
+
+    # (os modelos de mentira, perfeitos: a voz inteira tem o cantor, o back vocal e o povo cantando junto)
+    def separar_com(modelo, entrada):
+        chamados.append(modelo)
+        if modelo == "voz":
+            return {"vocals": cantor + back + plateia, "instrumental": instrumentos}
+        if modelo == "plateia":
+            return {"crowd": plateia, "other": entrada - plateia}
+        assert np.allclose(entrada, cantor + back, atol=1e-5), "o modelo karaokê ouviu a plateia"
+        return {"vocals": cantor, "instrumental": back}
+
+    monkeypatch.setattr(karaoke, "separar_com", separar_com)
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "voz", "plateia": "plateia", "solista": "solista"})
+    passos = []
+    voz, info = karaoke.voz_principal(x, passos.append)
+    assert chamados == ["voz", "plateia", "solista"]
+    assert np.allclose(voz, cantor, atol=1e-5)
+    q = karaoke.quatro_canais(x, voz)
+    assert np.allclose(q[:2], instrumentos + back + plateia, atol=1e-5)  # a banda: tudo menos o cantor
+    assert info["solista"] is True and info["plateia"] > karaoke.PLATEIA_MINIMA
+    assert passos[-1] == 1.0 and passos == sorted(passos)
+
+
+def test_sem_o_modelo_do_cantor_sai_a_voz_inteira_como_antes(monkeypatch):
+    n = karaoke.SR // 2
+    vozes = _tom(440, n)
+
+    def separar_com(modelo, entrada):
+        if modelo == "solista":
+            raise RuntimeError("não baixou")
+        return {"vocals": vozes, "instrumental": entrada - vozes}
+
+    monkeypatch.setattr(karaoke, "separar_com", separar_com)
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "voz", "plateia": None, "solista": "solista"})
+    voz, info = karaoke.voz_principal(vozes + _tom(110, n))
+    assert np.allclose(voz, vozes) and info["solista"] is False
+
+
+def test_a_voz_cai_no_demucs_se_o_roformer_falhar(monkeypatch):
+    n = karaoke.SR // 2
+    vozes = _tom(440, n)
+    monkeypatch.setattr(karaoke, "separar_com", lambda modelo, entrada: (_ for _ in ()).throw(RuntimeError("sem placa")))
+    monkeypatch.setattr(karaoke, "voz_demucs", lambda x, progresso: vozes)
+    monkeypatch.setattr(karaoke, "modelos", lambda: {"voz": "roformer", "plateia": None, "solista": None})
+    voz, info = karaoke.voz_principal(vozes + _tom(110, n))
+    assert np.allclose(voz, vozes) and info["modelos"]["voz"] == "demucs"
+
+
+def test_a_plateia_so_sai_quando_e_parte_de_verdade_da_voz():
+    n = karaoke.SR // 2
+    voz = _tom(440, n, 0.3)
+    quase_nada = _tom(3000, n, 0.01)  # (o eco e a respiração que o modelo acha numa gravação de estúdio)
+    igual, parte = karaoke.tirar_plateia(voz + quase_nada, quase_nada)
+    assert parte < karaoke.PLATEIA_MINIMA and np.allclose(igual, voz + quase_nada)
+    plateia = _tom(3000, n, 0.15)
+    limpa, parte = karaoke.tirar_plateia(voz + plateia, plateia)
+    assert parte > karaoke.PLATEIA_MINIMA and np.allclose(limpa, voz, atol=1e-5)
+
+
+def test_os_modelos_na_placa_de_video_e_no_processador(monkeypatch):
+    for v in ("IA_KARAOKE_VOZ", "IA_KARAOKE_PLATEIA", "IA_KARAOKE_SOLISTA"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setattr(karaoke.transcricao, "_tem_audio_separator", lambda: True)
+    monkeypatch.setattr(karaoke.transcricao, "separador", lambda: "htdemucs")
+    monkeypatch.setattr(karaoke, "com_placa", lambda: True)
+    assert karaoke.modelos() == {"voz": karaoke.VOZ_GPU, "plateia": karaoke.PLATEIA_GPU, "solista": karaoke.SOLISTA_GPU}
+    monkeypatch.setattr(karaoke, "com_placa", lambda: False)
+    assert karaoke.modelos() == {"voz": "demucs", "plateia": karaoke.PLATEIA_CPU, "solista": karaoke.SOLISTA_CPU}
+    monkeypatch.setenv("IA_KARAOKE_SOLISTA", "0")
+    monkeypatch.setenv("IA_KARAOKE_VOZ", "outro.ckpt")
+    assert karaoke.modelos() == {"voz": "outro.ckpt", "plateia": karaoke.PLATEIA_CPU, "solista": None}
+    # sem o audio-separator: o Demucs, a voz inteira (o karaokê de antes)
+    monkeypatch.setattr(karaoke.transcricao, "_tem_audio_separator", lambda: False)
+    assert karaoke.modelos() == {"voz": "demucs", "plateia": None, "solista": None}
+
+
+class _Cfg:
+    def __init__(self, **k):
+        self.__dict__.update({a: (_Cfg(**v) if isinstance(v, dict) else v) for a, v in k.items()})
+
+
+def _separador_de_mentira(monkeypatch, instancia):
+    import sys
+    import types
+
+    criados = []
+
+    class Separator:
+        def __init__(self, **opcoes):
+            self.opcoes = opcoes
+            criados.append(self)
+
+        def load_model(self, nome):
+            self.model_instance = instancia
+
+    pacote = types.ModuleType("audio_separator")
+    modulo = types.ModuleType("audio_separator.separator")
+    modulo.Separator = Separator
+    monkeypatch.setitem(sys.modules, "audio_separator", pacote)
+    monkeypatch.setitem(sys.modules, "audio_separator.separator", modulo)
+    monkeypatch.setattr(karaoke, "_separadores", {})
+    return criados
+
+
+def test_separar_com_mdx_a_outra_faixa_e_a_gravacao_menos_a_dada(monkeypatch):
+    # (o UVR Karaoke 2 devolve só o "instrumental", com o back vocal: o cantor é o resto)
+    n = 1000
+    rng = np.random.default_rng(3)
+    x = rng.uniform(-1.5, 1.5, (2, n)).astype(np.float32)  # (passa de 1: nada é normalizado nem cortado)
+
+    class Mdx:
+        primary_stem_name = "Instrumental"
+        secondary_stem_name = "Vocals"
+
+        def demix(self, mix):
+            return (mix * 0.25).T  # (às vezes vem deitado: (amostras, 2))
+
+    criados = _separador_de_mentira(monkeypatch, Mdx())
+    f = karaoke.separar_com("UVR_MDXNET_KARA_2.onnx", x)
+    assert set(f) == {"instrumental", "vocals"}
+    assert np.allclose(f["instrumental"], x * 0.25) and np.allclose(f["vocals"], x * 0.75)
+    assert criados[0].opcoes["normalization_threshold"] >= 1e6  # (o volume das faixas não muda)
+    karaoke.separar_com("UVR_MDXNET_KARA_2.onnx", x)
+    assert len(criados) == 1  # (o modelo fica aberto)
+
+
+def test_separar_com_roformer_anda_meio_pedaco_por_vez(monkeypatch):
+    n = 500
+
+    class Roformer:
+        is_roformer = True
+        overlap = 8
+        primary_stem_name = "crowd"
+        secondary_stem_name = "other"
+        model_data_cfgdict = _Cfg(audio={"hop_length": 441, "sample_rate": 44100}, inference={"dim_t": 801},
+                                  training={"target_instrument": "crowd"})
+
+        def demix(self, mix):
+            return mix[:, : n - 10] * 0.5  # (um pouco mais curto: completa com silêncio)
+
+    r = Roformer()
+    _separador_de_mentira(monkeypatch, r)
+    x = np.ones((2, n), dtype=np.float32)
+    f = karaoke.separar_com("crowd.ckpt", x)
+    assert r.overlap == pytest.approx(4.0)  # (o pedaço de 8 s, andando 4 s por vez)
+    assert f["crowd"].shape == (2, n) and np.allclose(f["crowd"][:, : n - 10], 0.5) and np.allclose(f["crowd"][:, n - 10:], 0)
+    assert np.allclose(f["other"], x - f["crowd"])
