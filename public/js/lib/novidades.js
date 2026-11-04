@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 494, data: '2026-11-04', titulo: 'O karaokê entra sem travar a música',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao tocar no microfone do karaokê, a música dava uma travada: sumia por quase um segundo e voltava. No celular, mais ainda com fone Bluetooth, o som do karaokê leva um instante para começar a sair, e o app baixava a música antes disso. Agora a música segue tocando normal até o karaokê estar soando de verdade, e só então uma passa para a outra, sem buraco.' },
+    ],
+  },
+  {
     versao: 493, data: '2026-11-04', titulo: 'O botão de tela inteira aparece ao tocar no vídeo',
     itens: [
       { tipo: 'melhoria', texto: 'No Tocando agora, o botão de ver o vídeo na tela inteira fica escondido e aparece por uns 3 segundos quando você toca no vídeo, como no Spotify e no YouTube. Tocar de novo mostra outra vez. O mesmo vale na página da música e no painel do tablet. Na barrinha do player, embaixo, ele continua sempre à vista.' },
@@ -68,15 +74,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O "Salvar" das telas da playlist, o ✓ da prévia e a marca da ordem escolhida agora ficam na cor que você escolheu nos Ajustes, em vez de verde. Saiu o chip Mix da playlist.' },
       { tipo: 'correcao', texto: 'Com a playlist toda baixada, o botão de baixar aparecia cinza. Agora fica verde e cheio, e só o contorno quando ainda falta baixar.' },
       { tipo: 'correcao', texto: 'Na playlist, o nome de uma música que já tinha tocado continuava destacado. Agora só a música que está tocando fica destacada, e o destaque acompanha o player quando ele passa para a próxima.' },
-    ],
-  },
-  {
-    versao: 484, data: '2026-11-04', titulo: 'As playlists no jeito do Spotify',
-    itens: [
-      { tipo: 'novo', texto: 'As playlists que você cria ganharam a página do Spotify: a capa grande no meio (ela encolhe ao rolar), o nome, a descrição, "Você" e a duração. Embaixo ficam a capinha, baixar e compartilhar, e à direita o aleatório e o play. Os chips são Adicionar, Mix, Vídeo, Editar, Nome e detalhes e Ordenar.' },
-      { tipo: 'novo', texto: 'A capinha ao lado do baixar abre a prévia: as músicas em tela cheia, uma de cada vez, com o clipe rodando um trecho de 30 s. Arraste para cima para passar para a próxima. O alto-falante liga o som, e tocar no cartão da música toca a playlist a partir dela.' },
-      { tipo: 'novo', texto: '"Editar" abre uma tela para tirar músicas (⊖), mudar a ordem (segure e arraste) e selecionar várias de uma vez. Nada muda até tocar em Salvar. "Nome e detalhes" muda a capa, o nome e a descrição.' },
-      { tipo: 'novo', texto: '"Vídeo" mostra as faixas com a imagem do clipe. "Mix" faz as músicas se emendarem, como num DJ. "Ordenar" mostra por título, artista ou pelas adicionadas por último, sem mudar a ordem da playlist. O ⋮ do topo tem compartilhar, trocar a capa, baixar, adicionar a outra playlist, transformar em repertório e excluir.' },
     ],
   },
 ];

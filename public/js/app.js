@@ -3158,6 +3158,24 @@ const semLinhasDeAcordes = (sinc) => {
   // ela vai sumindo aos poucos e só some de vez embaixo (com o quadrado da posição, baixar um pouco já parecia tirar tudo)
   const nivelDaVoz = () => { const v = Number(db.prefs().karaokeVoz); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; };
   const ganhoDaVoz = (n) => n;
+  const SAIDA_KARAOKE = 0.89; // (o volume da saída do karaokê: 1 dB de folga)
+  // O Web Audio já soando de verdade: o contexto rodando e o relógio dele andando, e mais o atraso da saída (o fone
+  // Bluetooth guarda um pedaço antes de tocar). No Android ele leva até um segundo para começar a sair som depois de
+  // acordar, e o aviso de "tocando" do arquivo chega antes: a troca para o karaokê cruzava nesse silêncio e a música
+  // sumia um instante (a "travada" ao tocar no microfone)
+  const grafoSoando = (g, maximo = 2500) => new Promise((ok) => {
+    const ini = performance.now();
+    let rodando = 0;
+    let relogio = 0;
+    const ver = () => {
+      if (g.ctx.state !== 'running') g.ctx.resume().catch(() => {});
+      else if (!rodando) { rodando = performance.now(); relogio = g.ctx.currentTime; }
+      else if (g.ctx.currentTime - relogio > 0.12 && performance.now() - rodando > 120 + Math.min(500, (g.ctx.outputLatency || 0) * 1000)) { ok(true); return; }
+      if (performance.now() - ini > maximo) { ok(false); return; }
+      setTimeout(ver, 30);
+    };
+    ver();
+  });
   // (criado no toque do microfone: fora de um toque, o navegador deixa o Web Audio mudo)
   const criarGrafoKaraoke = () => {
     if (grafoKaraoke) return grafoKaraoke;
@@ -3172,7 +3190,7 @@ const semLinhasDeAcordes = (sinc) => {
       try { ctx = new Ctx({ latencyHint: 'playback' }); } catch { ctx = new Ctx(); }
       // 1 dB de folga: a banda e a voz somadas às vezes passavam do limite e estalavam
       const saida = ctx.createGain();
-      saida.gain.value = 0.89;
+      saida.gain.value = SAIDA_KARAOKE;
       saida.connect(ctx.destination);
       const voz = ctx.createGain();
       voz.gain.value = 1;
@@ -3310,21 +3328,48 @@ const semLinhasDeAcordes = (sinc) => {
   // A troca entre as duas versões baixadas sem engasgo: a de agora continua tocando enquanto a outra vai ao ponto e
   // começa sem volume; quando ela já toca (e no ponto), as duas se cruzam em 0,2 s e a de antes para. Antes a de agora
   // parava primeiro, e o som sumia enquanto a outra ia ao ponto e começava (0,1 a 0,4 s de silêncio)
+  // (o karaokê sai pelo Web Audio: o volume dele é o da saída do grafo, que sobe e desce numa rampa contínua, sem
+  // degraus, e acompanha o som que sai de verdade; os outros arquivos, pelo volume do próprio elemento)
+  const ganhoDe = (m) => (m === somKaraoke && grafoKaraoke ? grafoKaraoke.saida.gain : null);
+  const nivelDe = (m, v) => {
+    const p = ganhoDe(m);
+    if (!p) { m.volume = v; return; }
+    const agora = grafoKaraoke.ctx.currentTime;
+    p.cancelScheduledValues(agora);
+    p.setValueAtTime(v * SAIDA_KARAOKE, agora);
+  };
+  const rampaDe = (m, alvo, segundos) => {
+    const p = ganhoDe(m);
+    if (p) {
+      const agora = grafoKaraoke.ctx.currentTime;
+      if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(agora);
+      else { p.cancelScheduledValues(agora); p.setValueAtTime(p.value, agora); }
+      p.linearRampToValueAtTime(alvo * SAIDA_KARAOKE, agora + segundos);
+      return;
+    }
+    const de = m.volume;
+    const passos = Math.max(1, Math.round((segundos * 1000) / 25));
+    let k = 0;
+    const passo = setInterval(() => {
+      k++;
+      m.volume = Math.max(0, Math.min(1, de + ((alvo - de) * k) / passos));
+      if (k >= passos) clearInterval(passo);
+    }, 25);
+  };
   const cruzarLocal = (velho, novo, alvoAgora, jaNoPonto = false) => {
-    novo.volume = 0;
+    nivelDe(novo, 0);
+    const comKaraoke = (velho === somKaraoke || novo === somKaraoke) && grafoKaraoke;
     let feito = false;
-    const subir = () => {
-      let k = 0;
-      const passo = setInterval(() => {
-        k++;
-        novo.volume = Math.min(1, k / 8);
-        velho.volume = Math.max(0, 1 - k / 8);
-        if (k < 8) return;
-        clearInterval(passo);
+    const subir = async () => {
+      // (entrando no karaokê: só cruza quando o Web Audio já está soando; até lá a de agora segue tocando, inteira)
+      if (comKaraoke && novo === somKaraoke) await grafoSoando(grafoKaraoke);
+      rampaDe(novo, 1, 0.2);
+      rampaDe(velho, 0, 0.2);
+      setTimeout(() => {
         // (a de antes vira a sombra: continua tocando sem volume, pronta para a próxima troca; no iPhone, para. Entre o
         // karaokê e a mesma gravação sem ele, não há outra versão para esperar: a de antes para)
-        if (som !== velho && (!sombraTocando() || velho.tagName !== 'AUDIO' || velho === somKaraoke || novo === somKaraoke)) { velho.pause(); velho.volume = 1; }
-      }, 25);
+        if (som !== velho && (!sombraTocando() || velho.tagName !== 'AUDIO' || velho === somKaraoke || novo === somKaraoke)) { velho.pause(); nivelDe(velho, 1); }
+      }, 230);
     };
     if (jaNoPonto) { feito = true; subir(); return; }
     const comecou = () => {
@@ -3414,7 +3459,11 @@ const semLinhasDeAcordes = (sinc) => {
     if (!jaNoPonto) { if (m.readyState >= 1) ir(); else m.addEventListener('loadedmetadata', ir, { once: true }); }
     if (velho) cruzarLocal(velho, m, alvoAgora, jaNoPonto);
     // (a próxima na transição entre as músicas começa sem som e sobe aos poucos: veja andarTransicao)
-    else m.volume = transicao && chaveDaTransicao() === transicao.para && !transicao.entrou ? 0 : 1;
+    else {
+      m.volume = transicao && chaveDaTransicao() === transicao.para && !transicao.entrou ? 0 : 1;
+      // (o karaokê sem cruzar: a saída do grafo no volume normal, caso uma troca de antes tenha parado no meio, com ela zerada)
+      if (m === somKaraoke) nivelDe(m, 1);
+    }
     // (sempre na velocidade normal: a versão de antes do automix podia deixar o player um pouco mais rápido ou mais lento,
     // e a música seguinte nele tocava acelerada, mesmo com a transição desligada)
     m.defaultPlaybackRate = 1;
