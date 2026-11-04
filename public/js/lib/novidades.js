@@ -4,10 +4,11 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 500, data: '2026-11-04', titulo: 'Justin Bieber no mural da entrada',
+    versao: 500, data: '2026-11-04', titulo: 'Os artistas em destaque no mural da entrada',
     itens: [
       { tipo: 'correcao', texto: 'No mural da tela de entrada, o Billie Jean aparecia todo preto: os quadros que o YouTube tira desse clipe são pretos. Agora cada clipe mostra só os quadros que têm imagem, e o Billie Jean aparece com a capa do vídeo.' },
-      { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Sorry, Peaches, Love Yourself e What Do You Mean?.' },
+      { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Peaches e What Do You Mean?.' },
+      { tipo: 'melhoria', texto: 'O mural ficou com os artistas em destaque. Cada clipe mostra só os quadros em que o artista aparece, como o Michael de monstro, de olhos amarelos, no Thriller. O nome do artista aparece grande em cada quadro, com a música embaixo, e também no alto da tela.' },
     ],
   },
   {

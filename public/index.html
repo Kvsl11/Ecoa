@@ -81,22 +81,21 @@
       var mural = document.getElementById('entrada-mural');
       if (!mural || mural.childElementCount) return;
       // [vídeo, música, artista, quadros com imagem: 1, 2 e 3 = de 1/4, 1/2 e 3/4 do clipe; d = a capa do vídeo]
-      // (os quadros pretos ou escuros demais ficam de fora: no Billie Jean, os três são pretos; só a capa tem imagem)
+      // (ficam só os quadros em que o artista aparece; os pretos ou escuros demais e as capas com letreiros grandes ficam
+      // de fora: no Billie Jean, os três quadros são pretos; no Thriller, fica o Michael de monstro, de olhos amarelos)
       var clipes = [
-        ['Zi_XLOBDo_Y', 'Billie Jean', 'Michael Jackson', 'd'], ['kPa7bsKwL-c', 'Die With A Smile', 'Lady Gaga e Bruno Mars', '123d'],
-        ['kffacxfA7G4', 'Baby', 'Justin Bieber', '123'], ['A_MjCqQoLLA', 'Hey Jude', 'The Beatles', '123d'],
-        ['eVli-tstM5E', 'Espresso', 'Sabrina Carpenter', '123d'], ['sOnqjkJTMaA', 'Thriller', 'Michael Jackson', '2'],
-        ['fRh_vgS2dFE', 'Sorry', 'Justin Bieber', '123d'], ['UqyT8IEBkvY', '24K Magic', 'Bruno Mars', '123d'],
-        ['qrO4YZeyl0I', 'Bad Romance', 'Lady Gaga', '123d'], ['KQetemT1sWc', 'Here Comes The Sun', 'The Beatles', '23d'],
-        ['tQ0yjYUFKAE', 'Peaches', 'Justin Bieber', '123d'], ['fJ9rUzIMcZQ', 'Bohemian Rhapsody', 'Queen', '1'],
-        ['cF1Na4AIecM', 'Please Please Please', 'Sabrina Carpenter', '12d'], ['oRdxUFDoQe0', 'Beat It', 'Michael Jackson', '123d'],
-        ['oyEuk8j8imI', 'Love Yourself', 'Justin Bieber', '123d'], ['OPf0YbXqDm0', 'Uptown Funk', 'Mark Ronson e Bruno Mars', '123d'],
-        ['djV11Xbc914', 'Take On Me', 'a-ha', '123d'], ['bESGLojNYSo', 'Poker Face', 'Lady Gaga', '123d'],
-        ['DK_0jXPuIr0', 'What Do You Mean?', 'Justin Bieber', '2d'], ['UelDrZ1aFeY', 'Something', 'The Beatles', '123d'],
-        ['PMivT7MJ41M', 'That’s What I Like', 'Bruno Mars', '123d'], ['TUVcZfQe-Kw', 'Levitating', 'Dua Lipa', '23d'],
-        ['79fzeNUqQbQ', 'Like A Prayer', 'Madonna', '123d'], ['nfWlot6h_JM', 'Shake It Off', 'Taylor Swift', '123d'],
-        ['eH3giaIzONA', 'I Wanna Dance With Somebody', 'Whitney Houston', '123d'], ['JGwWNGJdvx8', 'Shape of You', 'Ed Sheeran', '123d'],
-        ['CevxZvSJLk8', 'Roar', 'Katy Perry', '23d'],
+        ['Zi_XLOBDo_Y', 'Billie Jean', 'Michael Jackson', 'd'], ['kPa7bsKwL-c', 'Die With A Smile', 'Lady Gaga e Bruno Mars', '123'],
+        ['kffacxfA7G4', 'Baby', 'Justin Bieber', 'd23'], ['A_MjCqQoLLA', 'Hey Jude', 'The Beatles', '123'],
+        ['eVli-tstM5E', 'Espresso', 'Sabrina Carpenter', '123'], ['sOnqjkJTMaA', 'Thriller', 'Michael Jackson', '3'],
+        ['UqyT8IEBkvY', '24K Magic', 'Bruno Mars', '23d'], ['qrO4YZeyl0I', 'Bad Romance', 'Lady Gaga', '12d'],
+        ['KQetemT1sWc', 'Here Comes The Sun', 'The Beatles', '2'], ['tQ0yjYUFKAE', 'Peaches', 'Justin Bieber', '1d'],
+        ['fJ9rUzIMcZQ', 'Bohemian Rhapsody', 'Queen', 'd12'], ['cF1Na4AIecM', 'Please Please Please', 'Sabrina Carpenter', '12'],
+        ['oRdxUFDoQe0', 'Beat It', 'Michael Jackson', '2'], ['OPf0YbXqDm0', 'Uptown Funk', 'Mark Ronson e Bruno Mars', 'd1'],
+        ['bESGLojNYSo', 'Poker Face', 'Lady Gaga', '123d'], ['DK_0jXPuIr0', 'What Do You Mean?', 'Justin Bieber', 'd2'],
+        ['UelDrZ1aFeY', 'Something', 'The Beatles', '13'], ['PMivT7MJ41M', 'That’s What I Like', 'Bruno Mars', '3'],
+        ['TUVcZfQe-Kw', 'Levitating', 'Dua Lipa', '13'], ['79fzeNUqQbQ', 'Like A Prayer', 'Madonna', 'd12'],
+        ['nfWlot6h_JM', 'Shake It Off', 'Taylor Swift', '12'], ['eH3giaIzONA', 'I Wanna Dance With Somebody', 'Whitney Houston', '123'],
+        ['JGwWNGJdvx8', 'Shape of You', 'Ed Sheeran', 'd'], ['CevxZvSJLk8', 'Roar', 'Katy Perry', '123d'],
       ];
       var FILAS = 5, POR_FILA = 9, k = 0;
       for (var f = 0; f < FILAS; f++) {
@@ -108,7 +107,7 @@
         for (var i = 0; i < POR_FILA; i++, k++) {
           var c = clipes[(k * 5) % clipes.length];
           var q = c[3].charAt(Math.floor(k / clipes.length) % c[3].length); // (a cada volta na lista, outro quadro do clipe)
-          html += '<figure class="em-quadro"><img src="https://i.ytimg.com/vi/' + c[0] + '/' + (q === 'd' ? 'hqdefault' : 'hq' + q) + '.jpg" alt="" decoding="async" referrerpolicy="no-referrer"><figcaption><b>' + c[1] + '</b>' + c[2] + '</figcaption></figure>';
+          html += '<figure class="em-quadro"><img src="https://i.ytimg.com/vi/' + c[0] + '/' + (q === 'd' ? 'hqdefault' : 'hq' + q) + '.jpg" alt="" decoding="async" referrerpolicy="no-referrer"><figcaption><b>' + c[2] + '</b>' + c[1] + '</figcaption></figure>';
         }
         fila.innerHTML = '<div class="em-trilho">' + html + html + '</div>'; // (duas vezes: a fileira dá a volta sem emenda)
         mural.appendChild(fila);
@@ -119,7 +118,7 @@
         if (!document.documentElement.classList.contains('sem-conta')) return;
         var c = clipes[n++ % clipes.length];
         tocando.classList.remove('vis');
-        setTimeout(function () { tocando.innerHTML = '<span class="eq"><i></i><i></i><i></i></span>' + c[1] + ' · ' + c[2]; tocando.classList.add('vis'); }, 400);
+        setTimeout(function () { tocando.innerHTML = '<span class="eq"><i></i><i></i><i></i></span><b>' + c[2] + '</b><span class="m">' + c[1] + '</span>'; tocando.classList.add('vis'); }, 400);
       };
       mostrar();
       setInterval(mostrar, 4500);
