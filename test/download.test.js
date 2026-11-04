@@ -106,3 +106,14 @@ test('YouTube: yt-dlp tem novas tentativas para falhas de rede e fragmentos', as
   assert.match(youtube, /"fragment_retries": 6/);
   assert.match(youtube, /"extractor_retries": 5/);
 });
+
+test('players de apoio do YouTube sem a conta (não contam como outro dispositivo)', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /const YT_SEM_CONTA = 'https:\/\/www\.youtube-nocookie\.com\/embed\/'/);
+  // a outra versão que espera por baixo, a capa animada e a prévia
+  assert.match(app, /f\.src = ytEmbed\(outra, \{ autoplay: false, semConta: true \}\)/);
+  assert.match(app, /f\.src = `\$\{YT_SEM_CONTA\}\$\{encodeURIComponent\(id\)\}\?\$\{p\}`/);
+  assert.match(app, /ytEmbed\(s\.youtube, \{ inicio: m\.tVideo, mudo: true, semConta: true \}\)/);
+  // e só um endereço com a conta: o do player que se ouve
+  assert.equal((app.match(/https:\/\/www\.youtube\.com\/embed\//g) || []).length, 1);
+});

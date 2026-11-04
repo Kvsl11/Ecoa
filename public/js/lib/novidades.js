@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 503, data: '2026-11-04', titulo: 'O vídeo online não para mais por "outro dispositivo"',
+    itens: [
+      { tipo: 'correcao', texto: 'O vídeo que toca pela internet (sem estar baixado) parava muito com o aviso do YouTube de que a conta estava sendo usada em outros dispositivos. Era o próprio app: além do player que você ouve, ele abre outros do YouTube por baixo (a capa animada, o clipe esperando para a troca entre música e vídeo, a próxima música no crossfade, a prévia das playlists), e cada um contava como outra reprodução da sua conta ao mesmo tempo. Agora só o player que você ouve usa a sua conta do YouTube; os outros abrem sem conta e não contam.' },
+    ],
+  },
+  {
+    versao: 502, data: '2026-11-04', titulo: 'O clipe vem junto mesmo quando a música estava com o vídeo só de áudio',
+    itens: [
+      { tipo: 'correcao', texto: 'Algumas músicas, como Levitating, estavam salvas com o vídeo que é só o áudio: o "Topic" do YouTube Music, com a capa parada. Esse vídeo o YouTube nem deixa baixar como vídeo, e o download trazia só a música. Agora, antes de baixar, o app confere: se o vídeo é só o áudio, procura o clipe oficial (do canal do artista) e baixa o áudio e o clipe.' },
+      { tipo: 'correcao', texto: 'As músicas que você já baixou assim ganham o clipe sozinhas, em segundo plano. Quando falta o clipe, o aviso do download agora diz o porquê.' },
+    ],
+  },
+  {
     versao: 501, data: '2026-11-04', titulo: 'O download traz sempre o áudio e o clipe',
     itens: [
       { tipo: 'correcao', texto: 'Muitas músicas baixavam só o áudio, sem o videoclipe. O clipe é o arquivo grande e falhava às vezes (o servidor demorava, o YouTube não entregava aquela qualidade), e o app desistia na primeira vez. Agora cada arquivo tenta até 3 vezes, e o vídeo desce de qualidade a cada tentativa (muito alta, alta, normal) para vir sempre junto.' },
@@ -58,19 +71,6 @@ export const NOVIDADES = [
     versao: 494, data: '2026-11-04', titulo: 'O karaokê entra sem travar a música',
     itens: [
       { tipo: 'correcao', texto: 'Ao tocar no microfone do karaokê, a música dava uma travada: sumia por quase um segundo e voltava. No celular, mais ainda com fone Bluetooth, o som do karaokê leva um instante para começar a sair, e o app baixava a música antes disso. Agora a música segue tocando normal até o karaokê estar soando de verdade, e só então uma passa para a outra, sem buraco.' },
-    ],
-  },
-  {
-    versao: 493, data: '2026-11-04', titulo: 'O botão de tela inteira aparece ao tocar no vídeo',
-    itens: [
-      { tipo: 'melhoria', texto: 'No Tocando agora, o botão de ver o vídeo na tela inteira fica escondido e aparece por uns 3 segundos quando você toca no vídeo, como no Spotify e no YouTube. Tocar de novo mostra outra vez. O mesmo vale na página da música e no painel do tablet. Na barrinha do player, embaixo, ele continua sempre à vista.' },
-    ],
-  },
-  {
-    versao: 492, data: '2026-11-04', titulo: 'O contorno da capinha dá duas voltas',
-    itens: [
-      { tipo: 'melhoria', texto: 'Ao entrar na playlist, o contorno da capinha da prévia agora faz a animação do Spotify. Ele dá duas voltas: na primeira, dois traços correm em volta da tela e somem; na segunda, voltam e crescem até fechar o contorno. Só depois o cartão de trás sai girando.' },
-      { tipo: 'melhoria', texto: 'O cartão de trás ficou um pouco mais recolhido atrás da tela.' },
     ],
   },
 ];

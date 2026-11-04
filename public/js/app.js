@@ -23,7 +23,7 @@ import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaCo
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
-import { escolherAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
+import { escolherAudio, escolherClipe, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { trechoDoRefrao } from './lib/refrao.js';
@@ -909,6 +909,8 @@ async function baixarMusica(song, { perguntou = false } = {}) {
           tag: 'baixar-' + id, silenciosa: true, href: '#/musica/' + id,
           imagem: capaDaNotificacao(atual),
         });
+        // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois)
+        await noMaximo(garantirClipe(id).catch(() => null), 30000, null);
         await baixarAgora(id);
       } catch (e) {
         const atual = db.song(id);
@@ -925,6 +927,37 @@ async function baixarMusica(song, { perguntou = false } = {}) {
     }
     andandoFila = null;
   })();
+}
+// Em "Áudio e vídeo", a música tem que vir com o clipe. Quando o vídeo dela é só o áudio (o "Nome - Topic" do YouTube
+// Music, o "Official Audio", o vídeo com a letra), o download trazia só o áudio: o Topic o YouTube nem deixa baixar como
+// vídeo ("Video unavailable"), e os outros são a capa parada. Vale também quando ela já tem as duas versões, mas com o
+// Topic no lugar do clipe.
+// Antes de baixar, o app procura o clipe oficial (o mesmo título, do canal do artista ou com "official video" no nome);
+// achando, o clipe passa a ser o vídeo da música e o que ela tinha fica como o áudio oficial (a letra sincronizada, que
+// era dele, continua certa). Sem achar, fica como está
+async function garantirClipe(id) {
+  const s = db.song(id);
+  if (!s?.youtube || ehArquivo(s.youtube) || db.prefs().baixarVideo === false || s.audioProprio) return null;
+  // (o vídeo da música já é o clipe, baixado como vídeo: nada a fazer)
+  if (String(s.baixado?.arquivos?.[s.youtube]?.tipo || '').startsWith('video/')) return null;
+  const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${s.youtube}`).catch(() => null);
+  if (!info || !pareceSoAudio(info)) return null;
+  const vs = versoesDe(s);
+  // o áudio oficial: o que a música já tinha achado ou, sem ele, o próprio vídeo que é só o áudio
+  const audio = vs?.audio || s.youtube;
+  const titulo = tituloLimpo(s.title);
+  const artista = String(s.artist || '').trim();
+  const termos = [`${titulo} ${artista} official music video`, `${titulo} ${artista} official video`, `${titulo} ${artista} clipe oficial`];
+  const listas = await Promise.all(termos.map((q) => buscarYoutube(q, { filtro: 'videos' }).catch(() => [])));
+  const clipe = escolherClipe(listas.flat().filter((v) => v?.id !== audio), { titulo, artista, evitar: s.youtube });
+  const atual = db.song(id);
+  if (!clipe || !atual || atual.youtube !== s.youtube) return null;
+  const durAudio = Number(vs?.duracao) || Number(atual.sincronia?.duracao) || 0;
+  db.updateSong(id, { youtube: clipe.id, duracao: undefined });
+  guardarVersoes(db.song(id), { video: clipe.id, audio, ...(durAudio ? { duracao: durAudio } : {}), pares: paresPelaDuracao(Number(clipe.segundos) || 0, durAudio) });
+  const depois = db.song(id);
+  void acertarVersoes(depois, depois?.sincronia?.fonte === 'lrclib' ? depois.sincronia : null).catch(() => {});
+  return clipe;
 }
 // um arquivo do download pelo servidor, com as tentativas: o vídeo na qualidade escolhida e depois nas mais baixas; o
 // áudio, de novo na mesma. Entre uma e outra, uma espera curta (o servidor pode estar ligando)
@@ -1044,7 +1077,9 @@ async function baixarAgora(id) {
     else await noMaximo(sincronizarMusica(depois), 30000, 'demorou');
   }
   const faltou = [...new Set(falhas.map((f) => f.video ? 'videoclipe' : 'áudio'))];
-  const avisoFalhas = faltou.length ? 'faltou ' + faltou.join(' e ') : '';
+  // (e o porquê, para saber o que houve: o servidor desligou, o YouTube não entregou…)
+  const porque = falhas[0]?.e ? ` (${erroExplicado(falhas[0].e)})` : '';
+  const avisoFalhas = faltou.length ? 'faltou ' + faltou.join(' e ') + porque + ' · tenta de novo sozinho' : '';
 
   if (!db.song(id)) return;
   const tamanho = Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0);
@@ -1475,6 +1510,10 @@ const REVISOES = [
   // v501: as músicas baixadas só com o áudio (o videoclipe falhava uma vez e não tentava de novo): confere os arquivos e
   // baixa o que falta, com as tentativas novas (o vídeo descendo de qualidade). O arquivo que já veio fica
   { rev: 11, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
+  // v502: as baixadas sem o clipe, cujo vídeo é só o áudio (o "Nome - Topic", que o YouTube nem deixa baixar como vídeo,
+  // e o "Official Audio"): procura o clipe oficial, que passa a ser o vídeo, e baixa o que falta (garantirClipe). A que
+  // já tem o clipe baixado fica
+  { rev: 12, clipe: true, quais: (s) => Boolean(s.baixado && s.youtube) && !s.audioProprio && !String(s.baixado.arquivos?.[s.youtube]?.tipo || '').startsWith('video/') },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1642,6 +1681,11 @@ async function revisarMusica(id, pendentes, chaves) {
     }
     s = db.song(id);
   }
+  // a baixada cujo vídeo é só o áudio (o Topic, o Official Audio): procura o clipe, e o download abaixo baixa o que falta
+  if (s?.baixado && quer('clipe')) {
+    if (!navigator.onLine) completa = false;
+    else { await garantirClipe(id).catch(() => { completa = false; }); s = db.song(id); }
+  }
   if (!s?.baixado && !s?.rebaixar) return completa;
   // os downloads: o arquivo que sumiu do aparelho ou que não abre sai da lista, para ser baixado de novo
   const rebaixar = quer('rebaixar');
@@ -1713,12 +1757,18 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 window.addEventListener('songbook:nova-musica', (e) => { if (db.song(e.detail.id)) db.updateSong(e.detail.id, { revisao: REVISAO_MUSICAS }); });
 
 // endereço do player do YouTube embutido (enablejsapi permite pausar/tocar pelo botão verde)
-function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false } = {}) {
+// semConta: os players de apoio (a capa animada, a outra versão que espera por baixo para a troca música/clipe, a próxima
+// que entra muda no crossfade, a prévia das playlists) vêm do youtube-nocookie.com, que não leva a conta do YouTube do
+// navegador. Com a conta em todos, cada um contava como outra reprodução dela ao mesmo tempo, e o YouTube parava o
+// vídeo ("sua conta está sendo usada em outro dispositivo", o limite do Premium). Só o player que se ouve leva a conta
+const YT_COM_CONTA = 'https://www.youtube.com/embed/';
+const YT_SEM_CONTA = 'https://www.youtube-nocookie.com/embed/';
+function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false, semConta = false } = {}) {
   const p = new URLSearchParams({ autoplay: autoplay ? '1' : '0', playsinline: '1', enablejsapi: '1', rel: '0', modestbranding: '1' });
   if (mudo) p.set('mute', '1'); // (a próxima na transição: começa sem som e sobe aos poucos)
   if (inicio > 0) p.set('start', String(Math.floor(inicio)));
   if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
-  return `https://www.youtube.com/embed/${encodeURIComponent(id)}?${p}`;
+  return `${semConta ? YT_SEM_CONTA : YT_COM_CONTA}${encodeURIComponent(id)}?${p}`;
 }
 
 // nome e canal de um vídeo do YouTube (para o cartão das Referências): pergunta uma vez e guarda enquanto
@@ -2384,7 +2434,7 @@ const player = (() => {
       if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
       const f = document.createElement('iframe');
       f.className = 'pl-canvas pl-canvas-yt';
-      f.src = `https://www.youtube.com/embed/${encodeURIComponent(id)}?${p}`;
+      f.src = `${YT_SEM_CONTA}${encodeURIComponent(id)}?${p}`; // (a capa animada: sem a conta, não conta como outra reprodução)
       f.allow = 'autoplay; encrypted-media';
       f.tabIndex = -1;
       f.title = '';
@@ -3139,7 +3189,7 @@ const semLinhasDeAcordes = (sinc) => {
     estadoYt = -1;
     // (a música que sai na transição continua tocando por baixo, descendo o volume: não sai junto)
     [...tela.children].forEach((x) => { if (!x.classList.contains('pl-saindo')) x.remove(); });
-    tela.insertAdjacentHTML('beforeend', `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay, mudo: Boolean(transicao && !transicao.para) }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`);
+    tela.insertAdjacentHTML('beforeend', `<iframe src="${esc(ytEmbed(atual.youtube, { autoplay, mudo: Boolean(transicao && !transicao.para), semConta: Boolean(transicao && !transicao.para) }))}" title="${esc(atual.titulo || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`);
     const f = iframeAtual();
     anuncio = false;
     montadoEm = performance.now();
@@ -3559,7 +3609,7 @@ const semLinhasDeAcordes = (sinc) => {
     f.className = 'pl-reserva';
     f.dataset.yt = outra;
     conhecerDuracao(outra);
-    f.src = ytEmbed(outra, { autoplay: false });
+    f.src = ytEmbed(outra, { autoplay: false, semConta: true });
     f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
     f.title = '';
     f.tabIndex = -1;
@@ -13511,7 +13561,7 @@ function previaDaPlaylist(set, inicio = 0) {
     } else {
       faixasNoYoutube(s.youtube).then(zoom);
       const f = document.createElement('iframe');
-      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
+      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true, semConta: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
       f.allow = 'autoplay; encrypted-media';
       f.title = s.title;
       f.tabIndex = -1;

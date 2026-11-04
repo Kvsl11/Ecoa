@@ -372,3 +372,34 @@ test('pares: o trecho casado no lugar errado sai, a cena inserida fica', async (
   const limpos = [[0, 10], [50, 60], [100, 140], [150, 190]];
   assert.deepEqual(semPicos(limpos), limpos);
 });
+
+test('o vídeo que é só o áudio e o clipe oficial da música', async () => {
+  const { pareceSoAudio, escolherClipe } = await import('../public/js/lib/versoes.js');
+  assert.equal(pareceSoAudio({ titulo: 'Levitating', canal: 'Dua Lipa - Topic' }), true);
+  assert.equal(pareceSoAudio({ titulo: 'Dua Lipa - Levitating (Official Audio)', canal: 'Dua Lipa' }), true);
+  assert.equal(pareceSoAudio({ titulo: 'Dua Lipa - Levitating (Lyrics)', canal: 'Letras' }), true);
+  assert.equal(pareceSoAudio({ titulo: 'Dua Lipa - Levitating Featuring DaBaby (Official Music Video)', canal: 'Dua Lipa' }), false);
+  const videos = [
+    { id: 'aud', titulo: 'Dua Lipa - Levitating (Official Audio)', canal: 'Dua Lipa', segundos: 203 },
+    { id: 'let', titulo: 'Dua Lipa - Levitating (Lyrics)', canal: '7clouds', segundos: 203 },
+    { id: 'viv', titulo: 'Dua Lipa - Levitating (Live at the BRITs)', canal: 'BRIT Awards', segundos: 240 },
+    { id: 'TUVcZfQe-Kw', titulo: 'Dua Lipa - Levitating Featuring DaBaby (Official Music Video)', canal: 'Dua Lipa', segundos: 230 },
+    { id: 'kar', titulo: 'Levitating - Dua Lipa (Karaoke Version)', canal: 'Sing King', segundos: 203 },
+  ];
+  assert.equal(escolherClipe(videos, { titulo: 'Levitating', artista: 'Dua Lipa', evitar: 'aud' })?.id, 'TUVcZfQe-Kw');
+  assert.equal(escolherClipe(videos.filter((v) => v.id !== 'TUVcZfQe-Kw'), { titulo: 'Levitating', artista: 'Dua Lipa' }), null);
+  // (o canal do artista vale mais que o "Official Music Video" de uma cópia; os bastidores e o ao vivo ficam de fora)
+  const espresso = [
+    { id: 'eVli-tstM5E', titulo: 'Sabrina Carpenter - Espresso', canal: 'Sabrina Carpenter', segundos: 201 },
+    { id: 'copia', titulo: 'Sabrina Carpenter - Espresso (Official Music Video)', canal: 'BeatStream', segundos: 271 },
+    { id: 'viv', titulo: 'Sabrina Carpenter - Espresso - Live at Coachella 2026', canal: 'Sabrina Carpenter', segundos: 182 },
+    { id: 'bts', titulo: 'Sabrina Carpenter - Espresso (Behind the Scenes)', canal: 'Sabrina Carpenter', segundos: 207 },
+  ];
+  assert.equal(escolherClipe(espresso, { titulo: 'Espresso', artista: 'Sabrina Carpenter' })?.id, 'eVli-tstM5E');
+  const baby = [
+    { id: 'fa', titulo: 'Justin Bieber "Baby" OFFICIAL HD MUSIC VIDEO', canal: 'JustinBiberFeverVEVO', segundos: 224 },
+    { id: 'kffacxfA7G4', titulo: 'Justin Bieber - Baby ft. Ludacris', canal: 'Justin Bieber', segundos: 220 },
+    { id: 'ia', titulo: 'Justin Bieber - Baby ft. Ludacris (4K 60FPS) (Official Video)', canal: 'AIUpscalia', segundos: 218 },
+  ];
+  assert.equal(escolherClipe(baby, { titulo: 'Baby', artista: 'Justin Bieber' })?.id, 'kffacxfA7G4');
+});
