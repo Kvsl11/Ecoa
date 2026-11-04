@@ -4759,6 +4759,13 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
     border: 0; border-radius: 50%; color: #fff; background: rgb(0 0 0 / 0.6); cursor: pointer; }
 }
 @media (min-width: 900px) { html:not(.tablet) #pl-tela:not(.com-local) .pl-tela-cheia { display: none !important; } }
+/* onde o vídeo recebe o toque (o Tocando agora, a página da música, o painel do tablet), o botão de tela inteira fica
+   escondido e aparece por uns 3 s ao tocar no vídeo (.mostra-ctrl), como no Spotify e no YouTube. Na barrinha do mini
+   player o toque no vídeo abre o Tocando agora: lá o botão continua sempre à vista */
+body.painel-cheio #pl-tela .pl-tela-cheia, #pl-tela.na-telinha .pl-tela-cheia, html.tablet body:not(.painel-recolhido) #pl-tela .pl-tela-cheia {
+  opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+body.painel-cheio #pl-tela.mostra-ctrl .pl-tela-cheia, #pl-tela.na-telinha.mostra-ctrl .pl-tela-cheia, html.tablet body:not(.painel-recolhido) #pl-tela.mostra-ctrl .pl-tela-cheia {
+  opacity: 1; pointer-events: auto; }
 /* a tela cheia do vídeo do YouTube: o vídeo recebe o toque (os controles dele) e sai o recorte do mini player */
 #pl-tela:fullscreen { pointer-events: auto !important; clip-path: none !important; border-radius: 0 !important; background: #000; }
 #pl-tela:-webkit-full-screen { pointer-events: auto !important; clip-path: none !important; border-radius: 0 !important; background: #000; }
