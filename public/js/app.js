@@ -9363,9 +9363,9 @@ const normalizar = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,
 // ---------------------------------------------------------------- a música tocando nas listas
 // Como no Spotify, em todas as listas (Biblioteca, Músicas curtidas, Busca, playlists, repertórios): a música que está
 // no player fica com o nome na cor do app e, enquanto toca, com as barrinhas animadas (na mesma cor) antes do nome.
-// No repertório ou playlist que está tocando vale a posição (a mesma música pode estar duas vezes); nas outras listas,
+// Pausada, as barrinhas viram três quadradinhos. No repertório ou playlist que está tocando vale a posição (a mesma música pode estar duas vezes); nas outras listas,
 // a música (a salva, ou o mesmo vídeo, ou o mesmo nome e artista na busca)
-const EQ_TOCANDO = '<span class="eq-tocando" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
+const EQ_TOCANDO = '<span class="eq-tocando" aria-hidden="true"><i></i><i></i><i></i></span>';
 function linhaTocando(li, a, yts, setDaPagina) {
   const id = li.dataset.id || li.dataset.musica || (li.classList.contains('lib-item') ? li.dataset.k : '');
   const s = id && db.song(id);
@@ -9386,9 +9386,11 @@ function marcarTocandoNasListas() {
     if (!t) return;
     const sim = Boolean(a) && linhaTocando(li, a, yts, setDaPagina);
     if (t.classList.contains('tocando') !== sim) t.classList.toggle('tocando', sim);
-    const eq = t.querySelector(':scope > .eq-tocando');
-    if (sim && toca && !eq) t.insertAdjacentHTML('afterbegin', EQ_TOCANDO);
-    else if (!(sim && toca) && eq) eq.remove();
+    // (pausada: as barrinhas param e viram os três quadradinhos "...")
+    let eq = t.querySelector(':scope > .eq-tocando');
+    if (sim && !eq) { t.insertAdjacentHTML('afterbegin', EQ_TOCANDO); eq = t.firstElementChild; }
+    else if (!sim && eq) eq.remove();
+    if (sim && eq.classList.contains('parado') === toca) eq.classList.toggle('parado', !toca);
   });
 }
 let marcarAgendado = 0;
@@ -13044,7 +13046,7 @@ function viewPlaylist(set) {
       <div class="pl-dur">${icon('clock', 14)}<span id="set-resumo">${resumoPlaylist(set)}</span></div>
     </section>
     <div class="spot-acoes pl-acoes">
-      ${set.items.length ? `<button class="pl-mini" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">${pilhaDaCapinha(set)}<span class="pl-mini-tela">${capaRepertorio(set)}</span></button>` : ''}
+      ${set.items.length ? `<button class="pl-mini" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">${pilhaDaCapinha()}<span class="pl-mini-tela">${capaRepertorio(set)}</span></button>` : ''}
       ${set.items.length ? botaoBaixarSet(set) : ''}
       <button class="icon-btn" id="pl-share" aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
       <span class="spacer"></span>
@@ -13134,20 +13136,47 @@ function viewPlaylist(set) {
 // faixa); no do YouTube, nos quadros que ele publica do meio do clipe (o i.ytimg.com libera ler os pixels)
 const faixasDoClipe = new Map(); // 'arq:'|'yt:' + vídeo → fração da altura em faixa (em cima e embaixo)
 const zoomDasFaixas = (f) => (f > 0.01 ? (1 / (1 - 2 * f)).toFixed(4) : '1');
-function medirFaixasDoVideo(el, yt, aoMedir) {
+// no arquivo baixado: medidas antes de o vídeo aparecer (sem a piscada das faixas), num vídeo fora da tela, em quatro
+// pontos do clipe (fica a menor); uma vez por clipe
+function faixasDoArquivo(url, yt) {
   const k = 'arq:' + yt;
-  if (typeof faixasDoClipe.get(k) === 'number') aoMedir(faixasDoClipe.get(k));
-  const medir = () => {
-    if (!el.isConnected || el.readyState < 2 || !el.videoWidth) return;
-    let f;
-    try { f = medirFaixasDaImagem(el, el.videoWidth, el.videoHeight); } catch { return; }
-    const antes = faixasDoClipe.get(k);
-    const menor = typeof antes === 'number' ? Math.min(antes, f) : f;
-    faixasDoClipe.set(k, menor);
-    aoMedir(menor);
-  };
-  el.addEventListener('playing', () => [300, 1500, 4500].forEach((ms) => setTimeout(medir, ms)), { once: true });
+  if (!faixasDoClipe.has(k)) {
+    faixasDoClipe.set(k, new Promise((ok) => {
+      const v = document.createElement('video');
+      v.muted = true;
+      v.preload = 'auto';
+      v.playsInline = true;
+      const medidas = [];
+      let pontos = [];
+      let limite = 0;
+      const fim = () => { clearTimeout(limite); v.removeAttribute('src'); v.load(); ok(medidas.length ? Math.min(...medidas) : 0); };
+      limite = setTimeout(fim, 4000);
+      const proximo = () => { if (pontos.length) v.currentTime = pontos.shift(); else fim(); };
+      v.addEventListener('seeked', () => {
+        try { if (v.videoWidth) medidas.push(medirFaixasDaImagem(v, v.videoWidth, v.videoHeight)); } catch { /* sem ler o quadro */ }
+        proximo();
+      });
+      v.addEventListener('loadedmetadata', () => {
+        const d = Number.isFinite(v.duration) ? v.duration : 0;
+        pontos = d > 4 ? [0.2, 0.4, 0.6, 0.8].map((x) => x * d) : [0.1];
+        proximo();
+      }, { once: true });
+      v.addEventListener('error', fim, { once: true });
+      v.src = url;
+    }).then((f) => { faixasDoClipe.set(k, f); return f; }));
+  }
+  return Promise.resolve(faixasDoClipe.get(k));
 }
+// o vídeo já no ponto do trecho e tocando (para entrar na tela sem mostrar o começo do clipe nem um quadro preto)
+const prontoNoTrecho = (el) => new Promise((ok) => {
+  let seek = false;
+  let toca = false;
+  const ver = () => { if (seek && toca) ok(); };
+  el.addEventListener('seeked', () => { seek = true; ver(); }, { once: true });
+  el.addEventListener('playing', () => { toca = true; ver(); }, { once: true });
+  el.addEventListener('error', ok, { once: true });
+  setTimeout(ok, 2500);
+});
 function faixasNoYoutube(yt) {
   const k = 'yt:' + yt;
   if (!faixasDoClipe.has(k)) {
@@ -13214,10 +13243,10 @@ function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
 // 4 s do refrão, sem som), como os stories em miniatura. A música baixada mostra o clipe do aparelho; a que não está
 // baixada, a imagem do clipe passando devagar
 let urlsDaCapinha = [];
-// os cartões atrás da capinha (as próximas músicas, empilhadas para a direita), como os stories do Spotify
-function pilhaDaCapinha(set) {
-  const yts = [...new Set(set.items.map((it) => db.song(it.songId)?.youtube).filter(Boolean))].slice(1, 3);
-  return [2, 1].map((k) => `<span class="pl-mini-atras" style="--k:${k}">${yts[k - 1] ? `<img src="https://i.ytimg.com/vi/${esc(yts[k - 1])}/mqdefault.jpg" alt="" loading="lazy">` : ''}</span>`).join('');
+// o cartão claro atrás da capinha (como uma capinha de celular: a tela na frente, com o contorno claro), como os
+// stories do Spotify
+function pilhaDaCapinha() {
+  return '<span class="pl-mini-atras" aria-hidden="true"></span>';
 }
 async function animarCapinha(set) {
   urlsDaCapinha.forEach((u) => URL.revokeObjectURL(u));
@@ -13246,8 +13275,10 @@ async function animarCapinha(set) {
     const url = arquivos.get(s.youtube);
     let el;
     if (url) {
+      const f = await faixasDoArquivo(url, s.youtube);
+      if (!box.isConnected) return;
       el = elementoDoRefrao('video', url, tempoDoRefrao(s).tVideo);
-      medirFaixasDoVideo(el, s.youtube, (f) => el.style.setProperty('--zoom', zoomDasFaixas(f)));
+      el.style.setProperty('--zoom', zoomDasFaixas(f));
     } else {
       el = document.createElement('img');
       el.alt = '';
@@ -13257,11 +13288,11 @@ async function animarCapinha(set) {
     el.classList.add('pl-mini-anim');
     box.append(el);
     // (entra quando o primeiro quadro chegou, por cima da anterior, sem piscar preto)
-    await new Promise((ok) => {
-      el.addEventListener(url ? 'playing' : 'load', ok, { once: true });
+    await (url ? prontoNoTrecho(el) : new Promise((ok) => {
+      el.addEventListener('load', ok, { once: true });
       el.addEventListener('error', ok, { once: true });
       setTimeout(ok, 2500);
-    });
+    }));
     if (!box.isConnected) { tirar(el); return; }
     requestAnimationFrame(() => el.classList.add('on'));
     const antes = naTela;
@@ -13332,14 +13363,18 @@ function previaDaPlaylist(set, inicio = 0) {
     t0 = performance.now();
     const { s } = faixas[k];
     const m = await midiaDoRefrao(s);
+    // (as faixas do clipe baixado medidas antes de ele aparecer: sem a piscada com as faixas pretas)
+    const fz = m.video ? await faixasDoArquivo(m.video, s.youtube) : 0;
     if (ativa !== k || !dlg.isConnected) { [m.video, m.audio].forEach((u) => u && URL.revokeObjectURL(u)); return; }
     const caixa = slides[k].querySelector('.pv-video');
     atual = { urls: [m.video, m.audio].filter(Boolean), tVideo: m.tVideo, tAudio: m.tAudio };
     const zoom = (f) => { if (ativa === k) caixa.style.setProperty('--zoom', zoomDasFaixas(f)); };
     if (m.video) {
-      atual.video = elementoDoRefrao('video', m.video, m.tVideo);
-      caixa.append(atual.video);
-      medirFaixasDoVideo(atual.video, s.youtube, zoom);
+      zoom(fz);
+      const v = elementoDoRefrao('video', m.video, m.tVideo);
+      atual.video = v;
+      caixa.append(v);
+      prontoNoTrecho(v).then(() => v.classList.add('on'));
     } else {
       faixasNoYoutube(s.youtube).then(zoom);
       const f = document.createElement('iframe');

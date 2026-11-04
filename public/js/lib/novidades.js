@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 488, data: '2026-11-04', titulo: 'A capinha da prévia sem piscar',
+    itens: [
+      { tipo: 'correcao', texto: 'A capinha da playlist dava uma piscada mostrando as faixas pretas do clipe antes de ficar normal. Agora o app mede as faixas antes de mostrar o vídeo, e ele já entra sem elas. O mesmo vale para a prévia em tela cheia.' },
+      { tipo: 'melhoria', texto: 'A capinha ficou como a do Spotify: a tela com o contorno claro e um cartão claro atrás, como uma capinha.' },
+      { tipo: 'melhoria', texto: 'Com a música pausada, as barrinhas ao lado do nome viram três quadradinhos, como o "..." do Spotify. Tocando, voltam a se mexer.' },
+    ],
+  },
+  {
     versao: 487, data: '2026-11-04', titulo: 'Adicionar várias de uma vez',
     itens: [
       { tipo: 'novo', texto: 'No "Adicionar" da playlist, dá para marcar várias músicas (ou todas, com "Selecionar todas") e adicionar de uma vez. As que já estão na playlist aparecem apagadas, com "Na playlist". Na aba "Procurar na internet", tocar numa música salva ela na biblioteca e já deixa marcada.' },
@@ -69,12 +77,6 @@ export const NOVIDADES = [
     versao: 479, data: '2026-11-04', titulo: 'O microfone do karaokê nas listas',
     itens: [
       { tipo: 'novo', texto: 'Nas listas de músicas (Músicas curtidas, a Biblioteca, os repertórios), o microfone com as estrelinhas aparece ao lado da setinha verde nas músicas que já têm o karaokê pronto no aparelho. Ele aparece assim que o karaokê fica pronto e some se você apagar o karaokê.' },
-    ],
-  },
-  {
-    versao: 478, data: '2026-11-04', titulo: 'O microfone do karaokê no ⋮',
-    itens: [
-      { tipo: 'melhoria', texto: 'No ⋮ do Tocando agora, a opção "Karaokê (tirar a voz)" agora tem o mesmo microfone com as estrelinhas do botão de karaokê da letra, em vez do microfone simples.' },
     ],
   },
 ];

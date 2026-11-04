@@ -338,13 +338,14 @@ a.chip.sm { cursor: pointer; }
 .track .t.playing { color: var(--accent-ink); }
 /* a música que está tocando, em todas as listas (como no Spotify): o nome na cor do app e as barrinhas antes dele */
 .track .t.tocando { color: var(--accent-ink); }
-.eq-tocando { display: inline-flex; align-items: flex-end; gap: 1.5px; width: 13px; height: 12px; margin-right: 7px; vertical-align: -1px; color: var(--accent-ink); }
-.eq-tocando i { flex: 1; height: 100%; border-radius: 1px; background: currentColor; transform-origin: bottom; animation: eq-tocando 0.9s ease-in-out infinite alternate; }
-.eq-tocando i:nth-child(2) { animation-duration: 0.65s; animation-delay: -0.3s; }
-.eq-tocando i:nth-child(3) { animation-duration: 0.8s; animation-delay: -0.55s; }
-.eq-tocando i:nth-child(4) { animation-duration: 0.7s; animation-delay: -0.15s; }
-@keyframes eq-tocando { from { transform: scaleY(0.2); } to { transform: scaleY(1); } }
-@media (prefers-reduced-motion: reduce) { .eq-tocando i { animation: none; transform: scaleY(0.6); } }
+.eq-tocando { display: inline-flex; align-items: flex-end; gap: 2px; width: 12px; height: 11px; margin-right: 7px; vertical-align: -1px; color: var(--accent-ink); }
+.eq-tocando i { flex: 1; height: 100%; border-radius: 0.5px; background: currentColor; transform-origin: bottom; animation: eq-tocando 0.85s ease-in-out infinite alternate; }
+.eq-tocando i:nth-child(2) { animation-duration: 0.6s; animation-delay: -0.35s; }
+.eq-tocando i:nth-child(3) { animation-duration: 0.75s; animation-delay: -0.15s; }
+@keyframes eq-tocando { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
+/* pausada: param e viram três quadradinhos, como o "..." do Spotify */
+.eq-tocando.parado i { animation: none; transform: scaleY(0.25); }
+@media (prefers-reduced-motion: reduce) { .eq-tocando i { animation: none; transform: scaleY(0.6); } .eq-tocando.parado i { transform: scaleY(0.25); } }
 .track .s { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
 .track .acts { display: flex; align-items: center; }
 .track .acts .chip.key { margin-right: 8px; } /* o tom, ao lado do salvar */
@@ -4973,17 +4974,16 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .pl-dur { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--muted); font-size: 13px; }
 /* a linha dos botões: a capinha, baixar e compartilhar; o aleatório e o play à direita */
 .pl-acoes { gap: 4px; margin: 8px 0 10px; }
-.pl-mini { position: relative; isolation: isolate; flex: none; width: 34px; height: 44px; margin-right: 16px; padding: 0; border: 0; background: none; cursor: pointer; }
-/* a capinha da prévia: a tela da frente (com o clipe ou as imagens passando) e dois cartões atrás, empilhados para a
-   direita, como os stories do Spotify */
-.pl-mini-tela { position: absolute; inset: 0; z-index: 3; display: grid; border-radius: 6px; overflow: hidden; background: #111;
-  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.22), 2px 0 6px rgb(0 0 0 / 0.5); }
+.pl-mini { position: relative; isolation: isolate; flex: none; width: 33px; height: 46px; margin-right: 14px; padding: 0; border: 0; background: none; cursor: pointer; }
+/* a capinha da prévia como a do Spotify: a tela da frente com o contorno claro e os cantos redondos, e um cartão claro
+   atrás, um pouco mais baixo, aparecendo à direita (como uma capinha) */
+.pl-mini-tela { position: absolute; inset: 0; z-index: 2; display: grid; border-radius: 5px; overflow: hidden; background: #111;
+  box-shadow: 0 0 0 2px #c9d3d8, 1px 0 6px rgb(0 0 0 / 0.45); }
 .pl-mini-tela .cover { width: 100%; height: 100%; border-radius: 0; }
 .pl-mini-tela .cover img { width: 100%; height: 100%; object-fit: cover; }
 .pl-mini-tela .cover.gen svg { width: 16px; height: 16px; }
-.pl-mini-atras { position: absolute; top: calc(var(--k) * 3px); bottom: calc(var(--k) * 3px); left: calc(var(--k) * 5px); width: 100%; z-index: calc(3 - var(--k));
-  border-radius: 6px; overflow: hidden; background: #3a3a3a; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12), 2px 0 5px rgb(0 0 0 / 0.45); filter: brightness(calc(0.75 - var(--k) * 0.15)); }
-.pl-mini-atras img { width: 100%; height: 100%; object-fit: cover; }
+.pl-mini-atras { position: absolute; z-index: 1; top: 4px; bottom: 4px; left: 6px; right: -6px; border-radius: 5px; background: #a9b4b9; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.15); }
+:root[data-theme="light"] .pl-mini-tela { box-shadow: 0 0 0 2px #9fb0b8, 1px 0 6px rgb(0 0 0 / 0.25); }
 .pl-mini-anim { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity 0.6s; }
 .pl-mini-anim.on { opacity: 1; }
 video.pl-mini-anim { transform: scale(var(--zoom, 1)); }
@@ -5047,7 +5047,8 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-video iframe { position: absolute; top: 50%; left: 50%; width: max(100cqw, 177.78cqh); height: max(100cqh, 56.25cqw); transform: translate(-50%, -50%) scale(var(--zoom, 1)); border: 0; pointer-events: none; }
 /* a miniatura de fundo (até o clipe chegar) é 4:3, com as faixas que o YouTube põe: ampliada mais 1/0,75 */
 .pv-fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(calc(var(--zoom, 1) * 1.334)); }
-.pv-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; transform: scale(var(--zoom, 1)); }
+.pv-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; transform: scale(var(--zoom, 1)); opacity: 0; transition: opacity 0.35s; }
+.pv-video video.on { opacity: 1; }
 .pv-sombra { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 55%, rgb(0 0 0 / 0.75)); }
 .pv-info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 12px calc(16px + env(safe-area-inset-bottom)); }
 .pv-artista { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
