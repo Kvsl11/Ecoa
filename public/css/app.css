@@ -4305,7 +4305,7 @@ main:has(.bib-cab, .bib-busca-topo)::before { display: none; }
 .bib-cab { display: flex; align-items: center; gap: 10px; min-height: 52px; }
 .bib-cab h2 { flex: 1; min-width: 0; margin: 0 0 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bib-cab .icon-btn { color: var(--text); width: 42px; height: 42px; }
-.bib-avatar { display: grid; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; }
+.bib-avatar { display: grid; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; padding: 0; border: 0; background: none; cursor: pointer; }
 .bib-avatar .logo { width: 100%; height: 100%; }
 /* os chips rolam de lado até a borda da tela; com um escolhido, o X redondo antes dele */
 .bib-fixo .bib-filtros { flex-wrap: nowrap; margin: 4px calc(-1 * var(--gutter)) 0; padding: 4px var(--gutter) 6px; }

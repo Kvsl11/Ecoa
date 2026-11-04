@@ -6541,7 +6541,7 @@ function viewHome() {
   setHeader('Início', { actions: [
     { html: logoLumen(22), label: 'Lumen, o assistente litúrgico', href: '#/duvidas' },
     { icon: 'upload', label: 'Importar arquivos', onClick: openImport },
-    { icon: 'settings', label: 'Ajustes', href: '#/ajustes' },
+    // (os Ajustes ficam na gaveta da foto do perfil e na página do perfil)
   ] });
   const sets = db.sets();
   const recentes = db.recent();
@@ -9139,7 +9139,7 @@ function viewEstante(filtro = 'tudo', { selecionando = false, marcados = new Set
   view.innerHTML = `
     <div class="bib-fixo">
       <div class="bib-cab">
-        <a class="bib-avatar" href="#/ajustes" aria-label="Ajustes" title="Ajustes">${logo(34)}</a>
+        <button class="bib-avatar" data-foto-perfil aria-label="Seu perfil" title="Seu perfil">${avatarHtml(usuarioConta(), 34)}</button>
         <h2>Sua biblioteca</h2>
         <button class="icon-btn" id="bib-buscar" aria-label="Buscar na sua biblioteca" title="Buscar na sua biblioteca">${icon('search', 24)}</button>
         <button class="icon-btn" id="bib-criar" aria-label="Criar" title="Criar">${icon('plus', 28)}</button>
@@ -13114,7 +13114,7 @@ function viewPlaylist(set) {
       <button class="pl-capa" id="pl-capa" aria-label="Nome e detalhes" title="Nome e detalhes">${capaRepertorio(set)}</button>
       <h2 class="pl-nome" id="pl-nome">${esc(set.name)}</h2>
       ${set.descricao ? `<p class="pl-desc">${esc(set.descricao)}</p>` : ''}
-      <div class="pl-dono"><span class="pl-avatar">${logo(22)}</span><b>Você</b></div>
+      <div class="pl-dono"><span class="pl-avatar">${avatarHtml(usuarioConta(), 22)}</span><b>${esc(usuarioConta()?.nome || 'Você')}</b></div>
       <div class="pl-dur">${icon('clock', 14)}<span id="set-resumo">${resumoPlaylist(set)}</span></div>
     </section>
     <div class="spot-acoes pl-acoes">
@@ -14894,9 +14894,12 @@ function avatarHtml(u, tam, { grande = false } = {}) {
 function desenharFotoDoPerfil() {
   const u = usuarioConta();
   perfilBtn.innerHTML = avatarHtml(u, 32);
+  document.querySelectorAll('[data-foto-perfil]').forEach((b) => { b.innerHTML = avatarHtml(u, 34); });
   perfilBtn.setAttribute('aria-label', u ? `Seu perfil: ${u.nome || u.email}` : 'Seu perfil: entrar com o Google');
 }
 perfilBtn.onclick = () => abrirGavetaDoPerfil();
+// (as telas com o topo próprio, como a Biblioteca, têm a mesma foto: data-foto-perfil)
+document.addEventListener('click', (e) => { if (e.target.closest('[data-foto-perfil]')) abrirGavetaDoPerfil(); });
 
 function resumoDaSincronia() {
   const u = usuarioConta();
