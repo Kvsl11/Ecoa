@@ -3810,7 +3810,11 @@ const semLinhasDeAcordes = (sinc) => {
       if (atual?.semVideo) largarSemVideo({ fechar: false });
       // a mesma música (na mesma versão ou na outra: o áudio ou o clipe): continua de onde está
       if (atual && estado !== 'parado' && (atual.youtube === item.youtube || (item.video && [item.video, item.audio].includes(atual.youtube)))) {
-        atual = { ...atual, ...item, youtube: atual.youtube };
+        // (aberta de outro lugar sem fila — a biblioteca, a busca, a página dela —, a música continua na fila em que
+        // estava: antes ela passava para a fila da biblioteca, em ordem alfabética, sem a pessoa ver, e a próxima não era
+        // a que a fila mostrava. Aberta de outra playlist ou repertório, passa para a fila dele)
+        const fila = item.setId ? {} : { setId: atual.setId, index: atual.index, parte: atual.parte, href: atual.href };
+        atual = { ...atual, ...item, youtube: atual.youtube, ...fila };
         if (estado !== 'tocando') api.alternar(); else desenhar();
         return;
       }
@@ -10308,18 +10312,23 @@ function viewPartituras() {
   const linhaPronta = (s) => `<li class="track clickable pt-linha" data-abrir-part="${s.id}">${capa(s)}
       <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${esc([s.artist, mxlDaPartitura(s.content) ? 'Pronta · dá para editar' : 'Em imagem'].filter(Boolean).join(' · '))}</div></div>
       <span class="acts"><a class="icon-btn pt-ensaiar" href="#/musica/${s.id}/partitura" aria-label="Abrir" title="Abrir">${icon('play', 18)}</a></span></li>`;
-  view.innerHTML = `
+  // (com espaço — o tablet deitado, o computador —, em duas colunas: à esquerda o título, os atalhos e o acervo; à
+  // direita as partituras. Numa coluna só sobrava a metade da tela vazia)
+  view.innerHTML = `<div class="pt-pagina">
     <header class="pt-topo"><h2>Partituras</h2><p class="muted">Escreva, gere com IA e ensaie cada voz.</p></header>
     <div class="pt-atalhos">
       <button class="pt-atalho pt-ia" id="part-ia"><span class="pt-atalho-ic">${icon('sparkles', 20)}</span><span class="pt-atalho-txt"><b>Gerar com IA</b><small>A partir do áudio</small></span></button>
       <button class="pt-atalho" id="part-nova"><span class="pt-atalho-ic">${icon('edit', 20)}</span><span class="pt-atalho-txt"><b>Nova partitura</b><small>Nota por nota</small></span></button>
     </div>
+    <section class="pt-listas">
     <div class="shelf-head"><h2>Suas partituras</h2>${proprias.length ? `<span class="muted part-conta">${proprias.length}</span>` : ''}</div>
     ${proprias.length ? `<ul class="tracks pt-lista">${proprias.map(linha).join('')}</ul>`
       : `<div class="pt-vazio"><span class="pt-vazio-ic">${icon('score', 22)}</span><span><b>Nenhuma partitura ainda</b><small>As que você criar ou gerar aparecem aqui.</small></span></div>`}
     ${prontas.length ? `<div class="shelf-head"><h2>Prontas no app</h2><span class="muted part-conta">${prontas.length}</span></div>
       <ul class="tracks pt-lista">${prontas.map(linhaPronta).join('')}</ul>` : ''}
-    <a class="pt-acervo" href="#/acervo">${icon('book', 18)}<span><b>Acervo litúrgico</b><small>Hinários e subsídios da CNBB com partitura</small></span>${icon('next', 16)}</a>`;
+    </section>
+    <a class="pt-acervo" href="#/acervo">${icon('book', 18)}<span><b>Acervo litúrgico</b><small>Hinários e subsídios da CNBB com partitura</small></span>${icon('next', 16)}</a>
+    </div>`;
   $('#part-nova').onclick = async () => { const s = await escolherMusica('Partitura de qual música?'); if (s) location.hash = `#/musica/${s.id}/compor`; };
   $('#part-ia').onclick = async () => { const s = await escolherMusica('Gerar a partitura de qual música?'); if (s) location.hash = `#/musica/${s.id}/compor/ia`; };
   view.querySelectorAll('[data-abrir-part]').forEach((el) => el.addEventListener('click', async (e) => {
