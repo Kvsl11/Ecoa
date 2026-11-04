@@ -336,6 +336,15 @@ a.chip.sm { cursor: pointer; }
 .track .info { min-width: 0; text-decoration: none; display: block; }
 .track .t { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track .t.playing { color: var(--accent-ink); }
+/* a música que está tocando, em todas as listas (como no Spotify): o nome na cor do app e as barrinhas antes dele */
+.track .t.tocando { color: var(--accent-ink); }
+.eq-tocando { display: inline-flex; align-items: flex-end; gap: 1.5px; width: 13px; height: 12px; margin-right: 7px; vertical-align: -1px; color: var(--accent-ink); }
+.eq-tocando i { flex: 1; height: 100%; border-radius: 1px; background: currentColor; transform-origin: bottom; animation: eq-tocando 0.9s ease-in-out infinite alternate; }
+.eq-tocando i:nth-child(2) { animation-duration: 0.65s; animation-delay: -0.3s; }
+.eq-tocando i:nth-child(3) { animation-duration: 0.8s; animation-delay: -0.55s; }
+.eq-tocando i:nth-child(4) { animation-duration: 0.7s; animation-delay: -0.15s; }
+@keyframes eq-tocando { from { transform: scaleY(0.2); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .eq-tocando i { animation: none; transform: scaleY(0.6); } }
 .track .s { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
 .track .acts { display: flex; align-items: center; }
 .track .acts .chip.key { margin-right: 8px; } /* o tom, ao lado do salvar */
@@ -4964,18 +4973,19 @@ html.tablet body.painel-recolhido #player.grande:not(.sem-video):not(.capa-na-ba
 .pl-dur { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--muted); font-size: 13px; }
 /* a linha dos botões: a capinha, baixar e compartilhar; o aleatório e o play à direita */
 .pl-acoes { gap: 4px; margin: 8px 0 10px; }
-.pl-mini { display: grid; flex: none; width: 34px; height: 44px; margin-right: 6px; padding: 0; border: 1px solid rgb(255 255 255 / 0.18); border-radius: 6px; background: none; overflow: hidden; cursor: pointer; }
-.pl-mini .cover { width: 100%; height: 100%; border-radius: 0; }
-.pl-mini .cover img { width: 100%; height: 100%; object-fit: cover; }
-.pl-mini .cover.gen svg { width: 16px; height: 16px; }
-/* a capinha com movimento: o clipe baixado (no refrão) ou as imagens dos clipes passando devagar */
-.pl-mini { position: relative; }
+.pl-mini { position: relative; isolation: isolate; flex: none; width: 34px; height: 44px; margin-right: 16px; padding: 0; border: 0; background: none; cursor: pointer; }
+/* a capinha da prévia: a tela da frente (com o clipe ou as imagens passando) e dois cartões atrás, empilhados para a
+   direita, como os stories do Spotify */
+.pl-mini-tela { position: absolute; inset: 0; z-index: 3; display: grid; border-radius: 6px; overflow: hidden; background: #111;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.22), 2px 0 6px rgb(0 0 0 / 0.5); }
+.pl-mini-tela .cover { width: 100%; height: 100%; border-radius: 0; }
+.pl-mini-tela .cover img { width: 100%; height: 100%; object-fit: cover; }
+.pl-mini-tela .cover.gen svg { width: 16px; height: 16px; }
+.pl-mini-atras { position: absolute; top: calc(var(--k) * 3px); bottom: calc(var(--k) * 3px); left: calc(var(--k) * 5px); width: 100%; z-index: calc(3 - var(--k));
+  border-radius: 6px; overflow: hidden; background: #3a3a3a; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12), 2px 0 5px rgb(0 0 0 / 0.45); filter: brightness(calc(0.75 - var(--k) * 0.15)); }
+.pl-mini-atras img { width: 100%; height: 100%; object-fit: cover; }
 .pl-mini-anim { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-.pl-mini-fotos img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.3) translateX(10%); transition: opacity 0.8s, transform 3.2s linear; }
-.pl-mini-fotos img.on { opacity: 1; transform: scale(1.3) translateX(-10%); }
-/* o baixar da playlist: baixada, o círculo verde cheio com a seta preta; para baixar, só o contorno */
-.spot-acoes .btn-baixar.baixada { color: #1ed760; }
-.btn-baixar.baixada .ic path { stroke: #000 !important; }
+video.pl-mini-anim { transform: scale(var(--zoom, 1)); }
 /* os chips: escuros, com o ícone; o Vídeo (ou o Mix) ligado fica branco, como no Spotify */
 .pl-chips .chip { height: 32px; padding: 0 13px; gap: 6px; background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.1); font-weight: 600; }
 .pl-chips .chip[aria-pressed="true"] { background: #fff; color: #000; border-color: #fff; }
@@ -5028,9 +5038,12 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-feed::-webkit-scrollbar { display: none; }
 .pv-slide { position: relative; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
 /* o clipe cobre a tela toda (cortado dos lados), sem receber os toques: arrastar passa para a próxima */
-.pv-video { position: absolute; inset: 0; container-type: size; background: #111 center / cover no-repeat; }
-.pv-video iframe { position: absolute; top: 50%; left: 50%; width: max(100cqw, 177.78cqh); height: max(100cqh, 56.25cqw); transform: translate(-50%, -50%); border: 0; pointer-events: none; }
-.pv-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.pv-video { position: absolute; inset: 0; overflow: hidden; container-type: size; background: #111; }
+/* --zoom: o quanto o clipe é ampliado para as faixas pretas dele ficarem fora da tela (medidas no vídeo) */
+.pv-video iframe { position: absolute; top: 50%; left: 50%; width: max(100cqw, 177.78cqh); height: max(100cqh, 56.25cqw); transform: translate(-50%, -50%) scale(var(--zoom, 1)); border: 0; pointer-events: none; }
+/* a miniatura de fundo (até o clipe chegar) é 4:3, com as faixas que o YouTube põe: ampliada mais 1/0,75 */
+.pv-fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(calc(var(--zoom, 1) * 1.334)); }
+.pv-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; transform: scale(var(--zoom, 1)); }
 .pv-sombra { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 55%, rgb(0 0 0 / 0.75)); }
 .pv-info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 12px calc(16px + env(safe-area-inset-bottom)); }
 .pv-artista { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
