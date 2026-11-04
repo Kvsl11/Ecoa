@@ -30,7 +30,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1411,6 +1411,12 @@ const REVISOES = [
   // primeira frase em tempos bem diferentes, como "Club Tropicana" e "Everything She Wants" do Wham!) é conferida no
   // áudio pelo servidor. A feita à mão fica
   { rev: 8, conferirLetra: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && Boolean(s.title) },
+  // v480: a linha que a edição escolhida do LRCLIB põe fora do lugar (em "Club Tropicana", a primeira frase 40 s antes
+  // de ser cantada; em "Everything She Wants", o "Ah, ha-ha" e "Some people work for a living") vai para onde as
+  // outras edições concordam que ela é cantada (lib/web.js: linhasNoConsenso). Também nas já conferidas pelo servidor
+  // (ele ouvia a letra com a linha errada de referência). v481: e a edição feita para a duração do áudio que toca, se a
+  // guardada é de outro master (em "Club Tropicana", 268 s contra 266 s, e a letra 4,5 s atrasada). A feita à mão fica
+  { rev: 9, consertarLinhas: true, quais: (s) => s.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.tempos?.length > 3 && Boolean(s.title) },
 ];
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
@@ -1511,12 +1517,33 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   s = db.song(id);
   if (!s) return true;
+  // a letra do LRCLIB de novo (uma vez, para as duas revisões abaixo)
+  // (undefined: o LRCLIB não respondeu agora, e a revisão tenta de novo depois)
+  let lrcDeNovo = null;
+  const lrcDaMusica = () => (lrcDeNovo ||= letraSincronizada({ titulo: s.title, artista: s.artist || '', duracao: Number(s.sincronia?.duracao) || 0 }).catch(() => undefined));
+  // a linha fora do lugar na edição do LRCLIB, no lugar em que as outras edições concordam (antes de conferir no
+  // áudio: o servidor ouve com a letra certa de referência)
+  if (quer('consertarLinhas') && s.sincronia?.fonte === 'lrclib' && !s.sincronia.provisoria && s.sincronia.tempos?.length) {
+    if (!navigator.onLine) completa = false;
+    else {
+      // (primeiro a edição da duração do áudio que toca; trocando, a letra já vem com as linhas corrigidas)
+      const trocou = await acertarEdicao(s, s.sincronia).catch(() => false);
+      const lrc = trocou ? null : await lrcDaMusica();
+      s = db.song(id);
+      if (!s) return true;
+      if (lrc === undefined) completa = false;
+      const tempos = s.sincronia?.fonte === 'lrclib' ? temposCorrigidos(s.sincronia, lrc) : null;
+      if (tempos) guardarSincronia(s, { ...s.sincronia, tempos });
+    }
+    s = db.song(id);
+    if (!s) return true;
+  }
   // a letra sincronizada em dúvida, conferida no áudio (só as em dúvida vão ao servidor)
   if (quer('conferirLetra') && s.sincronia?.fonte === 'lrclib' && !s.sincronia.conferida && !s.sincronia.provisoria && s.sincronia.video && !ehArquivo(s.sincronia.video)) {
     if (!navigator.onLine) completa = false;
     else {
       const sc = s.sincronia;
-      const lrc = await letraSincronizada({ titulo: s.title, artista: s.artist || '', duracao: Number(sc.duracao) || 0 }).catch(() => undefined);
+      const lrc = await lrcDaMusica();
       if (lrc === undefined) completa = false;
       else if (lrc?.duvida) { if (!(await conferirSincronia(s, { ...sc, duvida: true }))) completa = false; }
     }
@@ -14419,6 +14446,18 @@ function letraSincronizadaJa(titulo, artista, duracao = 0) {
   }
   return letrasSincronizadas.get(k);
 }
+// A edição do LRCLIB feita para a duração do áudio que toca. A primeira busca sai antes de saber a duração (para a
+// letra vir logo), e aí ganha a edição com mais cópias, que pode ser de outro master da mesma gravação: em "Club
+// Tropicana", 268 s contra os 266 s do áudio oficial, com a letra uns 4,5 s atrasada nele. Sabendo a duração (a do
+// áudio oficial ou a do clipe), e ela ficando a mais de 2 s da edição (até 4 s: mais longe, é outra gravação), pede a
+// edição da duração certa; fica com a de antes se não houver uma mais perto
+async function edicaoDaDuracao(lrc, titulo, artista, dur) {
+  const durLrc = Number(lrc?.duracao) || 0;
+  if (!(dur > 0) || !(durLrc > 0) || lrc?.fonte !== 'lrclib' || Math.abs(dur - durLrc) <= 2 || Math.abs(dur - durLrc) > 4) return lrc;
+  const outra = await letraSincronizada({ titulo: tituloLimpo(titulo), artista: artista || '', duracao: dur }, undefined, OPÇÕES_LRCLIB_RÁPIDAS).catch(() => null);
+  return outra?.fonte === 'lrclib' && outra.tempos?.length && Math.abs((Number(outra.duracao) || 0) - dur) < Math.abs(durLrc - dur) ? outra : lrc;
+}
+const naGravacaoDe = (lrc, video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(Number(lrc.duracao) ? { duracao: Number(lrc.duracao) } : {}), ...(lrc.duvida ? { duvida: true } : {}) });
 // os tempos da letra adiantados d segundos (o vídeo com d segundos de cena antes da música)
 const deslocarTempos = (tempos, d) => (d ? tempos.map((t) => ({ inicio: Math.round((t.inicio + d) * 100) / 100, fim: Math.round((t.fim + d) * 100) / 100 })) : tempos);
 // a mesma gravação: as durações perto (ou uma delas desconhecida)
@@ -14471,7 +14510,9 @@ async function sincronizarMusica(song, { noVideo = '', audioPromise = null } = {
     // 2. o áudio oficial já conhecido e da mesma gravação: exata nele
     vs = versoesDe(agora());
     if (vs?.audio && !ehArquivo(vs.audio) && mesmaDuracao(Number(vs.duracao) || 0, durLrc)) {
-      guardarSincronia(alvo(), naGravacao(vs.audio));
+      const certa = await edicaoDaDuracao(lrc, song.title, artista, Number(vs.duracao) || 0);
+      if (!agora()) return 'nada';
+      guardarSincronia(alvo(), naGravacaoDe(certa, vs.audio));
       return 'ok';
     }
     // 3. o vídeo que toca (o clipe), pela duração que já se sabe dele
@@ -14480,7 +14521,9 @@ async function sincronizarMusica(song, { noVideo = '', audioPromise = null } = {
     // (o vídeo é a própria gravação; com um "áudio oficial" de outra duração, foi a busca que confundiu os dois)
     const audioDeOutraDuracao = vs?.audio && !ehArquivo(vs.audio) && durLrc > 0 && Number(vs.duracao) > 0 && !mesmaDuracao(Number(vs.duracao), durLrc);
     if (durClipe > 0 && mesmaDuracao(durClipe, durLrc) && (!vs?.audio || audioDeOutraDuracao)) {
-      letraNoProprioVideo(alvo(), naGravacao(clipe));
+      const certa = await edicaoDaDuracao(lrc, song.title, artista, durClipe);
+      if (!agora()) return 'nada';
+      letraNoProprioVideo(alvo(), naGravacaoDe(certa, clipe));
       return 'ok';
     }
     // provisória no clipe (a letra já aparece e acompanha), enquanto o áudio oficial é procurado
@@ -14533,14 +14576,24 @@ async function melhorarSincronia(song, previaOriginal, { lrc, descoberta, titulo
     }
     s = agora();
     if (!s || exata(s)) return;
-    if (vs?.audio && !ehArquivo(vs.audio) && mesmaDuracao(Number(vs.duracao) || 0, durLrc)) { guardarSincronia(s, naGravacao(vs.audio)); return; }
+    if (vs?.audio && !ehArquivo(vs.audio) && mesmaDuracao(Number(vs.duracao) || 0, durLrc)) {
+      const certa = await edicaoDaDuracao(lrc, titulo, artista, Number(vs.duracao) || 0);
+      s = agora();
+      if (s && !exata(s)) guardarSincronia(s, naGravacaoDe(certa, vs.audio));
+      return;
+    }
     // sem o áudio oficial: o clipe, pela duração dele (a letra feita para ele, ou a da gravação no deslocamento)
     const durClipe = player.duracaoDe(s.youtube) || await duracaoDaMusica(s).catch(() => 0);
     s = agora();
     if (!s || exata(s) || !(durClipe > 0)) return;
     // (o "áudio oficial" guardado é de outra duração e o vídeo da música é a gravação: era ele o áudio)
     const vs2 = versoesDe(s);
-    if (mesmaDuracao(durClipe, durLrc) && (!vs2?.audio || (durLrc > 0 && !ehArquivo(vs2.audio)))) { letraNoProprioVideo(s, naGravacao(s.youtube)); return; }
+    if (mesmaDuracao(durClipe, durLrc) && (!vs2?.audio || (durLrc > 0 && !ehArquivo(vs2.audio)))) {
+      const certa = await edicaoDaDuracao(lrc, titulo, artista, durClipe);
+      s = agora();
+      if (s && !exata(s)) letraNoProprioVideo(s, naGravacaoDe(certa, s.youtube));
+      return;
+    }
     if (vs2?.audio) return;
     const doClipe = await letraSincronizada({ titulo, artista, duracao: durClipe }, undefined, { ...OPÇÕES_LRCLIB_RÁPIDAS, preferirDuracao: true }).catch(() => null);
     s = agora();
@@ -14843,8 +14896,36 @@ function guardarSincronia(song, sinc) {
   // quem está mostrando esta música (a página dela, o Tocando agora) passa a usar a sincronia na hora, mesmo com a
   // música já tocando: antes só pegava ao sair e voltar para a música
   window.dispatchEvent(new CustomEvent('songbook:sincronia', { detail: { video: sinc?.video, sinc } }));
-  // a letra em dúvida (edições com a mesma duração e tempos diferentes no LRCLIB): o servidor confere no áudio
-  if (sinc?.duvida && !sinc.provisoria) void conferirSincronia(song, sinc);
+  // a edição de outro master (uns segundos mais longa ou mais curta que o áudio que toca): a da duração certa; e a
+  // letra em dúvida (edições com a mesma duração e tempos diferentes no LRCLIB): o servidor confere no áudio (trocando
+  // de edição, a nova é guardada e conferida por aqui de novo)
+  if (sinc?.fonte === 'lrclib' && !sinc.provisoria) {
+    void acertarEdicao(song, sinc).catch(() => false).then((trocou) => { if (!trocou && sinc.duvida) void conferirSincronia(song, sinc); });
+  } else if (sinc?.duvida && !sinc.provisoria) void conferirSincronia(song, sinc);
+}
+// A letra exata guardada, mas de uma edição do LRCLIB com a duração um pouco diferente (2 a 4 s) da do áudio ou do
+// clipe em que ela está: a edição da duração certa, se houver (edicaoDaDuracao). Uma vez por música e vídeo na
+// sessão. true: trocou
+const edicoesConferidas = new Set();
+async function acertarEdicao(song, sinc) {
+  const id = song?.id;
+  const s = id && id !== 'previa' ? db.song(id) : null;
+  if (!s || !sinc?.video || ehArquivo(sinc.video)) return false;
+  const vs = versoesDe(s);
+  const dur = sinc.video === vs?.audio ? Number(vs.duracao) || 0
+    : sinc.video === s.youtube ? Number(s.duracao) || player.duracaoDe?.(sinc.video) || 0 : 0;
+  const durLrc = Number(sinc.duracao) || 0;
+  if (!(dur > 0) || !(durLrc > 0) || Math.abs(dur - durLrc) <= 2 || Math.abs(dur - durLrc) > 4) return false;
+  const chave = `${id}|${sinc.video}`;
+  if (edicoesConferidas.has(chave) || !navigator.onLine) return false;
+  edicoesConferidas.add(chave);
+  const antes = { fonte: 'lrclib', duracao: durLrc, linhas: sinc.linhas, tempos: sinc.tempos };
+  const certa = await edicaoDaDuracao(antes, s.title, s.artist || '', dur);
+  const agora = db.song(id);
+  // (a letra mudou enquanto isso — outra gravação, sincronizada à mão —: fica a de agora)
+  if (certa === antes || !agora?.sincronia || agora.sincronia.video !== sinc.video || agora.sincronia.fonte !== 'lrclib' || Number(agora.sincronia.duracao) !== durLrc) return false;
+  guardarSincronia(agora, naGravacaoDe(certa, sinc.video));
+  return true;
 }
 // Confere a letra em dúvida no áudio que toca: o servidor da IA ouve o vídeo (a voz separada, com o Whisper ou o
 // alinhamento forçado) e devolve a letra do LRCLIB deslocada para onde ela é cantada nele (o "referencia" do /letra).
