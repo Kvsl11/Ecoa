@@ -375,3 +375,33 @@ def test_a_chave_do_arquivo_do_ligar(monkeypatch, tmp_path):
     assert duvidas.provedor() == "claude"
     import os
     assert os.environ["ANTHROPIC_API_KEY"] == "sk-ant-teste"
+
+
+def test_gemini_responde_sem_pensar_e_volta_se_o_modelo_nao_aceitar(monkeypatch):
+    import io
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    import duvidas
+
+    monkeypatch.setattr(duvidas, "candidatos_gemini", lambda tipo="texto": ["m-pensa", "m-rapido"])
+    monkeypatch.setattr(duvidas, "chave_gemini", lambda: "k")
+    duvidas._modelo_bom.clear()
+    duvidas._pensa_sempre.clear()
+    corpos = []
+
+    def falso(pedido, timeout=0):
+        corpo = _json.loads(pedido.data.decode())
+        corpos.append(("m-pensa" in pedido.full_url, "generationConfig" in corpo))
+        if "m-pensa" in pedido.full_url and "generationConfig" in corpo:
+            raise urllib.error.HTTPError(pedido.full_url, 400, "x", {}, io.BytesIO(b'{"error":{"message":"Budget 0 is invalid. This model only works in thinking mode."}}'))
+        return io.BytesIO(_json.dumps({"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", falso)
+    dados, modelo = duvidas.chamar_gemini({"contents": []})
+    assert modelo == "m-pensa" and corpos == [(True, True), (True, False)]
+    assert "m-pensa" in duvidas._pensa_sempre
+    corpos.clear()
+    duvidas.chamar_gemini({"contents": []})
+    assert corpos == [(True, False)]  # (anotado: nem tenta com o ajuste de novo)
