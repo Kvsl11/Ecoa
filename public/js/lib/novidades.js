@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 514, data: '2026-11-05', titulo: 'O topo do perfil na cor da última música',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto e do seu nome, agora fica na cor da capa da música do "Tocou por último", combinando com o cartão dela.' },
+    ],
+  },
+  {
     versao: 513, data: '2026-11-05', titulo: 'Os seguidores e as hashtags da prévia aparecem juntos',
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist, os seguidores do artista e as hashtags da música aparecem juntos, de uma vez (antes as hashtags chegavam depois). Da segunda vez em diante, aparecem na hora.' },
@@ -64,12 +70,6 @@ export const NOVIDADES = [
     versao: 505, data: '2026-11-04', titulo: 'A prévia da playlist ocupa a tela toda no tablet',
     itens: [
       { tipo: 'melhoria', texto: 'No tablet, a prévia da playlist (os clipes das músicas, um de cada vez, que abre pela capinha ao lado do baixar) ficava numa coluna estreita no meio da tela. Agora ela ocupa a tela toda, em pé e deitado, como no celular: o clipe preenche a tela, e o artista e o cartão da música ficam embaixo, maiores e mais fáceis de tocar.' },
-    ],
-  },
-  {
-    versao: 504, data: '2026-11-04', titulo: 'A gaveta do perfil de cara nova',
-    itens: [
-      { tipo: 'melhoria', texto: 'A gaveta que abre pela sua foto ficou mais moderna: o topo na cor da sua foto, com o seu nome, o e-mail e o botão Ver perfil; a sincronia com a conta Google numa linha só, com o botão de sincronizar ao lado (ele gira enquanto sincroniza); os números da biblioteca numa faixa; a última música tocada num cartão com a capa ao fundo e o botão de tocar; e o menu num cartão com ícones coloridos.' },
     ],
   },
 ];

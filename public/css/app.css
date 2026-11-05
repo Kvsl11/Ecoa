@@ -5177,6 +5177,11 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
   padding: calc(28px + env(safe-area-inset-top)) 20px 22px; border: 0; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer;
   background: linear-gradient(160deg, hsl(var(--h, 190) 55% 38% / 0.85) 0%, hsl(var(--h, 190) 45% 22% / 0.55) 55%, transparent 100%); }
 :root[data-theme="light"] .pg-cab { background: linear-gradient(160deg, hsl(var(--h, 190) 60% 72% / 0.75) 0%, hsl(var(--h, 190) 55% 85% / 0.5) 55%, transparent 100%); }
+/* com a última música tocada, o topo fica na cor da capa dela (a mesma do cartão "Tocou por último") */
+@property --pg-cor { syntax: '<color>'; inherits: false; initial-value: transparent; }
+.pg-cab.com-cor { transition: --pg-cor 0.6s ease;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--pg-cor) 85%, transparent) 0%, color-mix(in srgb, color-mix(in srgb, var(--pg-cor) 55%, black) 60%, transparent) 55%, transparent 100%); }
+:root[data-theme="light"] .pg-cab.com-cor { background: linear-gradient(160deg, color-mix(in srgb, color-mix(in srgb, var(--pg-cor) 60%, white) 80%, transparent) 0%, color-mix(in srgb, color-mix(in srgb, var(--pg-cor) 30%, white) 55%, transparent) 55%, transparent 100%); }
 .pg-cab .avatar { box-shadow: 0 0 0 3px rgb(255 255 255 / 0.14), 0 10px 26px rgb(0 0 0 / 0.45); }
 .pg-cab .grow { min-width: 0; display: grid; gap: 3px; justify-items: start; }
 .pg-cab b { max-width: 100%; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
