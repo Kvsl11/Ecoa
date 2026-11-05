@@ -26,6 +26,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { escolherAudio, escolherClipe, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
@@ -1141,7 +1142,7 @@ async function guardarImagensDaMusica(song) {
   const yts = [song.youtube, versoesDe(song)?.audio].filter((x) => x && !ehArquivo(x));
   // e o "Sobre o artista" (a apresentação, os números, as fotos): os dados ficam guardados no aparelho e as fotos aqui,
   // para a música baixada mostrar tudo sem internet (com internet, os números se atualizam sozinhos)
-  const artista = String(song.artist || '').split(/\s*(?:,|&| e | feat\.? | ft\.? | part\.? )\s*/i)[0].trim();
+  const artista = primeiroArtistaDe(song.artist);
   const slug = /cifraclub\.com\.br\/([^/?#]+)/.exec(song.source || '')?.[1] || '';
   const dele = artista ? await Promise.all([fotoDoArtista(artista, slug).catch(() => ''), descricaoDoArtista(artista).catch(() => null), deezerDoArtista(artista).catch(() => null),
     canalGuardado(artista).catch(() => null), audioDbGuardado(artista).catch(() => null)]) : [];
@@ -1529,7 +1530,15 @@ const REVISOES = [
   // e o "Official Audio"): procura o clipe oficial, que passa a ser o vídeo, e baixa o que falta (garantirClipe). A que
   // já tem o clipe baixado fica
   { rev: 12, clipe: true, quais: (s) => Boolean(s.baixado && s.youtube) && !s.audioProprio && !String(s.baixado.arquivos?.[s.youtube]?.tipo || '').startsWith('video/') },
+  // v520: as duplas ("Jorge & Mateus", "Zezé Di Camargo e Luciano") eram separadas: a capa automática era procurada só
+  // com o primeiro nome ("Jorge") e o "Sobre o artista" guardado para tocar sem internet era o de outra pessoa (o Jorge
+  // Ben). A capa automática é escolhida de novo com o nome inteiro (a escolhida pela pessoa fica), e nas baixadas o
+  // "Sobre o artista" é guardado de novo
+  { rev: 13, capa: true, quais: (s) => temDupla(s) && !s.capaEscolhida && capaAutomatica(s.cover) },
+  { rev: 14, sobreArtista: true, quais: (s) => temDupla(s) && Boolean(s.baixado) },
 ];
+// (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
+const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
 // (o canto está em algum repertório, e todos eles são os da missa montados pelo app)
 function soEmMissasMontadas(id) {
   const sets = db.sets().filter((st) => st.items.some((it) => it.songId === id));
@@ -1702,6 +1711,12 @@ async function revisarMusica(id, pendentes, chaves) {
     else { await garantirClipe(id).catch(() => { completa = false; }); s = db.song(id); }
   }
   if (!s?.baixado && !s?.rebaixar) return completa;
+  // o "Sobre o artista" (a apresentação, as fotos) guardado de novo para tocar sem internet, com o artista certo
+  if (s && quer('sobreArtista')) {
+    if (!navigator.onLine) completa = false;
+    else await guardarImagensDaMusica(s).catch(() => { completa = false; });
+    s = db.song(id);
+  }
   // os downloads: o arquivo que sumiu do aparelho ou que não abre sai da lista, para ser baixado de novo
   const rebaixar = quer('rebaixar');
   if (quer('arquivos') || rebaixar) {
@@ -2710,6 +2725,8 @@ const player = (() => {
   // os créditos (quem canta, compôs, o tom, de onde veio a cifra) e o vídeo, com o que dá para fazer em cada um
   let extraDe = '';
   let dadosCreditos = null; // o que o "Explorar" dos créditos mostra
+  // (a dupla que era de duas pessoas, ou o contrário: as pessoas e o "Sobre o artista" são desenhados de novo)
+  addEventListener('songbook:artista-unico', () => { extraDe = ''; desenharExtra(); });
   const desenharExtra = () => {
     if (!document.documentElement.classList.contains('pp')) return;
     const song = musicaTocando();
@@ -7277,11 +7294,48 @@ function mesmoArtista(a, b) {
 }
 const artistaCerto = (lista, nome) => lista.find((a) => normalizar(nomeReligioso(a.nome)) === normalizar(nomeReligioso(nome)))
   || lista.find((a) => mesmoArtista(a.nome, nome)) || null;
+// ---- uma dupla é um artista só (lib/artistas.js): "Jorge & Mateus" não vira "Jorge" (que vinha como o Jorge Ben) e
+// "Mateus". O Deezer diz se o nome inteiro é de um artista conhecido; a resposta fica guardada no aparelho e, quando
+// muda o que se sabia (era "Anitta & Ludmilla", duas artistas), o que está na tela é desenhado de novo
+const CHAVE_UNICOS = 'songbook.artistasUnicos';
+let artistasUnicos = null;
+const unicosGuardados = () => {
+  if (!artistasUnicos) { try { artistasUnicos = JSON.parse(localStorage.getItem(CHAVE_UNICOS) || '{}') || {}; } catch { artistasUnicos = {}; } }
+  return artistasUnicos;
+};
+const artistaUnico = (nome) => unicosGuardados()[normalizar(nome)];
+const conferindoUnicos = new Map();
+function conferirArtistaUnico(nome) {
+  const k = normalizar(nome);
+  if (!k || k in unicosGuardados()) return Promise.resolve(unicosGuardados()[k]);
+  if (!conferindoUnicos.has(k)) {
+    conferindoUnicos.set(k, jsonp(`https://api.deezer.com/search/artist?q=${encodeURIComponent(nome)}&limit=5`).then((r) => {
+      if (!Array.isArray(r?.data)) return undefined;
+      const um = r.data.some((a) => normalizar(a.name) === k && (a.nb_fan || 0) >= 1000);
+      unicosGuardados()[k] = um;
+      try { localStorage.setItem(CHAVE_UNICOS, JSON.stringify(unicosGuardados())); } catch { /* sem espaço: fica na sessão */ }
+      // (só avisa quando o palpite de antes estava errado: a dupla presumida era de duas pessoas, ou o contrário)
+      const palpite = separarArtistas(nome).length === 1;
+      if (palpite !== um) dispatchEvent(new CustomEvent('songbook:artista-unico', { detail: { nome } }));
+      return um;
+    }).catch(() => undefined));
+  }
+  return conferindoUnicos.get(k);
+}
+// os artistas do texto, sem separar as duplas (e já pergunta ao Deezer pelos nomes que ainda não conhece)
+function artistasDoNome(texto, { comE = false } = {}) {
+  for (const n of nomesParaConferir(texto, { comE })) if (artistaUnico(n) === undefined && navigator.onLine) void conferirArtistaUnico(n);
+  return separarArtistas(texto, { unico: artistaUnico, comE });
+}
+const primeiroArtistaDe = (texto) => {
+  for (const n of nomesParaConferir(texto, { comE: true })) if (artistaUnico(n) === undefined && navigator.onLine) void conferirArtistaUnico(n);
+  return primeiroArtista(texto, { unico: artistaUnico });
+};
 // as pessoas dos créditos, cada uma com os papéis dela: o artista principal, quem participa (o "feat." do nome do
 // artista ou do título: "Lady Gaga feat. Bruno Mars", "Die With A Smile (part. Bruno Mars)"), a composição e a letra
 const FEAT = /\s*(?:\(|\[|-\s)?\s*\b(?:feat\.?|ft\.?|featuring|part\.?|participa[çc][ãa]o(?: especial)?(?: de)?|com|with)\s+/i;
 function pessoasDosCreditos({ artista = '', titulo = '', compositor = '', letrista = '' } = {}) {
-  const lista = (t, sep) => String(t || '').replace(/[)\]]/g, '').split(sep).map((x) => x.trim()).filter(Boolean);
+
   const [principal, ...feats] = String(artista || '').split(FEAT);
   const doTitulo = /[([]\s*(?:feat\.?|ft\.?|featuring|part\.?|participa[çc][ãa]o(?: especial)?(?: de)?|com|with)\s+([^)\]]+)[)\]]/i.exec(titulo || '')?.[1] || '';
   const pessoas = [];
@@ -7289,14 +7343,13 @@ function pessoasDosCreditos({ artista = '', titulo = '', compositor = '', letris
     const ja = pessoas.find((x) => normalizar(x.nome) === normalizar(nome));
     if (ja) { if (!ja.papeis.includes(papel)) ja.papeis.push(papel); } else pessoas.push({ nome, papeis: [papel] });
   };
-  // artistas e participações: separados por vírgula, "&", "/" ou " x " (uma dupla como "Zezé Di Camargo e Luciano" fica junta)
-  const SEP_ARTISTA = /\s*(?:[,;&/]|\sx\s)\s*/i;
-  lista(principal, SEP_ARTISTA).forEach((n) => juntar(n, 'Artista principal'));
-  [...feats, doTitulo].flatMap((f) => lista(f, SEP_ARTISTA)).forEach((n) => juntar(n, 'Participação'));
-  // compositores: também separados por " e "
-  const SEP_NOMES = /\s*(?:[,;&/]|\se\s)\s*/i;
-  lista(compositor, SEP_NOMES).forEach((n) => juntar(n, 'Composição'));
-  lista(letrista, SEP_NOMES).forEach((n) => juntar(n, 'Letra'));
+  // artistas e participações: separados por vírgula, "/" ou " x "; o "&" separa só quem não é uma dupla ("Jorge &
+  // Mateus" e "Zezé Di Camargo e Luciano" ficam juntos: veja artistasDoNome)
+  artistasDoNome(principal).forEach((n) => juntar(n, 'Artista principal'));
+  [...feats, doTitulo].flatMap((f) => artistasDoNome(f)).forEach((n) => juntar(n, 'Participação'));
+  // compositores: também separados por " e " (a dupla de compositores conhecida como um nome só fica junta)
+  artistasDoNome(compositor, { comE: true }).forEach((n) => juntar(n, 'Composição'));
+  artistasDoNome(letrista, { comE: true }).forEach((n) => juntar(n, 'Letra'));
   return pessoas;
 }
 // ---- créditos como o SongDNA do Spotify: as pessoas da música em bolinhas, com a foto de cada uma (ou as iniciais
@@ -7573,7 +7626,8 @@ const marcarExplicita = (k, sim) => { void comUltimoValor('explicita', k, Promis
 const explicitaGuardada = (titulo, artista) => { const k = chaveDaCapa(titulo, artista); return k ? ultimoValorDoArtista('explicita', k) : undefined; };
 const explicitaConhecida = (titulo, artista) => explicitaGuardada(titulo, artista) === 'sim';
 const seloExplicita = (titulo, artista) => (explicitaConhecida(titulo, artista) ? '<span class="selo-e" title="Explícita" aria-label="Explícita">E</span>' : '');
-const artistaDaCapa = (artista) => String(artista || '').split(/\s*(?:,|&| e | feat\.? | ft\.? | part\.? | x )\s*/i)[0].trim();
+// (o primeiro artista, sem separar a dupla: a capa de "Jorge & Mateus" era procurada só com "Jorge")
+const artistaDaCapa = (artista) => primeiroArtistaDe(artista);
 const chaveDaCapa = (titulo, artista) => {
   const t = normalizar(tituloLimpo(titulo));
   const a = artistaDaCapa(artista);
@@ -16960,7 +17014,7 @@ function acharMusica(nome) {
   }
   return nota >= 55 ? melhor : null;
 }
-const nomeDaMusica = (s) => `${tituloLimpo(s.title)}${s.artist ? `, ${s.artist.split(/\s*[,&]\s*/)[0]}` : ''}`;
+const nomeDaMusica = (s) => `${tituloLimpo(s.title)}${s.artist ? `, ${primeiroArtistaDe(s.artist)}` : ''}`;
 // toca a música (com vídeo ou áudio); sem nenhum, abre a página dela
 // (e leva para a tela dela, como quem tocou na música: mais natural do que só tocar escondido no player)
 function tocarDoLumen(song) {
