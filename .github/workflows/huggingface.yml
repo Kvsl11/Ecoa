@@ -1,0 +1,60 @@
+# O servidor da IA no Hugging Face Spaces (grátis e sem cota de horas): este workflow cria o Space
+# <seu usuário>/ecoa-servidor (Docker, o servidor-ia/Dockerfile) e manda a versão nova a cada mudança no servidor. O
+# Hugging Face monta e liga sozinho (a primeira vez leva uns 20 minutos). Com o secret HF_TOKEN, a publicação do site
+# (pages.yml) põe o endereço do Space no app, que passa a usar ele sozinho (o Modal fica de reserva).
+# Uma vez só: crie um token de escrita em https://huggingface.co/settings/tokens e guarde em Settings → Secrets and
+# variables → Actions → New repository secret, nome HF_TOKEN. As chaves do Lumen (GEMINI_API_KEY ou ANTHROPIC_API_KEY)
+# e o YT_COOKIES não são copiados daqui: se quiser, ponha à mão nos secrets do Space (Settings do Space no Hugging Face).
+name: Servidor no Hugging Face
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, ccr-59dd75f2-oirnca]
+    paths: ['servidor-ia/**', '.github/workflows/huggingface.yml']
+
+concurrency:
+  group: huggingface
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Sem o token do Hugging Face
+        if: env.HF_TOKEN == ''
+        run: echo "::warning::Para o servidor no Hugging Face, guarde um token de escrita no secret HF_TOKEN."
+      - uses: actions/checkout@v4
+        if: env.HF_TOKEN != ''
+      - uses: actions/setup-python@v5
+        if: env.HF_TOKEN != ''
+        with:
+          python-version: '3.11'
+      - name: Criar o Space e mandar o servidor
+        if: env.HF_TOKEN != ''
+        run: |
+          pip install -q "huggingface_hub>=0.25"
+          python - <<'PY'
+          import os, re
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          dono = api.whoami()["name"]
+          repo = f"{dono}/ecoa-servidor"
+          api.create_repo(repo, repo_type="space", space_sdk="docker", exist_ok=True)
+          api.upload_folder(
+              repo_id=repo, repo_type="space", folder_path="servidor-ia",
+              ignore_patterns=["tests/**", "pacote-windows/**", "README.md", "dados/**", ".venv/**", "python311/**",
+                               "cookies.txt", "textos-acervo.jsonl", "**/__pycache__/**", "*.bat", "iniciar.sh"],
+              delete_patterns=["*.py", "requirements.txt", "Dockerfile"],
+              commit_message=f"Servidor do Ecoa ({os.environ.get('GITHUB_SHA', '')[:7]})",
+          )
+          api.upload_file(repo_id=repo, repo_type="space", path_in_repo="README.md", path_or_fileobj=(
+              "---\ntitle: Ecoa Servidor\nemoji: 🎵\ncolorFrom: blue\ncolorTo: indigo\nsdk: docker\napp_port: 7860\n"
+              "pinned: false\n---\n\nO servidor da IA do Ecoa (letra sincronizada, karaokê, partitura, YouTube).\n").encode())
+          endereco = "https://" + re.sub(r"[^a-z0-9-]", "-", f"{dono}-ecoa-servidor".lower()) + ".hf.space"
+          print(f"::notice::Space: https://huggingface.co/spaces/{repo} · endereço do servidor: {endereco}")
+          PY

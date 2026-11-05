@@ -111,6 +111,16 @@ O workflow **Publicar o servidor da IA** publica o Modal sozinho a cada mudança
 publicação do site grava os dois endereços em `data/servidor-ia.json` (`url`, o Codespace; `reserva` e
 `reservaLumen`, o Modal). Ajustes → Avançado → Servidor da IA mostra qual dos dois atende e por quê.
 
+### No Hugging Face Spaces (grátis, sem cota de horas)
+
+O workflow **Servidor no Hugging Face** (`.github/workflows/huggingface.yml`) cria o Space `<usuário>/ecoa-servidor`
+(Docker, este `Dockerfile`) e manda a versão nova a cada mudança no servidor; o Hugging Face monta e liga sozinho. Uma vez
+só: crie uma conta em <https://huggingface.co>, um token de escrita em <https://huggingface.co/settings/tokens> e guarde
+nos secrets das Actions como `HF_TOKEN`. Com ele, a publicação do site põe o endereço do Space no app
+(`https://<usuário>-ecoa-servidor.hf.space`), e o Modal fica de reserva. A máquina grátis tem 2 processadores e 16 GB
+(o karaokê demora mais que no Codespace) e dorme depois de 48 horas sem uso: o primeiro pedido a acorda em 1 a 2
+minutos, e o Modal atende enquanto isso. As chaves do Lumen e o `YT_COOKIES` vão à mão nos secrets do Space.
+
 ### No computador da empresa, com o pacote pronto (sem instalar nada)
 
 Para o computador que trava ao instalar pacotes: o GitHub monta uma pasta com tudo dentro (o Python portátil, os

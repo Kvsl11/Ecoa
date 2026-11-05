@@ -118,7 +118,15 @@ jobs:
           SERVIDOR_IA_URL: ${{ vars.SERVIDOR_IA_URL }}
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # o servidor no Hugging Face (huggingface.yml), sem cota de horas: com o token, ele é o servidor do app
+          if [ -z "$SERVIDOR_IA_URL" ] && [ -n "$HF_TOKEN" ]; then
+            dono=$(curl -fsS -H "Authorization: Bearer $HF_TOKEN" https://huggingface.co/api/whoami-v2 | python3 -c "import sys,json;print(json.load(sys.stdin).get('name',''))" || true)
+            if [ -n "$dono" ]; then
+              SERVIDOR_IA_URL="https://$(echo "$dono-ecoa-servidor" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9-]/-/g').hf.space"
+            fi
+          fi
           # (o arquivo só existe depois que o Codespace liga a primeira vez com esta versão)
           if [ -z "$SERVIDOR_IA_URL" ] && [ -f .devcontainer/endereco.txt ]; then
             SERVIDOR_IA_URL=$(tr -d '[:space:]' < .devcontainer/endereco.txt)
