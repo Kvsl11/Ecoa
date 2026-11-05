@@ -2416,7 +2416,6 @@ const player = (() => {
   el.innerHTML = `
     <div class="pl-fundo quadros" aria-hidden="true" hidden></div>
     <div class="pl-fixo"><div class="pl-fixo-barra"><button class="pl-fixo-txt" data-pl="topo" aria-label="Voltar ao topo"><b><span class="rolar pl-fixo-rolar"><span class="pl-fixo-nome"></span><span class="pl-fixo-art"></span></span></b><small hidden></small></button>
-      <button class="pl-fixo-fone" data-pl="aparelhos" hidden aria-label="Tocando no fone: ouvir em outro aparelho" title="Ouvir em outro aparelho">${icon('fone', 24)}</button>
       <button class="salvar-btn pl-fixo-salva" data-pl="salva" aria-label="Salvar na biblioteca">${icon('plus', 16)}</button>
       <button class="icon-btn pl-play pl-fixo-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 18)}</button>
       <span class="pl-fixo-prog" aria-hidden="true"><i></i></span></div></div>
@@ -2425,7 +2424,7 @@ const player = (() => {
     <button class="pl-troca" data-pl="troca">${icon('music', 18)}<span>Mudar para música</span></button>
     <div class="pl-meio">
       <span class="pl-capinha" aria-hidden="true"></span>
-      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b><span class="rolar"><span class="pl-nome"></span><span class="pl-art-junto"></span></span></b><small><span class="rolar"></span></small><span class="pl-onde" hidden></span></span></button>
+      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b><span class="rolar"><span class="pl-titulo-txt"></span><span class="pl-art-junto"></span></span></b><small><span class="rolar"></span></small><span class="pl-onde" hidden></span></span></button>
       <button class="salvar-btn pl-salva" data-pl="salva" hidden></button>
     </div>
     <div class="pl-ctrl">
@@ -2648,7 +2647,7 @@ const player = (() => {
     el.style.setProperty('--cor-musica', corDoFundo);
     fundoCasa.style.setProperty('--cor-musica', corDoFundo);
     el.style.setProperty('--tint-cifra', corDaCifra(corDoFundo)); // os acordes na cor do fundo do player, mais clara
-    porTexto($('.pl-nome', el), atual.titulo || 'Vídeo');
+    porTexto($('.pl-titulo-txt', el), atual.titulo || 'Vídeo');
     // (na barrinha de baixo com um fone, o artista vai na linha do nome, e o fone embaixo, como no Spotify)
     porTexto($('.pl-art-junto', el), atual.artista ? ` • ${atual.artista}` : '');
     // a barrinha de cima (rolando): o nome e o artista numa linha só, que anda devagar quando não cabe, e embaixo onde o
@@ -5427,8 +5426,6 @@ const semLinhasDeAcordes = (sinc) => {
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
     if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
-    const ff = $('.pl-fixo-fone', el);
-    if (ff) { ff.hidden = !fone; if (fone) ff.title = `Tocando em ${fone}: ouvir em outro aparelho`; }
     el.classList.toggle('com-fone', Boolean(fone));
     medirNomes();
   };
@@ -5956,12 +5953,14 @@ const semLinhasDeAcordes = (sinc) => {
     }
     if (p.pc) return;
     // passar o dedo para o lado, numa fila (repertório, playlist): para a esquerda vai para a próxima, para a direita
-    // volta para a anterior (no celular o mini player não tem mais esses botões, como no Spotify)
+    // vai para a anterior, como no Spotify (no celular o mini player não tem mais esses botões). Antes o gesto apertava o
+    // botão "anterior", que no meio da música volta ao começo dela: a música recomeçava e não trocava. Agora troca sempre
+    // de música; sem a próxima (fim da fila), avisa, e sem a anterior, aí sim volta ao começo
     if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       engolirClique = true;
       setTimeout(() => { engolirClique = false; }, 400);
-      const b = $(`.pl-ctrl [data-pl="${dx < 0 ? 'proxima' : 'anterior'}"]`, el);
-      if (b && !b.disabled) { engolirClique = false; b.click(); engolirClique = true; }
+      if (dx < 0) { if (!pular(1)) toast('Esta é a última música da fila'); }
+      else if (!pular(-1)) api.irPara(0);
       return;
     }
     if (e.type !== 'pointerup' || dy > -40 || Math.abs(dy) < Math.abs(dx) * 1.2 || !ehMini()) return;

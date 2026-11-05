@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 545, data: '2026-11-05', titulo: 'A barrinha no tamanho certo e o deslizar para trocar',
+    itens: [
+      { tipo: 'correcao', texto: 'Na barrinha de baixo, o nome da música aparecia gigante (com o tamanho do título das playlists). Ele voltou ao tamanho normal e continua andando para o lado quando não cabe.' },
+      { tipo: 'correcao', texto: 'Passar o dedo na barrinha de baixo para trocar de música, com a música já no meio, fazia ela voltar ao começo em vez de trocar. Agora, para a esquerda vai para a próxima e para a direita para a anterior, como no Spotify; no fim da fila, o app avisa.' },
+      { tipo: 'melhoria', texto: 'Na barrinha de cima do Tocando agora, o fone aparece só uma vez, embaixo do nome (sem o ícone repetido ao lado do ✓), como no Spotify.' },
+    ],
+  },
+  {
     versao: 544, data: '2026-11-05', titulo: 'O ícone de ouvir em outro aparelho',
     itens: [
       { tipo: 'melhoria', texto: 'O ícone de ouvir em outro aparelho ficou mais parecido com o do Spotify: um tracinho embaixo do celular (no lugar do ponto) e um vão separando o celular da caixa de som.' },
@@ -70,16 +78,6 @@ export const NOVIDADES = [
     versao: 536, data: '2026-11-05', titulo: 'O botão de baixar da playlist',
     itens: [
       { tipo: 'melhoria', texto: 'Na playlist, enquanto as músicas baixam, o botão de baixar só pisca de leve (como as setas das músicas na lista), sem o anel verde em volta. Com todas baixadas, ele fica verde.' },
-    ],
-  },
-  {
-    versao: 535, data: '2026-11-05', titulo: 'Downloads mais rápidos e sempre com o clipe',
-    itens: [
-      { tipo: 'correcao', texto: 'Muitas músicas baixavam só o som, sem o clipe: quando o áudio oficial é o próprio clipe, o app pedia o mesmo vídeo duas vezes e o som, chegando por último, apagava o clipe. Agora ele baixa uma vez só, como vídeo. As baixadas que ficaram só com o som completam sozinhas.' },
-      { tipo: 'correcao', texto: 'O download não trava mais: se a conexão com o servidor para no meio do arquivo, o app pede de novo de onde parou (ou do começo), e o arquivo é conferido (inteiro e, no clipe, de vídeo) antes de ser guardado.' },
-      { tipo: 'melhoria', texto: 'Mais rápido: duas músicas baixam ao mesmo tempo (antes uma por vez, e a que travava segurava a fila), e a procura do clipe antes do download espera menos.' },
-      { tipo: 'melhoria', texto: 'A qualidade de áudio e de vídeo escolhida nos Ajustes vale: o clipe tenta duas vezes nela antes de aceitar uma menor (para a música não ficar sem ele), e o que veio numa qualidade menor é baixado de novo na escolhida, sozinho. "Atualizar os downloads" não apaga mais antes: cada arquivo só é trocado quando o novo chega inteiro, e a música continua tocando sem internet.' },
-      { tipo: 'melhoria', texto: 'O download que ficou pela metade tenta se completar com mais insistência (em 2, 5, 15, 30 e 60 minutos) e, nas listas, aparece com a seta apagada até ficar completo (a verde é só com tudo no aparelho).' },
     ],
   },
 ];
