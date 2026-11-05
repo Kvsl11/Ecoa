@@ -13583,38 +13583,47 @@ function previaDaPlaylist(set, inicio = 0) {
     atual = null;
   };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
-  // os seguidores do artista (os do YouTube) e as hashtags da música.
-  // Guardados no aparelho (sem internet, os últimos), na música da tela e na próxima
   const generosPedidos = new Map();
   const generosPorArtista = (nome) => { const k = normalizar(nome); if (!generosPedidos.has(k)) generosPedidos.set(k, generosDoArtista(nome)); return generosPedidos.get(k); };
+  // Os seguidores e as hashtags aparecem juntos (antes os seguidores vinham primeiro e as hashtags depois, quando
+  // chegava o resto: o gênero na MusicBrainz, o clima na TheAudioDB). Com o que já está guardado no aparelho, na hora;
+  // sem isso, esperam tudo chegar (no máximo 2,5 s) e aparecem de uma vez
+  const desenharInfo = (slide, s, { c, a, m, g }) => {
+    const seg = slide.querySelector('.pv-seg');
+    if (seg && c?.inscritos) { seg.textContent = `${numeroCurto(c.inscritos)} seguidores`; seg.hidden = false; }
+    const fe = String(s.source || '').startsWith('cnbb:') ? 'liturgia' : '';
+    const tags = hashtagsDaMusica({ musica: m || {}, generos: g || [], generoArtista: [a?.genero, fe].filter(Boolean).join(' '), letra: s.content, semente: s.id || s.title,
+      ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });
+    const caixa = slide.querySelector('.pv-tags');
+    if (caixa && tags.length) { caixa.innerHTML = tags.map((t) => `<span>#${esc(t)}</span>`).join(''); caixa.hidden = false; }
+    slide.querySelector('.pv-meta')?.classList.add('pronta');
+  };
   const infoDoSlide = (k) => {
     const slide = slides[k];
     if (!slide || slide.dataset.info) return;
     slide.dataset.info = '1';
     const { s } = faixas[k];
-    const adb = s.artist ? audioDbGuardado(s.artist) : Promise.resolve(null);
-    const daMusica = s.artist ? comUltimoValor('adbm', `${s.artist}|${s.title}`, audioDbDaMusica(s.artist, s.title)) : Promise.resolve(null);
-    // (embaixo do nome: os seguidores, que são os inscritos no canal do YouTube, lidos na hora: "41,2M seguidores")
-    if (s.artist) canalGuardado(s.artist).then((c) => {
-      const seg = slide.querySelector('.pv-seg');
-      if (seg && c?.inscritos) { seg.textContent = `${numeroCurto(c.inscritos)} seguidores`; seg.hidden = false; }
-    }).catch(() => {});
-    // (os gêneros do artista na MusicBrainz, os mais votados: um pedido por artista, guardado)
-    const generos = s.artist ? comUltimoValor('mbgen', s.artist, generosPorArtista(s.artist)) : Promise.resolve([]);
-    Promise.all([adb, daMusica, generos]).then(([a, m, g]) => {
-      const fe = String(s.source || '').startsWith('cnbb:') ? 'liturgia' : '';
-      const tags = hashtagsDaMusica({ musica: m || {}, generos: g || [], generoArtista: [a?.genero, fe].filter(Boolean).join(' '), letra: s.content, semente: s.id || s.title,
-        ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });
-      const caixa = slide.querySelector('.pv-tags');
-      if (!caixa || !tags.length) return;
-      caixa.innerHTML = tags.map((t) => `<span>#${esc(t)}</span>`).join('');
-      caixa.hidden = false;
-    });
+    if (!s.artist) { desenharInfo(slide, s, {}); return; }
+    const chaveMusica = `${s.artist}|${s.title}`;
+    // (o que já está guardado: os inscritos do canal e os gêneros bastam para desenhar na hora)
+    const guardado = { c: ultimoValorDoArtista('canal', s.artist), a: ultimoValorDoArtista('adb', s.artist), m: ultimoValorDoArtista('adbm', chaveMusica), g: ultimoValorDoArtista('mbgen', s.artist) };
+    const chegou = {};
+    // (pedidos de novo, para o guardado ficar em dia na próxima vez)
+    const pedidos = [
+      canalGuardado(s.artist).catch(() => null).then((v) => { chegou.c = v; }),
+      audioDbGuardado(s.artist).catch(() => null).then((v) => { chegou.a = v; }),
+      comUltimoValor('adbm', chaveMusica, audioDbDaMusica(s.artist, s.title)).then((v) => { chegou.m = v; }),
+      // (os gêneros do artista na MusicBrainz, os mais votados: um pedido por artista)
+      comUltimoValor('mbgen', s.artist, generosPorArtista(s.artist)).then((v) => { chegou.g = v; }),
+    ];
+    if (guardado.c?.inscritos && guardado.g?.length) { desenharInfo(slide, s, guardado); return; }
+    Promise.race([Promise.all(pedidos), new Promise((ok) => setTimeout(ok, 2500))])
+      .then(() => desenharInfo(slide, s, { c: chegou.c ?? guardado.c, a: chegou.a ?? guardado.a, m: chegou.m ?? guardado.m, g: chegou.g ?? guardado.g }));
   };
   const ativar = async (k) => {
     if (k === ativa || k < 0 || k >= slides.length) return;
-    infoDoSlide(k);
-    infoDoSlide(k + 1);
+    // (a da tela e as próximas três já vão sendo preparadas: ao passar, estão prontas)
+    for (let n = k; n <= k + 3; n++) infoDoSlide(n);
     largar();
     ativa = k;
     t0 = performance.now();

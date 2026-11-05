@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 512, data: '2026-11-05', titulo: 'Os seguidores do artista na prévia da playlist, sempre atualizados',
     itens: [
-      { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os seguidores dele: os do canal do YouTube, lidos na hora (41,2M seguidores).' },
+      { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os seguidores dele: os do canal do YouTube, lidos na hora (41,2M seguidores). Os seguidores e as hashtags aparecem juntos, de uma vez (antes as hashtags chegavam depois); da segunda vez em diante, na hora.' },
       { tipo: 'correcao', texto: 'Os seguidores do Spotify saíram: o Spotify deixou de liberar esse número para apps como o Ecoa em 2026, e a cópia que havia estava meses atrasada. A opção de conectar o Spotify também saiu. Na tela do artista ficam os inscritos no YouTube e os fãs no Deezer, os dois atualizados.' },
     ],
   },

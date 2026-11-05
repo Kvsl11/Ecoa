@@ -5109,6 +5109,9 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-tags::-webkit-scrollbar { display: none; }
 .pv-tags span { flex: none; color: #fff; font-weight: 700; font-size: 14.5px; white-space: nowrap; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
 .pv-tags span:last-child { padding-right: 20px; }
+/* os seguidores e as hashtags entram juntos, num esmaecer rápido */
+.pv-meta .pv-seg, .pv-meta .pv-tags { opacity: 0; transition: opacity 0.25s; }
+.pv-meta.pronta .pv-seg, .pv-meta.pronta .pv-tags { opacity: 1; }
 .pv-foto { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; overflow: hidden; background: rgb(255 255 255 / 0.2); }
 .pv-foto img { width: 100%; height: 100%; object-fit: cover; }
 .pv-nome { color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
