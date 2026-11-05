@@ -878,7 +878,8 @@ const avisarDownloads = () => window.dispatchEvent(new CustomEvent('songbook:dow
 // Em "Áudio e vídeo", baixa o áudio oficial e o videoclipe mesmo quando forem gravações diferentes.
 // Em "Só o áudio", baixa apenas o áudio oficial (ou o som do vídeo quando não houver outra faixa).
 function arquivosParaBaixar(song) {
-  const comVideo = db.prefs().baixarVideo !== false;
+  // (a música sem clipe de verdade — o vídeo é só a capa parada — baixa só o som: o vídeo não tem o que mostrar)
+  const comVideo = db.prefs().baixarVideo !== false && !song.semClipe;
   const vs = versoesDe(song);
   const audio = vs && !ehArquivo(vs.audio) ? vs.audio : '';
   const lista = audio ? [{ yt: audio, video: false }] : [];
@@ -1047,7 +1048,13 @@ async function conferirClipeSalva(id) {
   const clipe = await procurarClipe(s.title, s.artist, video).catch(() => null);
   s = db.song(id);
   if (!s || (versoesDe(s)?.video || s.youtube) !== video) return true;
-  if (!clipe) { db.updateSong(id, { semClipe: true }); player.atualizar?.({}); return true; }
+  if (!clipe) {
+    db.updateSong(id, { semClipe: true });
+    player.atualizar?.({});
+    // (baixada: o vídeo parado que estava no aparelho sai, se o som já está baixado sem ele; senão, fica até baixar)
+    if (db.song(id)?.baixado && !precisaBaixar(db.song(id))) await tirarArquivosQueSobram(id);
+    return true;
+  }
   const audio = vs?.audio || s.youtube;
   const durAudio = Number(vs?.duracao) || Number(s.sincronia?.duracao) || 0;
   db.updateSong(id, { youtube: clipe.id, duracao: undefined, semClipe: false });
@@ -1655,8 +1662,9 @@ const REVISOES = [
   { rev: 17, conferirCifra: true, quais: (s) => !s.cifraEditada && temCifra(s.content || '') && /cifraclub\.com\.br/.test(s.source || '') },
   // v530: o vídeo que é só a capa da música parada (o "Art Track", como em Blast Off do Bruno Mars) contava como clipe:
   // a música mostrava o ícone de vídeo, a capa animada e o "Mudar para vídeo" com a capa parada. Agora o clipe oficial
-  // entra no lugar dele; sem clipe oficial, a música fica só música
-  { rev: 18, conferirClipe: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && s.semClipe === undefined && !ehArquivo(s.youtube) },
+  // entra no lugar dele; sem clipe oficial, a música fica só música. Nas baixadas, o clipe oficial achado é baixado
+  // (arquivos) e, na que ficou só música, o vídeo parado sai do aparelho quando o som já está baixado
+  { rev: 18, conferirClipe: true, arquivos: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && s.semClipe === undefined && !ehArquivo(s.youtube) },
   // v530: a conferência do áudio oficial da v525 recusava o certo quando o nome do vídeo traz os outros artistas antes
   // do traço ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open"), e pode ter tirado o áudio dessas músicas.
   // As que ficaram sem o áudio oficial o procuram de novo (e a letra sincronizada, que estava nele, é refeita)
@@ -1696,6 +1704,20 @@ function abreNoAparelho(blob) {
   });
 }
 // tira o arquivo (de todas as músicas que o usam) para ele ser baixado de novo
+// Os arquivos baixados de uma música que ela não usa mais (o vídeo parado da música que ficou só música): saem do
+// aparelho, sem marcar a música para baixar de novo. O arquivo que outra música baixada usa fica
+async function tirarArquivosQueSobram(id) {
+  const s = db.song(id);
+  if (!s?.baixado?.arquivos) return;
+  const usados = new Set(arquivosParaBaixar(s).map((a) => a.yt));
+  const sobram = Object.keys(s.baixado.arquivos).filter((yt) => !usados.has(yt));
+  if (!sobram.length) return;
+  const arquivos = { ...s.baixado.arquivos };
+  for (const yt of sobram) delete arquivos[yt];
+  db.updateSong(id, { baixado: { ...s.baixado, arquivos, tamanho: Object.values(arquivos).reduce((a, f) => a + (f.tamanho || 0), 0) } });
+  for (const yt of sobram) if (!db.songs().some((x) => x.id !== id && x.baixado?.arquivos?.[yt])) await apagarAudio(chaveBaixada(yt)).catch(() => {});
+}
+
 async function esquecerArquivo(yt) {
   for (const x of db.songs()) {
     if (!x.baixado?.arquivos?.[yt]) continue;
