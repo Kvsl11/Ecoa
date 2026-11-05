@@ -5173,35 +5173,21 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
   transform: translateX(-100%); transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 8px 0 32px rgb(0 0 0 / 0.4);
   border-radius: 0 24px 24px 0; }
 .perfil-gaveta.aberta .pg-painel { transform: none; }
-.pg-cab { position: relative; display: flex; align-items: center; gap: 14px; width: 100%; margin-top: calc(-16px - env(safe-area-inset-top));
-  padding: calc(28px + env(safe-area-inset-top)) 20px 22px; border: 0; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer;
-  background: linear-gradient(160deg, hsl(var(--h, 190) 55% 38% / 0.85) 0%, hsl(var(--h, 190) 45% 22% / 0.55) 55%, transparent 100%); }
-:root[data-theme="light"] .pg-cab { background: linear-gradient(160deg, hsl(var(--h, 190) 60% 72% / 0.75) 0%, hsl(var(--h, 190) 55% 85% / 0.5) 55%, transparent 100%); }
-/* com a última música tocada, o topo tem a mesma capa borrada do cartão "Tocou por último" (as mesmas cores), sumindo para baixo */
-.pg-cab.com-capa, :root[data-theme="light"] .pg-cab.com-capa { isolation: isolate; background: none; }
-.pg-cab-capa { position: absolute; inset: 0; z-index: -1; isolation: isolate; overflow: hidden; background: var(--surface); border-top-right-radius: 24px;
-  -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
-.pg-cab-capa::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(0 0 0 / 0.15), rgb(0 0 0 / 0.45)); }
-:root[data-theme="light"] .pg-cab-capa::after { background: linear-gradient(90deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.65)); }
-.pg-cab .avatar { box-shadow: 0 0 0 3px rgb(255 255 255 / 0.14), 0 10px 26px rgb(0 0 0 / 0.45); }
-.pg-cab .grow { min-width: 0; display: grid; gap: 3px; justify-items: start; }
-.pg-cab b { max-width: 100%; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pg-cab small { max-width: 100%; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pg-ver { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 5px 10px 5px 12px; border-radius: 999px;
-  background: rgb(255 255 255 / 0.12); color: var(--text); font-size: 12px; font-weight: 700; backdrop-filter: blur(8px); }
-.pg-ver svg { width: 14px; height: 14px; }
-.pg-cab:active .pg-ver { transform: scale(0.97); }
-:root[data-theme="light"] .pg-ver { background: rgb(0 0 0 / 0.07); }
-.pg-lista { display: grid; margin: 16px 16px 0; padding: 4px; border-radius: 16px; background: var(--surface); }
+/* como no Spotify: o cartão cinza com a foto e o nome, os atalhos com os ícones soltos e linhas grandes */
+.pg-cab { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); margin: 0 8px; padding: 10px 12px; border: 0; border-radius: 10px;
+  background: var(--surface); color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; transition: background 0.15s; }
+.pg-cab:hover, .pg-cab:focus-visible { background: var(--surface-2); }
+.pg-cab .grow { min-width: 0; display: grid; gap: 1px; }
+.pg-cab b { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-cab small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-lista { display: grid; margin: 10px 8px 0; }
 .pg-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 16px; border: 0; background: none; color: var(--text);
   font: inherit; font-size: 16px; text-align: left; text-decoration: none; cursor: pointer; }
 .pg-item svg { color: var(--muted); flex: none; }
 .pg-item:hover, .pg-item:focus-visible { background: var(--surface-2); }
-.pg-lista .pg-item { gap: 12px; padding: 10px; border-radius: 12px; font-size: 15px; font-weight: 600; transition: background 0.15s; }
+.pg-lista .pg-item { gap: 16px; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: 500; transition: background 0.15s; }
+.pg-lista .pg-item svg { color: var(--text); }
 .pg-lista .pg-item .grow { flex: 1; min-width: 0; }
-.pg-lista .pg-item > svg { color: var(--subtle); }
-.pg-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--surface-2); }
-.pg-ic svg { color: var(--muted); }
 
 .perfil { padding: 0 0 120px; }
 .perfil-topo { display: flex; align-items: center; gap: 16px; padding: calc(72px + env(safe-area-inset-top)) 0 18px; }
@@ -5252,13 +5238,6 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-sinc:hover, .pg-sinc:focus-visible { background: var(--surface-3); }
 .pg-sinc.girando svg { animation: rot 0.9s linear infinite reverse; }
 .pg-conta-sem { margin: 4px 16px 0; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: var(--muted); font-size: 13px; line-height: 1.45; }
-.pg-nums { display: grid; grid-template-columns: repeat(4, 1fr); margin: 12px 16px 0; padding: 4px; border-radius: 16px; background: var(--surface); }
-.pg-num { position: relative; display: grid; justify-items: center; gap: 2px; padding: 12px 2px 10px; border-radius: 12px; color: var(--text);
-  text-decoration: none; text-align: center; transition: background 0.15s; }
-.pg-num + .pg-num::before { content: ''; position: absolute; left: 0; top: 25%; bottom: 25%; width: 1px; background: var(--border); }
-.pg-num:hover, .pg-num:focus-visible { background: var(--surface-2); }
-.pg-num b { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
-.pg-num small { max-width: 100%; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-ultima { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 12px; margin: 12px 16px 0; padding: 10px;
   border-radius: 16px; background: var(--surface); color: var(--text); text-decoration: none; }
 .pg-ultima-fundo { position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; z-index: -2; background-size: cover; background-position: center; filter: blur(26px) saturate(1.4); opacity: 0.55;
@@ -5356,3 +5335,83 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
 }
 .sinc-estado.procurando { background: none; padding: 4px 0; }
 .sinc-estado.procurando .spin { width: 18px; height: 18px; border-color: var(--accent); border-bottom-color: color-mix(in srgb, var(--text) 14%, transparent); }
+
+/* ---- Estatísticas (como as do Spotify): os cartões cinza com o número grande, o artista e a música mais ouvidos */
+.est { padding: 4px 0 120px; display: grid; gap: 12px; }
+.est-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.est-topo h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.est-topo p { margin: 2px 0 0; color: var(--text); font-size: 15px; }
+.est-info { display: inline-grid; place-items: center; padding: 2px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.est-card { position: relative; display: grid; justify-items: start; gap: 4px; padding: 14px 16px 16px; border-radius: 10px; background: var(--surface);
+  color: var(--text); text-decoration: none; transition: background 0.15s; }
+.est-card:hover, .est-card:focus-visible { background: var(--surface-2); }
+.est-rot { display: flex; align-items: center; justify-content: space-between; width: 100%; color: var(--muted); font-size: 12px; }
+.est-num { font-size: 40px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
+.est-card small { color: var(--muted); font-size: 13px; }
+.est-nome { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.est-foto { display: grid; place-items: center; width: 136px; height: 136px; margin-top: 6px; overflow: hidden; border-radius: 4px;
+  background: hsl(var(--h, 190) 30% 30%); color: rgb(255 255 255 / 0.7); }
+.est-foto.redonda { border-radius: 50%; }
+.est-foto img { width: 100%; height: 100%; object-fit: cover; }
+.est-sub { margin: 14px 0 0; font-size: 20px; font-weight: 800; }
+.est-destaques { grid-auto-columns: 210px; gap: 12px; }
+.est-destaque { position: relative; flex: none; width: 210px; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 6px; padding: 18px 14px 22px; overflow: hidden; border-radius: 8px; text-align: center;
+  background: hsl(var(--h, 230) 55% 88%); color: hsl(var(--h, 230) 70% 32%); }
+.est-marca { position: absolute; inset: 0; display: grid; place-items: center; font-size: 96px; font-weight: 900; letter-spacing: -0.06em; line-height: 0.8;
+  color: hsl(var(--h, 230) 50% 80%); overflow: hidden; word-break: break-all; pointer-events: none; }
+.est-destaque-capa { position: relative; width: 120px; height: 120px; margin-bottom: auto; object-fit: cover; border-radius: 4px; box-shadow: 0 10px 24px rgb(0 0 0 / 0.3); transform: rotate(-4deg); }
+.est-destaque p { position: relative; margin: 0; font-size: 20px; font-weight: 500; line-height: 1.2; }
+.est-destaque small { position: relative; font-size: 12px; opacity: 0.8; }
+.est-aviso { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.est-aviso svg { flex: none; margin-top: 2px; }
+.est-aviso a { color: var(--text); }
+.est-detalhe { gap: 0; padding-top: 24px; }
+.est-periodo { margin: 0 0 6px; font-size: 16px; }
+.est-frase { margin: 0; padding-bottom: 20px; border-bottom: 1px solid var(--border); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.est-frase em { font-style: normal; color: var(--accent-ink); }
+.est-grafico { display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; gap: 8px; height: 180px; padding: 22px 0 6px; }
+.est-dia { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 6px; height: 100%; }
+.est-dia small { color: var(--muted); font-size: 11px; align-self: end; }
+.est-dia span { align-self: end; width: 100%; max-width: 30px; height: max(4px, calc(var(--v) * 100%)); border-radius: 6px 6px 2px 2px; background: var(--surface-3); }
+.est-dia.hoje span { background: var(--accent); }
+.est-dia.futuro span { opacity: 0.4; }
+.est-dia b { color: var(--muted); font-size: 12px; font-weight: 600; }
+.est-dia.hoje b { color: var(--text); }
+.est-lista { display: grid; gap: 2px; margin: 18px 0 0; padding: 0; list-style: none; }
+.est-lista a { display: flex; align-items: center; gap: 14px; padding: 8px 0; color: var(--text); text-decoration: none; }
+.est-pos { width: 18px; flex: none; font-size: 16px; font-weight: 700; text-align: center; }
+.est-mini { display: grid; place-items: center; width: 48px; height: 48px; flex: none; overflow: hidden; border-radius: 4px; background: hsl(var(--h, 190) 30% 30%); color: rgb(255 255 255 / 0.7); }
+.est-lista.grande .est-mini { width: 64px; height: 64px; }
+.est-mini.redonda { border-radius: 50%; }
+.est-mini img { width: 100%; height: 100%; object-fit: cover; }
+.est-lista .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.est-lista b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.est-lista small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.est-min { flex: none; color: var(--muted); font-size: 13px; font-weight: 700; }
+
+/* ---- Recentes: os dias (Hoje, Ontem, as datas) e, em cada um, o que tocou */
+.rc { padding: 4px 0 120px; }
+.rc-chips { display: flex; gap: 8px; margin-bottom: 6px; }
+.rc-chips .chip { text-decoration: none; }
+.rc-dia { margin: 18px 0 6px; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.rc-item { display: flex; align-items: center; gap: 12px; padding: 7px 0; color: var(--text); text-decoration: none; }
+.rc-item .rc-capa { width: 56px; height: 56px; flex: none; border-radius: 4px; }
+.rc-item span.rc-capa { display: grid; place-items: center; overflow: hidden; background: hsl(var(--h, 190) 30% 30%); color: rgb(255 255 255 / 0.7); }
+.rc-item span.rc-capa img { width: 100%; height: 100%; object-fit: cover; }
+.rc-item .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.rc-item b { font-size: 16px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-item small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-item > svg { flex: none; color: var(--muted); }
+
+/* ---- os atalhos no alto dos Ajustes (como no Spotify): três quadrados que ligam e desligam na hora */
+.aj-atalhos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 14px; }
+.aj-atalho { display: grid; justify-items: center; gap: 4px; padding: 12px 6px 10px; border: 0; border-radius: 8px; background: var(--surface);
+  color: var(--text); font: inherit; text-align: center; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.aj-atalho:hover, .aj-atalho:focus-visible { background: var(--surface-2); }
+.aj-atalho b { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.aj-atalho small { color: var(--muted); font-size: 11px; }
+.aj-atalho[aria-pressed="true"], .aj-atalho[aria-pressed="true"] small { color: var(--accent-ink); }
+.aj-sair { display: block; margin: 22px auto 0; padding: 9px 22px; border: 0; border-radius: 999px; background: var(--text); color: var(--bg);
+  font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.aj-sair:active { transform: scale(0.97); }

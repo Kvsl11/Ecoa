@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 517, data: '2026-11-05', titulo: 'Estatísticas, Recentes por dia e a gaveta do perfil nova',
+    itens: [
+      { tipo: 'novo', texto: 'Estatísticas: veja quantos minutos você ouviu esta semana, o artista e a música mais ouvidos (com a lista completa de cada um), o gráfico de cada dia e, em "Seus últimos destaques", quanto você ouviu nos meses que passaram. Dá para compartilhar o resumo da semana.' },
+      { tipo: 'novo', texto: 'Recentes: o que você tocou, separado por dia (Hoje, Ontem e as datas), com os repertórios juntos num item só. Os botões Músicas e Repertórios mostram só um tipo.' },
+      { tipo: 'novo', texto: 'Sessão privada, nos Ajustes: enquanto estiver ligada, o que você ouve não entra nos Recentes nem nas Estatísticas.' },
+      { tipo: 'melhoria', texto: 'A gaveta do perfil ficou como a do Spotify: o cartão com a sua foto e o "Ver perfil", e os atalhos Estatísticas, Recentes, Novidades e Ajustes e privacidade.' },
+      { tipo: 'melhoria', texto: 'No alto dos Ajustes, três atalhos ligam e desligam na hora a economia de dados, a sessão privada e a capa animada. Com a conta Google, o botão Sair fica no fim da lista.' },
+    ],
+  },
+  {
     versao: 516, data: '2026-11-05', titulo: 'A gaveta do perfil mais enxuta',
     itens: [
       { tipo: 'melhoria', texto: 'Na gaveta do perfil, saiu o cartão "Conta Google · Sincronizada agora": a sua conta já aparece lá em cima, com a foto e o e-mail. O cartão só volta se a sincronia der erro. Para sincronizar na hora, use "Ver perfil".' },
@@ -62,13 +72,6 @@ export const NOVIDADES = [
     versao: 508, data: '2026-11-05', titulo: 'O "Tocou por último" não some mais',
     itens: [
       { tipo: 'correcao', texto: 'O "Tocou por último" da gaveta do perfil só mudava quando você abria a tela da música, e podia sumir. Agora conta qualquer música que começa a tocar (pelas listas, pela fila ou pelo play da própria gaveta), e, se a lista de tocadas estiver vazia, mostra a música que está no player.' },
-    ],
-  },
-  {
-    versao: 507, data: '2026-11-05', titulo: 'A prévia da playlist abre com som e o cartão ficou transparente',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
-      { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
     ],
   },
 ];
