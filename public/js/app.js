@@ -2598,17 +2598,34 @@ const player = (() => {
   // O nome que não cabe anda devagar para o lado e volta ao começo (como no Spotify): o da barrinha de baixo, o do
   // Tocando agora e o da barrinha de cima. Cada linha tem o texto dentro de um .rolar; medida a sobra, a linha ganha a
   // classe anda e a distância e o tempo do passeio (uns 30 px por segundo)
+  // (o giro é um laço contínuo, como no Spotify: atrás do nome vem uma cópia dele, depois de um espaço, e quando o nome
+  // sai inteiro pela esquerda a cópia está exatamente onde ele começou: o giro recomeça sem pular)
+  const ESPACO_DO_GIRO = 48;
   const medirNomes = () => requestAnimationFrame(() => {
     el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b').forEach((linha) => {
-      const r = $('.rolar', linha);
+      const r = linha.querySelector(':scope > .rolar:not(.eco)');
       if (!r || !linha.clientWidth) return;
-      const sobra = r.scrollWidth - linha.clientWidth;
-      const anda = sobra > 4;
-      linha.classList.toggle('anda', anda);
-      if (anda) {
-        linha.style.setProperty('--sobra', `${-(sobra + 16)}px`);
-        linha.style.setProperty('--tempo-anda', `${Math.max(7, (sobra + 16) / 30 + 5)}s`);
+      let eco = linha.querySelector(':scope > .rolar.eco');
+      const anda = r.offsetWidth - linha.clientWidth > 4;
+      if (!anda) { eco?.remove(); linha.classList.remove('anda'); linha.__giro = 0; return; }
+      // (a cópia é refeita só quando o nome muda: refazer a cada desenho recomeçava o giro)
+      const html = r.innerHTML;
+      if (!eco || eco.__de !== html) {
+        eco?.remove();
+        eco = r.cloneNode(true);
+        eco.classList.add('eco');
+        eco.setAttribute('aria-hidden', 'true');
+        eco.__de = html;
+        linha.append(eco);
       }
+      const giro = Math.round(r.offsetWidth + ESPACO_DO_GIRO);
+      if (linha.__giro !== giro) {
+        linha.__giro = giro;
+        linha.style.setProperty('--giro', `${-giro}px`);
+        // (uns 32 px por segundo, com uma parada curta no começo de cada volta)
+        linha.style.setProperty('--tempo-anda', `${(giro / 32 / 0.85).toFixed(1)}s`);
+      }
+      linha.classList.add('anda');
     });
   });
   const medirNomeDaBarrinha = medirNomes;
