@@ -2895,11 +2895,13 @@ const player = (() => {
       canvas.montar(q, { semArquivo: porQuadros });
     }
     mini.classList.toggle('capa-yt', (capa || barra) && capaYt);
-    // a capa pequena ao lado do nome, no modo vídeo e no modo música (no modo música, em cima ficam as cenas do clipe)
+    // a capa pequena ao lado do nome: no modo vídeo e no modo música com a capa animada (em cima ficam o vídeo ou as cenas
+    // do clipe). Com a capa grande parada em cima (a música sem capa animada, como a que não tem clipe), ela some: a
+    // mesma capa aparecia duas vezes, grande e pequena (como no Spotify, fica só a grande)
     const capinha = $('.pl-capinha', el);
     capinha.style.backgroundImage = url ? `url("${url}")` : '';
     capinha.classList.toggle('capa-yt', capaYt);
-    capinha.hidden = !url;
+    capinha.hidden = !url || (capa && !q);
     const b = $('.pl-troca', el);
     b.hidden = (ehArquivo(atual?.youtube) && !atual?.video) || Boolean(atual?.soMusica); // (só o áudio da pessoa, sem clipe, ou a música sem clipe de verdade: não há para onde trocar)
     porHtml(b, atual?.semVideo ? `${icon('youtube', 18)}<span>Escolher um vídeo</span>`

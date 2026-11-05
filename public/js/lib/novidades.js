@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 532, data: '2026-11-05', titulo: 'A capa uma vez só',
+    itens: [
+      { tipo: 'melhoria', texto: 'No Tocando agora, a música sem capa animada (como as que não têm clipe) mostrava a capa duas vezes: a grande em cima e a pequena ao lado do nome. Agora fica só a grande, como no Spotify. Com a capa animada ou no modo vídeo, a pequena continua.' },
+    ],
+  },
+  {
     versao: 531, data: '2026-11-05', titulo: 'Os clipes do K-pop',
     itens: [
       { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
@@ -67,12 +73,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Ao tocar numa música da busca que ainda está sendo preparada, a tela dela abre na hora, com a cor, a capa, o nome e o contorno da letra, e se completa sozinha quando tudo chega. Antes aparecia um círculo girando no lugar dos botões da linha. A seta de voltar desiste da música e volta para a busca.' },
       { tipo: 'melhoria', texto: 'Com o player aberto, a música tocada vai direto para ele, e a linha só pulsa de leve enquanto ela é preparada.' },
-    ],
-  },
-  {
-    versao: 522, data: '2026-11-05', titulo: 'A música da busca abre na hora',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na Busca, as primeiras músicas da lista já vão sendo preparadas enquanto você olha: a cifra, a letra, o vídeo, a letra sincronizada, o áudio oficial e a capa. Ao tocar numa delas, ela abre na hora, já com tudo sincronizado. As outras começam a ser preparadas no instante em que o dedo encosta. Com a economia de dados ligada, só a que você toca é preparada.' },
     ],
   },
 ];
