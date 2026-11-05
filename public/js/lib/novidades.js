@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 505, data: '2026-11-04', titulo: 'A prévia da playlist ocupa a tela toda no tablet',
     itens: [
-      { tipo: 'melhoria', texto: 'No tablet, a prévia da playlist (os clipes das músicas, um de cada vez, que abre pela capinha ao lado do baixar) ficava numa coluna estreita no meio da tela. Agora ela ocupa a tela toda, em pé e deitado, como no celular: o clipe preenche a tela, e o artista e o cartão da música ficam embaixo, maiores e mais fáceis de tocar.' },
+      { tipo: 'melhoria', texto: 'No tablet, a prévia da playlist (os clipes das músicas, um de cada vez, que abre pela capinha ao lado do baixar) ficava numa coluna estreita no meio da tela. Agora ela ocupa a tela toda, em pé e deitado, e mostra o clipe inteiro, sem cortar os lados: o nome da playlist em cima, o clipe no meio, do maior tamanho que cabe, e embaixo, fora do clipe, o artista e o cartão da música, maiores e mais fáceis de tocar.' },
     ],
   },
   {

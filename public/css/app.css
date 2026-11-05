@@ -5100,19 +5100,25 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-ok { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 .pv-prog { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.25); }
 .pv-prog b { display: block; width: 0; height: 100%; border-radius: 1px; background: #fff; }
-/* no tablet (em pé e deitado), a prévia ocupa a tela toda, como no celular (a coluna estreita no meio ficava
-   perdida na tela grande): o clipe preenche a tela, e o artista e o cartão ficam embaixo, maiores, sem esticar */
+/* no tablet (em pé e deitado), a prévia ocupa a tela toda (a coluna estreita no meio ficava perdida na tela grande)
+   e mostra o clipe inteiro, sem cortar os lados: o nome da playlist em cima, o clipe no meio e, embaixo, fora do
+   clipe, o artista e o cartão da música. O clipe fica do maior tamanho que cabe entre os dois */
 html.tablet dialog.pl-previa { inset: 0; width: 100%; height: 100%; transform: none; border-radius: 0; }
 html.tablet dialog.pl-previa::backdrop { background: #000; }
-html.tablet .pv-cab { padding: calc(14px + env(safe-area-inset-top)) 16px 28px; }
+html.tablet .pv-cab { padding: calc(14px + env(safe-area-inset-top)) 16px 14px; background: #000; }
 html.tablet .pv-cab b { font-size: 18px; }
-html.tablet .pv-sombra { background: linear-gradient(transparent 50%, rgb(0 0 0 / 0.8)); }
-html.tablet .pv-info { right: auto; width: min(640px, 100%); padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
+html.tablet .pv-slide { --pv-topo: calc(72px + env(safe-area-inset-top)); --pv-base: calc(200px + env(safe-area-inset-bottom));
+  container-type: size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding-top: var(--pv-topo); box-sizing: border-box; background: #000; }
+html.tablet .pv-video { position: relative; inset: auto; flex: none; width: min(100cqw, (100cqh - var(--pv-topo) - var(--pv-base)) * 16 / 9); aspect-ratio: 16 / 9; }
+html.tablet .pv-sombra { display: none; }
+html.tablet .pv-info { position: static; flex: none; width: min(100cqw, max(560px, (100cqh - var(--pv-topo) - var(--pv-base)) * 16 / 9)); box-sizing: border-box;
+  padding: 0 calc(24px + env(safe-area-inset-right)) 0 calc(24px + env(safe-area-inset-left)); }
 html.tablet .pv-artista { gap: 12px; margin-bottom: 12px; }
 html.tablet .pv-artista .icon-btn { width: 44px; height: 44px; }
 html.tablet .pv-foto { width: 40px; height: 40px; }
-html.tablet .pv-nome { font-size: 18px; }
-html.tablet .pv-cartao { gap: 14px; padding: 10px 16px 14px 10px; border-radius: 12px; }
+html.tablet .pv-nome { font-size: 18px; text-shadow: none; }
+html.tablet .pv-cartao { gap: 14px; padding: 10px 16px 14px 10px; border-radius: 12px; background: rgb(255 255 255 / 0.1); }
 html.tablet .pv-cartao .cover { width: 56px; height: 56px; border-radius: 6px; }
 html.tablet .pv-cartao .lista-txt b { font-size: 17px; }
 html.tablet .pv-cartao .lista-txt small { font-size: 14px; }
