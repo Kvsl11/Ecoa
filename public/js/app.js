@@ -26,6 +26,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { escolherAudio, escolherClipe, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -9597,9 +9598,46 @@ player.ouvir(agendarMarcarTocando);
 // a tela dela, uma lista, a fila, o play da gaveta. Antes só abrir a tela da música contava
 player.ouvir(() => {
   const id = player.atual?.songId;
-  if (player.estado !== 'tocando' || !id || !db.song(id) || db.recent()[0]?.id === id) return;
+  if (player.estado !== 'tocando' || !id || !db.song(id) || db.recent()[0]?.id === id || db.prefs().sessaoPrivada) return;
   db.touchRecent(id);
 });
+// o que tocou, dia a dia (as Estatísticas e os Recentes): a música entra quando começa a tocar e, enquanto toca,
+// soma os segundos ouvidos. Fica só neste aparelho. Na sessão privada (Ajustes), nada fica registrado
+const CHAVE_OUVIDAS = 'songbook.ouvidas';
+let ouvidas = null;
+const registroOuvidas = () => {
+  if (ouvidas) return ouvidas;
+  try { ouvidas = JSON.parse(localStorage.getItem(CHAVE_OUVIDAS) || '{}') || {}; } catch { ouvidas = {}; }
+  return ouvidas;
+};
+let gravarOuvidas = 0;
+const guardarOuvidas = () => {
+  clearTimeout(gravarOuvidas);
+  gravarOuvidas = setTimeout(() => { try { localStorage.setItem(CHAVE_OUVIDAS, JSON.stringify(podar(registroOuvidas(), hojeISO()))); } catch { /* cota cheia */ } }, 1500);
+};
+const itemOuvido = () => {
+  const a = player.atual;
+  if (!a?.titulo) return null;
+  return { songId: a.songId && a.songId !== 'previa' ? a.songId : '', titulo: a.titulo, artista: a.artista, capa: a.capa, setId: a.setId || '', repertorio: a.setId ? db.set(a.setId)?.name || '' : '' };
+};
+let ouvindoAgora = '';
+player.ouvir(() => {
+  const item = player.estado === 'tocando' && !db.prefs().sessaoPrivada ? itemOuvido() : null;
+  const chave = item ? `${item.setId}|${item.songId || item.titulo}` : '';
+  if (!item || chave === ouvindoAgora) { if (!item) ouvindoAgora = ''; return; }
+  ouvindoAgora = chave;
+  registrar(registroOuvidas(), hojeISO(), item);
+  guardarOuvidas();
+});
+const PASSO_OUVIDAS = 5;
+setInterval(() => {
+  if (player.estado !== 'tocando' || db.prefs().sessaoPrivada) return;
+  const item = itemOuvido();
+  if (!item) return;
+  registrar(registroOuvidas(), hojeISO(), item, PASSO_OUVIDAS);
+  guardarOuvidas();
+}, PASSO_OUVIDAS * 1000);
+addEventListener('pagehide', () => { if (ouvidas) try { localStorage.setItem(CHAVE_OUVIDAS, JSON.stringify(ouvidas)); } catch { /* cota cheia */ } });
 // (listas novas na tela: a página desenhada, a busca que chegou, a lista reordenada)
 new MutationObserver(agendarMarcarTocando).observe(view, { childList: true, subtree: true });
 
@@ -14713,6 +14751,13 @@ async function montarRepertorio(missa, sel, data, { btn = $('#montar'), tipo = '
 
 // ------------------------------------------------------------- ajustes
 
+// os atalhos no alto dos Ajustes: ligam e desligam na hora (a sessão privada não registra as tocadas nem as estatísticas)
+const ATALHOS_AJUSTES = [
+  { id: 'economia', pref: 'economiaDados', ic: 'gauge', t: 'Economia de dados', ligado: () => Boolean(db.prefs().economiaDados) },
+  { id: 'privada', pref: 'sessaoPrivada', ic: 'eye', t: 'Sessão privada', ligado: () => Boolean(db.prefs().sessaoPrivada) },
+  { id: 'capa', pref: 'videoFundo', ic: 'video', t: 'Capa animada', ligado: () => db.prefs().videoFundo !== false },
+];
+const atalhoDosAjustes = (a) => `<button class="aj-atalho" data-atalho="${a.id}" aria-pressed="${a.ligado()}">${icon(a.ic, 22)}<b>${a.t}</b><small>${a.ligado() ? 'Ligada' : 'Desligada'}</small></button>`;
 function viewTopicosAjustes() {
   setTab('');
   setTint('#333');
@@ -14729,9 +14774,26 @@ function viewTopicosAjustes() {
       <span class="aj-logo">${logo(44)}</span>
       <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
     </section>
+    <div class="aj-atalhos">${ATALHOS_AJUSTES.map((a) => atalhoDosAjustes(a)).join('')}</div>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
       ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
-    </nav></div>`;
+    </nav>
+    ${usuarioConta() ? '<button class="aj-sair" data-sair>Sair</button>' : ''}</div>`;
+  view.querySelector('.aj-atalhos').onclick = (e) => {
+    const b = e.target.closest('[data-atalho]');
+    const a = b && ATALHOS_AJUSTES.find((x) => x.id === b.dataset.atalho);
+    if (!a) return;
+    const ligado = !a.ligado();
+    db.setPref(a.pref, ligado);
+    if (a.pref === 'videoFundo') player.atualizar({});
+    b.outerHTML = atalhoDosAjustes(a);
+    toast(`${a.t} ${ligado ? 'ligada' : 'desligada'}`);
+  };
+  view.querySelector('[data-sair]')?.addEventListener('click', async () => {
+    if (!(await ask({ title: 'Sair da conta?', text: 'Para usar o Ecoa de novo, é só entrar com o Google. As suas músicas e os repertórios continuam guardados na sua conta.', ok: 'Sair' }))) return;
+    await sairDaConta();
+    viewTopicosAjustes();
+  });
   // o microfone só se sabe esperando a consulta do navegador
   estadoDoMicrofone().then((m) => {
     const sm = $('.aj-topico[href="#/permissoes"] small', view);
@@ -15094,7 +15156,7 @@ async function entrarPelaTela() {
   }
 }
 
-// as informações da gaveta: a sincronia com a conta, os números da biblioteca e a última música tocada
+// as informações da gaveta: o aviso da sincronia (só com erro) e a última música tocada
 // o play do "Tocou por último": toca (ou pausa) ali mesmo, sem sair da gaveta; o resto do cartão abre a música
 const ultimaTocando = (song) => Boolean(song && midiaDe(song) && player.desta(midiaDe(song)) && player.estado === 'tocando');
 function botaoPlayDaUltima(song) {
@@ -15102,11 +15164,6 @@ function botaoPlayDaUltima(song) {
   return `<span class="pg-play${toca ? ' pausar' : ''}" role="button" tabindex="0" data-tocar aria-label="${toca ? 'Pausar' : 'Tocar'}">${icon(toca ? 'pause' : 'play', 18)}</span>`;
 }
 function infoDaGaveta(u) {
-  const musicas = db.songs().filter((x) => !x.soNoRepertorio);
-  const artistas = new Set(musicas.map((x) => normalizar(x.artist || '')).filter(Boolean)).size;
-  const baixadas = db.songs().filter((x) => x.baixado).length;
-  const sets = db.sets().length;
-  const numero = (n, t, href) => `<a class="pg-num" href="${href}"><b>${n}</b><small>${t}</small></a>`;
   // (sem tocadas na lista, como quando a sincronia trouxe a lista vazia: a música que está no player)
   const ultima = db.recent()[0] || db.song(player.atual?.songId || '');
   const fundo = ultima ? capaDaMusica(ultima) : '';
@@ -15115,12 +15172,6 @@ function infoDaGaveta(u) {
     ${u ? (estadoConta.erro ? `<div class="pg-conta erro">${LOGO_GOOGLE}<span class="grow"><small>Conta Google</small><b id="pg-estado">${esc(resumoDaSincronia())}</b></span>
         <button class="pg-sinc${estadoConta.sincronizando ? ' girando' : ''}" data-sinc aria-label="Sincronizar agora" title="Sincronizar agora">${icon('sincronizar', 18)}</button></div>` : '')
     : '<p class="pg-conta-sem">Sua biblioteca está só neste aparelho. Entrando com o Google, ela fica guardada na sua conta.</p>'}
-    <div class="pg-nums">
-      ${numero(musicas.length, musicas.length === 1 ? 'curtida' : 'curtidas', '#/biblioteca/musicas')}
-      ${numero(sets, sets === 1 ? 'repertório' : 'repertórios', '#/repertorios')}
-      ${numero(artistas, artistas === 1 ? 'artista' : 'artistas', '#/biblioteca')}
-      ${numero(baixadas, baixadas === 1 ? 'baixada' : 'baixadas', '#/offline')}
-    </div>
     ${ultima ? `<a class="pg-ultima" href="#/musica/${encodeURIComponent(ultima.id)}" data-id="${esc(ultima.id)}">
         ${fundo ? `<span class="pg-ultima-fundo" style="background-image:url('${esc(fundo).replace(/'/g, '%27')}')"></span>` : ''}
         ${capa(ultima, { cls: 'sm' })}<span class="grow"><small>Tocou por último</small><b>${esc(ultima.title)}</b>${ultima.artist ? `<small>${esc(ultima.artist)}</small>` : ''}</span>
@@ -15132,30 +15183,23 @@ function abrirGavetaDoPerfil() {
   const u = usuarioConta();
   const g = document.createElement('div');
   g.className = 'perfil-gaveta';
-  const item = (ic, t, attrs) => `<${attrs.startsWith('href') ? 'a' : 'button'} class="pg-item" ${attrs}><span class="pg-ic">${icon(ic, 20)}</span><span class="grow">${t}</span>${icon('next', 18)}</${attrs.startsWith('href') ? 'a' : 'button'}>`;
+  // como no Spotify: o cartão com a foto e o nome (abre o perfil), a lista de atalhos com os ícones soltos e, embaixo,
+  // a última música tocada
+  const item = (ic, t, href) => `<a class="pg-item" href="${href}">${icon(ic, 22)}<span class="grow">${t}</span></a>`;
   const nome = u ? (u.nome || u.email || '?') : '';
   g.innerHTML = `<nav class="pg-painel" aria-label="Seu perfil">
-      ${u ? `<a class="pg-cab" href="#/conta" style="--h:${hue(nome)}">${avatarHtml(u, 64)}<span class="grow"><b>${esc(nome)}</b>${u.nome && u.email ? `<small class="pg-email">${esc(u.email)}</small>` : ''}<span class="pg-ver">Ver perfil ${icon('next', 14)}</span></span></a>`
-    : `<button class="pg-cab" data-entrar>${avatarHtml(null, 64)}<span class="grow"><b>Entrar com o Google</b><small>Sua biblioteca em todos os aparelhos</small><span class="pg-ver">${LOGO_GOOGLE} Entrar</span></span></button>`}
-      ${infoDaGaveta(u)}
+      ${u ? `<a class="pg-cab" href="#/conta">${avatarHtml(u, 44)}<span class="grow"><b>${esc(nome)}</b><small>Ver perfil</small></span></a>`
+    : `<button class="pg-cab" data-entrar>${avatarHtml(null, 44)}<span class="grow"><b>Entrar com o Google</b><small>Sua biblioteca em todos os aparelhos</small></span></button>`}
       <div class="pg-lista">
-        ${item('sparkles', 'Novidades', 'href="#/novidades"')}
-        ${item('clock', 'Tocadas recentemente', 'href="#/biblioteca"')}
-        ${item('settings', 'Ajustes', 'href="#/ajustes"')}
+        ${item('grafico', 'Estatísticas', '#/estatisticas')}
+        ${item('historico', 'Recentes', '#/recentes')}
+        ${item('megafone', 'Novidades', '#/novidades')}
+        ${item('settings', 'Ajustes e privacidade', '#/ajustes')}
       </div>
+      ${infoDaGaveta(u)}
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
-  // o topo do perfil com a mesma capa borrada do fundo do "Tocou por último", para as cores ficarem iguais
-  const fundoDaUltima = $('.pg-ultima-fundo', g);
-  const cab = $('.pg-cab', g);
-  if (fundoDaUltima && cab) {
-    cab.classList.add('com-capa');
-    const camada = document.createElement('span');
-    camada.className = 'pg-cab-capa';
-    camada.append(fundoDaUltima.cloneNode());
-    cab.prepend(camada);
-  }
   // o play do "Tocou por último" vira pausar enquanto ela toca (o fundo se mexe sempre, tocando ou não)
   const marcarTocando = () => {
     const c = $('.pg-ultima', g);
@@ -18242,6 +18286,129 @@ async function desenharMissalDoDia(data) {
     <p class="fonte">Missal do dia: <a href="${esc(m.url)}" target="_blank" rel="noopener">Pocket Terço</a> (Missal Romano / CNBB).</p>`;
 }
 
+// ---- Estatísticas (como as do Spotify): o que você ouviu esta semana — os minutos, o artista e a música mais
+// ouvidos — e os destaques dos meses que passaram. As contas saem do registro das tocadas (só deste aparelho)
+const fmtMin = (seg) => minutos(seg).toLocaleString('pt-BR');
+const plural = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
+function fotoDoArtistaOuvido(art) {
+  const nome = normalizar(art.nome);
+  const s = db.songs().find((x) => x.fotoArtista && normalizar(x.artist || '') === nome);
+  return s?.fotoArtista || art.musicas.find((m) => m.c)?.c || '';
+}
+const capaOuvida = (m) => m.c || (m.id && db.song(m.id) ? capaDaMusica(db.song(m.id)) : '');
+// (a música que não está salva leva ao artista dela)
+const linkDaOuvida = (m) => (m.id && db.song(m.id) ? `#/musica/${encodeURIComponent(m.id)}` : m.a ? `#/artista-pelo-nome/${encodeURIComponent(m.a)}` : '#/buscar');
+function compartilharSemana(r, periodo) {
+  const texto = [`Minha semana no Ecoa (${rotuloDoPeriodo(periodo)}): ${plural(minutos(r.segundos), 'minuto ouvido', 'minutos ouvidos')}.`,
+    r.artistas[0] ? `Artista mais ouvido: ${r.artistas[0].nome}.` : '', r.musicas[0] ? `Música mais ouvida: ${r.musicas[0].t}${r.musicas[0].a ? ` (${r.musicas[0].a})` : ''}.` : ''].filter(Boolean).join(' ');
+  if (navigator.share) navigator.share({ title: 'Minha semana no Ecoa', text: texto }).catch(() => {});
+  else { navigator.clipboard?.writeText(texto); toast('Resumo copiado'); }
+}
+function viewEstatisticas(sub) {
+  setTab('');
+  setTint('#2a2a2a');
+  const hoje = hojeISO();
+  const periodo = semanaDe(hoje);
+  const reg = registroOuvidas();
+  const r = resumoDoPeriodo(reg, periodo);
+  const rotulo = rotuloDoPeriodo(periodo);
+  if (sub === 'minutos') return viewMinutosOuvidos(reg, periodo, r);
+  if (sub === 'artistas' || sub === 'musicas') return viewMaisOuvidas(sub, periodo, r);
+  setHeader('Estatísticas', { back: '#/' });
+  const anterior = resumoDoPeriodo(reg, { inicio: somarDias(periodo.inicio, -7), fim: somarDias(periodo.fim, -7) });
+  const diferenca = minutos(r.segundos) - minutos(anterior.segundos);
+  const art = r.artistas[0];
+  const mus = r.musicas[0];
+  const meses = mesesFechados(reg, hoje);
+  const seta = icon('next', 16);
+  view.innerHTML = `<div class="est">
+    <div class="est-topo">
+      <div><h2>Esta semana <button class="est-info" data-info aria-label="Como as estatísticas são contadas">${icon('info', 16)}</button></h2><p>${esc(rotulo)}</p></div>
+      <button class="icon-btn" data-compartilhar aria-label="Compartilhar"${r.segundos ? '' : ' disabled'}>${icon('share', 20)}</button>
+    </div>
+    <a class="est-card" href="#/estatisticas/minutos"><span class="est-rot">Minutos ouvidos ${seta}</span>
+      <b class="est-num">${fmtMin(r.segundos)}</b>
+      <small>${!r.segundos ? 'Toque uma música e volte aqui' : !anterior.segundos ? 'A primeira semana com o registro' : diferenca === 0 ? 'O mesmo que na semana passada' : `${plural(Math.abs(diferenca), 'minuto', 'minutos')} a ${diferenca > 0 ? 'mais' : 'menos'} que na semana passada`}</small></a>
+    ${art ? `<a class="est-card" href="#/estatisticas/artistas"><span class="est-rot">Artista mais ouvido ${seta}</span><b class="est-nome">${esc(art.nome)}</b>
+      <span class="est-foto redonda" style="--h:${hue(art.nome)}">${fotoDoArtistaOuvido(art) ? `<img src="${esc(fotoDoArtistaOuvido(art))}" alt="" loading="lazy">` : icon('pessoa', 40)}</span></a>` : ''}
+    ${mus ? `<a class="est-card" href="#/estatisticas/musicas"><span class="est-rot">Música mais ouvida ${seta}</span><b class="est-nome">${esc(mus.t)}</b>
+      <span class="est-foto" style="--h:${hue(mus.t)}">${capaOuvida(mus) ? `<img src="${esc(capaOuvida(mus))}" alt="" loading="lazy">` : icon('music', 40)}</span></a>` : ''}
+    ${meses.length ? `<h3 class="est-sub">Seus últimos destaques</h3>
+    <div class="shelf est-destaques">${meses.map((m) => `<div class="est-destaque" style="--h:${hue(m.musica?.t || m.nome)}">
+      <span class="est-marca" aria-hidden="true">${esc(String(minutos(m.segundos)))}</span>
+      ${m.musica && capaOuvida(m.musica) ? `<img class="est-destaque-capa" src="${esc(capaOuvida(m.musica))}" alt="" loading="lazy">` : ''}
+      <p>Você ouviu por ${plural(minutos(m.segundos), 'minuto', 'minutos')} em ${esc(m.nome)}</p>
+      ${m.artista ? `<small>Mais ouvido: ${esc(m.artista.nome)}</small>` : ''}</div>`).join('')}</div>` : ''}
+    ${db.prefs().sessaoPrivada ? `<p class="est-aviso">${icon('lock', 15)}<span>A sessão privada está ligada: o que você ouve agora não entra aqui. <a href="#/ajustes">Ajustes</a></span></p>` : ''}
+  </div>`;
+  view.querySelector('[data-info]').onclick = () => toast('Conta o tempo em que as músicas tocaram neste aparelho, de domingo a sábado. Na sessão privada, nada é contado.');
+  view.querySelector('[data-compartilhar]').onclick = () => compartilharSemana(r, periodo);
+}
+function viewMinutosOuvidos(reg, periodo, r) {
+  setHeader('Minutos ouvidos', { back: '#/estatisticas' });
+  const dias = segundosPorDia(reg, periodo);
+  const max = Math.max(60, ...dias.map((d) => d.s));
+  const letras = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const hoje = hojeISO();
+  view.innerHTML = `<div class="est est-detalhe">
+    <p class="est-periodo">${esc(rotuloDoPeriodo(periodo))}</p>
+    <h2 class="est-frase">Você ouviu por ${plural(minutos(r.segundos), 'minuto', 'minutos')} esta semana.</h2>
+    <div class="est-grafico" role="img" aria-label="Minutos ouvidos em cada dia da semana">${dias.map((d, i) => `<div class="est-dia${d.dia === hoje ? ' hoje' : ''}${d.dia > hoje ? ' futuro' : ''}">
+      <small>${d.s >= 60 ? fmtMin(d.s) : ''}</small><span style="--v:${d.s / max}"></span><b>${letras[i]}</b></div>`).join('')}</div>
+    <ol class="est-lista">${r.musicas.slice(0, 5).map((m, i) => `<li><a href="${linkDaOuvida(m)}"><span class="est-pos">${i + 1}</span>
+      <span class="est-mini" style="--h:${hue(m.t)}">${capaOuvida(m) ? `<img src="${esc(capaOuvida(m))}" alt="" loading="lazy">` : icon('music', 20)}</span>
+      <span class="grow"><b>${esc(m.t)}</b>${m.a ? `<small>${esc(m.a)}</small>` : ''}</span><span class="est-min">${fmtMin(m.s)} min</span></a></li>`).join('')}</ol>
+  </div>`;
+}
+function viewMaisOuvidas(sub, periodo, r) {
+  const artistas = sub === 'artistas';
+  setHeader(artistas ? 'Artistas mais ouvidos' : 'Músicas mais ouvidas', { back: '#/estatisticas' });
+  const lista = (artistas ? r.artistas : r.musicas).slice(0, 50);
+  const n = (artistas ? r.artistas : r.musicas).length;
+  view.innerHTML = `<div class="est est-detalhe">
+    <p class="est-periodo">${esc(rotuloDoPeriodo(periodo))}</p>
+    <h2 class="est-frase">${n ? `Você ouviu <em>${plural(n, artistas ? 'artista' : 'música', artistas ? 'artistas' : 'músicas')}</em> esta semana.` : 'Nada ouvido esta semana ainda.'}</h2>
+    <ol class="est-lista grande">${lista.map((x, i) => {
+      const img = artistas ? fotoDoArtistaOuvido(x) : capaOuvida(x);
+      const nome = artistas ? x.nome : x.t;
+      const href = artistas ? `#/artista-pelo-nome/${encodeURIComponent(x.nome)}` : linkDaOuvida(x);
+      return `<li><a href="${href}"><span class="est-pos">${i + 1}</span>
+        <span class="est-mini${artistas ? ' redonda' : ''}" style="--h:${hue(nome)}">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : icon(artistas ? 'pessoa' : 'music', 22)}</span>
+        <span class="grow"><b>${esc(nome)}</b><small>${artistas ? plural(x.musicas.length, 'música', 'músicas') : esc(x.a || '')}</small></span><span class="est-min">${fmtMin(x.s)} min</span></a></li>`;
+    }).join('')}</ol>
+  </div>`;
+}
+
+// ---- Recentes (como no Spotify): o que tocou, dia a dia — Hoje, Ontem e as datas —, só as músicas ou só os repertórios
+function viewRecentes(filtro = '') {
+  setTab('');
+  setTint('#2a2a2a');
+  setHeader('Recentes', { back: '#/' });
+  const hoje = hojeISO();
+  const tipo = filtro === 'musicas' ? 'musica' : filtro === 'repertorios' ? 'repertorio' : '';
+  const dias = recentesPorDia(registroOuvidas(), { tipo });
+  // o que tocou antes de o app registrar os dias (a lista antiga de tocadas): fica em "Antes"
+  const jaNosDias = new Set(Object.values(registroOuvidas()).flatMap((l) => Object.values(l).flatMap((x) => Object.keys(x.m || {}))));
+  const antes = tipo === 'repertorio' ? [] : db.recent().filter((s) => !jaNosDias.has(s.id));
+  const linha = (it) => {
+    const set = it.tipo === 'repertorio' ? db.set(it.id) : null;
+    const song = it.tipo === 'musica' && it.id ? db.song(it.id) : null;
+    const href = set ? `#/repertorio/${encodeURIComponent(set.id)}` : song ? `#/musica/${encodeURIComponent(song.id)}` : linkDaOuvida({ t: it.t, a: it.a });
+    const img = set ? capaRepertorio(set, 'rc-capa') : `<span class="cover rc-capa" style="--h:${hue(it.t)}">${it.c ? `<img src="${esc(it.c)}" alt="" loading="lazy">` : icon('music', 22)}</span>`;
+    const sub = it.tipo === 'repertorio'
+      ? `${plural(it.quantas, 'música tocada', 'músicas tocadas')} · Repertório`
+      : `Música${it.a ? ` · ${esc(it.a)}` : ''}`;
+    return `<a class="rc-item" href="${href}">${img}<span class="grow"><b>${esc(set?.name || it.t)}</b><small>${sub}</small></span>${icon('next', 18)}</a>`;
+  };
+  const chip = (v, t) => `<a class="chip" aria-pressed="${filtro === v}" href="#/recentes${filtro === v ? '' : `/${v}`}">${t}</a>`;
+  view.innerHTML = `<div class="rc">
+    <div class="rc-chips">${chip('musicas', 'Músicas')}${chip('repertorios', 'Repertórios')}</div>
+    ${dias.map((d) => `<section><h3 class="rc-dia">${esc(rotuloDoDia(d.dia, hoje))}</h3>${d.itens.map(linha).join('')}</section>`).join('')}
+    ${antes.length ? `<section><h3 class="rc-dia">${dias.length ? 'Antes' : 'Tocadas recentemente'}</h3>${antes.map((s) => linha({ tipo: 'musica', id: s.id, t: s.title, a: s.artist, c: capaDaMusica(s) })).join('')}</section>` : ''}
+    ${!dias.length && !antes.length ? `<div class="empty"><div class="bubble">${icon('historico', 32)}</div><h3>Nada por aqui ainda</h3><p>As músicas e os repertórios que você tocar aparecem aqui, separados por dia.</p></div>` : ''}
+  </div>`;
+}
+
 let ultimaLista = '';
 function route() {
   view.style.visibility = ''; // escondida ao fechar o Tocando agora aberto por cima da música (painelCheio)
@@ -18290,6 +18457,8 @@ function route() {
     case 'oracao': return viewOracao(b);
     case 'fontes': return viewFontes();
     case 'novidades': return viewNovidades(b);
+    case 'estatisticas': return viewEstatisticas(b);
+    case 'recentes': return viewRecentes(b);
     case 'offline': return viewOffline();
     case 'arquivo': return viewArquivo(b, c, d);
     case 'setor': return viewSetor(b, c);
@@ -18602,3 +18771,4 @@ function viewNovidades(versao) {
   // levava o título "Novidades do app" para baixo da barra do topo, cortado)
   if (versao && String(versao) !== String(NOVIDADES[0]?.versao)) requestAnimationFrame(() => $(`#nv-${CSS.escape(versao)}`)?.scrollIntoView({ block: 'start' }));
 }
+
