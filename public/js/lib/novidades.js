@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 519, data: '2026-11-05', titulo: 'Voltar para a gaveta do perfil',
+    itens: [
+      { tipo: 'melhoria', texto: 'O que você abre pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes e o seu perfil) agora volta direto para a gaveta, aberta na tela em que você estava. Antes a seta de Novidades passava por Sobre e por Ajustes até chegar ao início.' },
+    ],
+  },
+  {
     versao: 518, data: '2026-11-05', titulo: 'O botão do tamanho da letra não pisca mais',
     itens: [
       { tipo: 'correcao', texto: 'Na letra em tela cheia, o botão do tamanho da letra (o A pequeno e o A grande) e os outros botões ao lado piscavam um quadrado claro enquanto a letra corria. Agora ficam firmes.' },
@@ -65,13 +71,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na prévia da playlist, cada música ganhou de 6 a 10 hashtags, diferentes entre as músicas do mesmo artista: os estilos de verdade do artista (#pop, #funk), os temas da letra (#love song, #late night, #saudade), o clima da música e outras do estilo dela. Arraste para o lado para ver todas.' },
       { tipo: 'correcao', texto: 'Os seguidores no Spotify da tela do artista e da prévia da playlist estavam meses atrasados (o Bruno Mars aparecia com 70M, e no Spotify já passa de 90M): vinham de um site que guarda uma cópia antiga deles.' },
       { tipo: 'novo', texto: 'Agora eles vêm direto do Spotify, sempre os de agora: conecte a sua conta do Spotify uma vez em Ajustes → Spotify (o login é o do próprio Spotify). Sem conectar, os seguidores do Spotify não aparecem, e a tela do artista mostra o atalho para conectar.' },
-    ],
-  },
-  {
-    versao: 509, data: '2026-11-05', titulo: 'A prévia da playlist com os seguidores e as hashtags da música',
-    itens: [
-      { tipo: 'novo', texto: 'Na prévia da playlist (os clipes em tela cheia), embaixo do nome do artista aparecem os seguidores dele no Spotify, no jeito curto (90,3M seguidores). E, embaixo, as hashtags da música, que dizem a sensação dela (#happy, #upbeat, #good mood...): em inglês quando a música é cantada em inglês e em português nas outras. Quando são muitas, é só arrastar para o lado. Os botões de compartilhar e de mais opções ficam em pé, à direita.' },
-      { tipo: 'melhoria', texto: 'As cores no fundo do cartão "Tocou por último", na gaveta do perfil, agora se mexem sempre do mesmo jeito, com a música tocando ou pausada.' },
     ],
   },
 ];
