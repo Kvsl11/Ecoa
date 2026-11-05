@@ -19,9 +19,9 @@ const P = {
   shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.3M8.3 13.3l7.4 4.3"/>',
-  // ouvir em outro aparelho (como o do Spotify): o celular atrás, só a borda da esquerda e o pontinho embaixo, e a caixa
-  // de som na frente, com o alto-falante grande e o pequeno
-  aparelhos: '<path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15H10"/><circle cx="7" cy="19" r="1.1" fill="currentColor" stroke="none"/><rect x="12" y="3" width="9" height="18" rx="2"/><circle cx="16.5" cy="14.5" r="2.6"/><circle cx="16.5" cy="7.8" r="1.1"/>',
+  // ouvir em outro aparelho (como o do Spotify): o celular atrás, só a borda da esquerda e um tracinho embaixo, e a caixa
+  // de som na frente, com o alto-falante grande e o pequeno, separada do celular por um vão
+  aparelhos: '<path d="M9 4H5A1.5 1.5 0 0 0 3.5 5.5v8A1.5 1.5 0 0 0 5 15h4"/><path d="M5.5 19h2"/><rect x="12.5" y="3" width="8.5" height="18" rx="2"/><circle cx="16.75" cy="14.5" r="2.5"/><circle cx="16.75" cy="7.8" r="1.1"/>',
   maisCirculo: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
   menosCirculo: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
   pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
