@@ -5722,14 +5722,17 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
 #player .pl-fixo-play svg { width: 26px; height: 26px; }
 
 /* ============ o nome que não cabe anda para o lado (como no Spotify): na barrinha de baixo, no Tocando agora e na
-   barrinha de cima. Parado um pouco no começo, anda até o fim, para e volta ao começo; as pontas somem aos poucos */
+   barrinha de cima. Num laço contínuo: parado um pouco, anda para a esquerda e, atrás dele, depois de um espaço, vem a
+   cópia (.eco); quando o nome sai inteiro, a cópia está no lugar dele e a volta recomeça sem pular. A ponta da esquerda
+   é reta (parado, a primeira letra aparece inteira) e a da direita some aos poucos */
 #player .rolar { display: inline-block; white-space: nowrap; }
+#player .rolar.eco { margin-left: 48px; }
 #player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda { text-overflow: clip;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 22px), transparent);
-  mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 22px), transparent); }
-#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1.5s infinite; }
-@keyframes pl-anda { 0%, 18% { transform: translateX(0); } 82%, 100% { transform: translateX(var(--sobra, 0)); } }
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
+#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
+@keyframes pl-anda { 0%, 15% { transform: translateX(0); } 100% { transform: translateX(var(--giro, 0)); } }
 @media (prefers-reduced-motion: reduce) { #player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda .rolar { animation: none; } }
 /* o artista na linha do nome: só na barrinha de baixo do celular com um fone conectado (embaixo vai o fone) */
 #player .pl-art-junto { display: none; font-weight: 500; color: rgb(255 255 255 / 0.78); }
@@ -5753,7 +5756,7 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
 @media (max-width: 899px) {
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video {
     width: 112px; aspect-ratio: 16 / 9; margin: 0; border-radius: 8px 0 0 8px; align-self: stretch; }
-  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-info { padding-left: 12px; }
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-info { padding-left: 14px; }
 }
 /* a barra de botões de baixo das folhas vai de ponta a ponta (o max-width de .dlg > * deixava ela 44 px mais curta,
    com o conteúdo aparecendo do lado direito, como no Diagnóstico) */
@@ -5763,3 +5766,11 @@ dialog.folha .dlg > .acts { max-width: none; }
 .diag-acts [data-consertar] { grid-column: 1 / -1; justify-content: center; }
 .diag-acts .btn { justify-content: center; }
 .diag-item b { word-break: break-word; }
+/* celular, a barrinha de baixo com o vídeo (como no Spotify): em cima só o nome da música (girando quando não cabe) e
+   embaixo o artista; a linha do fone não aparece (o ícone do fone continua à direita). Só com o áudio (a capa), o nome e
+   o artista vão juntos em cima e o fone embaixo */
+@media (max-width: 899px) {
+  html:not(.tablet):not(.pp) #player.com-fone:not(.capa-na-barra):not(.sem-video) .pl-art-junto { display: none; }
+  html:not(.tablet):not(.pp) #player.com-fone:not(.capa-na-barra):not(.sem-video) .pl-txt small { display: block; }
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video) .pl-onde { display: none; }
+}

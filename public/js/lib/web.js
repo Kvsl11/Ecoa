@@ -1371,3 +1371,36 @@ export async function creditosDaWikipedia({ titulo, artista }, { fetchImpl } = {
   }
   return null;
 }
+
+// ---- os vídeos do artista (os "Vídeos relacionados" do Tocando agora): o nome da música e o artista certos, tirados do
+// título do vídeo, e não o canal. No K-pop o vídeo sai no canal da empresa ("HYBE LABELS", "SMTOWN") com o título
+// "정국 (Jung Kook) 'Seven (feat. Latto)' Official MV": o artista é o que se está explorando (Jung Kook) e a música, a
+// que está entre aspas. Também "Artista - Música (Official Video)" e "Música | Artista". musica: false para o vídeo que
+// não é de música (uma propaganda, uma entrevista), que fica de fora da lista
+const juntoV = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const ENFEITES_DO_VIDEO = /\s*[([]?\s*\b(official\s+(music\s+)?(video|mv|m\/v|audio|visualizer|lyric(s)?\s+video|performance\s+video)|music\s+video|lyric(s)?\s+video|visuali[sz]er|performance\s+video|dance\s+practice|m\/v|mv|audio\s+oficial|v[ií]deo\s+oficial|clipe\s+oficial|oficial|official|teaser|4k|hd)\b\s*[)\]]?/gi;
+const PARECE_MUSICA = /\b(m\/?v|official|music video|lyric|visuali[sz]er|audio|performance|live|ao vivo|clipe|v[ií]deo oficial|feat\.?|ft\.)\b|['‘’"“”「『]/i;
+export function nomesDoVideoDoArtista(tituloVideo, artista) {
+  const bruto = String(tituloVideo || '').replace(/\s+/g, ' ').trim();
+  const alvo = juntoV(artista);
+  const temArtista = (t) => Boolean(alvo) && juntoV(t).includes(alvo);
+  // (o nome do artista em outra escrita, "정국 (Jung Kook)", também é o artista)
+  const ehDoArtista = (t) => temArtista(t) || (/[^\u0000-ɏ]/.test(t) && !/[a-z]{3}/i.test(t.replace(/\([^)]*\)/g, '')));
+  let t = bruto.replace(/[【[][^\]】]*[\]】]/g, ' ').replace(/\s*\|\s*[^|]*$/, (m) => (temArtista(m) ? '' : m)).trim();
+  let titulo = '';
+  // a música entre aspas: 'Seven (feat. Latto)', “Seven”, 「Seven」
+  const aspas = /['‘’"“”「『]([^'‘’"“”」』]{2,})['‘’"“”」』]/.exec(t);
+  if (aspas) titulo = aspas[1];
+  else if (/ [-–—|] /.test(t)) {
+    const partes = t.split(/ [-–—|] /).map((x) => x.trim()).filter(Boolean);
+    const i = partes.findIndex(ehDoArtista);
+    // (a primeira parte que não é o artista: "Artista - Música | Trilha da Copa" é a Música)
+    titulo = i >= 0 ? partes.find((_, j) => j !== i) || '' : partes[1] || partes[0];
+  } else if (temArtista(t)) {
+    // "Jung Kook Seven Official MV": sem o nome do artista
+    titulo = t.replace(new RegExp(String(artista).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i'), ' ');
+  } else titulo = t;
+  titulo = titulo.replace(ENFEITES_DO_VIDEO, ' ').replace(/\(\s*\)|\[\s*\]/g, ' ').replace(/^[\s:,'"‘’“”.-]+|[\s:,'"‘’“”.-]+$/g, '').replace(/\s+/g, ' ').trim();
+  const musica = Boolean(titulo) && temArtista(bruto) && (PARECE_MUSICA.test(bruto) || / [-–—] /.test(bruto)) && !/\b(interview|entrevista|behind|making|reaction|react|vlog|teaser|trailer|shorts|fmv|fan ?made|fan ?mv|fanmade|edit|cover|karaoke|nightcore|sped up|slowed|8d audio|tutorial|reaccion)\b/i.test(bruto);
+  return { titulo: titulo || bruto, artista: String(artista || '').trim(), musica };
+}

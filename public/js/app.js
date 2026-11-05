@@ -36,7 +36,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { creditosDaWikipedia, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -2598,17 +2598,34 @@ const player = (() => {
   // O nome que não cabe anda devagar para o lado e volta ao começo (como no Spotify): o da barrinha de baixo, o do
   // Tocando agora e o da barrinha de cima. Cada linha tem o texto dentro de um .rolar; medida a sobra, a linha ganha a
   // classe anda e a distância e o tempo do passeio (uns 30 px por segundo)
+  // (o giro é um laço contínuo, como no Spotify: atrás do nome vem uma cópia dele, depois de um espaço, e quando o nome
+  // sai inteiro pela esquerda a cópia está exatamente onde ele começou: o giro recomeça sem pular)
+  const ESPACO_DO_GIRO = 48;
   const medirNomes = () => requestAnimationFrame(() => {
     el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b').forEach((linha) => {
-      const r = $('.rolar', linha);
+      const r = linha.querySelector(':scope > .rolar:not(.eco)');
       if (!r || !linha.clientWidth) return;
-      const sobra = r.scrollWidth - linha.clientWidth;
-      const anda = sobra > 4;
-      linha.classList.toggle('anda', anda);
-      if (anda) {
-        linha.style.setProperty('--sobra', `${-(sobra + 16)}px`);
-        linha.style.setProperty('--tempo-anda', `${Math.max(7, (sobra + 16) / 30 + 5)}s`);
+      let eco = linha.querySelector(':scope > .rolar.eco');
+      const anda = r.offsetWidth - linha.clientWidth > 4;
+      if (!anda) { eco?.remove(); linha.classList.remove('anda'); linha.__giro = 0; return; }
+      // (a cópia é refeita só quando o nome muda: refazer a cada desenho recomeçava o giro)
+      const html = r.innerHTML;
+      if (!eco || eco.__de !== html) {
+        eco?.remove();
+        eco = r.cloneNode(true);
+        eco.classList.add('eco');
+        eco.setAttribute('aria-hidden', 'true');
+        eco.__de = html;
+        linha.append(eco);
       }
+      const giro = Math.round(r.offsetWidth + ESPACO_DO_GIRO);
+      if (linha.__giro !== giro) {
+        linha.__giro = giro;
+        linha.style.setProperty('--giro', `${-giro}px`);
+        // (uns 32 px por segundo, com uma parada curta no começo de cada volta)
+        linha.style.setProperty('--tempo-anda', `${(giro / 32 / 0.85).toFixed(1)}s`);
+      }
+      linha.classList.add('anda');
     });
   });
   const medirNomeDaBarrinha = medirNomes;
@@ -3186,7 +3203,7 @@ const player = (() => {
       const sec = $('.pl-extra .pl-videos', el);
       if (!sec || extraDe !== chave || !vs.length) return;
       dadosCreditos.videos = vs;
-      $('.pl-trilho', sec).innerHTML = vs.map((v, i) => `<button class="pl-video-rel" data-pl="video-rel" data-i="${i}" title="${esc(v.titulo)}"><span class="pl-video-capa" style="background-image:url('${esc(v.capa)}')">${v.duracao ? `<i>${esc(v.duracao)}</i>` : ''}<span class="pl-video-play">${icon('play', 16)}</span></span><b>${esc(v.titulo)}</b><small>${esc(v.canal)}</small></button>`).join('');
+      $('.pl-trilho', sec).innerHTML = vs.map((v, i) => `<button class="pl-video-rel" data-pl="video-rel" data-i="${i}" title="${esc(v.tituloDoVideo)}"><span class="pl-video-capa" style="background-image:url('${esc(v.capa)}')">${v.duracao ? `<i>${esc(v.duracao)}</i>` : ''}<span class="pl-video-play">${icon('play', 16)}</span></span><b>${esc(v.titulo)}</b><small>${esc(v.artista)}</small></button>`).join('');
       sec.hidden = false;
     }).catch(() => {});
     // os atalhos "Parecidos com…": a foto do primeiro artista parecido (do Deezer)
@@ -6115,8 +6132,12 @@ const semLinhasDeAcordes = (sinc) => {
     if (b.dataset.pl === 'creditos-todos' && dadosCreditos) { mostrarTodosOsCreditos(dadosCreditos); return; }
     if (b.dataset.pl === 'topo') { el.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
     if (b.dataset.pl === 'video-rel' && dadosCreditos?.videos?.[b.dataset.i]) {
+      // o vídeo toca já no modo vídeo (o clipe na tela, e não a capa), com o nome da música e o artista certos; aberto
+      // como música, vem com a cifra e a letra dessa música desse artista
       const v = dadosCreditos.videos[b.dataset.i];
-      player.tocar({ youtube: v.id, titulo: v.titulo, artista: v.canal, abrir: () => abrirVideoComoMusica(v) });
+      const video = { ...v, titulo: v.tituloDoVideo };
+      api.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash) });
+      api.paraModoVideo();
       return;
     }
     if (b.dataset.pl === 'explorar-musicas' && dadosCreditos?.pessoas[0]) { irParaArtista(dadosCreditos.pessoas[0].nome); return; }
@@ -8291,7 +8312,13 @@ function videosDoArtista(nome, fora = []) {
   if (!videosDoArtistaBuscados.has(k)) videosDoArtistaBuscados.set(k, buscarYoutubeNaWeb(nome).catch(() => { videosDoArtistaBuscados.delete(k); return []; }));
   const tirar = new Set(fora.filter(Boolean));
   const junto = nomeJunto(nome);
-  return videosDoArtistaBuscados.get(k).then((l) => (l || []).filter((v) => !tirar.has(v.id) && v.segundos !== 0 && (nomeJunto(v.titulo).includes(junto) || nomeJunto(v.canal).includes(junto))).slice(0, 10));
+  // (só os vídeos de música do artista, com o nome da música e o artista tirados do título: no K-pop o canal é o da
+  // empresa, "HYBE LABELS", e o artista é o do título; a propaganda e a entrevista ficam de fora)
+  return videosDoArtistaBuscados.get(k).then((l) => (l || []).filter((v) => !tirar.has(v.id) && v.segundos !== 0)
+    .map((v) => ({ ...v, ...nomesDoVideoDoArtista(v.titulo, nome), tituloDoVideo: v.titulo }))
+    .filter((v) => v.musica && junto && nomeJunto(v.tituloDoVideo).includes(junto))
+    // (a mesma música uma vez só: o clipe e a apresentação de "Seven" viravam dois cartões iguais)
+    .filter((v, i, l) => l.findIndex((x) => normalizar(tituloLimpo(x.titulo)) === normalizar(tituloLimpo(v.titulo))) === i).slice(0, 10));
 }
 // os artistas parecidos com o artista (do Deezer): [{ nome, foto, fas }]
 const parecidosBuscados = new Map();
