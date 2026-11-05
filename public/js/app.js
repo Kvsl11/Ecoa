@@ -15034,7 +15034,7 @@ function infoDaGaveta(u) {
       ${numero(artistas, artistas === 1 ? 'artista' : 'artistas', '#/biblioteca')}
       ${numero(baixadas, baixadas === 1 ? 'baixada' : 'baixadas', '#/offline')}
     </div>
-    ${ultima ? `<a class="pg-ultima" href="#/musica/${encodeURIComponent(ultima.id)}">
+    ${ultima ? `<a class="pg-ultima${player.estado === 'tocando' ? ' tocando' : ''}" href="#/musica/${encodeURIComponent(ultima.id)}">
         ${fundo ? `<span class="pg-ultima-fundo" style="background-image:url('${esc(fundo).replace(/'/g, '%27')}')"></span>` : ''}
         ${capa(ultima, { cls: 'sm' })}<span class="grow"><small>Tocou por último</small><b>${esc(ultima.title)}</b>${ultima.artist ? `<small>${esc(ultima.artist)}</small>` : ''}</span>
         <span class="pg-play" aria-hidden="true">${icon('play', 18)}</span></a>` : ''}`;
@@ -15059,8 +15059,12 @@ function abrirGavetaDoPerfil() {
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
+  // o fundo do "Tocou por último" se mexe sempre devagar; com música tocando, mais vivo
+  const marcarTocando = () => $('.pg-ultima', g)?.classList.toggle('tocando', player.estado === 'tocando');
+  const pararDeOuvir = player.ouvir(marcarTocando);
   const fechar = () => {
     g.classList.remove('aberta');
+    pararDeOuvir();
     removeEventListener('hashchange', fechar);
     removeEventListener('songbook:conta', atualizar);
     removeEventListener('keydown', aoTeclar);
