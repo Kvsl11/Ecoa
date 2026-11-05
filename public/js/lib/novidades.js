@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 540, data: '2026-11-05', titulo: 'Baixar todas as músicas curtidas',
+    itens: [
+      { tipo: 'novo', texto: 'As Músicas curtidas ganharam o botão de baixar tudo, como nas playlists: um toque baixa todas as músicas salvas para ouvir sem internet; tocando enquanto baixa, o download pausa, e com todas baixadas o botão fica verde.' },
+    ],
+  },
+  {
     versao: 539, data: '2026-11-05', titulo: 'A seta de download piscando direito',
     itens: [
       { tipo: 'correcao', texto: 'Nas listas, a seta das músicas baixando piscava de um jeito estranho (ora piscava, ora não): ela era redesenhada a cada avanço do download e a piscada recomeçava do zero. Agora ela só muda quando o estado muda (baixando, incompleta, baixada), e a piscada fica contínua.' },
@@ -62,14 +68,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
       { tipo: 'correcao', texto: 'As músicas que tinham ficado só música por isso são conferidas de novo, sozinhas; nas baixadas, o clipe volta a ser baixado.' },
-    ],
-  },
-  {
-    versao: 530, data: '2026-11-05', titulo: 'Só clipe de verdade',
-    itens: [
-      { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e só aceita clipe de canal oficial (o do artista, o VEVO ou a gravadora; não o de fã). Ele procura o clipe oficial; Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
-      { tipo: 'correcao', texto: 'O clipe e o áudio oficial com os outros artistas no nome ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open") voltam a ser reconhecidos. As músicas que tinham perdido o áudio oficial por isso o procuram de novo, sozinhas.' },
-      { tipo: 'melhoria', texto: 'As músicas que você já tinha, inclusive as baixadas, são conferidas sozinhas, em segundo plano. Nas baixadas, o clipe oficial achado é baixado; na que fica só música, o vídeo parado sai do aparelho (sobra mais espaço) e ela continua tocando sem internet, só com o som.' },
     ],
   },
 ];
