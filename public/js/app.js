@@ -392,7 +392,20 @@ async function compartilhar(dados) {
 }
 
 
+// a tela aberta pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes…): a seta de voltar leva de volta à
+// gaveta, aberta por cima da tela de onde se veio — e não pelo caminho de telas da seta de sempre (Novidades → Sobre →
+// Ajustes → Início). Vale enquanto se está nela (ou nas telas de dentro dela, que voltam para ela pela própria seta)
+let vindoDaGaveta = null; // { destino: '#/novidades', origem: '#/' }
+const voltarParaGaveta = () => {
+  const { origem } = vindoDaGaveta;
+  vindoDaGaveta = null;
+  addEventListener('hashchange', () => abrirGavetaDoPerfil(), { once: true });
+  // (no lugar da tela atual no histórico: o voltar do celular depois não cai de novo nela)
+  location.replace(location.pathname + location.search + origem);
+};
 function setHeader(title, { back = null, actions = [], eyebrow = '' } = {}) {
+  if (vindoDaGaveta && !location.hash.startsWith(vindoDaGaveta.destino)) vindoDaGaveta = null;
+  if (back && vindoDaGaveta && location.hash === vindoDaGaveta.destino) back = voltarParaGaveta;
   titleEl.textContent = title;
   eyebrowEl.textContent = eyebrow;
   document.title = `${title} · Ecoa`;
@@ -15232,6 +15245,8 @@ function abrirGavetaDoPerfil() {
   g.addEventListener('click', (e) => {
     const play = e.target.closest('[data-tocar]');
     if (play) { e.preventDefault(); tocarUltima(play.closest('.pg-ultima')); return; }
+    const link = e.target.closest('a[href^="#/"]');
+    if (link && link.getAttribute('href') !== (location.hash || '#/')) vindoDaGaveta = { destino: link.getAttribute('href'), origem: location.hash || '#/' };
     if (e.target === g || e.target.closest('a')) { fechar(); return; }
     if (e.target.closest('[data-entrar]')) { fechar(); entrarPelaTela(); return; }
     if (e.target.closest('[data-sinc]')) sincronizar({ forcar: true });
