@@ -904,7 +904,12 @@ body.no-lumen .main-col { margin: 0 !important; }
 .track.set-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .track.set-item a { -webkit-user-drag: none; }
 .reordenando, .reordenando * { cursor: grabbing !important; }
-.track.arrastando { transform: scale(1.02); transition: transform 0.12s;  background: var(--surface-2); box-shadow: var(--shadow-lg); position: relative; z-index: 5; opacity: 0.95; }
+/* reordenar (como na fila): o card segurado fica com o fundo mais claro e acompanha o dedo; os outros deslizam por
+   baixo para abrir o lugar dele; ao soltar, ele desce até o lugar novo */
+.reordenando { position: relative; }
+.reordenando > li { position: relative; transition: transform .18s cubic-bezier(.2, .8, .2, 1); user-select: none; -webkit-user-select: none; }
+.reordenando > li.arrastando { z-index: 5; background: color-mix(in srgb, var(--text) 11%, var(--surface, #181818)); box-shadow: var(--shadow-lg); transition: background .15s; }
+.reordenando > li.arrastando.soltando { transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .2s; }
 .track.atual { background: var(--accent-soft); }
 .tracks.fila { max-height: 58vh; overflow: auto; }
 .tracks.fila .track { margin: 0; }

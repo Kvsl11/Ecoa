@@ -9,6 +9,7 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na gaveta do perfil, as cores da capa no fundo do cartão "Tocou por último" agora se mexem devagar, sem parar. Com uma música tocando, elas correm mais rápido e o brilho pulsa de leve.' },
       { tipo: 'melhoria', texto: 'O botão de tocar desse cartão agora toca a música ali mesmo, sem sair da gaveta (ela aparece tocando no player), e vira o botão de pausar. Tocando no resto do cartão, a música abre, como antes.' },
       { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
+      { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
       { tipo: 'correcao', texto: 'O triângulo do botão de tocar desse cartão estava puxado para a direita. Agora fica no centro da bola.' },
     ],
   },
