@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 513, data: '2026-11-05', titulo: 'Os seguidores e as hashtags da prévia aparecem juntos',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na prévia da playlist, os seguidores do artista e as hashtags da música aparecem juntos, de uma vez (antes as hashtags chegavam depois). Da segunda vez em diante, aparecem na hora.' },
+    ],
+  },
+  {
     versao: 512, data: '2026-11-05', titulo: 'Os seguidores do artista na prévia da playlist, sempre atualizados',
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os seguidores dele: os do canal do YouTube, lidos na hora (41,2M seguidores).' },
@@ -64,12 +70,6 @@ export const NOVIDADES = [
     versao: 504, data: '2026-11-04', titulo: 'A gaveta do perfil de cara nova',
     itens: [
       { tipo: 'melhoria', texto: 'A gaveta que abre pela sua foto ficou mais moderna: o topo na cor da sua foto, com o seu nome, o e-mail e o botão Ver perfil; a sincronia com a conta Google numa linha só, com o botão de sincronizar ao lado (ele gira enquanto sincroniza); os números da biblioteca numa faixa; a última música tocada num cartão com a capa ao fundo e o botão de tocar; e o menu num cartão com ícones coloridos.' },
-    ],
-  },
-  {
-    versao: 503, data: '2026-11-04', titulo: 'O vídeo online não para mais por "outro dispositivo"',
-    itens: [
-      { tipo: 'correcao', texto: 'O vídeo que toca pela internet (sem estar baixado) parava muito com o aviso do YouTube de que a conta estava sendo usada em outros dispositivos. Era o próprio app: além do player que você ouve, ele abre outros do YouTube por baixo (a capa animada, o clipe esperando para a troca entre música e vídeo, a próxima música no crossfade, a prévia das playlists), e cada um contava como outra reprodução da sua conta ao mesmo tempo. Agora só o player que você ouve usa a sua conta do YouTube; os outros abrem sem conta e não contam.' },
     ],
   },
 ];
