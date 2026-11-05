@@ -15145,13 +15145,15 @@ function abrirGavetaDoPerfil() {
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
-  // o topo do perfil na cor da capa do "Tocou por último": a já conhecida na hora, e a da capa quando ficar pronta
-  const ultimaDaGaveta = db.song($('.pg-ultima', g)?.dataset.id || '');
+  // o topo do perfil com a mesma capa borrada do fundo do "Tocou por último", para as cores ficarem iguais
+  const fundoDaUltima = $('.pg-ultima-fundo', g);
   const cab = $('.pg-cab', g);
-  if (ultimaDaGaveta && cab) {
-    cab.classList.add('com-cor');
-    cab.style.setProperty('--pg-cor', corDe(ultimaDaGaveta));
-    corDaCapa(ultimaDaGaveta).then((c) => { if (c) cab.style.setProperty('--pg-cor', c); });
+  if (fundoDaUltima && cab) {
+    cab.classList.add('com-capa');
+    const camada = document.createElement('span');
+    camada.className = 'pg-cab-capa';
+    camada.append(fundoDaUltima.cloneNode());
+    cab.prepend(camada);
   }
   // o play do "Tocou por último" vira pausar enquanto ela toca (o fundo se mexe sempre, tocando ou não)
   const marcarTocando = () => {
