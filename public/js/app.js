@@ -8104,7 +8104,7 @@ function verFotos(urls, inicio = 0) {
 async function abrirSobreArtista({ nome, slug = '' }) {
   document.querySelector('.sobre-artista')?.remove();
   const tela = document.createElement('section');
-  tela.className = 'sobre-artista';
+  tela.className = 'sobre-artista carregando'; // (carregando: o círculo no meio da tela, até chegarem as fotos e o texto)
   tela.setAttribute('role', 'dialog');
   tela.setAttribute('aria-label', `Sobre ${nome}`);
   tela.innerHTML = `<header class="sa-topo"><button class="icon-btn" data-sa="voltar" aria-label="Voltar">${icon('back', 24)}</button><b>${esc(nome)}</b><span></span></header>
@@ -8123,6 +8123,7 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   const [info, dz, foto, canal, adb, sp] = await Promise.all([descricaoDoArtista(nome), deezerDoArtista(nome), fotoDoArtista(nome, slug).catch(() => ''),
     canalGuardado(nome).catch(() => null), audioDbGuardado(nome).catch(() => null), spotifyDoArtista(nome)]);
   if (!tela.isConnected) return;
+  tela.classList.remove('carregando');
   // as fotos (sem repetir): a do cartão, a do canal do YouTube, as da TheAudioDB (a principal e as de fundo), a do
   // Deezer e a da Wikipédia; depois chegam as do artigo da Wikipédia em que ele aparece (até 12 ao todo). Os quadros dos
   // vídeos do canal dele não entram: são cenas de clipe, com o "VEVO" e o título escritos por cima, e não fotos dele
