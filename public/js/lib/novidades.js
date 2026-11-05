@@ -4,6 +4,20 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 522, data: '2026-11-05', titulo: 'A música da busca abre na hora',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na Busca, as primeiras músicas da lista já vão sendo preparadas enquanto você olha: a cifra, a letra, o vídeo, a letra sincronizada, o áudio oficial e a capa. Ao tocar numa delas, ela abre na hora, já com tudo sincronizado. As outras começam a ser preparadas no instante em que o dedo encosta. Com a economia de dados ligada, só a que você toca é preparada.' },
+    ],
+  },
+  {
+    versao: 521, data: '2026-11-05', titulo: 'A busca sem bolinhas girando',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na Busca, enquanto você digita, o resultado anterior continua na tela (mais apagado) e uma linha fina corre embaixo da barra de busca. Quando chega o resultado novo, a tela troca de uma vez, sem pular. Antes cada seção (Artistas, Acervo, Músicas) apagava e ganhava uma bolinha girando.' },
+      { tipo: 'melhoria', texto: 'Na primeira busca e em "Católicas em alta" e "Artistas católicos", aparece o contorno das capas e das linhas no lugar exato do que vai chegar. As músicas vêm primeiro, depois os artistas e o acervo.' },
+      { tipo: 'melhoria', texto: 'No resto do app, o carregando virou três pontinhos discretos, no lugar do anel colorido girando.' },
+    ],
+  },
+  {
     versao: 520, data: '2026-11-05', titulo: 'As duplas não são mais separadas',
     itens: [
       { tipo: 'correcao', texto: 'Nas músicas de duplas, como "Voa Beija-flor" de Jorge & Mateus, o app separava os nomes e mostrava outros artistas: o "Sobre o artista" vinha com o Jorge Ben e as fotos de outras pessoas. Agora a dupla fica junta, com a foto, a apresentação e a capa dela. Quando "&" liga dois artistas diferentes (como "Anitta & Ludmilla"), o app confere e mostra cada um.' },
@@ -55,20 +69,6 @@ export const NOVIDADES = [
     versao: 513, data: '2026-11-05', titulo: 'Os seguidores e as hashtags da prévia aparecem juntos',
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist, os seguidores do artista e as hashtags da música aparecem juntos, de uma vez (antes as hashtags chegavam depois). Da segunda vez em diante, aparecem na hora.' },
-    ],
-  },
-  {
-    versao: 512, data: '2026-11-05', titulo: 'Os seguidores do artista na prévia da playlist, sempre atualizados',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os seguidores dele: os do canal do YouTube, lidos na hora (41,2M seguidores).' },
-      { tipo: 'correcao', texto: 'Os seguidores do Spotify saíram: o Spotify deixou de liberar esse número para apps como o Ecoa em 2026, e a cópia que havia estava meses atrasada. A opção de conectar o Spotify também saiu. Na tela do artista ficam os inscritos no YouTube e os fãs no Deezer, os dois atualizados.' },
-    ],
-  },
-  {
-    versao: 511, data: '2026-11-05', titulo: 'O carregando do "Sobre o artista" no meio da tela',
-    itens: [
-      { tipo: 'melhoria', texto: 'Em "Sobre o artista", as fotos mais novas vêm primeiro (a do canal do YouTube e a do Deezer), e as que podem ser antigas ficam para o fim. Com o Spotify conectado, a foto do artista é a do Spotify, a oficial de agora.' },
-      { tipo: 'melhoria', texto: 'Ao abrir "Sobre o artista", o círculo de carregando fica no meio da tela (antes ficava lá em cima, com a tela vazia).' },
     ],
   },
 ];
