@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 511, data: '2026-11-05', titulo: 'O carregando do "Sobre o artista" no meio da tela',
+    itens: [
+      { tipo: 'melhoria', texto: 'Em "Sobre o artista", as fotos mais novas vêm primeiro (a do canal do YouTube e a do Deezer), e as que podem ser antigas ficam para o fim. Com o Spotify conectado, a foto do artista é a do Spotify, a oficial de agora.' },
+      { tipo: 'melhoria', texto: 'Ao abrir "Sobre o artista", o círculo de carregando fica no meio da tela (antes ficava lá em cima, com a tela vazia).' },
+    ],
+  },
+  {
     versao: 510, data: '2026-11-05', titulo: 'Os seguidores do Spotify direto do Spotify, e mais hashtags',
     itens: [
       { tipo: 'correcao', texto: 'Na prévia da playlist, a boca do cantor saía fora do tempo do som em algumas músicas baixadas: a prévia mostrava o clipe e tocava por cima o áudio oficial, que é outra gravação. Agora o som é sempre o do próprio clipe.' },
@@ -63,13 +70,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Algumas músicas, como Levitating, estavam salvas com o vídeo que é só o áudio: o "Topic" do YouTube Music, com a capa parada. Esse vídeo o YouTube nem deixa baixar como vídeo, e o download trazia só a música. Agora, antes de baixar, o app confere: se o vídeo é só o áudio, procura o clipe oficial (do canal do artista) e baixa o áudio e o clipe.' },
       { tipo: 'correcao', texto: 'As músicas que você já baixou assim ganham o clipe sozinhas, em segundo plano. Quando falta o clipe, o aviso do download agora diz o porquê.' },
-    ],
-  },
-  {
-    versao: 501, data: '2026-11-04', titulo: 'O download traz sempre o áudio e o clipe',
-    itens: [
-      { tipo: 'correcao', texto: 'Muitas músicas baixavam só o áudio, sem o videoclipe. O clipe é o arquivo grande e falhava às vezes (o servidor demorava, o YouTube não entregava aquela qualidade), e o app desistia na primeira vez. Agora cada arquivo tenta até 3 vezes, e o vídeo desce de qualidade a cada tentativa (muito alta, alta, normal) para vir sempre junto.' },
-      { tipo: 'correcao', texto: 'Se ainda assim o clipe não vier, o download tenta de novo sozinho daqui a alguns minutos e também ao abrir o app. As músicas que você já tinha baixado só com o áudio ganham o clipe sozinhas, em segundo plano, sem precisar apagar o download e baixar de novo. O que já tinha vindo fica.' },
     ],
   },
 ];

@@ -3969,6 +3969,8 @@ html.pp #player .pl-artista-mais { all: unset; position: absolute; right: 0; bot
 .sa-numeros small { color: rgb(255 255 255 / 0.7); font-size: 13px; }
 .sa-conectar { display: flex; align-items: center; gap: 6px; align-self: center; color: var(--accent); font-size: 14px; font-weight: 600; text-decoration: none; }
 .sa-texto { padding: 16px 20px 4px; max-width: 760px; }
+/* carregando: o círculo no meio da tela (antes ficava lá em cima, no lugar do texto, com a tela vazia) */
+.sobre-artista.carregando .sa-texto .loading-note { position: fixed; inset: 0; min-height: 0; margin: 0; pointer-events: none; }
 .sa-texto p { margin: 0 0 12px; font-size: 16px; line-height: 1.55; color: rgb(255 255 255 / 0.9); hyphens: manual; }
 .sa-links { display: grid; margin: 12px 12px 0; padding: 6px 0; border-radius: 12px; background: #1f1f1f; max-width: 736px; }
 .sa-links:empty { display: none; }
