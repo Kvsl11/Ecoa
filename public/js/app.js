@@ -1,6 +1,6 @@
 import { db, youtubeId } from './store.js';
 import { esc, renderSong, soltarAcordes } from './render.js';
-import { definirMeta, semInvisiveis, soAcordes, paraEditor, doEditor, completarCifra, temCifra, chordsOverLyricsToChordPro, chordProToChordsOverLyrics, toChordPro, transposeChordPro, transposeKey, transposeChord, looksLikeChordPro, isChordOnlyLine, letraDe, aplicarLetra, linhasDaLetra, linhasCantadas, partesCantadas, capoDaCifra, capoDaObservacao, organizarPartes, parteEmIngles } from './chordpro.js';
+import { definirMeta, semInvisiveis, soAcordes, paraEditor, doEditor, completarCifra, temCifra, chordsOverLyricsToChordPro, chordProToChordsOverLyrics, toChordPro, transposeChordPro, transposeKey, transposeChord, looksLikeChordPro, isChordOnlyLine, letraDe, aplicarLetra, isChord, linhasDaLetra, linhasCantadas, partesCantadas, capoDaCifra, capoDaObservacao, organizarPartes, parteEmIngles } from './chordpro.js';
 import { icon, iconeMenu, logo, logoLumen } from './icons.js';
 import { diagramaSvg } from './acordes.js';
 import { htmlMusica, htmlRepertorio, imprimir } from './pdf.js';
@@ -27,6 +27,7 @@ import { doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudi
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
+import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
@@ -1559,6 +1560,10 @@ const REVISOES = [
   // em "Voa Beija-flor") —: o modo música tocava outra coisa com o clipe certo. O guardado é conferido pelo nome e pelo
   // canal no YouTube; sendo de outra música, sai, o certo é procurado e a letra sincronizada e o download são refeitos
   { rev: 15, conferirAudio: true, versoes: true, letra: true, arquivos: true, quais: (s) => { const vs = versoesDe(s); return Boolean(vs?.audio) && !ehArquivo(vs.audio) && vs.audio !== vs.video && !s.audioProprio; } },
+  // v526: a cifra num tom diferente do da gravação (tirada em outro tom, ou escrita com os desenhos do capotraste): nas
+  // baixadas (o som está no aparelho), o app ouve a gravação e, com a resposta clara, põe a cifra no tom dela. O tom
+  // escolhido à mão fica
+  { rev: 16, tomGravacao: true, quais: (s) => Boolean(s.baixado) && temCifra(s.content || '') && !s.tomManual && !s.tomGravacao },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1681,6 +1686,11 @@ async function revisarMusica(id, pendentes, chaves) {
         }
       }
     }
+  }
+  // a cifra no tom da gravação (a do tom escolhido à mão fica)
+  if (quer('tomGravacao') && s && !s.tomManual) {
+    await noMaximo(ajustarTomDaGravacao(s), 60000, false).catch(() => {});
+    s = db.song(id);
   }
   // a letra sincronizada (a feita à mão pela pessoa fica como está)
   if (quer('letra') && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
@@ -2160,7 +2170,7 @@ const player = (() => {
       <button class="icon-btn" data-pl="fila" aria-label="Fila" title="Fila">${icon('queue', 20)}</button>
     </div>
     <section class="pl-letra" hidden><div class="pl-letra-topo"><button class="icon-btn" data-pl="letra-fechar" aria-label="Fechar a letra" title="Fechar">${icon('down', 24)}</button><span class="pl-letra-nome"><b></b><small></small></span><span class="pl-letra-dir"><button class="icon-btn pl-leitura" data-pl="leitura" aria-pressed="false" aria-label="Só a letra, para ler" title="Só a letra (tira o resto da tela)">${icon('eye', 18)}</button><button class="pl-ver-cifra" data-pl="ver-cifra" aria-pressed="false" aria-label="Mostrar os acordes" title="Mostrar os acordes"><span class="seg-letra">Letra</span><span class="seg-cifra">Cifra</span></button></span></div><div class="pl-letra-cab"><h3>Letra</h3><span class="pl-letra-bts"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 16)}</button><button class="icon-btn" data-pl="cheio" aria-label="Letra na tela toda" title="Letra na tela toda">${icon('expand', 16)}</button></span></div><div class="pl-ferr">
-      <span class="pl-ferr-g so-cifra"><button data-pl="tom-" aria-label="Baixar meio tom" title="Baixar meio tom">−</button><b class="pl-tom"></b><button data-pl="tom+" aria-label="Subir meio tom" title="Subir meio tom">+</button></span>
+      <button class="pl-ferr-g pl-ferr-tom so-cifra" data-pl="tons" aria-label="Escolher o tom" title="Escolher o tom"><b class="pl-tom"></b>${icon('down', 14)}</button>
       <span class="pl-ferr-g so-cifra"><button data-pl="capo-" aria-label="Capotraste uma casa abaixo" title="Capotraste: uma casa abaixo">−</button><b class="pl-capo"></b><button data-pl="capo+" aria-label="Capotraste uma casa acima" title="Capotraste: uma casa acima">+</button></span>
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
@@ -3042,6 +3052,8 @@ const semLinhasDeAcordes = (sinc) => {
     soltarAcordes(box);
     desenharDiagramas();
     $('.pl-tom', el).innerHTML = `<small>Tom</small>${esc(r.key || (transpose ? (transpose > 0 ? '+' : '') + transpose : '—'))}`;
+    // (a cifra no tom da gravação: o app ouve a música uma vez e, se a cifra estiver em outro tom, ajusta)
+    void ajustarTomDaGravacao(song).then((mudou) => { if (mudou && musicaTocando() === song) desenharCifra(); });
     $('.pl-capo', el).innerHTML = `<small>Capo</small>${capo || '—'}`;
     // com a letra sincronizada, a linha cantada acende também na cifra
     // (as mesmas frases da letra, na mesma ordem dos tempos: sem as linhas só de acordes e sem os asteriscos. Antes
@@ -3073,6 +3085,20 @@ const semLinhasDeAcordes = (sinc) => {
     if (song !== preview && db.song(song.id)) db.updateSong(song.id, { [campo]: valor });
     desenharCifra();
   };
+  // o tom: a tabela com os 12 tons (como no Cifra Club), com o original da cifra e o da gravação marcados. O tom escolhido
+  // à mão fica (o ajuste automático ao tom da gravação não mexe mais nele)
+  async function escolherTomNoPlayer() {
+    const song = musicaTocando();
+    if (!song?.content) return;
+    const base = tomEscritoDaCifra(song);
+    if (!base) { toast('Esta cifra não informa o tom'); return; }
+    const t = await dialogoTons(base, song.transpose || 0, { gravacao: song.tomGravacao?.semitons });
+    if (t === null || t === undefined) return;
+    song.transpose = t;
+    song.tomManual = true;
+    if (song !== preview && db.song(song.id)) db.updateSong(song.id, { transpose: t, tomManual: true });
+    desenharCifra();
+  }
   const mudarFonte = (d) => {
     const f = db.prefs().fontScale || 1;
     db.setPref('fontScale', Math.max(0.6, Math.min(2.5, +(f + d).toFixed(2))));
@@ -5539,8 +5565,7 @@ const semLinhasDeAcordes = (sinc) => {
       desenhar();
       return;
     }
-    if (b.dataset.pl === 'tom-') { mudarCifra('transpose', -1); return; }
-    if (b.dataset.pl === 'tom+') { mudarCifra('transpose', 1); return; }
+    if (b.dataset.pl === 'tons') { escolherTomNoPlayer(); return; }
     if (b.dataset.pl === 'capo-') { mudarCifra('capo', -1); return; }
     if (b.dataset.pl === 'capo+') { mudarCifra('capo', 1); return; }
     if (b.dataset.pl === 'fonte-') { mudarFonte(-0.1); return; }
@@ -12920,9 +12945,10 @@ function viewSong(id, ctx = {}) {
   // tabela de tons (como no Cifra Club): toca no tom e a cifra muda
   async function escolherTom() {
     if (!tomBase) { toast('Esta música não informa o tom'); return; }
-    const r = await dialogoTons(tomBase, transpose);
-    if (r === null) return;
+    const r = await dialogoTons(tomBase, transpose, { gravacao: song.tomGravacao?.semitons });
+    if (r === null || r === undefined) return;
     transpose = r;
+    if (!isPreview && db.song(song.id)) db.updateSong(song.id, { tomManual: true }); else song.tomManual = true;
     save();
     draw();
   }
@@ -13002,7 +13028,56 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 
 // Tabela de tons (como no Cifra Club): devolve quantos semitons mudar (-6..5) ou null.
 // "original" é o tom de referência; o marcado é o atual.
-async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', rotuloOriginal = 'original' } = {}) {
+// O tom em que a cifra está escrita (o da cifra, o guardado, ou o do primeiro acorde)
+const tomEscritoDaCifra = (song) => renderSong(song?.content || '').key || song?.key || (/\[([A-G][#b]?m?)(?![a-z])/.exec(song?.content || '') || [])[1] || '';
+// ---- a cifra no tom da gravação (lib/tom.js): o app ouve a gravação — o arquivo baixado, o áudio da pessoa, o seu
+// servidor ou, sem eles, os serviços públicos — e compara as notas que soam com as dos acordes da cifra. Com a resposta
+// clara de que a cifra está em outro tom, ela sobe ou desce para o tom da gravação (uma vez; o tom escolhido à mão fica)
+const cromasDaGravacao = new Map();
+function cromaDaGravacao(id) {
+  if (!cromasDaGravacao.has(id)) {
+    cromasDaGravacao.set(id, (async () => {
+      const amostras = await amostrasDe(id).catch(() => null);
+      if (amostras?.length) return cromaDoAudio(amostras, TAXA_CASAMENTO);
+      if (ehArquivo(id) || !navigator.onLine || db.prefs().economiaDados) return null;
+      const cfg = await carregarServidor().catch(() => null);
+      if (!cfg?.url) return null;
+      const r = await chamarComEtapas(cfg, '/croma', { json: { video: `https://youtu.be/${id}` }, tempo: 4 * 60e3 }).catch(() => null);
+      return Array.isArray(r?.croma) && r.croma.length === 12 ? r.croma : null;
+    })().then((c) => { if (!c) setTimeout(() => cromasDaGravacao.delete(id), 10 * 60e3); return c; }));
+  }
+  return cromasDaGravacao.get(id);
+}
+const acordesDaCifra = (content) => [...String(content || '').matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim()).filter((a) => isChord(a));
+const ajustandoTom = new Set();
+async function ajustarTomDaGravacao(song) {
+  if (!song?.content || song.tomManual || !temCifra(song.content)) return false;
+  // (a gravação: o áudio oficial, que é a música sem as cenas do clipe; senão o vídeo, ou o áudio da pessoa)
+  const vs = versoesDe(song);
+  const id = vs?.audio || song.youtube || (song.audioProprio && song.id ? ARQ + song.id : '');
+  if (!id || song.tomGravacao?.video === id || ajustandoTom.has(`${song.id}|${id}`)) return false;
+  ajustandoTom.add(`${song.id}|${id}`);
+  try {
+    const croma = await cromaDaGravacao(id);
+    if (!croma) return false;
+    const r = tomQueCasa(acordesDaCifra(song.content), croma);
+    if (!r) return false;
+    const atual = song.id === 'previa' ? preview : db.song(song.id);
+    if (!atual || atual.tomManual || atual.content !== song.content) return false;
+    const tomGravacao = { video: id, semitons: r.semitons, casamento: r.casamento };
+    const mudar = r.ajustar && !(atual.transpose || 0);
+    const novo = { tomGravacao, ...(mudar ? { transpose: r.semitons, tomAuto: true } : {}) };
+    Object.assign(atual, novo);
+    if (atual !== preview && db.song(atual.id)) db.updateSong(atual.id, novo);
+    if (mudar) {
+      const base = tomEscritoDaCifra(atual);
+      toast(base ? `Cifra no tom da gravação: ${base} → ${transposeKey(base, r.semitons)}` : 'Cifra ajustada ao tom da gravação');
+    }
+    return mudar;
+  } finally { ajustandoTom.delete(`${song.id}|${id}`); }
+}
+
+async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', rotuloOriginal = 'original', gravacao } = {}) {
   const menor = /m$/.test(tomBase);
   const opcoes = Array.from({ length: 12 }, (_, i) => {
     const t = ((i + 18) % 12) - 6; // -6..5, igual à transposição salva
@@ -13013,11 +13088,13 @@ async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', 
   const atual = ((transpose % 12) + 18) % 12 - 6;
   return openDialog(`
     <h3>${esc(titulo)}</h3>
-    <p>Tom ${esc(rotuloOriginal)}: <b>${esc(tomBase)}</b>${menor ? ' (menor)' : ''}</p>
-    <div class="tons">${opcoes.map((o) => `<button class="tom ${o.t === 0 ? 'orig' : ''}" data-t="${o.t}" aria-pressed="${o.t === atual}">${esc(o.nome)}${o.t === 0 ? `<small>${esc(rotuloOriginal)}</small>` : ''}</button>`).join('')}</div>
+    <p>Tom ${esc(rotuloOriginal)}: <b>${esc(tomBase)}</b>${menor ? ' (menor)' : ''}${Number.isFinite(gravacao) ? ` · da gravação: <b>${esc(transposeKey(tomBase, gravacao) || tomBase)}</b>` : ''}</p>
+    <div class="tons">${opcoes.map((o) => { const rot = o.t === gravacao ? 'gravação' : o.t === 0 ? rotuloOriginal : ''; return `<button class="tom ${o.t === 0 ? 'orig' : ''}${o.t === gravacao ? ' grav' : ''}" data-t="${o.t}" aria-pressed="${o.t === atual}">${esc(o.nome)}${rot ? `<small>${esc(rot)}</small>` : ''}</button>`; }).join('')}</div>
+    <div class="tons-meio"><button class="btn small ghost" data-meio="-1">${icon('minus', 14)} Meio tom</button><button class="btn small ghost" data-meio="1">${icon('plus', 14)} Meio tom</button></div>
     <div class="acts"><button class="btn ghost" data-no>Fechar</button></div>`,
   (dlg, done) => {
     $('.tons', dlg).onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) done(Number(b.dataset.t)); };
+    $('.tons-meio', dlg).onclick = (e) => { const b = e.target.closest('[data-meio]'); if (b) done(((atual + Number(b.dataset.meio)) % 12 + 18) % 12 - 6); };
     $('[data-no]', dlg).onclick = () => done(null);
   });
 }
