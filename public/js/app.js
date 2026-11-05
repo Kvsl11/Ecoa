@@ -7033,6 +7033,43 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
 
 // abre a música da busca já com cifra, letra e vídeo
 // (tela: abre sempre a tela da música, tocando — o Lumen leva a pessoa até a música que ela pediu)
+// Ao tocar numa música que ainda está sendo preparada: em vez do círculo girando no lugar dos botões da linha, a tela
+// da música abre na hora, com a cor, a capa, o nome e o contorno da letra; quando tudo chega (a cifra, o vídeo, a letra
+// sincronizada), a tela de verdade entra no lugar. A seta de voltar (ou o voltar do celular) desiste da música
+let abrindoDaBusca = 0;
+function telaChegando(dados) {
+  const titulo = dados.titulo || 'Música';
+  const img = dados.capa || dados.cover || dados.video?.capa || capaConhecida(titulo, dados.artista || '') || '';
+  const el = document.createElement('div');
+  el.className = 'chegando';
+  el.style.setProperty('--cor', corDaMusica(titulo));
+  el.innerHTML = `<div class="ch-topo"><button class="icon-btn" data-fechar aria-label="Voltar">${icon('down', 24)}</button>
+      <span class="grow"><b>${esc(titulo)}</b><small>${esc(dados.artista || '')}</small></span><span class="ch-vago"></span></div>
+    <div class="ch-capa">${img ? `<img src="${esc(img)}" alt="">` : icon('music', 56)}</div>
+    <div class="ch-letra" aria-hidden="true">${[78, 62, 84, 55, 70, 88, 60, 74].map((w) => `<i class="esq" style="width:${w}%"></i>`).join('')}</div>`;
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-label', `Abrindo ${titulo}`);
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add('aberta'));
+  const meu = ++abrindoDaBusca;
+  let fechada = false;
+  const fechar = (desistiu = false) => {
+    if (fechada) return;
+    fechada = true;
+    if (desistiu && abrindoDaBusca === meu) abrindoDaBusca++;
+    removeEventListener('hashchange', aoNavegar);
+    el.classList.remove('aberta');
+    setTimeout(() => el.remove(), 250);
+  };
+  // (outra tela aberta no meio: desiste; a própria música chegando fecha a tela logo depois de desenhada)
+  const aoNavegar = () => { if (location.hash === '#/musica/previa' && abrindoDaBusca === meu) setTimeout(() => fechar(), 120); else fechar(true); };
+  addEventListener('hashchange', aoNavegar);
+  el.querySelector('[data-fechar]').onclick = () => fechar(true);
+  const aoTeclar = (e) => { if (e.key === 'Escape') { removeEventListener('keydown', aoTeclar); fechar(true); } };
+  addEventListener('keydown', aoTeclar);
+  return { meu, fechar: (desistiu) => { removeEventListener('keydown', aoTeclar); fechar(desistiu); } };
+}
+
 async function abrirMusica(dados, back, el, { tela = false } = {}) {
   // já está na biblioteca: abre a música salva (com o botão marcado), sem trazer de novo
   const ja = (!dados.video || dados.cifra || dados.letra) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
@@ -7040,10 +7077,10 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
   // (com o player aberto: a música é preparada e só passa a tocar nele, sem abrir a tela)
   const noPlayer = !tela && playerAberto();
   abrirNoTocando = true;
-  const acts = el?.querySelector('.acts');
-  const antes = acts?.innerHTML;
-  if (acts) acts.innerHTML = '<span class="spin"></span>';
-  else toast('Trazendo a música…');
+  // (com o player aberto, a música vai para ele: a linha só pulsa de leve enquanto prepara; senão, a tela dela abre já)
+  const chegando = noPlayer ? null : telaChegando(dados);
+  if (noPlayer && el) el.classList.add('preparando');
+  else if (noPlayer) toast('Trazendo a música…');
   try {
     // vídeo da busca: primeiro descobre qual música é (para vir com a cifra e a letra dela)
     // (enquanto prepara, a linha tocada mostra só o círculo girando, como no Spotify; o que está sendo feito fica para o
@@ -7054,12 +7091,17 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
       const r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
-      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer });
+      if (chegando && chegando.meu !== abrindoDaBusca) return;
+      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu });
     } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
     abrirNoTocando = false;
     toast('Não consegui trazer: ' + e.message);
-  } finally { if (acts && acts.isConnected) acts.innerHTML = antes; }
+  } finally {
+    el?.classList.remove('preparando');
+    // (abriu: a tela de verdade já está por baixo; não abriu ou desistiu: fecha e volta para onde estava)
+    if (chegando) setTimeout(() => chegando.fechar(), location.hash === '#/musica/previa' ? 150 : 0);
+  }
 }
 
 // vídeo tocado direto da busca: abre como música, com a cifra e a letra
@@ -7098,7 +7140,7 @@ async function videoDaMusica(titulo, artista, source) {
   return vs.find((v) => videoCombina(v.titulo, titulo)) || null;
 }
 
-async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false } = {}) {
+async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false, vez = 0 } = {}) {
   const novo = { id: 'previa', content, source, transpose: 0, capo: capoDaCifra(content), back }; // capo da cifra (Cifra Club)
   let m = renderSong(novo.content).meta;
   if (!youtubeId(m.youtube) && !String(source || '').startsWith('cnbb:')) {
@@ -7178,6 +7220,8 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   void versoesProntas.then(() => { if (preview === novo && !novo.sincronia) aoPreparar?.('Sincronizando a letra…'); });
   await Promise.all([noMaximo(preparo, 25000, 'demorou'), noMaximo(versoesProntas, 15000, null), noMaximo(buscaCapaDaPrevia, 2000, '').then(aplicarCapaDaPrevia)]);
   if (preview !== novo) return;
+  // (a pessoa desistiu enquanto a música chegava: voltou ou abriu outra tela)
+  if (vez && vez !== abrindoDaBusca) return;
   // com o player aberto: ela toca nele, e a tela abre tocando no player (a música sem vídeo abre a tela, para escolher um)
   if (noPlayer && novo.youtube && !jaNaPrevia && playerAberto()) {
     abrirNoTocando = false;

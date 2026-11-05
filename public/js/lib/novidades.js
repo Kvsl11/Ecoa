@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 523, data: '2026-11-05', titulo: 'Sem o círculo girando ao abrir a música',
+    itens: [
+      { tipo: 'melhoria', texto: 'Ao tocar numa música da busca que ainda está sendo preparada, a tela dela abre na hora, com a cor, a capa, o nome e o contorno da letra, e se completa sozinha quando tudo chega. Antes aparecia um círculo girando no lugar dos botões da linha. A seta de voltar desiste da música e volta para a busca.' },
+      { tipo: 'melhoria', texto: 'Com o player aberto, a música tocada vai direto para ele, e a linha só pulsa de leve enquanto ela é preparada.' },
+    ],
+  },
+  {
     versao: 522, data: '2026-11-05', titulo: 'A música da busca abre na hora',
     itens: [
       { tipo: 'melhoria', texto: 'Na Busca, as primeiras músicas da lista já vão sendo preparadas enquanto você olha: a cifra, a letra, o vídeo, a letra sincronizada, o áudio oficial e a capa. Ao tocar numa delas, ela abre na hora, já com tudo sincronizado. As outras começam a ser preparadas no instante em que o dedo encosta. Com a economia de dados ligada, só a que você toca é preparada.' },
@@ -63,12 +70,6 @@ export const NOVIDADES = [
     versao: 514, data: '2026-11-05', titulo: 'O topo do perfil na cor da última música',
     itens: [
       { tipo: 'melhoria', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto e do seu nome, agora fica na cor da capa da música do "Tocou por último", combinando com o cartão dela.' },
-    ],
-  },
-  {
-    versao: 513, data: '2026-11-05', titulo: 'Os seguidores e as hashtags da prévia aparecem juntos',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na prévia da playlist, os seguidores do artista e as hashtags da música aparecem juntos, de uma vez (antes as hashtags chegavam depois). Da segunda vez em diante, aparecem na hora.' },
     ],
   },
 ];
