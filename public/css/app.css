@@ -3967,6 +3967,7 @@ html.pp #player .pl-artista-mais { all: unset; position: absolute; right: 0; bot
 .sa-numeros[hidden] { display: none; }
 .sa-numeros b { display: block; font-size: 30px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; }
 .sa-numeros small { color: rgb(255 255 255 / 0.7); font-size: 13px; }
+.sa-conectar { display: flex; align-items: center; gap: 6px; align-self: center; color: var(--accent); font-size: 14px; font-weight: 600; text-decoration: none; }
 .sa-texto { padding: 16px 20px 4px; max-width: 760px; }
 .sa-texto p { margin: 0 0 12px; font-size: 16px; line-height: 1.55; color: rgb(255 255 255 / 0.9); hyphens: manual; }
 .sa-links { display: grid; margin: 12px 12px 0; padding: 6px 0; border-radius: 12px; background: #1f1f1f; max-width: 736px; }

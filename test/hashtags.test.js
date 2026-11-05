@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emIngles, hashtagsDaMusica, idiomaDaLetra, numeroCurto } from '../public/js/lib/hashtags.js';
-import { musicaDaAudioDb } from '../public/js/lib/web.js';
+import { generosDaMusicBrainz, musicaDaAudioDb } from '../public/js/lib/web.js';
 
 test('número curto dos seguidores, como nos stories', () => {
   assert.equal(numeroCurto(90300000), '90,3M');
@@ -24,13 +24,39 @@ test('a língua da letra (sem os acordes do ChordPro)', () => {
   assert.equal(emIngles({ titulo: 'Noites Traiçoeiras' }), false);
 });
 
-test('hashtags: o clima da música e, faltando, as do estilo; em inglês ou português', () => {
-  assert.deepEqual(hashtagsDaMusica({ musica: {}, generoArtista: 'Pop', ingles: true }), ['happy pop', 'upbeat', 'good mood', 'sing along']);
-  assert.deepEqual(hashtagsDaMusica({ musica: { mood: 'Happy' }, generoArtista: 'Pop', ingles: true }), ['happy', 'upbeat', 'good mood', 'sing along']);
-  assert.deepEqual(hashtagsDaMusica({ musica: { mood: 'Relaxed', theme: 'In Love', style: 'Rock/Pop', genre: 'Pop-Rock' }, ingles: true }).slice(0, 3), ['relaxed', 'in love', 'energetic']);
-  assert.deepEqual(hashtagsDaMusica({ musica: { mood: 'Happy' }, generoArtista: 'Pop', ingles: false }), ['alegre', 'animada', 'bom humor', 'pra cantar junto']);
-  assert.deepEqual(hashtagsDaMusica({ generoArtista: 'liturgia', ingles: false }), ['louvor', 'fé', 'paz', 'esperança']);
-  assert.deepEqual(hashtagsDaMusica({ ingles: false }), ['bom humor', 'pra ouvir']);
+test('hashtags: pelo menos 6, sem repetir, e diferentes entre as músicas do mesmo artista', () => {
+  const generos = ['pop', 'funk', 'r&b', 'hip hop', 'soul'];
+  const listas = ['a', 'b', 'c', 'd'].map((semente) => hashtagsDaMusica({ generos, generoArtista: 'Pop', semente, ingles: true }));
+  for (const l of listas) {
+    assert.ok(l.length >= 6 && l.length <= 10, l.join(','));
+    assert.equal(new Set(l).size, l.length);
+    assert.deepEqual(l.slice(0, 2), ['pop', 'funk']); // (os gêneros de verdade do artista)
+  }
+  assert.ok(new Set(listas.map((l) => l.join(','))).size >= 3, 'as músicas do mesmo artista não saem todas iguais');
+  // a mesma música: sempre as mesmas
+  assert.deepEqual(hashtagsDaMusica({ generos, semente: 'a', ingles: true }), hashtagsDaMusica({ generos, semente: 'a', ingles: true }));
+});
+
+test('hashtags: o clima da música, os temas da letra e, em português, as traduzidas', () => {
+  const h = hashtagsDaMusica({ musica: { mood: 'Happy', theme: 'In Love' }, generos: ['pop'], semente: 'x', ingles: true, letra: 'baby dance with me, dance dance all night tonight' });
+  assert.deepEqual(h.slice(0, 5), ['happy', 'in love', 'dance', 'late night', 'pop']);
+  assert.ok(!h.includes('happy pop')); // (com #happy, o #happy pop não entra)
+  const pt = hashtagsDaMusica({ musica: { mood: 'Happy' }, generos: ['sertanejo'], semente: 'y', ingles: false, letra: 'saudade, saudade, vou chorar, meu amor, amor' });
+  assert.deepEqual(pt.slice(0, 4), ['alegre', 'saudade', 'apaixonada', 'sertanejo']);
+  assert.ok(pt.length >= 6);
+  const missa = hashtagsDaMusica({ generoArtista: 'liturgia', semente: 'm', ingles: false, letra: 'Senhor Deus, aleluia, Senhor Jesus Cristo' });
+  assert.equal(missa[0], 'fé');
+  assert.ok(missa.length >= 6);
+  assert.ok(hashtagsDaMusica({ semente: 'z', ingles: false }).length >= 6); // (sem nada: as de sempre)
+});
+
+test('generosDaMusicBrainz: os gêneros mais votados, só do artista com o mesmo nome', () => {
+  const json = { artists: [
+    { name: 'Bruno Mars', score: 100, tags: [{ count: 6, name: 'funk' }, { count: 14, name: 'pop' }, { count: 5, name: 'R&B' }, { count: 0, name: 'x' }] },
+    { name: 'Bruno Mars Tribute', score: 68, tags: [{ count: 50, name: 'karaoke' }] },
+  ] };
+  assert.deepEqual(generosDaMusicBrainz(json, 'Bruno Mars'), ['pop', 'funk', 'r&b']);
+  assert.deepEqual(generosDaMusicBrainz(json, 'Outro'), []);
 });
 
 test('musicaDaAudioDb: só a do mesmo artista e título, e só com algo para as hashtags', () => {

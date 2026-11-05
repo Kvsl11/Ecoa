@@ -1210,6 +1210,21 @@ export function musicaDaAudioDb(json, artista, titulo) {
   const m = { mood: t.strMood || '', theme: t.strTheme || '', style: t.strStyle || '', genre: t.strGenre || '' };
   return Object.values(m).some(Boolean) ? m : null;
 }
+// os gêneros do artista na MusicBrainz (a base aberta, sem chave), os mais votados primeiro: ['pop', 'funk', 'r&b'...],
+// para as hashtags da prévia da playlist. Só vale o artista com o mesmo nome. [] quando não acha
+export function generosDaMusicBrainz(json, artista) {
+  const quem = nomeDoCanal(artista);
+  const a = (json?.artists || []).filter((x) => nomeDoCanal(x.name) === quem).sort((x, y) => (y.score || 0) - (x.score || 0))[0];
+  return (a?.tags || []).filter((t) => (t.count || 0) > 0).sort((x, y) => (y.count || 0) - (x.count || 0)).map((t) => String(t.name || '').toLowerCase()).filter(Boolean).slice(0, 12);
+}
+export async function generosDoArtista(artista, fetchImpl) {
+  const a = String(artista || '').trim();
+  if (!a) return [];
+  try {
+    const res = await buscar(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(`artist:"${a.replace(/"/g, '')}"`)}&limit=5&fmt=json`, { fetchImpl, timeout: 10000 });
+    return res.ok ? generosDaMusicBrainz(await res.json(), a) : [];
+  } catch { return []; }
+}
 export async function audioDbDaMusica(artista, titulo, fetchImpl) {
   const a = String(artista || '').trim();
   const t = String(titulo || '').replace(/\s*[([](feat|ft|with)\.?[^)\]]*[)\]]/gi, '').trim();
