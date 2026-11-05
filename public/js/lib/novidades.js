@@ -4,9 +4,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 527, data: '2026-11-05', titulo: 'Os tons no estilo dos desenhos dos acordes',
+    versao: 527, data: '2026-11-05', titulo: 'Os tons na cor da música',
     itens: [
-      { tipo: 'melhoria', texto: 'No player, tocando no tom, os 12 tons abrem logo embaixo das ferramentas, no mesmo estilo da faixa dos desenhos dos acordes: os cartões na cor do fundo da letra, o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo nas pontas. Fica aberto para você experimentar; tocando no tom de novo, fecha.' },
+      { tipo: 'melhoria', texto: 'No player, tocando no tom, abre a janela com os 12 tons juntos, pintada na cor da música como os desenhos dos acordes: o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
     ],
   },
   {

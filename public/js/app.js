@@ -2170,11 +2170,11 @@ const player = (() => {
       <button class="icon-btn" data-pl="fila" aria-label="Fila" title="Fila">${icon('queue', 20)}</button>
     </div>
     <section class="pl-letra" hidden><div class="pl-letra-topo"><button class="icon-btn" data-pl="letra-fechar" aria-label="Fechar a letra" title="Fechar">${icon('down', 24)}</button><span class="pl-letra-nome"><b></b><small></small></span><span class="pl-letra-dir"><button class="icon-btn pl-leitura" data-pl="leitura" aria-pressed="false" aria-label="Só a letra, para ler" title="Só a letra (tira o resto da tela)">${icon('eye', 18)}</button><button class="pl-ver-cifra" data-pl="ver-cifra" aria-pressed="false" aria-label="Mostrar os acordes" title="Mostrar os acordes"><span class="seg-letra">Letra</span><span class="seg-cifra">Cifra</span></button></span></div><div class="pl-letra-cab"><h3>Letra</h3><span class="pl-letra-bts"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 16)}</button><button class="icon-btn" data-pl="cheio" aria-label="Letra na tela toda" title="Letra na tela toda">${icon('expand', 16)}</button></span></div><div class="pl-ferr">
-      <button class="pl-ferr-g pl-ferr-tom so-cifra" data-pl="tons" aria-pressed="false" aria-expanded="false" aria-label="Escolher o tom" title="Escolher o tom"><b class="pl-tom"></b>${icon('down', 14)}</button>
+      <button class="pl-ferr-g pl-ferr-tom so-cifra" data-pl="tons" aria-haspopup="dialog" aria-label="Escolher o tom" title="Escolher o tom"><b class="pl-tom"></b>${icon('down', 14)}</button>
       <span class="pl-ferr-g so-cifra"><button data-pl="capo-" aria-label="Capotraste uma casa abaixo" title="Capotraste: uma casa abaixo">−</button><b class="pl-capo"></b><button data-pl="capo+" aria-label="Capotraste uma casa acima" title="Capotraste: uma casa acima">+</button></span>
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
-      <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-tons" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
+      <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
       <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><span class="pl-karaoke-pct" aria-hidden="true"><b></b>${icon('up', 14)}</span><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
@@ -3052,7 +3052,6 @@ const semLinhasDeAcordes = (sinc) => {
     soltarAcordes(box);
     desenharDiagramas();
     $('.pl-tom', el).innerHTML = `<small>Tom</small>${esc(r.key || (transpose ? (transpose > 0 ? '+' : '') + transpose : '—'))}`;
-    desenharTons();
     // (a cifra no tom da gravação: o app ouve a música uma vez e, se a cifra estiver em outro tom, ajusta)
     void ajustarTomDaGravacao(song).then((mudou) => { if (mudou && musicaTocando() === song) desenharCifra(); });
     $('.pl-capo', el).innerHTML = `<small>Capo</small>${capo || '—'}`;
@@ -3086,40 +3085,20 @@ const semLinhasDeAcordes = (sinc) => {
     if (song !== preview && db.song(song.id)) db.updateSong(song.id, { [campo]: valor });
     desenharCifra();
   };
-  // o tom: tocando no botão, abre embaixo das ferramentas o painel dos 12 tons, no mesmo estilo da faixa dos desenhos dos
-  // acordes (os cartões escuros sobre a cor da música; o tom da tela na cor dos acordes), com o original da cifra e o da
-  // gravação marcados e o meio tom acima e abaixo nas pontas. Fica aberto para experimentar; tocando no botão de novo,
-  // fecha. O tom escolhido à mão fica (o ajuste automático ao tom da gravação não mexe mais nele)
-  // (uma função declarada e o estado no próprio player: a cifra pode ser desenhada antes desta linha rodar)
-  function desenharTons() {
-    const painel = $('.pl-tons', el);
-    const bt = $('.pl-ferr-tom', el);
-    const song = musicaTocando();
-    const base = song?.content ? tomEscritoDaCifra(song) : '';
-    const aberto = el.dataset.tons === '1' && modoCifra && Boolean(base);
-    bt?.setAttribute('aria-pressed', String(aberto));
-    bt?.setAttribute('aria-expanded', String(aberto));
-    if (!painel) return;
-    painel.hidden = !aberto;
-    if (!aberto) { painel.innerHTML = ''; return; }
-    const atual = (((song.transpose || 0) % 12) + 18) % 12 - 6;
-    const grav = song.tomGravacao?.semitons;
-    const ORDEM = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
-    const tons = Array.from({ length: 12 }, (_, i) => { const t = ((i + 18) % 12) - 6; return { t, nome: transposeKey(base, t) || base }; })
-      .sort((a, b) => ORDEM.indexOf(a.nome.replace(/m$/, '')) - ORDEM.indexOf(b.nome.replace(/m$/, '')));
-    painel.innerHTML = `<button class="pl-tom-meio" data-tom-meio="-1" aria-label="Meio tom abaixo" title="Meio tom abaixo">${icon('minus', 16)}</button>
-      ${tons.map((o) => { const rot = o.t === grav ? 'gravação' : o.t === 0 ? 'original' : ''; return `<button class="pl-tom-op${o.t === 0 ? ' orig' : ''}${o.t === grav ? ' grav' : ''}" data-tom="${o.t}" aria-pressed="${o.t === atual}"><b>${esc(o.nome)}</b>${rot ? `<small>${rot}</small>` : ''}</button>`; }).join('')}
-      <button class="pl-tom-meio" data-tom-meio="1" aria-label="Meio tom acima" title="Meio tom acima">${icon('plus', 16)}</button>`;
-    // (o tom da tela fica à vista no painel, sem precisar rolar)
-    requestAnimationFrame(() => painel.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
-  }
-  const escolherTomNoPlayer = () => {
+  // o tom: tocando no botão, abre a janela com os 12 tons juntos (como no Cifra Club), pintada na cor da música — o fundo
+  // da letra escurecido, os cartões escuros translúcidos e o tom da tela aceso na cor dos acordes, como os desenhos —,
+  // com o original da cifra e o da gravação marcados. O tom escolhido à mão fica (o ajuste automático não mexe mais nele)
+  async function escolherTomNoPlayer() {
     const song = musicaTocando();
     if (!song?.content) return;
-    if (!tomEscritoDaCifra(song)) { toast('Esta cifra não informa o tom'); return; }
-    el.dataset.tons = el.dataset.tons === '1' ? '' : '1';
-    desenharTons();
-  };
+    const base = tomEscritoDaCifra(song);
+    if (!base) { toast('Esta cifra não informa o tom'); return; }
+    const estilo = getComputedStyle(el);
+    const t = await dialogoTons(base, song.transpose || 0, { gravacao: song.tomGravacao?.semitons,
+      cor: estilo.getPropertyValue('--cor-musica').trim(), corAcordes: estilo.getPropertyValue('--tint-cifra').trim() });
+    if (t === null || t === undefined || musicaTocando() !== song) return;
+    definirTom(t);
+  }
   const definirTom = (t) => {
     const song = musicaTocando();
     if (!song) return;
@@ -5469,15 +5448,6 @@ const semLinhasDeAcordes = (sinc) => {
   el.addEventListener('click', (e) => {
     if (engolirClique) { engolirClique = false; e.stopPropagation(); e.preventDefault(); return; }
     if (e.target.closest('.pl-prog')) return; // a barra do tempo é tratada no toque (abaixo): tocar ou arrastar
-    // o painel dos tons: um tom, ou o meio tom acima e abaixo
-    const tomOp = e.target.closest('.pl-tons [data-tom], .pl-tons [data-tom-meio]');
-    if (tomOp) {
-      const song = musicaTocando();
-      if (!song) return;
-      const atual = (((song.transpose || 0) % 12) + 18) % 12 - 6;
-      definirTom(tomOp.dataset.tom !== undefined ? Number(tomOp.dataset.tom) : ((atual + Number(tomOp.dataset.tomMeio)) % 12 + 18) % 12 - 6);
-      return;
-    }
     const b = e.target.closest('[data-pl]');
     // tablet: tocar na barrinha recolhida (fora dos botões) abre o painel "Tocando agora"; a tela inteira fica no topo dele
     if (document.body.classList.contains('painel-recolhido') && ehTablet() && (!b || b.dataset.pl === 'abrir')) {
@@ -13115,7 +13085,7 @@ async function ajustarTomDaGravacao(song) {
   } finally { ajustandoTom.delete(`${song.id}|${id}`); }
 }
 
-async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', rotuloOriginal = 'original', gravacao } = {}) {
+async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', rotuloOriginal = 'original', gravacao, cor = '', corAcordes = '' } = {}) {
   const menor = /m$/.test(tomBase);
   const opcoes = Array.from({ length: 12 }, (_, i) => {
     const t = ((i + 18) % 12) - 6; // -6..5, igual à transposição salva
@@ -13131,6 +13101,10 @@ async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', 
     <div class="tons-meio"><button class="btn small ghost" data-meio="-1">${icon('minus', 14)} Meio tom</button><button class="btn small ghost" data-meio="1">${icon('plus', 14)} Meio tom</button></div>
     <div class="acts"><button class="btn ghost" data-no>Fechar</button></div>`,
   (dlg, done) => {
+    // (aberta pelo player: na cor da música, como os desenhos dos acordes)
+    if (cor) { dlg.classList.add('tons-na-cor'); dlg.style.setProperty('--cor-musica', cor); if (corAcordes) dlg.style.setProperty('--tint-cifra', corAcordes); }
+    // (o foco vai para o tom da tela, não para o primeiro da tabela, que parecia escolhido)
+    setTimeout(() => $('.tons [aria-pressed="true"]', dlg)?.focus({ preventScroll: true }), 0);
     $('.tons', dlg).onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) done(Number(b.dataset.t)); };
     $('.tons-meio', dlg).onclick = (e) => { const b = e.target.closest('[data-meio]'); if (b) done(((atual + Number(b.dataset.meio)) % 12 + 18) % 12 - 6); };
     $('[data-no]', dlg).onclick = () => done(null);
