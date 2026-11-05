@@ -15110,9 +15110,10 @@ function infoDaGaveta(u) {
   // (sem tocadas na lista, como quando a sincronia trouxe a lista vazia: a música que está no player)
   const ultima = db.recent()[0] || db.song(player.atual?.songId || '');
   const fundo = ultima ? capaDaMusica(ultima) : '';
+  // a conta já aparece no topo (foto, nome e e-mail): o cartão da sincronia só aparece quando ela deu erro
   return `
-    ${u ? `<div class="pg-conta${estadoConta.erro ? ' erro' : ''}">${LOGO_GOOGLE}<span class="grow"><small>Conta Google</small><b id="pg-estado">${esc(resumoDaSincronia())}</b></span>
-        <button class="pg-sinc${estadoConta.sincronizando ? ' girando' : ''}" data-sinc aria-label="Sincronizar agora" title="Sincronizar agora">${icon('sincronizar', 18)}</button></div>`
+    ${u ? (estadoConta.erro ? `<div class="pg-conta erro">${LOGO_GOOGLE}<span class="grow"><small>Conta Google</small><b id="pg-estado">${esc(resumoDaSincronia())}</b></span>
+        <button class="pg-sinc${estadoConta.sincronizando ? ' girando' : ''}" data-sinc aria-label="Sincronizar agora" title="Sincronizar agora">${icon('sincronizar', 18)}</button></div>` : '')
     : '<p class="pg-conta-sem">Sua biblioteca está só neste aparelho. Entrando com o Google, ela fica guardada na sua conta.</p>'}
     <div class="pg-nums">
       ${numero(musicas.length, musicas.length === 1 ? 'curtida' : 'curtidas', '#/biblioteca/musicas')}
