@@ -1653,8 +1653,10 @@ function atualizarIndicadores() {
   document.querySelectorAll('.track[data-id], .track[data-musica], .lib-item[data-k]').forEach((li) => {
     const s = db.song(li.dataset.id || li.dataset.musica || li.dataset.k);
     if (!s) return;
-    const agora = `${s.baixado ? 'ok' : baixando.has(s.id) ? 'andando' : ''}|${temKaraokePronto(s)}`;
-    const antes = `${li.querySelector('.ind-baixada') ? 'ok' : li.querySelector('.ind-baixando') ? 'andando' : ''}|${Boolean(li.querySelector('.ind-karaoke'))}`;
+    // (só redesenha quando o estado muda: no meio do download o ícone fica o mesmo, e a piscada segue sem recomeçar)
+    const agora = `${estadoDoDownload(s)}|${temKaraokePronto(s)}`;
+    const naTela = li.querySelector('.ind-baixando') ? 'baixando' : li.querySelector('.ind-incompleta') ? 'incompleta' : li.querySelector('.ind-baixada') ? 'baixada' : '';
+    const antes = `${naTela}|${Boolean(li.querySelector('.ind-karaoke'))}`;
     if (agora === antes) return;
     const sub = li.querySelector('.info .s');
     const velho = sub?.querySelector('.ind');
@@ -6208,6 +6210,10 @@ async function exportarPowerPointModelo(set) {
 // indicadores bem pequenos nas listas: a música tem cifra (a letra vem junto) e/ou vídeo
 const memoCifra = new Map();
 const temKaraokePronto = (s) => Boolean(s?.karaoke && s.karaoke[fonteDoKaraoke(s)]);
+// o estado do download da música, o mesmo para o ícone da lista e para saber se ele precisa ser redesenhado (antes cada
+// um tinha a sua ordem: a música pela metade baixando de novo era "baixada" para um e "baixando" para o outro, e o ícone
+// era redesenhado a cada avanço do download, com a piscada recomeçando do zero)
+const estadoDoDownload = (s) => (baixando.has(s.id) ? 'baixando' : s.baixado && precisaBaixar(s) ? 'incompleta' : s.baixado ? 'baixada' : '');
 function indicadores(s) {
   if (!s) return '';
   let c = memoCifra.get(s.content);
@@ -6219,9 +6225,10 @@ function indicadores(s) {
   // e um "•" antes do artista
   // (a seta verde só com tudo no aparelho: a baixada pela metade — falta o clipe ou o áudio — fica com a seta apagada,
   // até se completar sozinha)
-  const baixada = baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>`
-    : s.baixado && precisaBaixar(s) ? `<span class="ind-i ind-incompleta" title="Download incompleto: completa sozinho" aria-label="Download incompleto">${icon('baixar', 15)}</span>`
-      : s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>` : '';
+  const estado = estadoDoDownload(s);
+  const baixada = estado === 'baixando' ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>`
+    : estado === 'incompleta' ? `<span class="ind-i ind-incompleta" title="Download incompleto: completa sozinho" aria-label="Download incompleto">${icon('baixar', 15)}</span>`
+      : estado === 'baixada' ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>` : '';
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
   // (sem clipe de verdade — o vídeo é só a capa —, a música não tem o ícone de vídeo)
   const video = Boolean(s.youtube) && !s.semClipe;
