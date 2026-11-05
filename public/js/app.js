@@ -2425,7 +2425,7 @@ const player = (() => {
     <button class="pl-troca" data-pl="troca">${icon('music', 18)}<span>Mudar para música</span></button>
     <div class="pl-meio">
       <span class="pl-capinha" aria-hidden="true"></span>
-      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b><span class="rolar"><span class="pl-nome"></span><span class="pl-art-junto"></span></span></b><small><span class="rolar"></span></small><span class="pl-onde" hidden></span></span></button>
+      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b><span class="rolar"><span class="pl-titulo-txt"></span><span class="pl-art-junto"></span></span></b><small><span class="rolar"></span></small><span class="pl-onde" hidden></span></span></button>
       <button class="salvar-btn pl-salva" data-pl="salva" hidden></button>
     </div>
     <div class="pl-ctrl">
@@ -2648,7 +2648,7 @@ const player = (() => {
     el.style.setProperty('--cor-musica', corDoFundo);
     fundoCasa.style.setProperty('--cor-musica', corDoFundo);
     el.style.setProperty('--tint-cifra', corDaCifra(corDoFundo)); // os acordes na cor do fundo do player, mais clara
-    porTexto($('.pl-nome', el), atual.titulo || 'Vídeo');
+    porTexto($('.pl-titulo-txt', el), atual.titulo || 'Vídeo');
     // (na barrinha de baixo com um fone, o artista vai na linha do nome, e o fone embaixo, como no Spotify)
     porTexto($('.pl-art-junto', el), atual.artista ? ` • ${atual.artista}` : '');
     // a barrinha de cima (rolando): o nome e o artista numa linha só, que anda devagar quando não cabe, e embaixo onde o
