@@ -8112,10 +8112,11 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   });
   // mais fotos: as do artigo da Wikipédia em que ele aparece (com o nome dele no arquivo)
   fotosDaWikipediaGuardadas(nome).then((l) => { if (tela.isConnected && l?.length) porFotos(l); }).catch(() => {});
-  // os números grandes (como os ouvintes do Spotify): os seguidores no Spotify (pela TheAudioDB), os inscritos no
-  // canal do YouTube e os fãs no Deezer, os que houver
+  // os números grandes (como os ouvintes do Spotify): os inscritos no canal do YouTube e os fãs no Deezer, os que
+  // houver, os dois lidos na hora. (Os seguidores no Spotify saíram: vinham da TheAudioDB, que guarda uma cópia antiga
+  // deles, meses atrasada: 70M para quem já passava de 90M)
   const num = (n, rotulo) => `<div><b>${n.toLocaleString('pt-BR')}</b><small>${rotulo}</small></div>`;
-  const numeros = [adb?.seguidores && num(adb.seguidores, 'seguidores no Spotify'), canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'),
+  const numeros = [canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'),
     dz?.fas && num(dz.fas, 'fãs no Deezer')].filter(Boolean);
   if (numeros.length) { const caixa = tela.querySelector('.sa-numeros'); caixa.hidden = false; caixa.innerHTML = numeros.join(''); }
   // a apresentação: a da Wikipédia ou, sem ela, a biografia em português da TheAudioDB
@@ -13586,8 +13587,9 @@ function previaDaPlaylist(set, inicio = 0) {
     atual = null;
   };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
-  // os seguidores do artista no Spotify ("90,3M seguidores") e as hashtags da música (#happy pop, #upbeat...): vêm da
-  // TheAudioDB (guardadas no aparelho: sem internet, as últimas), na música da tela e na próxima
+  // os fãs do artista no Deezer ("12,9M fãs no Deezer", lidos na hora: os seguidores no Spotify da TheAudioDB vinham
+  // meses atrasados) e as hashtags da música (#happy, #upbeat...), da TheAudioDB. Guardados no aparelho (sem internet,
+  // os últimos), na música da tela e na próxima
   const infoDoSlide = (k) => {
     const slide = slides[k];
     if (!slide || slide.dataset.info) return;
@@ -13595,10 +13597,10 @@ function previaDaPlaylist(set, inicio = 0) {
     const { s } = faixas[k];
     const adb = s.artist ? audioDbGuardado(s.artist) : Promise.resolve(null);
     const daMusica = s.artist ? comUltimoValor('adbm', `${s.artist}|${s.title}`, audioDbDaMusica(s.artist, s.title)) : Promise.resolve(null);
-    adb.then((a) => {
+    if (s.artist) deezerDoArtista(s.artist).then((d) => {
       const seg = slide.querySelector('.pv-seg');
-      if (seg && a?.seguidores) { seg.textContent = `${numeroCurto(a.seguidores)} seguidores`; seg.hidden = false; }
-    });
+      if (seg && d?.fas) { seg.textContent = `${numeroCurto(d.fas)} fãs no Deezer`; seg.hidden = false; }
+    }).catch(() => {});
     Promise.all([adb, daMusica]).then(([a, m]) => {
       const fe = String(s.source || '').startsWith('cnbb:') ? 'liturgia' : '';
       const tags = hashtagsDaMusica({ musica: m || {}, generoArtista: [a?.genero, fe].filter(Boolean).join(' '), ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });

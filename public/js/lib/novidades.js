@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 510, data: '2026-11-05', titulo: 'Os números do artista sempre atualizados',
+    itens: [
+      { tipo: 'correcao', texto: 'Os seguidores no Spotify que apareciam na tela do artista e na prévia da playlist estavam meses atrasados (o Bruno Mars aparecia com 70M, e no Spotify já passa de 90M): vinham de um site que guarda uma cópia antiga deles. Saíram. Na prévia da playlist, embaixo do nome do artista, ficam os fãs no Deezer (12,9M fãs no Deezer), lidos na hora; na tela do artista continuam os fãs no Deezer e os inscritos no YouTube, os dois atualizados.' },
+    ],
+  },
+  {
     versao: 509, data: '2026-11-05', titulo: 'A prévia da playlist com os seguidores e as hashtags da música',
     itens: [
       { tipo: 'novo', texto: 'Na prévia da playlist (os clipes em tela cheia), embaixo do nome do artista aparecem os seguidores dele no Spotify, no jeito curto (90,3M seguidores). E, embaixo, as hashtags da música, que dizem a sensação dela (#happy, #upbeat, #good mood...): em inglês quando a música é cantada em inglês e em português nas outras. Quando são muitas, é só arrastar para o lado. Os botões de compartilhar e de mais opções ficam em pé, à direita.' },
@@ -61,14 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Muitas músicas baixavam só o áudio, sem o videoclipe. O clipe é o arquivo grande e falhava às vezes (o servidor demorava, o YouTube não entregava aquela qualidade), e o app desistia na primeira vez. Agora cada arquivo tenta até 3 vezes, e o vídeo desce de qualidade a cada tentativa (muito alta, alta, normal) para vir sempre junto.' },
       { tipo: 'correcao', texto: 'Se ainda assim o clipe não vier, o download tenta de novo sozinho daqui a alguns minutos e também ao abrir o app. As músicas que você já tinha baixado só com o áudio ganham o clipe sozinhas, em segundo plano, sem precisar apagar o download e baixar de novo. O que já tinha vindo fica.' },
-    ],
-  },
-  {
-    versao: 500, data: '2026-11-04', titulo: 'Os artistas em destaque no mural da entrada',
-    itens: [
-      { tipo: 'correcao', texto: 'No mural da tela de entrada, o Billie Jean aparecia todo preto: os quadros que o YouTube tira desse clipe são pretos. Agora cada clipe mostra só os quadros que têm imagem, e o Billie Jean aparece com a capa do vídeo.' },
-      { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Peaches e What Do You Mean?.' },
-      { tipo: 'melhoria', texto: 'O mural ficou com os artistas em destaque. Cada clipe mostra só os quadros em que o artista aparece, como o Michael de monstro, de olhos amarelos, no Thriller. O nome do artista aparece grande em cada quadro, com a música embaixo, e também no alto da tela.' },
     ],
   },
 ];
