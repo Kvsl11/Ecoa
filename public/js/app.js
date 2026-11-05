@@ -4209,7 +4209,7 @@ const semLinhasDeAcordes = (sinc) => {
     aleatorio: () => aleatorio,
     definirAleatorio(v) { aleatorio = Boolean(v); db.setPref('aleatorio', aleatorio); filaOrdemChave = ''; historico = []; tocadas = new Set(); desenharModos(); },
     // pausado: abre a música sem começar a tocar (a página dela aberta por um link, voltando do editor…)
-    tocar(item, { pausado = false } = {}) {
+    tocar(item, { pausado = false, inicio = 0 } = {}) {
       if (!item?.youtube) return;
       if (atual?.semVideo) largarSemVideo({ fechar: false });
       // a mesma música (na mesma versão ou na outra: o áudio ou o clipe): continua de onde está
@@ -4225,6 +4225,8 @@ const semLinhasDeAcordes = (sinc) => {
       atual = item;
       tempo = 0;
       duracao = 0;
+      // (a última música, voltando ao abrir o app: no ponto em que tinha parado)
+      if (inicio > 0) { tempo = inicio; pendente = inicio; pendenteEm = performance.now(); }
       estado = pausado ? 'pausado' : 'tocando';
       montar({ autoplay: !pausado });
       desenhar();
@@ -18912,11 +18914,59 @@ desenharFotoDoPerfil();
 ligarTelaDeEntrada();
 iniciarConta();
 let rotaInicial = true; // a 1ª tela ao abrir/recarregar o app
+// Abrindo o app de novo (fechado, ou o celular reabrindo ele onde estava), ele começa no Início, e não na tela em que a
+// pessoa estava ao sair. Recarregando (a atualização do app, o puxar para baixo) fica na mesma tela; e um link que abre o
+// app numa música ou num compartilhamento abre nele (é outra tela que não a guardada ao sair)
+const CHAVE_ULTIMA_TELA = 'songbook.ultimaTela';
+try {
+  const novaSessao = !sessionStorage.getItem('songbook.sessao');
+  sessionStorage.setItem('songbook.sessao', '1');
+  const aqui = location.hash || '#/';
+  if (novaSessao && aqui !== '#/' && aqui === localStorage.getItem(CHAVE_ULTIMA_TELA)) history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+} catch { /* sem armazenamento: abre onde o endereço diz */ }
 route();
 // o app carregou inteiro: a rede de segurança do index.html não precisa agir
 window.__songbookOk = true;
 try { sessionStorage.removeItem('recuperacao'); } catch { /* sem sessionStorage */ }
 rotaInicial = false;
+
+// a tela em que a pessoa estava ao sair (para, abrindo de novo, começar no Início) e, voltando ao app depois de um tempo
+// fora (mais de 2 minutos sem música tocando, ou meia hora), o Início também — menos no meio de uma edição
+let saiuEm = 0;
+const guardarTelaAoSair = () => { try { localStorage.setItem(CHAVE_ULTIMA_TELA, location.hash || '#/'); } catch { /* sem espaço */ } };
+addEventListener('pagehide', guardarTelaAoSair);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { saiuEm = Date.now(); guardarTelaAoSair(); return; }
+  const fora = saiuEm ? Date.now() - saiuEm : 0;
+  saiuEm = 0;
+  const editando = /^#\/(editar|musica\/[^/]+\/(compor|partitura))/.test(location.hash);
+  if (!editando && (location.hash || '#/') !== '#/' && (fora > 30 * 60e3 || (fora > 2 * 60e3 && player.estado !== 'tocando'))) location.hash = '#/';
+});
+
+// ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a
+// fila e o ponto em que parou ficam guardados; abrindo o app, ela volta pausada nesse ponto, pronta para continuar
+const CHAVE_ULTIMO_PLAYER = 'songbook.ultimoPlayer';
+const guardarUltimoPlayer = () => {
+  const a = player.atual;
+  if (!a?.youtube || a.semVideo) return;
+  try { localStorage.setItem(CHAVE_ULTIMO_PLAYER, JSON.stringify({ item: a, tempo: Math.floor(player.tempoAgora || 0), em: Date.now() })); } catch { /* sem espaço */ }
+};
+player.ouvir(guardarUltimoPlayer);
+setInterval(() => { if (player.estado === 'tocando') guardarUltimoPlayer(); }, 5000);
+addEventListener('pagehide', guardarUltimoPlayer);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarUltimoPlayer(); });
+setTimeout(() => {
+  if (player.atual) return;
+  let salvo = null;
+  try { salvo = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_PLAYER) || 'null'); } catch { salvo = null; }
+  const item = salvo?.item;
+  if (!item?.youtube) return;
+  // (a música que não está mais na biblioteca, ou a temporária da busca, volta só como o vídeo, sem a página dela)
+  if (item.songId && !db.song(item.songId)) { item.songId = ''; item.href = ''; item.setId = ''; item.index = -1; }
+  else if (item.songId) Object.assign(item, { ...itemDoPlayer(db.song(item.songId), item.setId ? db.set(item.setId) : null, item.index ?? -1), youtube: item.youtube });
+  if (item.setId && !db.set(item.setId)) { item.setId = ''; item.index = -1; }
+  player.tocar(item, { pausado: true, inicio: Math.max(0, Number(salvo.tempo) || 0) });
+}, 900);
 
 // Service worker: sempre procura a versão nova; quando ela assume, recarrega a página uma vez.
 // ---------------------------------------------------------------- instalar como app

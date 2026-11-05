@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 528, data: '2026-11-05', titulo: 'A última música na barra e o app abrindo no Início',
+    itens: [
+      { tipo: 'melhoria', texto: 'A barra do player embaixo continua com a última música tocada mesmo depois de fechar o app ou de ele se atualizar: abrindo de novo, ela está lá, pausada no ponto em que parou, pronta para continuar (com a fila de antes).' },
+      { tipo: 'melhoria', texto: 'Abrindo o app de novo, ele começa sempre no Início, e não na tela em que você estava ao sair. Voltando para ele depois de mais de 2 minutos fora (sem música tocando), também. Recarregando, você fica na mesma tela; os avisos e os links de uma música continuam abrindo direto nela, e uma edição em andamento não é largada.' },
+    ],
+  },
+  {
     versao: 527, data: '2026-11-05', titulo: 'Os tons na cor da música',
     itens: [
       { tipo: 'melhoria', texto: 'No player, tocando no tom, abre a janela com os 12 tons juntos, pintada na cor da música como os desenhos dos acordes: o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
@@ -64,12 +71,6 @@ export const NOVIDADES = [
     versao: 519, data: '2026-11-05', titulo: 'Voltar para a gaveta do perfil',
     itens: [
       { tipo: 'melhoria', texto: 'O que você abre pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes e o seu perfil) agora volta direto para a gaveta, aberta na tela em que você estava. Antes a seta de Novidades passava por Sobre e por Ajustes até chegar ao início.' },
-    ],
-  },
-  {
-    versao: 518, data: '2026-11-05', titulo: 'O botão do tamanho da letra não pisca mais',
-    itens: [
-      { tipo: 'correcao', texto: 'Na letra em tela cheia, o botão do tamanho da letra (o A pequeno e o A grande) e os outros botões ao lado piscavam um quadrado claro enquanto a letra corria. Agora ficam firmes.' },
     ],
   },
 ];
