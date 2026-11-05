@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 516, data: '2026-11-05', titulo: 'A gaveta do perfil mais enxuta',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na gaveta do perfil, saiu o cartão "Conta Google · Sincronizada agora": a sua conta já aparece lá em cima, com a foto e o e-mail. O cartão só volta se a sincronia der erro. Para sincronizar na hora, use "Ver perfil".' },
+    ],
+  },
+  {
     versao: 515, data: '2026-11-05', titulo: 'O topo do perfil com as mesmas cores do "Tocou por último"',
     itens: [
       { tipo: 'correcao', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto, agora usa a mesma capa borrada do cartão "Tocou por último", e as cores dos dois ficam iguais (antes o topo ficava num tom diferente).' },
@@ -63,14 +69,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
       { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
-    ],
-  },
-  {
-    versao: 506, data: '2026-11-05', titulo: 'O "Tocou por último" toca ali mesmo e ganhou movimento',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na gaveta do perfil, as cores da capa no fundo do cartão "Tocou por último" agora se mexem devagar, sem parar. Com uma música tocando, elas correm mais rápido e o brilho pulsa de leve.' },
-      { tipo: 'melhoria', texto: 'O botão de tocar desse cartão agora toca a música ali mesmo, sem sair da gaveta (ela aparece tocando no player), e vira o botão de pausar. Tocando no resto do cartão, a música abre, como antes.' },
-      { tipo: 'correcao', texto: 'O triângulo do botão de tocar desse cartão estava puxado para a direita. Agora fica no centro da bola.' },
     ],
   },
 ];
