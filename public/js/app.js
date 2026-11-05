@@ -34,7 +34,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -6920,6 +6920,64 @@ async function musicaDoVideo(v, conhecido = {}) {
 
 // Traz tudo de uma vez: a cifra do Cifra Club (que já tem a letra); sem cifra, a letra do Letras; e o
 // vídeo do YouTube. Devolve { content, source, video } (video é a busca, que pode ainda estar andando).
+// As buscas de vídeos ficam guardadas por 10 minutos: a mesma busca (a do áudio oficial, a do clipe) feita ao preparar
+// a música da busca e de novo ao abrir ela não espera a internet duas vezes
+const buscasYoutube = new Map();
+function buscarYoutube(termo, opcoes = {}) {
+  const k = `${opcoes.filtro || 'videos'}|${String(termo || '').trim().toLowerCase()}`;
+  const ja = buscasYoutube.get(k);
+  if (ja && Date.now() - ja.em < 600e3) return ja.p;
+  const p = buscarYoutubeNaWeb(termo, opcoes);
+  buscasYoutube.set(k, { p, em: Date.now() });
+  p.catch(() => buscasYoutube.delete(k));
+  if (buscasYoutube.size > 300) buscasYoutube.delete(buscasYoutube.keys().next().value);
+  return p;
+}
+// A música da busca preparada antes do toque (como no Spotify, que abre na hora): a cifra, a letra e o vídeo
+// (trazerMusica), a letra sincronizada, a duração do vídeo, o áudio oficial e a capa. As primeiras da lista começam
+// assim que ela aparece; qualquer outra, no instante em que o dedo encosta nela. Ao abrir, quase tudo já está pronto
+const trazendo = new Map();
+const chaveDaTrazida = (d) => [d.titulo, d.artista, d.cifra, d.letra?.url, d.video?.id].map((x) => String(x || '')).join('|');
+function trazerMusicaJa(dados) {
+  const k = chaveDaTrazida(dados);
+  const ja = trazendo.get(k);
+  if (ja && Date.now() - ja.em < 600e3) return ja.p;
+  const p = trazerMusica(dados);
+  trazendo.set(k, { p, em: Date.now() });
+  // (só fica guardada a que trouxe a cifra ou a letra: a falha de um instante é pedida de novo)
+  p.then((r) => { if (!r?.source) trazendo.delete(k); }, () => trazendo.delete(k));
+  if (trazendo.size > 60) trazendo.delete(trazendo.keys().next().value);
+  return p;
+}
+const preparadas = new Set();
+function prepararDaBusca(dados) {
+  if (!dados?.titulo || !navigator.onLine) return;
+  // (o vídeo solto da busca descobre a música ao abrir; e a que já está na biblioteca abre direto)
+  if (dados.video && !dados.cifra && !dados.letra) return;
+  const k = chaveDaTrazida(dados);
+  if (preparadas.has(k)) return;
+  preparadas.add(k);
+  setTimeout(() => preparadas.delete(k), 600e3);
+  if (musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' })) return;
+  if (dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
+  void (async () => {
+    const r = await trazerMusicaJa(dados);
+    const m = renderSong(r.content).meta;
+    const titulo = m.title || dados.titulo;
+    const artista = m.artist || m.subtitle || dados.artista || '';
+    if (titulo && artista) {
+      void letraSincronizadaJa(titulo, artista).catch(() => null);
+      void capaOficial(titulo, artista).catch(() => '');
+    }
+    const vs = await r.video.catch(() => []);
+    const youtube = youtubeId(m.youtube) || vs?.[0]?.id || '';
+    if (!youtube) return;
+    void duracaoDaMusica({ youtube }).catch(() => 0);
+    // (as mesmas buscas do áudio oficial que a música faz ao abrir: ficam guardadas e ela não espera de novo)
+    if (titulo) void procurarAudio({ title: titulo, artist: artista, youtube }, 0).catch(() => null);
+  })().catch(() => {});
+}
+
 async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, video = null, artistaIncerto = false }) {
   const termo = `${tituloLimpo(titulo)} ${artista}`.trim();
   const pCifra = (async () => {
@@ -6995,7 +7053,7 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     // (a letra sincronizada já começa a ser procurada agora, junto com a cifra e o vídeo)
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
-      const r = await trazerMusica(dados.video && !dados.cifra && !dados.letra ? await musicaDoVideo(dados.video, dados) : dados);
+      const r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
       await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer });
     } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
@@ -8426,6 +8484,11 @@ function viewSearch() {
   const res = $('#res');
   res.addEventListener('click', (e) => { const lm = e.target.closest('li[data-id]'); if (lm) irParaMusica(lm.dataset.id); });
   let achados = { musica: [] };
+  // (o dedo encostou na música: ela começa a ser preparada já, antes de o toque terminar)
+  res.addEventListener('pointerdown', (e) => {
+    const li = e.target.closest('[data-web]');
+    if (li) prepararDaBusca(achados[li.dataset.web]?.[Number(li.dataset.i)]);
+  });
   res.addEventListener('click', (e) => {
     const li = e.target.closest('[data-web]');
     if (!li) return;
@@ -8579,6 +8642,8 @@ function viewSearch() {
           aplicar(meu, 'mu-res', () => {
             achados.musica = lista;
             $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+            // as primeiras já vão sendo preparadas (sem a economia de dados ligada): abrem na hora
+            if (!db.prefs().economiaDados) lista.slice(0, 3).forEach((r) => prepararDaBusca(r));
           });
         };
         buscarTudo(term, filtro === 'musicas' ? 25 : 8, filtro === 'musicas' ? 15 : 6).then(mostrar)
