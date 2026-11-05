@@ -15085,7 +15085,7 @@ function infoDaGaveta(u) {
       ${numero(artistas, artistas === 1 ? 'artista' : 'artistas', '#/biblioteca')}
       ${numero(baixadas, baixadas === 1 ? 'baixada' : 'baixadas', '#/offline')}
     </div>
-    ${ultima ? `<a class="pg-ultima${player.estado === 'tocando' ? ' tocando' : ''}" href="#/musica/${encodeURIComponent(ultima.id)}" data-id="${esc(ultima.id)}">
+    ${ultima ? `<a class="pg-ultima" href="#/musica/${encodeURIComponent(ultima.id)}" data-id="${esc(ultima.id)}">
         ${fundo ? `<span class="pg-ultima-fundo" style="background-image:url('${esc(fundo).replace(/'/g, '%27')}')"></span>` : ''}
         ${capa(ultima, { cls: 'sm' })}<span class="grow"><small>Tocou por último</small><b>${esc(ultima.title)}</b>${ultima.artist ? `<small>${esc(ultima.artist)}</small>` : ''}</span>
         ${botaoPlayDaUltima(ultima)}</a>` : ''}`;
@@ -15110,11 +15110,10 @@ function abrirGavetaDoPerfil() {
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
-  // o fundo do "Tocou por último" se mexe sempre devagar; com música tocando, mais vivo
+  // o play do "Tocou por último" vira pausar enquanto ela toca (o fundo se mexe sempre, tocando ou não)
   const marcarTocando = () => {
     const c = $('.pg-ultima', g);
     if (!c) return;
-    c.classList.toggle('tocando', player.estado === 'tocando');
     const b = $('[data-tocar]', c);
     const toca = ultimaTocando(db.song(c.dataset.id));
     if (b && b.classList.contains('pausar') !== toca) b.outerHTML = botaoPlayDaUltima(db.song(c.dataset.id));

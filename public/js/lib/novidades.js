@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 509, data: '2026-11-05', titulo: 'O fundo do "Tocou por último" se mexe sempre igual',
+    itens: [
+      { tipo: 'melhoria', texto: 'As cores no fundo do cartão "Tocou por último", na gaveta do perfil, agora se mexem sempre do mesmo jeito, com a música tocando ou pausada.' },
+    ],
+  },
+  {
     versao: 508, data: '2026-11-05', titulo: 'O "Tocou por último" não some mais',
     itens: [
       { tipo: 'correcao', texto: 'O "Tocou por último" da gaveta do perfil só mudava quando você abria a tela da música, e podia sumir. Agora conta qualquer música que começa a tocar (pelas listas, pela fila ou pelo play da própria gaveta), e, se a lista de tocadas estiver vazia, mostra a música que está no player.' },
@@ -62,12 +68,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No mural da tela de entrada, o Billie Jean aparecia todo preto: os quadros que o YouTube tira desse clipe são pretos. Agora cada clipe mostra só os quadros que têm imagem, e o Billie Jean aparece com a capa do vídeo.' },
       { tipo: 'novo', texto: 'Justin Bieber entrou no mural da tela de entrada, com Baby, Peaches e What Do You Mean?.' },
       { tipo: 'melhoria', texto: 'O mural ficou com os artistas em destaque. Cada clipe mostra só os quadros em que o artista aparece, como o Michael de monstro, de olhos amarelos, no Thriller. O nome do artista aparece grande em cada quadro, com a música embaixo, e também no alto da tela.' },
-    ],
-  },
-  {
-    versao: 499, data: '2026-11-04', titulo: 'Uma tela de entrada nova',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela de entrada ficou nova. No fundo, um mural com quadros de clipes famosos passa devagar, em fileiras inclinadas: Michael Jackson, The Beatles, Bruno Mars, Lady Gaga, Sabrina Carpenter, Queen e outros. No alto, aparece o nome de um dos clipes, trocando de tempos em tempos. Na frente ficam o "Ouça. Cante. Ecoe.", o que o app tem e o botão Entrar com o Google. No computador, o convite fica à esquerda e o mural ocupa o resto da tela.' },
     ],
   },
 ];

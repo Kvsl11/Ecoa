@@ -5235,16 +5235,13 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-ultima { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 12px; margin: 12px 16px 0; padding: 10px;
   border-radius: 16px; background: var(--surface); color: var(--text); text-decoration: none; }
 .pg-ultima-fundo { position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; z-index: -2; background-size: cover; background-position: center; filter: blur(26px) saturate(1.4); opacity: 0.55;
-  animation: pg-ultima-fluir 18s ease-in-out infinite alternate; will-change: transform; }
-/* tocando: as cores correm mais rápido e o brilho pulsa de leve */
-.pg-ultima.tocando .pg-ultima-fundo { animation: pg-ultima-fluir 7s ease-in-out infinite alternate, pg-ultima-pulsar 1.2s ease-in-out infinite alternate; }
+  animation: pg-ultima-fluir 12s ease-in-out infinite alternate; will-change: transform; }
 @keyframes pg-ultima-fluir {
   0% { transform: translate(-54%, -52%) rotate(0deg) scale(1); }
   33% { transform: translate(-46%, -47%) rotate(40deg) scale(1.15); }
   66% { transform: translate(-52%, -46%) rotate(-25deg) scale(1.05); }
   100% { transform: translate(-45%, -54%) rotate(70deg) scale(1.2); }
 }
-@keyframes pg-ultima-pulsar { from { opacity: 0.5; } to { opacity: 0.75; } }
 .pg-ultima::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(0 0 0 / 0.15), rgb(0 0 0 / 0.45)); }
 :root[data-theme="light"] .pg-ultima::after { background: linear-gradient(90deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.65)); }
 .pg-ultima .cover { width: 52px; height: 52px; flex: none; border-radius: 10px; box-shadow: 0 6px 16px rgb(0 0 0 / 0.35); }
