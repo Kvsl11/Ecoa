@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 535, data: '2026-11-05', titulo: 'Downloads mais rápidos e sempre com o clipe',
+    itens: [
+      { tipo: 'correcao', texto: 'Muitas músicas baixavam só o som, sem o clipe: quando o áudio oficial é o próprio clipe, o app pedia o mesmo vídeo duas vezes e o som, chegando por último, apagava o clipe. Agora ele baixa uma vez só, como vídeo. As baixadas que ficaram só com o som completam sozinhas.' },
+      { tipo: 'correcao', texto: 'O download não trava mais: se a conexão com o servidor para no meio do arquivo, o app pede de novo de onde parou (ou do começo), e o arquivo é conferido (inteiro e, no clipe, de vídeo) antes de ser guardado.' },
+      { tipo: 'melhoria', texto: 'Mais rápido: duas músicas baixam ao mesmo tempo (antes uma por vez, e a que travava segurava a fila), e a procura do clipe antes do download espera menos.' },
+      { tipo: 'melhoria', texto: 'A qualidade de áudio e de vídeo escolhida nos Ajustes vale: o clipe tenta duas vezes nela antes de aceitar uma menor (para a música não ficar sem ele), e o que veio numa qualidade menor é baixado de novo na escolhida, sozinho. "Atualizar os downloads" não apaga mais antes: cada arquivo só é trocado quando o novo chega inteiro, e a música continua tocando sem internet.' },
+      { tipo: 'melhoria', texto: 'O download que ficou pela metade tenta se completar com mais insistência (em 2, 5, 15, 30 e 60 minutos) e, nas listas, aparece com a seta apagada até ficar completo (a verde é só com tudo no aparelho).' },
+    ],
+  },
+  {
     versao: 534, data: '2026-11-05', titulo: 'A prévia da playlist só com clipes',
     itens: [
       { tipo: 'correcao', texto: 'A prévia da playlist (os clipes passando, como stories) e a capinha animada ao lado do baixar ainda mostravam as músicas sem clipe de verdade, como Blast Off, com a capa parada. Agora elas mostram só as músicas que têm clipe. Ao abrir a playlist, as músicas que ainda não tinham sido conferidas são conferidas na hora.' },
@@ -63,14 +73,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'A cifra no tom da música que toca: algumas cifras vêm em outro tom (quem escreveu tirou em outro, ou escreveu com o capotraste). O app ouve a gravação, compara as notas que soam com as dos acordes da cifra e, quando a resposta é clara, põe a cifra no tom da gravação, avisando ("Cifra no tom da gravação: D → E"). Ele ouve pelo arquivo baixado, pelo áudio que você importou ou pelo seu servidor; o tom que você escolher à mão nunca é mudado.' },
       { tipo: 'melhoria', texto: 'No player, o tom virou um botão só: tocando nele, abre a tabela com os 12 tons, com o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
       { tipo: 'melhoria', texto: 'As músicas baixadas que você já tinha são conferidas sozinhas, em segundo plano, e as que estavam em outro tom passam para o da gravação.' },
-    ],
-  },
-  {
-    versao: 525, data: '2026-11-05', titulo: 'O vídeo e a música são da mesma música',
-    itens: [
-      { tipo: 'correcao', texto: 'Muitas vezes o clipe vinha certo, mas o modo música tocava outra: a mesma música de outro artista, ou outra música com o nome dentro ("Beija-flor" no lugar de "Voa Beija-flor", um pot-pourri). Agora o áudio oficial e o clipe só valem quando são do artista certo e com o título exato; sem um assim, fica só o clipe.' },
-      { tipo: 'correcao', texto: 'A cifra e a letra também: o título igual vem antes do parecido, e uma dupla como "Jorge & Mateus" não é mais confundida com outro "Jorge".' },
-      { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano: o áudio de outra música sai, o certo é procurado, e a letra sincronizada e o download são refeitos. O áudio que você importou fica.' },
     ],
   },
 ];

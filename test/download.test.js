@@ -51,7 +51,7 @@ test('download: IDs válidos de vídeos do YouTube passam pela validação', asy
 test('download: o ícone entra em andamento imediatamente, antes da verificação do servidor', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const inicio = app.indexOf('async function baixarMusica(song');
-  const fim = app.indexOf('async function baixarAgora(id)', inicio);
+  const fim = app.indexOf('async function baixarAgora(id', inicio);
   const rotina = app.slice(inicio, fim);
   assert.ok(rotina.indexOf('baixando.set(s.id, { pct: 0, preparando: true })') < rotina.indexOf('!servidorIA().url'));
   assert.ok(rotina.indexOf('baixando.set(s.id, { pct: 0, preparando: true })') < rotina.indexOf('avisarDownloads()'));
@@ -63,29 +63,29 @@ test('download: o ícone entra em andamento imediatamente, antes da verificaçã
 test('download: redescobre o servidor antes de iniciar cada fila e usa recuperação de entrega', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const inicio = app.indexOf('async function baixarMusica(song');
-  const fim = app.indexOf('async function baixarAgora(id)', inicio);
+  const fim = app.indexOf('async function baixarAgora(id', inicio);
   const rotina = app.slice(inicio, fim);
   assert.ok(rotina.indexOf('await carregarServidor()') < rotina.indexOf('!servidorIA().url'));
   // (o arquivo vem do mesmo servidor que baixou: com o Modal de reserva, o Codespace pode ligar no meio do download)
-  const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id)')));
-  assert.match(baixar, /const cfg = servidorIA\(\);[\s\S]*?const r = await tentarBaixar\(cfg, yt, video/);
-  assert.match(baixar, /baixarArquivoDoServidor\(cfg, r\.arquivo\)/);
-  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id)'));
+  const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id')));
+  assert.match(baixar, /const cfg = servidorIA\(\);[\s\S]*?r = await tentarBaixar\(cfg, yt, video/);
+  assert.match(baixar, /receberArquivo\(cfg, r\.arquivo/);
+  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id'));
   assert.match(tentar, /chamarComEtapas\(cfg, '\/baixar'/);
 });
 
 test('download: o videoclipe tenta de novo, descendo de qualidade, e o parcial se completa sozinho', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
-  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id)'));
+  const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id'));
   // (3 tentativas: o vídeo na qualidade escolhida e depois nas mais baixas)
   assert.match(app, /QUALIDADES_ABAIXO = \{ 'muito-alta': \['alta', 'normal'\]/);
-  assert.match(tentar, /video \? \[q, \.\.\.QUALIDADES_ABAIXO\[q\]\] : \[q, q, q\]/);
+  assert.match(tentar, /video \? \[q, q, \.\.\.QUALIDADES_ABAIXO\[q\]\] : \[q, q, q\]/);
   // (pediu o clipe e veio só o som: tenta de novo)
   assert.match(tentar, /video && r\?\.tipo && !String\(r\.tipo\)\.startsWith\('video\/'\)/);
   // o download parcial volta para a fila sozinho, e ao abrir o app as baixadas pela metade também
-  const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// O download que ficou parcial'));
-  assert.match(baixar, /if \(falhas\.length\) completarDepois\(id\)/);
-  assert.match(app, /s\.baixado && precisaBaixar\(s\) && midiaDe\(s\)/);
+  const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// O download que ficou parcial'));
+  assert.match(baixar, /if \(falhas\.length \|\| precisaMelhorar\(db\.song\(id\)\)\) completarDepois\(id\)/);
+  assert.match(app, /s\.baixado && \(precisaBaixar\(s\) \|\| precisaMelhorar\(s\)\) && midiaDe\(s\)/);
 });
 test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravação', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
@@ -93,7 +93,7 @@ test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravaç
   const fim = app.indexOf('// Se o áudio já baixou', inicio);
   const rotina = app.slice(inicio, fim);
   assert.match(rotina, /if \(song\.youtube && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
-  const baixar = app.slice(app.indexOf('async function baixarAgora(id)'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id)')));
+  const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id')));
   assert.doesNotMatch(baixar, /delete arquivos\[vsAqui\.video\]|apagarAudio\(chaveBaixada\(vsAqui\.video\)\)/);
   assert.match(baixar, /Download parcial/);
   assert.match(baixar, /faltou\.join\(' e '\)/);
@@ -116,4 +116,37 @@ test('players de apoio do YouTube sem a conta (não contam como outro dispositiv
   assert.match(app, /ytEmbed\(s\.youtube, \{ inicio: m\.tVideo, mudo: true, semConta: true \}\)/);
   // e só um endereço com a conta: o do player que se ouve
   assert.equal((app.match(/https:\/\/www\.youtube\.com\/embed\//g) || []).length, 1);
+});
+
+test('download: o áudio que é o próprio vídeo da música baixa uma vez só, como vídeo (o áudio não apaga o clipe)', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const rotina = app.slice(app.indexOf('function arquivosParaBaixar(song)'), app.indexOf('// Se o áudio já baixou'));
+  assert.match(rotina, /audio && !\(audio === song\.youtube && comVideo\)/);
+});
+
+test('download: a entrega do servidor não trava (tempo sem dados, nova tentativa de onde parou) e o arquivo é conferido', async () => {
+  const { receberArquivo } = await import('../public/js/lib/servidor-ia.js');
+  const dados = new Uint8Array(30000).map((_, i) => i % 251);
+  let pedidos = 0;
+  // 1º pedido: manda metade e para (a conexão "trava"); 2º: o servidor continua do ponto (206)
+  const fetchImpl = async (url, { headers, signal }) => {
+    pedidos++;
+    const de = Number(/bytes=(\d+)-/.exec(headers.Range || '')?.[1] || 0);
+    const parte = pedidos === 1 ? dados.slice(0, 15000) : dados.slice(de);
+    const body = new ReadableStream({
+      start(c) {
+        c.enqueue(parte);
+        if (pedidos === 1) signal.addEventListener('abort', () => c.error(Object.assign(new Error('parou'), { name: 'AbortError' })));
+        else c.close();
+      },
+    });
+    return { ok: true, status: de ? 206 : 200, headers: new Map([['content-length', String(parte.length)]]), body };
+  };
+  const blob = await receberArquivo({ url: 'https://servidor.test' }, 'n1', { tamanho: 30000, tipo: 'video/mp4', inatividade: 50, fetchImpl, aguardar: async () => {} });
+  assert.equal(pedidos, 2);
+  assert.equal(blob.size, 30000);
+  assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), dados);
+  // o servidor que não tem mais o arquivo: erro na hora (o app baixa do YouTube de novo)
+  const sem = async () => ({ ok: false, status: 404, text: async () => '{"detail":"o arquivo não está mais no servidor"}', headers: new Map() });
+  await assert.rejects(receberArquivo({ url: 'https://servidor.test' }, 'n2', { fetchImpl: sem, aguardar: async () => {} }), (e) => e.status === 404);
 });

@@ -123,7 +123,7 @@ test('um download parcial pode ser retomado e o áudio não precisa ser baixado 
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   assert.match(app, /function precisaBaixar\(song\)/);
   assert.match(app, /video && !String\(arquivo\.tipo \|\| ''\)\.toLowerCase\(\)\.startsWith\('video\/'\)/);
-  assert.match(app, /if \(!s \|\| !precisaBaixar\(s\) \|\| baixando\.has\(s\.id\)\) return/);
+  assert.match(app, /if \(!s \|\| !\(precisaBaixar\(s\) \|\| \(qualidade && precisaMelhorar\(s, qualidade === 'todas'\)\)\) \|\| baixando\.has\(s\.id\)\) return/);
   assert.match(app, /const faltam = ss\.filter\(\(s\) => precisaBaixar\(s\)/);
 });
 
