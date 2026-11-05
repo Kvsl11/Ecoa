@@ -11,7 +11,7 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No Tocando agora, o ícone do fone embaixo dos controles ficou do tamanho do botão de compartilhar.' },
       { tipo: 'novo', texto: 'Conectou o fone com o app aberto: aparece o aviso "Tocando em …" (e, ao desconectar, que o som voltou para o celular). Como o Android só diz "Bluetooth headset", dá para dar o nome do seu fone na folha Conectar, e ele aparece em todo lugar.' },
       { tipo: 'melhoria', texto: 'Com o vídeo tocando, a barrinha de baixo mostra o vídeo colado na borda, da altura dela, como no Spotify.' },
-      { tipo: 'melhoria', texto: 'Ícones novos: o do fone e o de ouvir em outro aparelho (a telinha com a caixa de som, como no Spotify).' },
+      { tipo: 'melhoria', texto: 'Ícones novos: o do fone e o de ouvir em outro aparelho (o celular atrás de uma caixa de som, como no Spotify).' },
       { tipo: 'correcao', texto: 'O Diagnóstico da música ficava com a lista dos pares do áudio e do clipe enchendo a tela e os botões de baixo tortos. Agora a lista mostra só o começo e o fim (o "Copiar" leva ela inteira) e os botões vão de ponta a ponta.' },
     ],
   },
