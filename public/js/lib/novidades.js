@@ -4,9 +4,22 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 540, data: '2026-11-05', titulo: 'Baixar todas as músicas curtidas',
+    versao: 541, data: '2026-11-05', titulo: 'Baixar todas as músicas curtidas',
     itens: [
       { tipo: 'novo', texto: 'As Músicas curtidas ganharam o botão de baixar tudo, como nas playlists: um toque baixa todas as músicas salvas para ouvir sem internet; tocando enquanto baixa, o download pausa, e com todas baixadas o botão fica verde.' },
+    ],
+  },
+  {
+    versao: 540, data: '2026-11-05', titulo: 'Por trás da música, o fone conectado e o artista certo',
+    itens: [
+      { tipo: 'novo', texto: 'No Tocando agora, embaixo da letra: o artista com o selo de confirmado e os fãs, os vídeos relacionados dele (tocam na hora), as pessoas por trás da música em fotos grandes, o "Explorar" do artista (as músicas dele, os artistas parecidos e as músicas parecidas) e os créditos com o "Mostrar tudo", que abre todos em grupos: artista, composição e letra, produção, detalhes e fontes (o selo).' },
+      { tipo: 'novo', texto: 'Os créditos ficaram completos: quem compôs, escreveu a letra e produziu, e o selo, vêm da ficha da música na Wikipédia. A foto de quem só compôs ou produziu só aparece quando é com certeza da pessoa.' },
+      { tipo: 'melhoria', texto: 'O "Explorar" das pessoas da música foi refeito: as pessoas espalhadas em duas fileiras que andam para o lado; tocando numa, abre a ficha dela (os papéis, os fãs e os álbuns); embaixo, as versões da música por outros artistas.' },
+      { tipo: 'novo', texto: 'Com um fone ou uma caixa conectada, o nome dele aparece em verde embaixo dos controles e no player pequeno, e a folha Conectar mostra o fone tocando a música, pelo celular.' },
+      { tipo: 'novo', texto: 'No celular, rolando o Tocando agora, aparece a barrinha de cima (como no tablet): o nome e o artista, que andam quando não cabem, o fone conectado (o nome e o ícone dele, que só aparece com fone), o ✓ da biblioteca, o play e a linha do andamento. Tocando no nome, volta ao topo. O fone, o ✓ e o "Mostrar tudo" ficam na cor do app.' },
+      { tipo: 'correcao', texto: 'O "Sobre o artista" podia mostrar outra pessoa com o mesmo nome: em Standing Next to You, o Jung Kook aparecia com a foto e os 7.899 fãs de um artista de música indiana. Agora vale o artista que canta a própria música e, entre os de nome igual (escrito junto ou separado, como "Jung Kook" e "Jungkook"), o mais conhecido. As músicas já salvas e baixadas são conferidas sozinhas.' },
+      { tipo: 'melhoria', texto: 'O "Consertar agora" do Diagnóstico da música agora também conserta o artista (procura de novo os fãs, a foto e a apresentação) e, no fim, diz o que mudou.' },
+      { tipo: 'melhoria', texto: 'A tela do Diagnóstico ficou mais fácil de ler: em cima, o resumo do que está errado; embaixo, cada parte com um sinal verde, amarelo ou vermelho. O "Copiar" continua levando o texto inteiro.' },
     ],
   },
   {
@@ -61,13 +74,6 @@ export const NOVIDADES = [
     versao: 532, data: '2026-11-05', titulo: 'A capa uma vez só',
     itens: [
       { tipo: 'melhoria', texto: 'No Tocando agora, a música sem capa animada (como as que não têm clipe) mostrava a capa duas vezes: a grande em cima e a pequena ao lado do nome. Agora fica só a grande, como no Spotify. Com a capa animada ou no modo vídeo, a pequena continua.' },
-    ],
-  },
-  {
-    versao: 531, data: '2026-11-05', titulo: 'Os clipes do K-pop',
-    itens: [
-      { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
-      { tipo: 'correcao', texto: 'As músicas que tinham ficado só música por isso são conferidas de novo, sozinhas; nas baixadas, o clipe volta a ser baixado.' },
     ],
   },
 ];

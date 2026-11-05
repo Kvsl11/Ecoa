@@ -42,3 +42,30 @@ test('o primeiro artista, para a capa e a foto', () => {
   assert.equal(primeiroArtista('Anitta & Ludmilla', { unico: () => false }), 'Anitta');
   assert.equal(primeiroArtista('Anitta, Ludmilla'), 'Anitta');
 });
+
+test('o artista do Deezer: o nome escrito junto vale, e entre os iguais fica o de mais fãs', async () => {
+  const { artistaDeezerCerto, mesmoNomeDeArtista, faixaDaMusica } = await import('../public/js/lib/artistas.js');
+  const busca = [
+    { id: 248616612, name: 'Jung Kook', nb_fan: 7898 },
+    { id: 9172904, name: 'Jungkook', nb_fan: 475487 },
+    { id: 14480935, name: 'Jung Joonil', nb_fan: 1097 },
+  ];
+  assert.equal(artistaDeezerCerto(busca, 'Jung Kook').id, 9172904);
+  assert.equal(artistaDeezerCerto(busca, 'Jungkook').id, 9172904);
+  assert.ok(mesmoNomeDeArtista('JUNG KOOK', 'Jungkook'));
+  assert.ok(!mesmoNomeDeArtista('Jung Joonil', 'Jung Kook'));
+  // (o de nome igual, sem outro do mesmo nome, continua valendo)
+  assert.equal(artistaDeezerCerto([{ id: 1, name: 'Kemuel', nb_fan: 300 }, { id: 2, name: 'Kemuel Silva', nb_fan: 90000 }], 'Kemuel').id, 1);
+  // (vários iguais e nenhum conhecido: nenhum)
+  assert.equal(artistaDeezerCerto([{ id: 1, name: 'Belief', nb_fan: 96 }, { id: 2, name: 'belief', nb_fan: 12 }], 'Belief'), null);
+  // (só parecido: vale o conhecido)
+  assert.equal(artistaDeezerCerto([{ id: 3, name: 'Belief Defect', nb_fan: 50 }], 'Belief'), null);
+  assert.equal(artistaDeezerCerto([{ id: 4, name: 'Frei Gilson - CMES', nb_fan: 5000 }], 'Frei Gilson').id, 4);
+  // a faixa da música diz quem canta
+  const faixas = [
+    { title: 'Standing Next to You (Piano rendition of Jung Kook, Latto)', artist: { id: 146804532, name: 'The Lullabeats' } },
+    { title: 'Standing Next to You', artist: { id: 9172904, name: 'JUNG KOOK' } },
+  ];
+  assert.equal(faixaDaMusica(faixas, { titulo: 'Standing Next to You', artista: 'Jung Kook' }).artist.id, 9172904);
+  assert.equal(faixaDaMusica(faixas, { titulo: 'Seven', artista: 'Jung Kook' }), null);
+});

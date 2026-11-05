@@ -3330,21 +3330,37 @@ html.tablet body.painel-cheio #player .pl-extra { grid-template-columns: minmax(
    dela não ocupa espaço: altura zero e a margem desfaz o espaço entre os itens) */
 #player .pl-fixo { display: none; }
 html.tablet body:not(.painel-recolhido) #player:not(.letra-cheia) .pl-fixo { display: block; order: -1; position: sticky; top: 0; z-index: 6; height: 0; margin-bottom: -14px; align-self: stretch; width: auto; }
-html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: -16px; left: -18px; right: -18px; display: flex; align-items: center; gap: 12px;
-  padding: 12px 18px; background: color-mix(in srgb, var(--cor-musica, var(--tint)) 70%, #000); box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
-  opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: -16px; left: -18px; right: -18px; }
 html.tablet body.painel-cheio #player:not(.letra-cheia) .pl-fixo { margin-bottom: -16px; }
 html.tablet body.painel-cheio #player .pl-fixo-barra { left: -28px; right: -28px; padding: 12px 28px; }
-html.tablet body:not(.painel-recolhido) #player.rolou .pl-fixo-barra { opacity: 1; transform: none; pointer-events: auto; }
-html.tablet #player .pl-fixo-txt { flex: 1; min-width: 0; display: grid; }
-html.tablet #player .pl-fixo-txt b { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html.tablet #player .pl-fixo-txt small { font-size: 13.5px; color: rgb(255 255 255 / 0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html.tablet #player .pl-fixo-play, html.tablet body.painel-cheio #player .pl-fixo-play { width: 38px; height: 38px; flex: none; }
-html.tablet #player .pl-fixo-salva { display: inline-grid; flex: none; width: 30px; height: 30px; border-color: rgb(255 255 255 / 0.85); color: #fff; }
-html.tablet #player .pl-fixo-salva.salva { border-color: var(--accent); color: var(--on-accent); }
+/* no celular e no computador, a mesma barrinha no Tocando agora na tela toda (colada no topo da tela, por cima da
+   margem de cima e da área do relógio) */
+html.pp:not(.tablet) body.painel-cheio #player:not(.letra-cheia) .pl-fixo { display: block; order: -1; position: sticky; top: 0; z-index: 6; height: 0; margin-bottom: -14px; align-self: stretch; width: auto; }
+html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-barra { position: absolute; top: calc(-10px - env(safe-area-inset-top)); left: -20px; right: -20px; padding: calc(10px + env(safe-area-inset-top)) 20px 10px; }
+@media (min-width: 900px) { html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-barra { top: -16px; left: -28px; right: -28px; padding: 12px 28px; } }
+:is(html.tablet body:not(.painel-recolhido), html.pp:not(.tablet) body.painel-cheio) #player .pl-fixo-barra { display: flex; align-items: center; gap: 12px;
+  background: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #0b0b0b); box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+:is(html.tablet body:not(.painel-recolhido), html.pp:not(.tablet) body.painel-cheio) #player.rolou .pl-fixo-barra { opacity: 1; transform: none; pointer-events: auto; }
+#player .pl-fixo-txt { all: unset; box-sizing: border-box; flex: 1; min-width: 0; display: grid; gap: 2px; cursor: pointer; }
+#player .pl-fixo-txt b { display: block; font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#player .pl-fixo-art { font-weight: 600; color: rgb(255 255 255 / 0.85); }
+/* o nome que não cabe anda devagar, vai e volta (sem as reticências enquanto anda) */
+#player .pl-fixo-txt b.anda { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+#player .pl-fixo-rolar { display: inline-block; }
+#player .pl-fixo-txt b.anda .pl-fixo-rolar { animation: pl-anda var(--tempo-anda, 8s) ease-in-out 1.2s infinite alternate; }
+@keyframes pl-anda { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(var(--sobra, 0)); } }
+#player .pl-fixo-txt small { display: flex; align-items: center; gap: 4px; font-size: 13px; color: rgb(255 255 255 / 0.75); white-space: nowrap; overflow: hidden; }
+#player .pl-fixo-txt small.com-fone { color: var(--accent); font-weight: 700; }
+#player .pl-fixo-txt small svg { flex: none; }
+#player .pl-fixo-txt small span { overflow: hidden; text-overflow: ellipsis; }
+#player .pl-fixo-play, html.tablet body.painel-cheio #player .pl-fixo-play { width: 38px; height: 38px; flex: none; }
+#player .pl-fixo-salva { display: inline-grid; flex: none; width: 30px; height: 30px; border-color: rgb(255 255 255 / 0.85); color: #fff; }
+#player .pl-fixo-salva.salva { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 /* a linha do andamento, colada embaixo da barrinha, de ponta a ponta */
-html.tablet #player .pl-fixo-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgb(255 255 255 / 0.18); }
-html.tablet #player .pl-fixo-prog i { display: block; height: 100%; width: 0; background: #fff; }
+#player .pl-fixo-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgb(255 255 255 / 0.18); }
+#player .pl-fixo-prog i { display: block; height: 100%; width: 0; background: #fff; }
+@media (prefers-reduced-motion: reduce) { #player .pl-fixo-txt b.anda .pl-fixo-rolar { animation: none; } #player .pl-fixo-txt b.anda { text-overflow: ellipsis; } }
 /* tablet: os dois participantes sempre lado a lado, em qualquer largura do cartão */
 html.tablet #player .pl-pessoas .ref-rodas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 html.tablet #player .pl-pessoas .ref-avatar { width: min(140px, 100%); }
@@ -5538,3 +5554,175 @@ dialog.tons-na-cor .btn.ghost:hover { background: rgb(255 255 255 / 0.18); }
 .btn-baixar-set.baixando { color: var(--text); }
 .btn-baixar-set.baixando .ic { opacity: 1; animation: baixando-pulsa 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .btn-baixar-set.baixando .ic { animation: none; opacity: 0.6; } }
+
+/* o diagnóstico da música: o resumo do que está errado em cima e, embaixo, cada parte com um sinal (verde certo,
+   amarelo atenção, vermelho errado) */
+.diag-cab h3 { margin: 0; }
+.diag-cab small { color: var(--muted); display: block; margin-top: 2px; overflow-wrap: anywhere; }
+.diag-corpo { display: grid; gap: 12px; }
+.diag-resumo { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+.diag-resumo > svg { flex: none; margin-top: 1px; }
+.diag-resumo ul, .diag-feito ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.diag-resumo li, .diag-feito li { margin: 2px 0; }
+.diag-resumo.ok { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.diag-resumo.ok b { color: var(--text); }
+.diag-resumo.aviso { background: color-mix(in srgb, #f5a524 14%, var(--surface-2)); }
+.diag-resumo.aviso > svg { color: #f5a524; }
+.diag-resumo.erro { background: color-mix(in srgb, var(--danger) 14%, var(--surface-2)); }
+.diag-resumo.erro > svg { color: var(--danger); }
+.diag-secoes { display: grid; gap: 10px; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+dialog.folha .diag-secoes { max-height: none; }
+.diag-secao { border-radius: 10px; background: var(--surface-2); padding: 4px 12px; }
+.diag-secao h4 { margin: 8px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.diag-item { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--border); }
+.diag-secao h4 + .diag-item { border-top: 0; }
+.diag-item .grow { min-width: 0; flex: 1; }
+.diag-item small { display: block; color: var(--muted); font-size: 12px; }
+.diag-item b { display: block; font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; user-select: text; }
+.diag-sinal { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.diag-item.ok .diag-sinal { background: var(--accent); }
+.diag-item.aviso .diag-sinal { background: #f5a524; }
+.diag-item.erro .diag-sinal { background: var(--danger); }
+.diag-item.erro b { color: var(--danger); }
+.diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.diag-feito[hidden] { display: none; }
+.diag-feito > b { display: flex; gap: 8px; align-items: center; }
+.diag-feito > b svg { color: var(--accent-ink); }
+[data-consertar] { display: inline-flex; align-items: center; gap: 8px; }
+[data-consertar] .spin { border-top-color: currentColor; }
+
+/* ============================================================ "Por trás da música" (como o Tocando agora do Spotify) */
+/* o artista: o selo de confirmado ao lado do nome e os números embaixo */
+html.pp #player .pl-artista-pe b { display: flex; align-items: center; gap: 6px; min-width: 0; }
+html.pp #player .pl-artista-nome { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-selo { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #3d91f4; color: #fff; }
+.pl-selo[hidden] { display: none; }
+.pl-selo svg { stroke-width: 3.5; }
+/* o cabeçalho dos cartões com o "Mostrar tudo" à direita */
+html.pp #player .pl-cartao-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+html.pp #player .pl-cartao-cab h4 { margin: 0; }
+.pl-mostrar { all: unset; cursor: pointer; font-size: 14px; font-weight: 800; color: var(--accent); padding: 6px 0; }
+.pl-mostrar:hover { text-decoration: underline; }
+/* as linhas dos créditos: o nome e, embaixo, os papéis */
+.pl-cr-linha { padding: 9px 0; }
+.pl-cr-linha .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pl-cr-linha b { font-size: 15.5px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-cr-linha small { font-size: 13.5px; color: rgb(255 255 255 / 0.7); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* os vídeos relacionados: uma fileira que anda para o lado */
+html.pp #player .pl-videos[hidden], html.pp #player .pl-explorar[hidden] { display: none; }
+.pl-trilho { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -18px; padding: 2px 18px 6px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.pl-trilho::-webkit-scrollbar { display: none; }
+.pl-video-rel { all: unset; box-sizing: border-box; flex: none; width: min(64%, 260px); display: grid; gap: 3px; cursor: pointer; scroll-snap-align: start; min-width: 0; }
+.pl-video-capa { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 8px; background: #2a2a2a center / cover no-repeat; overflow: hidden; margin-bottom: 6px; }
+.pl-video-capa i { position: absolute; top: 6px; right: 6px; padding: 2px 6px; border-radius: 4px; background: rgb(0 0 0 / 0.72); color: #fff; font-style: normal; font-size: 11.5px; font-weight: 700; }
+.pl-video-play { position: absolute; right: 8px; bottom: 8px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #000; }
+.pl-video-play svg { margin-left: 2px; }
+.pl-video-rel b { font-size: 14px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-video-rel small { font-size: 12.5px; color: rgb(255 255 255 / 0.7); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-video-rel:active .pl-video-capa { transform: scale(0.98); }
+/* as pessoas: o cartão em verde escuro, com as fotos grandes */
+html.pp #player .pl-dna .pl-pessoas { background: color-mix(in srgb, var(--cor-musica, var(--accent)) 45%, #0b0b0b); }
+/* "Explorar o artista": três quadros em pé, com a foto e o nome por cima */
+.pl-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
+.pl-tile { all: unset; box-sizing: border-box; position: relative; display: block; aspect-ratio: 3 / 4; border-radius: 8px; overflow: hidden; cursor: pointer; background: #2a2a2a; }
+.pl-tile-img { position: absolute; inset: 0; background: color-mix(in srgb, var(--cor-musica, var(--tint)) 50%, #222) center 25% / cover no-repeat; transition: transform 0.3s; }
+.pl-tile:hover .pl-tile-img { transform: scale(1.04); }
+.pl-tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(0 0 0 / 0.75)); }
+.pl-tile b { position: absolute; z-index: 1; left: 8px; right: 8px; bottom: 8px; font-size: 13px; font-weight: 800; line-height: 1.2; color: #fff;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* as capas nas folhas de escolha (os parecidos) */
+.lista-capa { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 6px; background: var(--surface-3) center / cover no-repeat; color: var(--muted); }
+.lista-capa.redonda { border-radius: 50%; }
+/* "Mostrar tudo" dos créditos: a folha com os grupos */
+.creditos-todos .ct-cab { display: grid; justify-items: center; text-align: center; gap: 2px; padding: 4px 16px 10px; }
+.creditos-todos .ct-cab b { font-size: 16px; font-weight: 800; }
+.creditos-todos .ct-cab small { color: var(--muted); font-size: 13px; }
+.ct-corpo { padding: 0 18px 22px; overflow-y: auto; }
+.ct-corpo h4 { margin: 18px 0 6px; font-size: 20px; font-weight: 800; }
+.ct-linha { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 0; cursor: default; }
+button.ct-linha { cursor: pointer; }
+.ct-linha .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ct-linha b { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.ct-linha b a { color: inherit; }
+.ct-linha small { font-size: 13.5px; color: var(--muted); }
+.ct-linha > svg { flex: none; color: var(--muted); }
+.ct-pe { display: flex; justify-content: center; margin-top: 22px; }
+/* o "Explorar" (as pessoas espalhadas em duas fileiras que andam para o lado, a ficha de quem foi tocado, as versões) */
+.cr-topo { grid-template-columns: 96px 1fr 96px; }
+.cr-topo-dir { display: flex; justify-content: flex-end; }
+.cr-musica .grow b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cr-play { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #fff; color: #000; cursor: pointer; }
+.cr-constelacao { display: grid; grid-auto-flow: column; grid-template-rows: auto auto; grid-auto-columns: minmax(140px, 44%); gap: 18px 0; overflow-x: auto;
+  margin: 0 calc(-1 * max(16px, calc((100vw - 820px) / 2))); padding: 4px max(16px, calc((100vw - 820px) / 2)) 18px; padding-right: 30%; scrollbar-width: none; overscroll-behavior-x: contain; }
+.cr-constelacao::-webkit-scrollbar { display: none; }
+.cr-constelacao.poucas { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: max(16px, calc((100vw - 820px) / 2)); }
+.cr-no { all: unset; box-sizing: border-box; display: grid; justify-items: center; align-content: start; text-align: center; gap: 2px; padding: 0 6px; min-width: 0; cursor: pointer; }
+.cr-constelacao:not(.poucas) .cr-no:nth-child(even) { transform: translateX(50%); }
+.cr-no .ref-avatar.cr-avatar { width: 84px; margin-bottom: 6px; font-size: 30px; transition: transform 0.2s, box-shadow 0.2s; }
+.cr-no.principal .ref-avatar.cr-avatar { width: 104px; }
+.cr-no .ref-avatar.sem-foto { background: color-mix(in srgb, var(--cor-creditos, var(--accent)) 45%, #101010); color: #fff; }
+.cr-no .ref-avatar.sem-foto .sem-foto-artista { display: none; }
+.cr-no.aberto .ref-avatar, .cr-no:focus-visible .ref-avatar { box-shadow: 0 0 0 3px #fff; }
+.cr-no:active .ref-avatar { transform: scale(0.96); }
+.cr-no b { font-size: 14.5px; font-weight: 800; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cr-no small { font-size: 12.5px; color: rgb(255 255 255 / 0.72); }
+.cr-ficha { position: absolute; z-index: 3; width: 280px; border-radius: 10px; background: #2b2b2b; box-shadow: 0 12px 32px rgb(0 0 0 / 0.55); animation: pop 0.16s ease-out; }
+.cr-ficha[hidden] { display: none; }
+.cr-ficha-bt { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; cursor: pointer; }
+.cr-ficha-bt .grow { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.cr-ficha-bt b { font-size: 16px; font-weight: 800; }
+.cr-ficha-bt small { font-size: 13px; color: rgb(255 255 255 / 0.75); }
+.cr-ficha-num { margin-top: 6px; }
+.cr-ficha-bt > svg { flex: none; opacity: 0.7; }
+.cr-versoes[hidden] { display: none; }
+.cr-versoes { margin-bottom: 26px; }
+.cr-versao { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 0; cursor: pointer; }
+.cr-versao-capa { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 4px; background: rgb(255 255 255 / 0.1) center / cover no-repeat; }
+.cr-versao .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.cr-versao b { font-size: 15.5px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cr-versao small { font-size: 13.5px; color: rgb(255 255 255 / 0.7); }
+.cr-versao > svg { flex: none; opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .pl-tile:hover .pl-tile-img { transform: none; } .cr-ficha { animation: none; } }
+
+/* onde o som está saindo (como no Spotify): embaixo dos controles, o ícone do fone e o nome dele, em verde; no player
+   pequeno, uma linha verde embaixo do artista */
+#player .pl-aparelho { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 7px; min-width: 44px; height: 44px; padding: 0 10px; border-radius: 22px;
+  color: rgb(255 255 255 / 0.9); cursor: pointer; max-width: 62%; }
+#player .pl-aparelho:hover, #player .pl-aparelho:focus-visible { background: rgb(255 255 255 / 0.08); }
+#player .pl-aparelho svg { flex: none; width: 22px; height: 22px; }
+#player .pl-aparelho-nome { font-size: 13px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#player .pl-aparelho-nome:empty { display: none; }
+#player .pl-aparelho.com-fone { color: var(--accent); padding-left: 8px; }
+#player .pl-aparelho.com-fone svg { width: 18px; height: 18px; }
+#player .pl-onde { display: flex; align-items: center; gap: 4px; margin-top: 1px; font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; }
+#player .pl-onde[hidden], html.pp #player .pl-onde { display: none; }
+#player .pl-onde span { overflow: hidden; text-overflow: ellipsis; }
+#player .pl-onde svg { flex: none; }
+/* a folha "Conectar": o aparelho que toca (o fone, com a qualidade, "via" este aparelho e a música tocando, em verde) */
+.ap-atual.com-fone svg:last-child { color: var(--accent-ink); }
+.ap-atual b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ap-qual { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--surface-3); color: var(--muted); }
+.ap-atual small.ap-via { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; }
+.ap-atual small.ap-via::before { content: "└"; opacity: 0.6; }
+.ap-atual small.ap-musica { display: flex; align-items: center; gap: 6px; color: var(--accent-ink); font-size: 13.5px; font-weight: 600; }
+.ap-atual small.ap-musica svg { flex: none; color: var(--accent-ink); }
+.ap-barras { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; flex: none; }
+.ap-barras i { width: 2.5px; background: var(--accent-ink); border-radius: 1px; animation: ap-barra 0.9s ease-in-out infinite; }
+.ap-barras i:nth-child(1) { height: 50%; } .ap-barras i:nth-child(2) { height: 100%; animation-delay: 0.2s; } .ap-barras i:nth-child(3) { height: 70%; animation-delay: 0.4s; }
+@keyframes ap-barra { 50% { transform: scaleY(0.4); } }
+.ap-barras i { transform-origin: bottom; }
+.ap-este { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .ap-barras i { animation: none; } }
+.pl-trilho { scroll-padding-inline: 18px; }
+.creditos-todos .menu-cab { display: grid; justify-items: center; }
+.creditos-todos .ct-cab { width: 100%; }
+/* (o play da barrinha de cima no tamanho dela, e não no dos controles grandes do celular) */
+html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; }
+#player .pl-fixo-txt small[hidden] { display: none; }
+/* a barrinha de cima: o play só o triângulo (sem o círculo branco dos controles grandes) e, com um fone conectado, o
+   ícone dele na cor do app, antes do ✓ (sem fone, não aparece) */
+html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; background: none; color: #fff; border-radius: 50%; box-shadow: none; }
+#player .pl-fixo-play svg { width: 26px; height: 26px; }
+#player .pl-fixo-fone { all: unset; box-sizing: border-box; display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; color: var(--accent); cursor: pointer; }
+#player .pl-fixo-fone[hidden] { display: none; }
+#player .pl-fixo-fone svg { width: 24px; height: 24px; }

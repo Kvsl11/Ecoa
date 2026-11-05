@@ -44,3 +44,39 @@ export function primeiroArtista(texto, opcoes = {}) {
   const semFeat = String(texto || '').split(/\s*(?:\(|\[)?\s*\b(?:feat\.?|ft\.?|featuring|part\.?|participa[çc][ãa]o(?: especial)?(?: de)?|with)\s+/i)[0];
   return separarArtistas(semFeat, { ...opcoes, comE: true, duplaComE: true })[0] || '';
 }
+
+// ---- o artista certo no Deezer (e na Wikipédia) pelo nome
+// O nome sem acentos, sem pontuação e sem espaços: "Jung Kook", "JUNG KOOK" e "Jungkook" são o mesmo artista
+export const nomeJunto = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const nomeSeparado = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// o mesmo nome, escrito junto ou separado ("Jung Kook" e "Jungkook"), ou um dentro do outro por palavras inteiras
+// ("Frei Gilson" e "Frei Gilson - CMES")
+export function mesmoNomeDeArtista(a, b) {
+  const A = nomeSeparado(a);
+  const B = nomeSeparado(b);
+  if (!A || !B) return false;
+  return A === B || nomeJunto(A) === nomeJunto(B) || ` ${A} `.includes(` ${B} `) || ` ${B} `.includes(` ${A} `);
+}
+// O artista do Deezer com o nome pedido. Os de nome igual — escrito junto ou separado — e, entre eles, o que tem mais
+// fãs: o "Jung Kook" de 7.898 fãs (outro artista, com capa de música indiana) vinha no lugar do "Jungkook" de 475 mil,
+// só por ter o espaço igual ao do nome procurado; e o "justice" desconhecido vinha antes do Justice. Vários com o mesmo
+// nome e nenhum conhecido costuma ser outro artista (o "Belief" dos créditos de Perfect vinha com a capa de uma banda
+// de 96 fãs), e um nome só parecido também ("Belief Defect" não é o "Belief"; o parecido, como "Frei Gilson - CMES",
+// vale quando não há o igual e ele é conhecido): aí, null
+export function artistaDeezerCerto(lista, nome) {
+  const fas = (x) => Number(x?.nb_fan) || 0;
+  const alvo = nomeJunto(nome);
+  if (!alvo) return null;
+  const parecidos = (lista || []).filter((x) => x && mesmoNomeDeArtista(x.name, nome)).sort((x, y) => fas(y) - fas(x));
+  const iguais = parecidos.filter((x) => nomeJunto(x.name) === alvo);
+  if (iguais.length) return iguais.length > 1 && fas(iguais[0]) < 1000 ? null : iguais[0];
+  return parecidos[0] && fas(parecidos[0]) >= 1000 ? parecidos[0] : null;
+}
+// A faixa do Deezer que é a música (o mesmo título e o mesmo artista), numa busca por "artista título": o artista dela
+// é com certeza o que canta a música, mesmo quando a busca por nome traz outro com o mesmo nome. null se não houver
+export function faixaDaMusica(lista, { titulo, artista }) {
+  const limpo = (t) => nomeSeparado(String(t || '').replace(/\s*[([][^)\]]*[)\]]/g, ''));
+  const t = limpo(titulo);
+  if (!t) return null;
+  return (lista || []).find((x) => x?.artist?.id && limpo(x.title) === t && mesmoNomeDeArtista(x.artist.name, artista)) || null;
+}
