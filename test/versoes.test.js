@@ -446,3 +446,17 @@ test('o título exato aceita os outros artistas antes do traço', async () => {
   assert.equal(mesmoTitulo({ titulo: 'Jorge e Mateus - Voa Beija Flor Pot-Pourri' }, 'Voa Beija-flor', 'Jorge & Mateus'), false);
   assert.equal(mesmoTitulo({ titulo: 'Fulano - Voa Beija-flor' }, 'Beija-flor', 'Fulano'), false);
 });
+
+test('no K-pop o clipe oficial sai no canal da empresa ("Official MV")', async () => {
+  const { escolherClipe } = await import('../public/js/lib/versoes.js');
+  const v = (id, titulo, canal, segundos = 215) => ({ id, titulo, canal, segundos });
+  const lista = [
+    v('lyric000001', "정국 (Jung Kook) 'Standing Next to You' Lyric Video", 'BANGTANTV'),
+    v('coreo000001', "정국 (Jung Kook) 'Standing Next to You' Official MV (Choreography ver.)", 'HYBE LABELS'),
+    v('clipe000001', "정국 (Jung Kook) 'Standing Next to You' Official MV", 'HYBE LABELS'),
+  ];
+  assert.equal(escolherClipe(lista, { titulo: 'Standing Next to You', artista: 'Jungkook' })?.id, 'clipe000001');
+  assert.equal(escolherClipe([v('aespa000001', "aespa 에스파 'Supernova' MV", 'SMTOWN')], { titulo: 'Supernova', artista: 'aespa' })?.id, 'aespa000001');
+  // (o "MV" de um canal de fã continua não valendo)
+  assert.equal(escolherClipe([v('fa000000001', "aespa 'Supernova' MV", 'kpop fanmade edits')], { titulo: 'Supernova', artista: 'Fulano' }), null);
+});

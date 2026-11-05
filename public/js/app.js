@@ -1669,6 +1669,10 @@ const REVISOES = [
   // do traço ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open"), e pode ter tirado o áudio dessas músicas.
   // As que ficaram sem o áudio oficial o procuram de novo (e a letra sincronizada, que estava nele, é refeita)
   { rev: 19, versoes: true, letra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && !versoesDe(s)?.audio },
+  // v531: no K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP…) e se chama "Official MV": a
+  // conferência da v530 não reconhecia e deixava a música só música (como Standing Next to You, do Jungkook) e, nas
+  // baixadas, tirava o clipe do aparelho. As marcadas sem clipe são conferidas de novo, e o clipe volta a ser baixado
+  { rev: 20, conferirClipe: true, arquivos: true, quais: (s) => s.semClipe === true },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2891,11 +2895,13 @@ const player = (() => {
       canvas.montar(q, { semArquivo: porQuadros });
     }
     mini.classList.toggle('capa-yt', (capa || barra) && capaYt);
-    // a capa pequena ao lado do nome, no modo vídeo e no modo música (no modo música, em cima ficam as cenas do clipe)
+    // a capa pequena ao lado do nome: no modo vídeo e no modo música com a capa animada (em cima ficam o vídeo ou as cenas
+    // do clipe). Com a capa grande parada em cima (a música sem capa animada, como a que não tem clipe), ela some: a
+    // mesma capa aparecia duas vezes, grande e pequena (como no Spotify, fica só a grande)
     const capinha = $('.pl-capinha', el);
     capinha.style.backgroundImage = url ? `url("${url}")` : '';
     capinha.classList.toggle('capa-yt', capaYt);
-    capinha.hidden = !url;
+    capinha.hidden = !url || (capa && !q);
     const b = $('.pl-troca', el);
     b.hidden = (ehArquivo(atual?.youtube) && !atual?.video) || Boolean(atual?.soMusica); // (só o áudio da pessoa, sem clipe, ou a música sem clipe de verdade: não há para onde trocar)
     porHtml(b, atual?.semVideo ? `${icon('youtube', 18)}<span>Escolher um vídeo</span>`

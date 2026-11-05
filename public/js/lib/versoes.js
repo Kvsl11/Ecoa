@@ -19,7 +19,7 @@ const OUTRA_GRAVACAO = /\b(live|ao vivo|en vivo|cover|karaoke|instrumental|remix
 const SEM_VOZ = /\b(instrumentals?|instrumentais|karaoke|playback|pb|base|bases|backing( track)?|minus one|sem voz|no vocals?|without vocals?|off vocal|vocal removed|fundo musical|multitracks?|stems?|beat|type beat|piano|violao|guitarra|guitar|teclado|sax|saxofone|flauta|violino|cello|8 ?bit|music box|lofi|lo fi)\b/;
 const CANAL_SEM_VOZ = /\b(karaoke|instrumentals?|backing|playback|minus one|sing king|bases?|multitracks?|piano|beats?|lofi)\b/;
 // o próprio clipe (o modo música quer o áudio, não outro vídeo com cenas)
-const CLIPE = /\b(official (music )?video|music video|videoclipe|clipe oficial|clipe)\b/;
+const CLIPE = /\b(official (music )?video|music video|official mv|m ?v|videoclipe|clipe oficial|clipe)\b/;
 
 // ---- é a mesma música? (o áudio oficial e o clipe são procurados no YouTube pelo título e pelo artista, e a busca traz
 // de tudo: a mesma música de outro artista, outra música com o título dentro — "Beija-flor" dentro de "Voa Beija-flor"
@@ -307,7 +307,8 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
 
 // O canal é oficial: o do próprio artista (ou de um dos artistas juntos), o VEVO dele ou o de uma gravadora — não o de
 // um fã, de letras ou de covers, mesmo que o vídeo se diga "Music Video"
-const GRAVADORA = /\b(vevo|records|recordings|som livre|sony music|universal music|warner music|warner records|atlantic|emi|island|columbia|interscope|republic|rca|def jam|capitol|epic|kondzilla|gr6|onerpm|deckdisc|mk music|graca music|cancao nova|paulinas|paulus|central gospel|todah|musile|sentimental|virgin)\b/;
+// (no K-pop o clipe sai no canal da empresa — HYBE LABELS, SMTOWN, JYP, YG, 1theK… — e não no do artista)
+const GRAVADORA = /\b(vevo|labels?|entertainment|ent|records?|recordings|music group|hybe|big ?hit( music)?|bangtantv|smtown|sm town|jyp|yg|stone music|1thek|mnet|kq|starship|cube|rbw|pledis|source music|belift|koz|ador|woollim|fnc|wakeone|the black label|p nation|kakao|genie|dingo|som livre|sony music|universal music|warner music|warner records|atlantic|emi|island|columbia|interscope|republic|rca|def jam|capitol|epic|kondzilla|gr6|onerpm|deckdisc|mk music|graca music|cancao nova|paulinas|paulus|central gospel|todah|musile|sentimental|virgin)\b/;
 export function canalOficial(canal, artista = '') {
   const c = normal(canal).replace(/\s+topic$/, '');
   if (!c) return false;
