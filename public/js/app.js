@@ -8420,6 +8420,7 @@ function viewSearch() {
     <h2 class="greet">Buscar</h2>
     <label class="field busca-branca">${icon('search', 22)}<input class="search" type="search" placeholder="O que você quer ouvir ou cantar?" value="${esc(q)}">
       <button type="button" class="busca-x" aria-label="Limpar a busca" title="Limpar" hidden>${icon('x', 20)}</button></label>
+    <div class="busca-progresso" id="busca-progresso" hidden></div>
     <div class="chips" id="filtros" style="margin-top:12px"${q.trim() ? '' : ' hidden'}>${FILTROS.map(([k, n]) => `<button class="chip" data-f="${k}" aria-pressed="${k === filtro}">${n}</button>`).join('')}</div>
     <div id="res"></div>`;
   const res = $('#res');
@@ -8436,27 +8437,71 @@ function viewSearch() {
   let timer;
   let seq = 0;
   const mostra = (k) => filtro === 'tudo' || filtro === k;
-  const caixa = (id, titulo, link = '') => `<div class="shelf-head"><h2>${titulo}</h2>${link}</div><div id="${id}"><div class="loading-note"><span class="spin"></span>Buscando…</div></div>`;
+  // Enquanto procura, sem uma bolinha girando em cada seção: o resultado anterior continua na tela (mais apagado) e uma
+  // linha fina corre embaixo da barra de busca. Quando chega o primeiro resultado da busca nova, a tela troca de uma vez;
+  // as seções que ainda faltam ficam com o contorno das linhas (o "esqueleto"), no lugar exato em que vão aparecer.
+  // A ordem é a de importância: biblioteca, músicas, artistas e o acervo
+  const esqueleto = (id) => (id === 'ar-res'
+    ? `<div class="shelf esq-artistas">${'<span class="esq-artista"><i class="esq"></i><i class="esq esq-l2"></i></span>'.repeat(4)}</div>`
+    : `<ul class="tracks esq-lista">${'<li><i class="esq esq-capa"></i><span><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span></li>'.repeat(id === 'mu-res' ? 5 : 3)}</ul>`);
+  const caixa = (id, titulo, link = '') => `<section class="bs-sec" data-slot="${id}"><div class="shelf-head"><h2>${titulo}</h2>${link}</div><div id="${id}">${esqueleto(id)}</div></section>`;
+  // (a seção vazia sai: da tela, se a busca nova já está nela, ou da tela que ainda vai entrar — sem trocar a tela antes)
+  const semSecao = (meu, id) => {
+    if (meu !== seq) return;
+    if (telaDe === meu) $('#' + id)?.closest('.bs-sec')?.remove();
+    else novaTela = novaTela.replace(new RegExp(`<section class="bs-sec" data-slot="${id}">[\\s\\S]*?</section>`), '');
+  };
   const erro = (id, e) => { if ($('#' + id)) $('#' + id).innerHTML = `<div class="alert">${icon('info', 18)}<span>${esc(e.message || e)}</span></div>`; };
+  const barra = $('#busca-progresso');
+  let telaDe = 0; // a busca (seq) cujo resultado está na tela
+  let novaTela = '';
+  let faltam = 0;
+  let principal = '';
+  let fila = [];
+  // (a tela troca quando chega a seção principal — as músicas, no Tudo —, com o que as outras já trouxeram; o acervo,
+  // que vem rápido e fica embaixo, não troca a tela sozinho deixando as músicas só no esqueleto)
+  const aplicar = (meu, id, fn) => {
+    if (meu !== seq) return;
+    if (telaDe !== meu && id !== principal) { fila.push(fn); return; }
+    trocarTela(meu);
+    if ($('#' + id)) fn();
+    fila.splice(0).forEach((f) => f());
+  };
+  const terminou = (meu) => {
+    if (meu !== seq || --faltam > 0) return;
+    barra.hidden = true;
+    if (telaDe !== meu) { trocarTela(meu); fila.splice(0).forEach((f) => f()); }
+    res.classList.remove('atualizando');
+  };
+  // (o primeiro resultado da busca nova troca a tela inteira; depois, cada seção é preenchida no seu lugar)
+  const trocarTela = (meu) => {
+    if (meu !== seq) return false;
+    if (telaDe !== meu) { res.innerHTML = novaTela; telaDe = meu; res.classList.remove('atualizando'); }
+    return true;
+  };
   const draw = (term) => {
     term = term.trim();
     $('#filtros').hidden = !term;
     if (!term) {
+      ++seq;
+      telaDe = 0;
+      barra.hidden = true;
+      res.classList.remove('atualizando');
       // como a Busca do Spotify: os setores em cards grandes, as em alta numa fileira de capas, os artistas e, por fim,
       // "Navegar por tudo" (os estilos musicais e as partes da missa em cards coloridos)
       res.innerHTML = `
         <div class="shelf-head"><h2>Comece a navegar</h2></div>
         <div class="nav-grade grande">${SETORES.map(([k, nome, , ic], i) => cartaoNavegar({ href: `#/setor/${k}`, nome, ic, cor: ['#1e3264', '#e8115b', '#8d67ab', '#27856a'][i % 4] })).join('')}</div>
         <div class="shelf-head"><h2>Católicas em alta</h2></div>
-        <div id="em-alta"><div class="loading-note"><span class="spin"></span>Carregando as mais tocadas…</div></div>
-        <div class="shelf-head"><h2>Artistas católicos</h2></div><div class="shelf" id="art-cat"></div>
+        <div id="em-alta"><div class="shelf esq-tiles">${'<span class="esq-tile"><i class="esq"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div></div>
+        <div class="shelf-head"><h2>Artistas católicos</h2></div><div class="shelf" id="art-cat">${'<span class="esq-artista"><i class="esq"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div>
         <div class="shelf-head"><h2>Navegar por tudo</h2></div>
         <h3 class="nav-sub">Estilos musicais</h3><div class="nav-grade" id="nav-estilos">${cardsEstilos()}</div>
         <h3 class="nav-sub">Partes da missa</h3><div class="nav-grade">${cardsPartes()}</div>
         <button class="busca-colar" id="btn-importar">${icon('upload', 16)} Achou a cifra em outro site? <b>Cole aqui</b></button>`;
       $('#btn-importar').onclick = () => importarDaInternet();
       fotosDosCards($('#nav-estilos'));
-      const meu = ++seq;
+      const meu = seq;
       Promise.all(ARTISTAS_CATOLICOS.map((a) => buscarArtistasCifraClub(a).then((l) => artistaCerto(l, a)).catch(() => null))).then(prepararFotosArtistas).then((lista) => {
         if (meu !== seq || !$('#art-cat')) return;
         $('#art-cat').innerHTML = lista.filter(Boolean).map(tileArtista).join('');
@@ -8477,58 +8522,69 @@ function viewSearch() {
     const t = normalizar(term);
     const locais = db.songs().filter((s) => !s.soNoRepertorio && normalizar(s.title + ' ' + s.artist + ' ' + s.content).includes(t)).slice(0, filtro === 'biblioteca' ? 50 : 6);
     const blocos = [];
-    if (mostra('biblioteca') && (locais.length || filtro === 'biblioteca')) blocos.push(`<div class="shelf-head"><h2>Na sua biblioteca</h2></div>${locais.length ? `<ul class="tracks">${locais.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>` : '<p class="muted">Nada na biblioteca.</p>'}`);
+    if (mostra('biblioteca') && (locais.length || filtro === 'biblioteca')) blocos.push(`<section class="bs-sec"><div class="shelf-head"><h2>Na sua biblioteca</h2></div>${locais.length ? `<ul class="tracks">${locais.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>` : '<p class="muted">Nada na biblioteca.</p>'}</section>`);
+    if (mostra('musicas')) blocos.push(caixa('mu-res', 'Músicas', '<span class="muted" style="font-size:13px">com cifra, letra e vídeo</span>'));
     if (mostra('artistas')) blocos.push(caixa('ar-res', 'Artistas'));
     if (mostra('acervo')) blocos.push(caixa('ac-res', 'No acervo litúrgico', filtro === 'acervo' ? '' : `<a href="#/setor/busca/${encodeURIComponent(term)}">Ver tudo</a>`));
-    if (mostra('musicas')) blocos.push(caixa('mu-res', 'Músicas', `<span class="muted" style="font-size:13px">com cifra, letra e vídeo</span>`));
-    res.innerHTML = blocos.join('');
-    const vivo = (id) => meu === seq && $('#' + id);
+    novaTela = blocos.join('');
+    faltam = ['musicas', 'artistas', 'acervo'].filter(mostra).length;
+    principal = mostra('musicas') ? 'mu-res' : mostra('artistas') ? 'ar-res' : 'ac-res';
+    fila = [];
+    // nada na tela de antes (a primeira busca, ou vindo da tela de navegar): já mostra a nova, com os esqueletos
+    if (!faltam || !res.querySelector('.bs-sec')) trocarTela(meu);
+    else res.classList.add('atualizando');
+    barra.hidden = !faltam;
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (meu !== seq) return;
       if (mostra('artistas')) {
         buscarArtistasCifraClub(term).then(async (lista) => {
-          if (!vivo('ar-res')) return;
+          if (meu !== seq) return;
           const artistas = await prepararFotosArtistas(lista.slice(0, filtro === 'artistas' ? 20 : 8));
-          if (!vivo('ar-res')) return;
-          $('#ar-res').innerHTML = artistas.length ? `<div class="${filtro === 'artistas' ? 'grade-artistas' : 'shelf'}">${artistas.map(tileArtista).join('')}</div>` : '<p class="muted">Nenhum artista encontrado.</p>';
-          enriquecerTilesArtistas($('#ar-res'));
           // na aba Tudo, sem artista, a seção some
-          if (!artistas.length && filtro === 'tudo') { $('#ar-res').previousElementSibling?.remove(); $('#ar-res').remove(); }
-        }).catch((e) => vivo('ar-res') && erro('ar-res', 'Não consegui buscar artistas: ' + e.message));
+          if (!artistas.length && filtro === 'tudo') { semSecao(meu, 'ar-res'); return; }
+          aplicar(meu, 'ar-res', () => {
+            $('#ar-res').innerHTML = artistas.length ? `<div class="${filtro === 'artistas' ? 'grade-artistas' : 'shelf'}">${artistas.map(tileArtista).join('')}</div>` : '<p class="muted">Nenhum artista encontrado.</p>';
+            enriquecerTilesArtistas($('#ar-res'));
+          });
+        }).catch((e) => aplicar(meu, 'ar-res', () => erro('ar-res', 'Não consegui buscar artistas: ' + e.message))).finally(() => terminou(meu));
       }
       if (mostra('acervo')) {
         // músicas do acervo litúrgico (Hinário da CNBB, partes fixas, antífonas, cifras…) pelo título ou pela letra
         acervoClassificado().then((ac) => {
-          if (!vivo('ac-res')) return;
-          const box = $('#ac-res');
-          if (!ac.musicas.length) { if (filtro === 'tudo') { box.previousElementSibling?.remove(); box.remove(); } else box.innerHTML = avisoAcervo(); return; }
-          // o mesmo canto (de vários anos do Hinário) aparece uma vez
-          const vistos = new Set();
-          const unicas = ac.musicas.filter((m) => { const k = normalizar(m.titulo + ' ' + (m.autor || '')); if (vistos.has(k)) return false; vistos.add(k); return true; });
-          if (filtro === 'acervo') { desenharMusicas(box, unicas, { filtro: term, vazio: 'Nada no acervo com esse nome.' }); }
-          else {
-            desenharMusicas(box, unicas, { filtro: term, agrupar: false });
-            if (!musicasNaTela.length) { box.previousElementSibling?.remove(); box.remove(); return; }
-            musicasNaTela = musicasNaTela.slice(0, 6);
-            box.innerHTML = `<ul class="tracks">${musicasNaTela.map((m, i) => linhaMusicaAcervo(m, i)).join('')}</ul>`;
-          }
-          if (!box.dataset.ligado) { box.dataset.ligado = '1'; ligarMusicas(box); }
-        });
+          if (meu !== seq) return;
+          if (!ac.musicas.length && filtro === 'tudo') { semSecao(meu, 'ac-res'); return; }
+          aplicar(meu, 'ac-res', () => {
+            const box = $('#ac-res');
+            if (!ac.musicas.length) { box.innerHTML = avisoAcervo(); return; }
+            // o mesmo canto (de vários anos do Hinário) aparece uma vez
+            const vistos = new Set();
+            const unicas = ac.musicas.filter((m) => { const k = normalizar(m.titulo + ' ' + (m.autor || '')); if (vistos.has(k)) return false; vistos.add(k); return true; });
+            if (filtro === 'acervo') { desenharMusicas(box, unicas, { filtro: term, vazio: 'Nada no acervo com esse nome.' }); }
+            else {
+              desenharMusicas(box, unicas, { filtro: term, agrupar: false });
+              if (!musicasNaTela.length) { semSecao(meu, 'ac-res'); return; }
+              musicasNaTela = musicasNaTela.slice(0, 6);
+              box.innerHTML = `<ul class="tracks">${musicasNaTela.map((m, i) => linhaMusicaAcervo(m, i)).join('')}</ul>`;
+            }
+            if (!box.dataset.ligado) { box.dataset.ligado = '1'; ligarMusicas(box); }
+          });
+        }).finally(() => terminou(meu));
       }
       if (mostra('musicas')) {
         // uma lista só: as músicas (Cifra Club e Letras) com o vídeo de cada uma (YouTube) e os vídeos que sobraram
         const mostrar = async (lista) => {
-          if (!vivo('mu-res')) return;
+          if (meu !== seq) return;
           await prepararMidiaBusca(lista);
-          if (!vivo('mu-res')) return;
-          achados.musica = lista;
-          $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+          aplicar(meu, 'mu-res', () => {
+            achados.musica = lista;
+            $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+          });
         };
         buscarTudo(term, filtro === 'musicas' ? 25 : 8, filtro === 'musicas' ? 15 : 6).then(mostrar)
-          .catch((e) => vivo('mu-res') && erro('mu-res', 'Não consegui buscar músicas: ' + e.message));
+          .catch((e) => aplicar(meu, 'mu-res', () => erro('mu-res', 'Não consegui buscar músicas: ' + e.message))).finally(() => terminou(meu));
       }
-    }, 400);
+    }, 300);
   };
   const definirFiltro = (f) => {
     filtro = f;
