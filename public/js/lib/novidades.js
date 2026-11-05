@@ -4,8 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 540, data: '2026-11-05', titulo: 'O artista certo no "Sobre o artista" e um diagnóstico que conserta',
+    versao: 540, data: '2026-11-05', titulo: 'Por trás da música, o fone conectado e o artista certo',
     itens: [
+      { tipo: 'novo', texto: 'No Tocando agora, embaixo da letra: o artista com o selo de confirmado e os fãs, os vídeos relacionados dele (tocam na hora), as pessoas por trás da música em fotos grandes, o "Explorar" do artista (as músicas dele, os artistas parecidos e as músicas parecidas) e os créditos com o "Mostrar tudo", que abre todos em grupos: artista, composição e letra, produção, detalhes e fontes (o selo).' },
+      { tipo: 'novo', texto: 'Os créditos ficaram completos: quem compôs, escreveu a letra e produziu, e o selo, vêm da ficha da música na Wikipédia. A foto de quem só compôs ou produziu só aparece quando é com certeza da pessoa.' },
+      { tipo: 'melhoria', texto: 'O "Explorar" das pessoas da música foi refeito: as pessoas espalhadas em duas fileiras que andam para o lado; tocando numa, abre a ficha dela (os papéis, os fãs e os álbuns); embaixo, as versões da música por outros artistas.' },
+      { tipo: 'novo', texto: 'Com um fone ou uma caixa conectada, o nome dele aparece em verde embaixo dos controles e no player pequeno, e a folha Conectar mostra o fone tocando a música, pelo celular.' },
+      { tipo: 'novo', texto: 'No celular, rolando o Tocando agora, aparece a barrinha de cima (como no tablet): o nome e o artista, que andam quando não cabem, o fone conectado, o ✓ da biblioteca, o play e a linha do andamento. Tocando no nome, volta ao topo.' },
       { tipo: 'correcao', texto: 'O "Sobre o artista" podia mostrar outra pessoa com o mesmo nome: em Standing Next to You, o Jung Kook aparecia com a foto e os 7.899 fãs de um artista de música indiana. Agora vale o artista que canta a própria música e, entre os de nome igual (escrito junto ou separado, como "Jung Kook" e "Jungkook"), o mais conhecido. As músicas já salvas e baixadas são conferidas sozinhas.' },
       { tipo: 'melhoria', texto: 'O "Consertar agora" do Diagnóstico da música agora também conserta o artista (procura de novo os fãs, a foto e a apresentação) e, no fim, diz o que mudou.' },
       { tipo: 'melhoria', texto: 'A tela do Diagnóstico ficou mais fácil de ler: em cima, o resumo do que está errado; embaixo, cada parte com um sinal verde, amarelo ou vermelho. O "Copiar" continua levando o texto inteiro.' },

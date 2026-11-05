@@ -1271,3 +1271,103 @@ export function tituloDoVideo(t) {
     .replace(/\s*\|.*$/, '').replace(/\s+/g, ' ').trim();
 }
 
+
+// ---- os créditos completos da música (quem compôs, quem escreveu a letra, quem produziu, o selo), para o "Por trás da
+// música": a ficha da música na Wikipédia em inglês (a caixa "Infobox song"/"Infobox single", que a maioria das
+// músicas conhecidas tem). Só vale a página da música com o mesmo título e o mesmo artista
+// o texto de um campo da ficha sem a marcação: [[Página|Nome]] → Nome, {{nowrap|X}} → X, sem as referências e notas
+function textoDaFicha(v) {
+  return String(v || '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<ref[^>]*\/>/gi, '').replace(/<ref[\s\S]*?<\/ref>/gi, '')
+    .replace(/\{\{\s*(?:efn|refn|sfn|citation needed|cn|r)\b[^{}]*\}\}/gi, '')
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+    .replace(/'{2,}/g, '');
+}
+// os nomes de um campo: as listas da Wikipédia ({{flatlist}}, {{hlist}}, {{plainlist}}, "* Nome"), <br>, vírgulas
+export function nomesDaFicha(valor) {
+  let t = textoDaFicha(valor);
+  // ({{hlist|A|B}}, {{flatlist|...}}, {{ubl|A|B}}: o conteúdo, com "|" virando separador)
+  for (let i = 0; i < 4 && /\{\{/.test(t); i++) {
+    t = t.replace(/\{\{\s*(?:flat ?list|plain ?list|hlist|ubl|unbulleted list|nowrap|nobr|small)\s*\|?([^{}]*)\}\}/gi, (_, x) => x.replace(/\|/g, '\n'))
+      .replace(/\{\{[^{}]*\}\}/g, '');
+  }
+  return [...new Set(t.split(/\n|<br\s*\/?>|,|;|\s+and\s+|\s+&\s+|\s*\*\s*/i)
+    .map((x) => x.replace(/\([^)]*\)/g, '').replace(/^\s*[•·-]\s*/, '').replace(/\s+/g, ' ').trim())
+    .filter((x) => x && x.length < 60 && !/^(various|n\/a|none|uncredited)$/i.test(x) && !/[=[\]{}|]/.test(x)))];
+}
+// os campos da ficha da música (o primeiro {{Infobox song}} ou {{Infobox single}} da página): { campo: valor }
+export function fichaDaMusica(wikitext) {
+  const s = String(wikitext || '');
+  const ini = s.search(/\{\{\s*Infobox (?:song|single|musical composition)\b/i);
+  if (ini < 0) return null;
+  // (até fechar as chaves da caixa)
+  let n = 0;
+  let fim = ini;
+  for (; fim < s.length; fim++) {
+    if (s.startsWith('{{', fim)) { n++; fim++; } else if (s.startsWith('}}', fim)) { n--; fim++; if (!n) break; }
+  }
+  const caixa = s.slice(ini + 2, fim - 1);
+  const campos = {};
+  // (cada "| campo = valor" do primeiro nível, sem cortar no "|" de dentro de [[...]] e {{...}})
+  let prof = 0;
+  let atual = '';
+  const partes = [];
+  for (let i = 0; i < caixa.length; i++) {
+    const c2 = caixa.slice(i, i + 2);
+    if (c2 === '{{' || c2 === '[[') { prof++; atual += c2; i++; continue; }
+    if (c2 === '}}' || c2 === ']]') { prof--; atual += c2; i++; continue; }
+    if (caixa[i] === '|' && prof === 0) { partes.push(atual); atual = ''; continue; }
+    atual += caixa[i];
+  }
+  partes.push(atual);
+  for (const p of partes.slice(1)) {
+    const m = /^\s*([\w ]+?)\s*=\s*([\s\S]*)$/.exec(p);
+    if (m) campos[m[1].toLowerCase().replace(/\s+/g, '_')] = m[2].trim();
+  }
+  return campos;
+}
+// os créditos da ficha: { artista, compositores, letristas, produtores, selos, ano }
+export function creditosDaFicha(wikitext) {
+  const f = fichaDaMusica(wikitext);
+  if (!f) return null;
+  const campo = (...ks) => ks.flatMap((k) => (f[k] ? nomesDaFicha(f[k]) : []));
+  const ano = /\b(19|20)\d{2}\b/.exec(textoDaFicha(f.released || f.published || ''))?.[0] || '';
+  return {
+    artista: nomesDaFicha(f.artist || '').join(', '),
+    titulo: textoDaFicha(f.name || '').trim(),
+    // ("writer" e "songwriter" são quem fez a música e a letra juntas)
+    compositores: [...new Set([...campo('writer', 'writers', 'songwriter', 'songwriters'), ...campo('composer', 'composers')])],
+    letristas: [...new Set([...campo('writer', 'writers', 'songwriter', 'songwriters'), ...campo('lyricist', 'lyricists')])],
+    produtores: campo('producer', 'producers'),
+    selos: campo('label', 'labels'),
+    ano,
+  };
+}
+const juntoW = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const mesmoArtistaW = (a, b) => {
+  const A = juntoW(a);
+  const B = juntoW(b);
+  return Boolean(A && B) && (A === B || A.includes(B) || B.includes(A));
+};
+export async function creditosDaWikipedia({ titulo, artista }, { fetchImpl } = {}) {
+  const t = String(titulo || '').replace(/\s*[([][^)\]]*[)\]]/g, '').trim();
+  const a = String(artista || '').trim();
+  if (!t || !a) return null;
+  const q = `intitle:"${t.replace(/"/g, '')}" ${a.replace(/"/g, '')} song`;
+  const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=5&gsrsearch=${encodeURIComponent(q)}&prop=revisions&rvprop=content&rvslots=main`;
+  const res = await buscar(url, { fetchImpl, timeout: 12000 });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = await res.json();
+  const paginas = Object.values(j?.query?.pages || {}).sort((x, y) => (x.index || 0) - (y.index || 0));
+  for (const pg of paginas) {
+    const texto = pg.revisions?.[0]?.slots?.main?.['*'] || pg.revisions?.[0]?.['*'] || '';
+    const c = creditosDaFicha(texto);
+    if (!c) continue;
+    const nomeDaPagina = String(pg.title || '').replace(/\s*\([^)]*\)\s*$/, '');
+    if (juntoW(c.titulo || nomeDaPagina) !== juntoW(t) && juntoW(nomeDaPagina) !== juntoW(t)) continue;
+    if (!mesmoArtistaW(c.artista, a)) continue;
+    return { ...c, url: `https://en.wikipedia.org/wiki/${encodeURIComponent(String(pg.title).replace(/ /g, '_'))}` };
+  }
+  return null;
+}

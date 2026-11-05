@@ -36,7 +36,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { creditosDaWikipedia, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -2381,6 +2381,7 @@ function escolherVideo(song, tipo = 'video') {
 // menu, com o vídeo pequeno, nome, parte da missa, progresso, tocar/pausar e ampliar o vídeo.
 const player = (() => {
   let atual = null;
+  let foneAgora = ''; // o fone ou a caixa por onde o som está saindo (o nome; '' sem nenhum ou sem saber)
   let local = null; // tocando do aparelho (o áudio da pessoa ou um download): veja localDe
   // a transição entre as músicas em andamento (o crossfade ou o automix) e o plano da próxima: veja modoTransicao
   let transicao = null;
@@ -2409,7 +2410,7 @@ const player = (() => {
   el.hidden = true;
   el.innerHTML = `
     <div class="pl-fundo quadros" aria-hidden="true" hidden></div>
-    <div class="pl-fixo"><div class="pl-fixo-barra"><span class="pl-fixo-txt"><b></b><small></small></span>
+    <div class="pl-fixo"><div class="pl-fixo-barra"><button class="pl-fixo-txt" data-pl="topo" aria-label="Voltar ao topo"><b><span class="pl-fixo-rolar"><span class="pl-fixo-nome"></span><span class="pl-fixo-art"></span></span></b><small hidden></small></button>
       <button class="salvar-btn pl-fixo-salva" data-pl="salva" aria-label="Salvar na biblioteca">${icon('plus', 16)}</button>
       <button class="icon-btn pl-play pl-fixo-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 18)}</button>
       <span class="pl-fixo-prog" aria-hidden="true"><i></i></span></div></div>
@@ -2418,7 +2419,7 @@ const player = (() => {
     <button class="pl-troca" data-pl="troca">${icon('music', 18)}<span>Mudar para música</span></button>
     <div class="pl-meio">
       <span class="pl-capinha" aria-hidden="true"></span>
-      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b></b><small></small></span></button>
+      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b></b><small></small><span class="pl-onde" hidden></span></span></button>
       <button class="salvar-btn pl-salva" data-pl="salva" hidden></button>
     </div>
     <div class="pl-ctrl">
@@ -2442,7 +2443,7 @@ const player = (() => {
       <span class="pl-cab-meio"><small>Tocando agora</small><b></b></span>
       <span class="pl-cab-dir"><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 20)}</button></span></div>
     <div class="pl-acoes">
-      <button class="icon-btn" data-pl="aparelhos" aria-label="Ouvir em outro aparelho" title="Ouvir em outro aparelho">${icon('aparelhos', 20)}</button>
+      <button class="pl-aparelho" data-pl="aparelhos" aria-label="Ouvir em outro aparelho" title="Ouvir em outro aparelho">${icon('aparelhos', 20)}<span class="pl-aparelho-nome"></span></button>
       <span class="grow"></span>
       <button class="icon-btn" data-pl="compartilhar" aria-label="Compartilhar" title="Compartilhar">${icon('share', 20)}</button>
       <button class="icon-btn" data-pl="fila" aria-label="Fila" title="Fila">${icon('queue', 20)}</button>
@@ -2589,12 +2590,23 @@ const player = (() => {
   };
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   const avisar = () => ouvintes.forEach((fn) => fn());
+  // o nome da barrinha de cima que não cabe anda devagar para o lado (como no Spotify), indo e voltando
+  const medirNomeDaBarrinha = () => requestAnimationFrame(() => {
+    const b = $('.pl-fixo-txt b', el);
+    const r = $('.pl-fixo-rolar', el);
+    if (!b || !r) return;
+    const sobra = r.scrollWidth - b.clientWidth;
+    b.classList.toggle('anda', sobra > 4);
+    b.style.setProperty('--sobra', `${-Math.max(0, sobra + 12)}px`);
+    b.style.setProperty('--tempo-anda', `${Math.max(6, (sobra + 12) / 18)}s`);
+  });
   // a altura do player (muda ao ampliar o vídeo) vai para o CSS: as barras flutuantes da página ficam acima dele
   // rolando o Tocando agora na tela toda para baixo dos controles, a barrinha de cima (o nome e o play) aparece, como no
   // Spotify
   el.addEventListener('scroll', () => {
     const ctrl = $('.pl-ctrl', el);
-    el.classList.toggle('rolou', Boolean(ctrl) && el.scrollTop > ctrl.offsetTop + ctrl.offsetHeight);
+    const rolou = Boolean(ctrl) && el.scrollTop > ctrl.offsetTop + ctrl.offsetHeight;
+    if (rolou !== el.classList.contains('rolou')) { el.classList.toggle('rolou', rolou); if (rolou) medirNomeDaBarrinha(); }
     // tablet: a capa animada (parada atrás) some aos poucos enquanto o conteúdo sobe por cima dela
     // (direto na camada dela: uma variável no painel fazia recalcular o estilo de tudo dentro dele a cada passo)
     if (ehTablet() && !fundo.hidden) {
@@ -2622,8 +2634,11 @@ const player = (() => {
     fundoCasa.style.setProperty('--cor-musica', corDoFundo);
     el.style.setProperty('--tint-cifra', corDaCifra(corDoFundo)); // os acordes na cor do fundo do player, mais clara
     porTexto($('.pl-txt b', el), atual.titulo || 'Vídeo');
-    porTexto($('.pl-fixo b', el), atual.titulo || 'Vídeo');
-    porTexto($('.pl-fixo small', el), atual.artista || '');
+    // a barrinha de cima (rolando): o nome e o artista numa linha só, que anda devagar quando não cabe, e embaixo onde o
+    // som está saindo (o fone, em verde) ou, sem fone, o artista
+    porTexto($('.pl-fixo-nome', el), atual.titulo || 'Vídeo');
+    porTexto($('.pl-fixo-art', el), atual.artista ? ` • ${atual.artista}` : '');
+    if (el.classList.contains('rolou')) medirNomeDaBarrinha();
     // só o artista (e a parte da missa): o tempo fica na barra de tempo (no celular ele ia junto do artista e cortava o
     // nome, "3:17 / 3:…"; a barrinha de progresso embaixo já mostra quanto falta)
     // (com o "E" de explícita antes, como no Spotify)
@@ -3080,22 +3095,31 @@ const player = (() => {
       ['Álbum', meta.album], ['Ano', meta.year], ['Tom', song ? renderSong(song.content).key || song.key : ''],
       [/cifraclub/.test(song?.source || '') ? 'Fonte da cifra' : 'Fonte', fonte ? `<a href="${esc(song.source)}" target="_blank" rel="noopener">${esc(fonte)}</a>` : '', true],
     ].filter(([, v]) => v);
+    // Os cartões, na ordem do Spotify: o artista (a foto, o nome com o selo, os fãs, a apresentação), os vídeos dele, as
+    // pessoas por trás da música (as duas primeiras em fotos grandes e o "Explorar"), os atalhos para explorar o artista,
+    // os créditos (as três primeiras pessoas e o "Mostrar tudo") e o vídeo de referência
     const cartoes = [];
     if (principal) {
       cartoes.push(`<section class="pl-cartao pl-artista"><div class="pl-artista-foto" data-foto><span>${semFotoArtista(84)}</span><h4>Sobre o artista</h4></div>
-        <div class="pl-artista-pe"><span class="grow"><b>${esc(principal)}</b><small>${esc(pessoas[0]?.papeis.join(' • ') || 'Artista')}</small></span>
-        ${slug ? `<a class="ref-pilula" href="#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(principal)}">Ver artista</a>` : ''}</div>
+        <div class="pl-artista-pe"><span class="grow"><b><span class="pl-artista-nome">${esc(principal)}</span><span class="pl-selo" hidden title="Artista confirmado">${icon('check', 11)}</span></b><small class="pl-artista-num">${esc(pessoas[0]?.papeis.join(' • ') || 'Artista')}</small></span>
+        ${slug ? `<a class="ref-pilula" href="#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(principal)}">Ver artista</a>` : `<button class="ref-pilula" data-pl="artista" data-i="0">Ver artista</button>`}</div>
         <div class="pl-artista-bio" hidden><p></p><button class="pl-artista-mais">ver mais</button></div></section>`);
+      if (comInfo) cartoes.push(`<section class="pl-cartao pl-videos" hidden><h4>Vídeos relacionados</h4><div class="pl-trilho"></div></section>`);
     }
     // créditos como o SongDNA do Spotify: as pessoas com a foto e o "Explorar"; embaixo, a lista (com a foto pequena)
     // (a capa: a da música ou, sem ela, a miniatura do vídeo; aberta a página de um artista, o Tocando agora fecha)
     const capaCreditos = (song && capaDaMusica(song)) || (ytDaCapa() ? `https://i.ytimg.com/vi/${ytDaCapa()}/hqdefault.jpg` : '');
-    dadosCreditos = { titulo: titulo || 'Música', artista, capa: capaCreditos, cor: atual?.cor || '', pessoas, detalhes, liturgia };
-    if (pessoas.length) cartoes.push(cartaoPessoas({ titulo: titulo || 'Música', pessoas, explorar: 'data-pl="explorar-creditos"', classe: 'pl-cartao ref-pessoas pl-pessoas' }));
+    dadosCreditos = { titulo: titulo || 'Música', artista, capa: capaCreditos, cor: atual?.cor || '', pessoas, detalhes, liturgia, songId: song?.id || '', youtube: atual?.youtube || '', fonte: song?.source || '' };
+    if (pessoas.length) cartoes.push(`<div class="pl-dna">${cartaoPessoas({ titulo: titulo || 'Música', pessoas, explorar: 'data-pl="explorar-creditos"', classe: 'pl-cartao ref-pessoas pl-pessoas' })}</div>`);
+    if (principal && comInfo) {
+      cartoes.push(`<section class="pl-cartao pl-explorar"><h4>Explorar ${esc(principal)}</h4><div class="pl-tiles">
+        <button class="pl-tile" data-pl="explorar-musicas"><span class="pl-tile-img pl-tile-artista"></span><b>Músicas de ${esc(principal)}</b></button>
+        <button class="pl-tile" data-pl="explorar-parecidos"><span class="pl-tile-img pl-tile-parecidos"></span><b>Parecidos com ${esc(principal)}</b></button>
+        <button class="pl-tile" data-pl="explorar-parecidas"><span class="pl-tile-img pl-tile-musica"${capaCreditos ? ` style="background-image:url('${esc(capaCreditos)}')"` : ''}></span><b>Parecidas com ${esc(titulo || 'esta música')}</b></button></div></section>`);
+    }
     if (pessoas.length || detalhes.length) {
-      cartoes.push(`<section class="pl-cartao"><h4>Créditos</h4>
-        ${pessoas.map((x, i) => `<button class="ref-linha cr-linha" data-pl="artista" data-i="${i}" title="Ver as músicas de ${esc(x.nome)}">${avatarDe(x, i, 'ref-avatar cr-mini')}<span class="grow"><b>${esc(x.nome)}</b><small>${esc(x.papeis.join(' • '))}</small></span>${icon('next', 16)}</button>`).join('')}
-        ${detalhes.map(([k, v, html]) => `<div class="ref-linha"><span class="grow"><b>${html ? v : esc(v)}</b><small>${esc(k)}</small></span></div>`).join('')}</section>`);
+      cartoes.push(`<section class="pl-cartao pl-creditos"><div class="pl-cartao-cab"><h4>Créditos</h4><button class="pl-mostrar" data-pl="creditos-todos">Mostrar tudo</button></div>
+        <div class="pl-creditos-lista">${linhasDeCreditos(pessoas.slice(0, 3))}</div></section>`);
     }
     if (atual?.youtube) {
       cartoes.push(`<section class="pl-cartao"><h4>Vídeo de referência</h4>
@@ -3114,11 +3138,15 @@ const player = (() => {
       const img = new Image();
       img.onload = () => { f.classList.add('com-foto'); f.style.backgroundImage = `url("${url}")`; };
       img.src = url;
+      const t = $('.pl-extra .pl-tile-artista', el);
+      if (t) t.style.backgroundImage = `url("${url}")`;
     }).catch(() => {});
     // a breve apresentação do artista embaixo do nome (3 linhas; tocando, abre o texto inteiro)
     // (em 3 linhas, com o "ver mais" no fim, como no Spotify: abre a tela "Sobre o artista", com o texto inteiro)
     // (sem a da Wikipédia, a biografia da TheAudioDB; sem nenhuma, só o "ver mais", que abre as fotos e os números)
-    if (comInfo) Promise.all([descricaoDoArtista(nomeBusca), audioDbGuardado(nomeBusca).catch(() => null)]).then(([info, adb]) => {
+    // (o Deezer confirmado pela música: os fãs embaixo do nome, e a apresentação também pelo nome com que ele o conhece)
+    const dzP = comInfo ? deezerDoArtista(nomeBusca, { titulo }) : Promise.resolve(null);
+    if (comInfo) Promise.all([dzP.then((d) => descricaoComNomeDoDeezer(nomeBusca, d)), audioDbGuardado(nomeBusca).catch(() => null)]).then(([info, adb]) => {
       const bio = $('.pl-extra .pl-artista-bio', el);
       if (!bio || extraDe !== chave) return;
       const texto = (info?.texto || adb?.bio || '').replace(/\s*\n+\s*/g, ' ');
@@ -3126,6 +3154,43 @@ const player = (() => {
       bio.classList.toggle('so-mais', !texto);
       bio.hidden = false;
       bio.onclick = (e) => { e.stopPropagation(); abrirSobreArtista({ nome: nomeBusca, slug, titulo }); };
+    }).catch(() => {});
+    // os números embaixo do nome (os fãs no Deezer ou os inscritos no canal) e o selo, quando o artista é com certeza
+    // ele (confirmado pela música no Deezer, ou o canal verificado no YouTube)
+    if (comInfo) Promise.all([dzP, canalGuardado(nomeBusca).catch(() => null)]).then(([dz, canal]) => {
+      const num = $('.pl-extra .pl-artista-num', el);
+      if (!num || extraDe !== chave) return;
+      const curto = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString('pt-BR')} mil` : n.toLocaleString('pt-BR'));
+      const partes = [dz?.fas && `${curto(dz.fas)} fãs no Deezer`, canal?.inscritos && `${curto(canal.inscritos)} inscritos`].filter(Boolean);
+      if (partes.length) num.textContent = partes.join(' · ');
+      $('.pl-extra .pl-selo', el).hidden = !(canal?.inscritos || deezerConfirmados.has(normalizar(nomeBusca)));
+    }).catch(() => {});
+    // os vídeos relacionados: os do artista no YouTube (sem o que está tocando), para tocar na hora
+    if (comInfo) videosDoArtista(nomeBusca, [atual?.youtube, atual?.video, atual?.audio]).then((vs) => {
+      const sec = $('.pl-extra .pl-videos', el);
+      if (!sec || extraDe !== chave || !vs.length) return;
+      dadosCreditos.videos = vs;
+      $('.pl-trilho', sec).innerHTML = vs.map((v, i) => `<button class="pl-video-rel" data-pl="video-rel" data-i="${i}" title="${esc(v.titulo)}"><span class="pl-video-capa" style="background-image:url('${esc(v.capa)}')">${v.duracao ? `<i>${esc(v.duracao)}</i>` : ''}<span class="pl-video-play">${icon('play', 16)}</span></span><b>${esc(v.titulo)}</b><small>${esc(v.canal)}</small></button>`).join('');
+      sec.hidden = false;
+    }).catch(() => {});
+    // os atalhos "Parecidos com…": a foto do primeiro artista parecido (do Deezer)
+    if (comInfo) dzP.then(() => artistaDoDeezer(nomeBusca, { titulo })).then((a) => (a?.id ? parecidosNoDeezer(a.id) : [])).then((l) => {
+      const t = $('.pl-extra .pl-tile-parecidos', el);
+      if (t && extraDe === chave && l[0]?.foto) t.style.backgroundImage = `url("${l[0].foto}")`;
+    }).catch(() => {});
+    // os créditos completos (quem compôs e produziu, o selo), da ficha da música na Wikipédia: as pessoas, o cartão e a
+    // lista são desenhados de novo com elas
+    if (titulo && artista && !liturgia) creditosDaMusicaNaWeb(titulo, artista).then((c) => {
+      if (!c || extraDe !== chave) return;
+      const todas = pessoasComCreditos(pessoas, c);
+      dadosCreditos.pessoas = todas;
+      dadosCreditos.web = c;
+      if (todas.length === pessoas.length) return;
+      const dna = $('.pl-extra .pl-dna', el);
+      if (dna) dna.innerHTML = cartaoPessoas({ titulo: titulo || 'Música', pessoas: todas, explorar: 'data-pl="explorar-creditos"', classe: 'pl-cartao ref-pessoas pl-pessoas' });
+      const lista = $('.pl-extra .pl-creditos-lista', el);
+      if (lista) lista.innerHTML = linhasDeCreditos(todas.slice(0, 3));
+      porFotos(box, todas, { liturgia });
     }).catch(() => {});
     if (atual?.youtube) infoDoVideo(atual.youtube).then((v) => {
       if (!v || extraDe !== chave) return;
@@ -5300,32 +5365,64 @@ const semLinhasDeAcordes = (sinc) => {
     }
     desenharLista();
   };
-  // "Conectar" (como no Spotify): onde está tocando — este aparelho, com a música — e as saídas de som que o navegador
-  // conhece (fones Bluetooth, caixas). Embaixo: levar para a TV (o YouTube transmite para TV e Chromecast) e procurar
-  // aparelhos Bluetooth (no Android abre as configurações; nos outros, explica onde fica)
+  // As saídas de som que o navegador conhece: os fones e as caixas (Bluetooth ou com fio) e as outras. Os navegadores só
+  // dizem o nome delas depois que o app pode usar o microfone (comNomes: false = não dá para saber agora)
+  const ehFone = (l) => /bluetooth|headset|headphone|fone|buds|airpods|beats|jbl|bose|sony|wh-|wf-|soundcore|edifier|qcy|usb|wired|com fio|earbuds/i.test(l)
+    && !/earpiece|speakerphone|alto-falante|^speaker$|default|padrão|communications|comunicações|microphone array|interno|internal|built-in/i.test(l);
+  const nomeDaSaida = (l) => l.replace(/\s*\((?:[0-9a-f]{4}:[0-9a-f]{4}|bluetooth)\)\s*$/i, '').replace(/^(default|padrão|communications|comunicações)\s*-\s*/i, '').replace(/\s*(hands-?free|stereo|a2dp)\s*$/i, '').trim();
+  const lerSaidasDeSom = async () => {
+    let aparelhos = [];
+    try { aparelhos = await navigator.mediaDevices.enumerateDevices(); } catch { /* o navegador não lista */ }
+    const som = aparelhos.filter((d) => /^audio/.test(d.kind));
+    const fones = [...new Set(som.filter((d) => d.label && ehFone(d.label)).map((d) => nomeDaSaida(d.label)))];
+    const saidas = [...new Set(som.filter((d) => d.kind === 'audiooutput' && d.label && !['default', 'communications'].includes(d.deviceId)).map((d) => nomeDaSaida(d.label)))]
+      .filter((l) => !fones.includes(l));
+    return { fone: fones[0] || '', fones, saidas, comNomes: som.some((d) => d.label) };
+  };
+  // Onde o som está saindo, embaixo dos controles e no player pequeno (como no Spotify): com um fone ou uma caixa
+  // conectada, o ícone do fone e o nome dele, em verde; sem, só o ícone de aparelhos
+  const mostrarAparelho = async () => {
+    const { fone } = await lerSaidasDeSom();
+    foneAgora = fone;
+    const b = $('.pl-acoes .pl-aparelho', el);
+    if (b) {
+      b.classList.toggle('com-fone', Boolean(fone));
+      b.innerHTML = `${icon(fone ? 'fone' : 'aparelhos', fone ? 18 : 20)}<span class="pl-aparelho-nome">${esc(fone)}</span>`;
+      b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
+    }
+    const onde = $('.pl-onde', el);
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
+    // (na barrinha de cima também: o fone em verde no lugar do artista)
+    const sub = $('.pl-fixo small', el);
+    if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
+    el.classList.toggle('com-fone', Boolean(fone));
+  };
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => void mostrarAparelho());
+  setTimeout(() => void mostrarAparelho(), 1500);
+  // "Conectar" (como no Spotify): onde está tocando — o fone ou a caixa conectada, ou este aparelho — com a música que
+  // toca, e as outras saídas de som que o navegador conhece. Embaixo: levar para a TV (o YouTube transmite para TV e
+  // Chromecast) e procurar aparelhos Bluetooth (no Android abre as configurações; nos outros, explica onde fica)
   const abrirAparelhos = async () => {
     const tipo = ehTablet() ? ['tablet', 'Este tablet'] : telaDeCelular() ? ['celular', 'Este celular'] : ['computador', 'Este computador'];
     const dlg = document.createElement('dialog');
     dlg.className = 'lista-dlg lista-menu aparelhos-dlg';
     // onde o som está saindo: os navegadores só dizem o nome dos fones e das caixas (Bluetooth ou com fio) depois que o
     // app pode usar o microfone; sem isso a lista vem sem nomes e o app não sabe que há um fone (mostrava "Este celular"
-    // mesmo com o fone). Com o fone conectado, ele aparece como o aparelho que está tocando
+    // mesmo com o fone). Com o fone conectado, ele aparece como o aparelho que está tocando, e este aparelho embaixo
     const desenharCorpo = async () => {
-      let aparelhos = [];
-      try { aparelhos = await navigator.mediaDevices.enumerateDevices(); } catch { /* o navegador não lista */ }
-      const som = aparelhos.filter((d) => /^audio/.test(d.kind));
-      const comNomes = som.some((d) => d.label);
-      const ehFone = (l) => /bluetooth|headset|headphone|fone|buds|airpods|beats|jbl|bose|sony|wh-|wf-|soundcore|edifier|qcy|usb|wired|com fio/i.test(l)
-        && !/earpiece|speakerphone|alto-falante|speaker|default|padrão|communications|comunicações|microphone array|interno|internal|built-in/i.test(l);
-      const nome = (l) => l.replace(/\s*\((?:[0-9a-f]{4}:[0-9a-f]{4}|bluetooth)\)\s*$/i, '').replace(/^(default|padrão|communications|comunicações)\s*-\s*/i, '').trim();
-      const fones = [...new Set(som.filter((d) => d.label && ehFone(d.label)).map((d) => nome(d.label)))];
-      const saidas = [...new Set(som.filter((d) => d.kind === 'audiooutput' && d.label && !['default', 'communications'].includes(d.deviceId)).map((d) => nome(d.label)))]
-        .filter((l) => !fones.includes(l));
-      const fone = fones[0];
+      const { fone, fones, saidas, comNomes } = await lerSaidasDeSom();
+      void mostrarAparelho();
       const musica = esc([atual?.titulo, atual?.artista].filter(Boolean).join(' – '));
+      // (a qualidade: a do arquivo baixado que toca, ou a da internet)
+      const qual = local ? (QUALIDADES.find(([k]) => k === qualidadeDoDownload(Boolean(local.video)))?.[1] || 'Baixada') : navigator.onLine ? 'Pela internet' : '';
+      const tocando = estado === 'tocando';
       $('.ap-corpo', dlg).innerHTML = `
-        <div class="ap-atual"><span class="grow"><b>${esc(fone || tipo[1])}</b><small>${fone ? `${musica ? `${musica} · ` : ''}neste ${tipo[0]}` : musica}</small></span>${icon(fone ? 'fone' : tipo[0], 34)}</div>
-        ${fones.length > 1 || saidas.length ? `<h4>Saídas de som</h4>${[...fones.slice(1), ...saidas].map((l) => `<div class="ap-saida">${icon(ehFone(l) ? 'fone' : 'som', 22)}<span>${esc(l)}</span></div>`).join('')}` : ''}
+        <div class="ap-atual${fone ? ' com-fone' : ''}"><span class="grow">
+          <b>${esc(fone || tipo[1])}${qual ? `<i class="ap-qual">${esc(qual)}</i>` : ''}</b>
+          ${fone ? `<small class="ap-via">${icon('bluetooth', 13)} ${esc(tipo[1])}</small>` : ''}
+          ${musica ? `<small class="ap-musica">${tocando ? '<span class="ap-barras" aria-hidden="true"><i></i><i></i><i></i></span>' : icon('music', 13)} ${musica}</small>` : ''}</span>${icon(fone ? 'fone' : tipo[0], 38)}</div>
+        ${fone ? `<div class="ap-saida ap-este">${icon(tipo[0], 22)}<span>${esc(tipo[1])}</span></div>` : ''}
+        ${fones.length > 1 || saidas.length ? `<h4>Outras saídas de som</h4>${[...fones.slice(1), ...saidas].map((l) => `<div class="ap-saida">${icon(ehFone(l) ? 'fone' : 'som', 22)}<span>${esc(l)}</span></div>`).join('')}` : ''}
         ${!comNomes && navigator.mediaDevices?.getUserMedia ? `<button class="ap-ver" data-ap="ver">${icon('fone', 22)}<span class="grow"><b>Mostrar fones e caixas conectados</b><small>O navegador pede para usar o microfone só para dizer os nomes dos aparelhos; nada é gravado</small></span></button>`
           : !fone && !saidas.length ? '<p class="ap-nada">Nenhum fone ou caixa conectado</p>' : ''}`;
     };
@@ -5461,7 +5558,8 @@ const semLinhasDeAcordes = (sinc) => {
       item(String(info?.tipo || '').startsWith('video') ? 'Vídeo' : 'Áudio', `${yt} · ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`, st, st === 'erro' ? `um arquivo baixado ${abre === 'NÃO abre' ? 'está estragado' : 'sumiu do aparelho'}` : '');
     }
     if (song) {
-      const falta = precisaBaixar(song);
+      // (a que não foi baixada não tem o que faltar)
+      const falta = Boolean(song.baixado || song.rebaixar) && precisaBaixar(song);
       item('Revisão', `falta baixar: ${sim(falta)} · revisão ${song.revisao || 0} de ${REVISAO_MUSICAS}`, falta || (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'aviso' : 'ok',
         falta ? 'falta baixar uma parte da música' : (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'a música ainda não passou pelas correções mais novas' : '');
     }
@@ -5508,6 +5606,9 @@ const semLinhasDeAcordes = (sinc) => {
     secao('Capa animada');
     const vids = [...fundo.querySelectorAll('video.pl-canvas')];
     item('Fundo', `${fundo.hidden ? 'escondido' : 'aparecendo'} · clipe baixado ${sim(canvas.vaiTocarArquivo(ytDaCapa()))} · ${vids.length} vídeos (${vids.map((x) => `${x.classList.contains('pronto') ? 'visível' : 'oculto'}${x.paused ? ' parado' : ' andando'}`).join(', ') || '-'}) · ${fundo.querySelectorAll('img.q').length} imagens do YouTube`);
+    // (o artista logo depois do que está tocando: é o que mais aparece errado na tela)
+    const iArt = secoes.findIndex((x) => x.titulo === 'Artista');
+    if (iArt > 1) secoes.splice(1, 0, ...secoes.splice(iArt, 1));
     const problemas = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'erro').map((i) => i.problema));
     const avisos = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'aviso').map((i) => i.problema));
     const cab = [`App ${APP_VERSAO} · ${new Date().toLocaleString('pt-BR')} · ${navigator.onLine ? 'com internet' : 'sem internet'}`,
@@ -5960,6 +6061,16 @@ const semLinhasDeAcordes = (sinc) => {
       return;
     }
     if (b.dataset.pl === 'explorar-creditos' && dadosCreditos) { explorarCreditos(dadosCreditos); return; }
+    if (b.dataset.pl === 'creditos-todos' && dadosCreditos) { mostrarTodosOsCreditos(dadosCreditos); return; }
+    if (b.dataset.pl === 'topo') { el.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
+    if (b.dataset.pl === 'video-rel' && dadosCreditos?.videos?.[b.dataset.i]) {
+      const v = dadosCreditos.videos[b.dataset.i];
+      player.tocar({ youtube: v.id, titulo: v.titulo, artista: v.canal, abrir: () => abrirVideoComoMusica(v) });
+      return;
+    }
+    if (b.dataset.pl === 'explorar-musicas' && dadosCreditos?.pessoas[0]) { irParaArtista(dadosCreditos.pessoas[0].nome); return; }
+    if (b.dataset.pl === 'explorar-parecidos' && dadosCreditos?.pessoas[0]) { void abrirParecidos(dadosCreditos.pessoas[0].nome, dadosCreditos.titulo); return; }
+    if (b.dataset.pl === 'explorar-parecidas' && dadosCreditos?.pessoas[0]) { void abrirMusicasParecidas(dadosCreditos.pessoas[0].nome, dadosCreditos.titulo); return; }
     if (b.dataset.pl === 'artista' && dadosCreditos?.pessoas[b.dataset.i]) { irParaArtista(dadosCreditos.pessoas[b.dataset.i].nome); return; }
     if (b.dataset.pl === 'leitura') { definirLeitura(!el.classList.contains('so-letra')); return; }
     if (b.dataset.pl === 'editar' && atual?.songId && db.song(atual.songId)) { location.hash = '#/editar/' + atual.songId; return; }
@@ -8035,8 +8146,18 @@ function fotoDaPessoa(nome, { liturgia = false, slug = '' } = {}) {
   if (!liturgia) return fotoDoArtista(nome, slug);
   return confiavelNaLiturgia(nome) ? fotoDoArtista(nomeReligioso(nome), slug) : Promise.resolve('');
 }
+// A foto de quem só compôs ou produziu (não canta na música): só a de um lugar que é com certeza dele — o canal
+// verificado do YouTube ou a página de músico na Wikipédia. O Deezer e a busca por nome traziam um xará (o "Henry
+// Walter" da música com a capa de um livro de outro Henry Walter)
+const fotosDeCreditados = new Map();
+function fotoDeCreditado(nome) {
+  const k = normalizar(nome);
+  if (!fotosDeCreditados.has(k)) fotosDeCreditados.set(k, fotoDoCanalDeVerdade(nome).catch(() => '').then((f) => f || fotoWikipedia(nome).catch(() => '')).then((f) => f || ''));
+  return comUltimoValor('fotocred', nome, fotosDeCreditados.get(k));
+}
+const soNosCreditos = (p) => !p.papeis.some((x) => x === 'Artista principal' || x === 'Participação');
 function porFotos(box, pessoas, { liturgia = false } = {}) {
-  pessoas.forEach((p, i) => fotoDaPessoa(p.nome, { liturgia }).then((url) => {
+  pessoas.forEach((p, i) => (soNosCreditos(p) && !liturgia ? fotoDeCreditado(p.nome) : fotoDaPessoa(p.nome, { liturgia })).then((url) => {
     if (!url || !box.isConnected) return;
     const img = new Image();
     img.onload = () => box.querySelectorAll(`[data-foto="${i}"]`).forEach((av) => { av.textContent = ''; av.classList.remove('sem-foto'); av.classList.add('com-foto'); av.style.backgroundImage = `url("${url}")`; });
@@ -8080,27 +8201,230 @@ const cartaoPessoas = ({ titulo, pessoas, explorar, classe = 'ref-cartao ref-pes
 function irParaArtista(nome) {
   irParaPagina(`#/artista-pelo-nome/${encodeURIComponent(nome)}`);
 }
-// o detalhe (tela toda): a música em cima e todas as pessoas, cada uma com a foto, o nome e todos os papéis; embaixo
-// os detalhes (álbum, ano, tom, de onde veio)
-function explorarCreditos({ titulo, artista, capa, cor, pessoas, detalhes = [], aoIrParaArtista, liturgia = false }) {
+// ---- os créditos completos e o "Por trás da música"
+// os papéis, na ordem em que aparecem, e os grupos da lista inteira dos créditos (o "Mostrar tudo")
+const ORDEM_DOS_PAPEIS = ['Artista principal', 'Participação', 'Composição', 'Letra', 'Produção'];
+const GRUPOS_DOS_CREDITOS = [['Artista', ['Artista principal', 'Participação']], ['Composição e letra', ['Composição', 'Letra']], ['Produção e engenharia', ['Produção']]];
+const ordenarPapeis = (l) => [...l].sort((x, y) => (ORDEM_DOS_PAPEIS.indexOf(x) + 99) % 99 - (ORDEM_DOS_PAPEIS.indexOf(y) + 99) % 99);
+// os créditos da música na web (a ficha dela na Wikipédia): guardados no aparelho, como o resto do que se sabe do artista
+const creditosBuscados = new Map();
+function creditosDaMusicaNaWeb(titulo, artista) {
+  const t = tituloLimpo(titulo);
+  const a = primeiroArtistaDe(artista);
+  const k = `${normalizar(a)}|${normalizar(t)}`;
+  if (!t || !a) return Promise.resolve(null);
+  if (!creditosBuscados.has(k)) creditosBuscados.set(k, creditosDaWikipedia({ titulo: t, artista: a }).catch(() => { creditosBuscados.delete(k); return null; }));
+  return comUltimoValor('creditos', k, creditosBuscados.get(k));
+}
+// as pessoas da música com as dos créditos da web somadas (as do app primeiro, com os papéis novos juntados)
+function pessoasComCreditos(pessoas, c) {
+  const lista = pessoas.map((p) => ({ ...p, papeis: [...p.papeis] }));
+  if (!c) return lista;
+  const juntar = (nome, papel) => {
+    const ja = lista.find((x) => nomeJunto(x.nome) === nomeJunto(nome));
+    if (ja) { if (!ja.papeis.includes(papel)) ja.papeis.push(papel); } else lista.push({ nome, papeis: [papel] });
+  };
+  (c.compositores || []).forEach((n) => juntar(n, 'Composição'));
+  (c.letristas || []).forEach((n) => juntar(n, 'Letra'));
+  (c.produtores || []).forEach((n) => juntar(n, 'Produção'));
+  for (const p of lista) p.papeis = ordenarPapeis(p.papeis);
+  return lista;
+}
+// as linhas dos créditos (o nome em cima e os papéis embaixo, como no Spotify); tocando, a página da pessoa
+const linhasDeCreditos = (pessoas, attr = 'data-pl="artista"') => pessoas.map((p, i) => `<button class="cr-linha pl-cr-linha" ${attr} data-i="${i}" title="Ver as músicas de ${esc(p.nome)}"><span class="grow"><b>${esc(p.nome)}</b><small>${esc(p.papeis.join(' • '))}</small></span>${icon('next', 16)}</button>`).join('');
+// os vídeos do artista no YouTube (os "Vídeos relacionados"): os que têm o nome dele no título ou no canal, sem os que
+// já estão tocando; até 10
+const videosDoArtistaBuscados = new Map();
+function videosDoArtista(nome, fora = []) {
+  const k = normalizar(nome);
+  if (!videosDoArtistaBuscados.has(k)) videosDoArtistaBuscados.set(k, buscarYoutubeNaWeb(nome).catch(() => { videosDoArtistaBuscados.delete(k); return []; }));
+  const tirar = new Set(fora.filter(Boolean));
+  const junto = nomeJunto(nome);
+  return videosDoArtistaBuscados.get(k).then((l) => (l || []).filter((v) => !tirar.has(v.id) && v.segundos !== 0 && (nomeJunto(v.titulo).includes(junto) || nomeJunto(v.canal).includes(junto))).slice(0, 10));
+}
+// os artistas parecidos com o artista (do Deezer): [{ nome, foto, fas }]
+const parecidosBuscados = new Map();
+function parecidosNoDeezer(id) {
+  if (!parecidosBuscados.has(id)) parecidosBuscados.set(id, jsonp(`https://api.deezer.com/artist/${id}/related?limit=20`).then((r) => (r?.data || []).map((a) => ({ nome: a.name, foto: a.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '', fas: a.nb_fan || 0 }))).catch(() => { parecidosBuscados.delete(id); return []; }));
+  return parecidosBuscados.get(id);
+}
+// as músicas parecidas (a "rádio" do artista no Deezer: músicas dele e de artistas parecidos): [{ titulo, artista, capa }]
+const parecidasBuscadas = new Map();
+function musicasParecidasNoDeezer(id) {
+  if (!parecidasBuscadas.has(id)) parecidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/radio?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => { parecidasBuscadas.delete(id); return []; }));
+  return parecidasBuscadas.get(id);
+}
+// as versões da música por outros artistas (os "Covers"): a mesma música (o mesmo título) no Deezer, de outro artista,
+// as mais ouvidas primeiro; até 8
+async function versoesDeOutros(titulo, artista) {
+  const t = normalizar(tituloLimpo(titulo));
+  if (!t) return [];
+  const r = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`track:"${tituloLimpo(titulo)}"`)}&limit=50`);
+  const vistos = new Set();
+  return (r?.data || []).filter((x) => normalizar(tituloLimpo(x.title)) === t && !mesmoNomeDeArtista(x.artist?.name, artista))
+    .sort((x, y) => (y.rank || 0) - (x.rank || 0))
+    .filter((x) => { const k = nomeJunto(x.artist?.name); if (vistos.has(k)) return false; vistos.add(k); return true; })
+    .slice(0, 8).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }));
+}
+// abre uma música da lista (dos parecidos, das versões): pela busca do app, com a cifra e o vídeo
+const abrirMusicaPeloNome = (m) => abrirMusica({ titulo: m.titulo, artista: m.artista }, location.hash);
+// "Parecidos com…": os artistas parecidos, numa folha; tocando, a página do artista
+async function abrirParecidos(nome, titulo = '') {
+  toast('Procurando artistas parecidos…');
+  const a = await artistaDoDeezer(nome, { titulo }).catch(() => null);
+  const l = a?.id ? await parecidosNoDeezer(a.id) : [];
+  if (!l.length) { toast(navigator.onLine ? 'Não achei artistas parecidos' : 'Sem internet'); return; }
+  const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidos com ${esc(nome)}</h3>`, opcoes: l.map((x, i) => ({ valor: i, rotulo: x.nome, sub: x.fas ? `${x.fas.toLocaleString('pt-BR')} fãs no Deezer` : 'Artista',
+    capa: `<span class="lista-capa redonda"${x.foto ? ` style="background-image:url('${esc(x.foto)}')"` : ''}>${x.foto ? '' : semFotoArtista(18)}</span>` })) });
+  if (v !== undefined && l[v]) { fecharTocandoAgoraParaIr(); irParaArtista(l[v].nome); }
+}
+// "Parecidas com…": músicas do artista e de artistas parecidos, numa folha; tocando, a música abre
+async function abrirMusicasParecidas(nome, titulo = '') {
+  toast('Procurando músicas parecidas…');
+  const a = await artistaDoDeezer(nome, { titulo }).catch(() => null);
+  const t = normalizar(tituloLimpo(titulo));
+  const l = (a?.id ? await musicasParecidasNoDeezer(a.id) : []).filter((m) => normalizar(tituloLimpo(m.titulo)) !== t);
+  if (!l.length) { toast(navigator.onLine ? 'Não achei músicas parecidas' : 'Sem internet'); return; }
+  const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidas com ${esc(titulo || nome)}</h3>`, opcoes: l.map((m, i) => ({ valor: i, rotulo: m.titulo, sub: m.artista,
+    capa: `<span class="lista-capa"${m.capa ? ` style="background-image:url('${esc(m.capa)}')"` : ''}>${m.capa ? '' : icon('music', 18)}</span>` })) });
+  if (v !== undefined && l[v]) void abrirMusicaPeloNome(l[v]);
+}
+// para ir a uma página a partir do Tocando agora na tela toda: ele fecha antes (no tablet, o painel continua ao lado)
+const fecharTocandoAgoraParaIr = () => { if (document.body.classList.contains('painel-cheio') && !ehTablet()) history.back(); };
+// "Mostrar tudo" dos créditos: a folha com todos, em grupos (Artista, Composição e letra, Produção e engenharia), os
+// detalhes (álbum, ano, tom) e as fontes (o selo, de onde veio a cifra, a ficha na Wikipédia)
+async function mostrarTodosOsCreditos(d) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'lista-dlg lista-menu creditos-todos';
+  const desenhar = () => {
+    const pessoas = d.pessoas || [];
+    const grupos = GRUPOS_DOS_CREDITOS.map(([nome, papeis]) => {
+      const dele = pessoas.map((p, i) => ({ p, i, papeis: p.papeis.filter((x) => papeis.includes(x)) })).filter((x) => x.papeis.length);
+      return dele.length ? `<h4>${esc(nome)}</h4>${dele.map(({ p, i, papeis: ps }) => `<button class="ct-linha" data-ct="${i}"><span class="grow"><b>${esc(p.nome)}</b><small>${esc(ps.join(' • '))}</small></span>${icon('next', 16)}</button>`).join('')}` : '';
+    }).join('');
+    const ano = d.web?.ano && !d.detalhes.some(([k]) => k === 'Ano') ? [['Ano', d.web.ano]] : [];
+    const detalhes = [...d.detalhes.filter(([k]) => !/^fonte/i.test(k)), ...ano];
+    const fontes = [...(d.web?.selos || []).map((x) => [x, 'Selo']), ...d.detalhes.filter(([k]) => /^fonte/i.test(k)).map(([k, v, html]) => [v, k, html]),
+      ...(d.web?.url ? [[`<a href="${esc(d.web.url)}" target="_blank" rel="noopener">Wikipédia</a>`, 'Ficha da música', true]] : [])];
+    $('.ct-corpo', dlg).innerHTML = `${grupos}
+      ${detalhes.length ? `<h4>Detalhes</h4>${detalhes.map(([k, v, html]) => `<div class="ct-linha"><span class="grow"><b>${html ? v : esc(v)}</b><small>${esc(k)}</small></span></div>`).join('')}` : ''}
+      ${fontes.length ? `<h4>Fontes</h4>${fontes.map(([v, k, html]) => `<div class="ct-linha"><span class="grow"><b>${html ? v : esc(v)}</b><small>${esc(k)}</small></span></div>`).join('')}` : ''}
+      ${d.songId && db.song(d.songId) ? `<div class="ct-pe"><a class="ref-pilula" href="#/editar/${esc(d.songId)}">${icon('edit', 14)} Corrigir os créditos</a></div>` : ''}`;
+  };
+  dlg.innerHTML = `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span><span class="ct-cab"><b>${esc(d.titulo)}</b><small>${esc(d.artista || '')}</small></span></div><div class="ct-corpo"></div>`;
+  document.body.append(dlg);
+  desenhar();
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg) { dlg.close(); return; }
+    const l = e.target.closest('[data-ct]');
+    if (l && d.pessoas[l.dataset.ct]) { const nome = d.pessoas[l.dataset.ct].nome; dlg.close(); fecharTocandoAgoraParaIr(); irParaArtista(nome); return; }
+    if (e.target.closest('a[href^="#/"]')) { dlg.close(); fecharTocandoAgoraParaIr(); }
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  arrastarFolha(dlg);
+  dlg.showModal();
+  // (os créditos da web ainda não chegaram: entram quando chegarem)
+  if (!d.web && !d.liturgia) creditosDaMusicaNaWeb(d.titulo, d.artista).then((c) => {
+    if (!c || !dlg.open) return;
+    d.web = c;
+    d.pessoas = pessoasComCreditos(d.pessoas, c);
+    desenhar();
+  }).catch(() => {});
+}
+// O "Explorar" (como o SongDNA do Spotify), na tela toda: em cima a música (a capa, o nome, o ano e o artista, e o
+// tocar/pausar); depois as pessoas, espalhadas em duas fileiras que andam para o lado (a do artista maior), cada uma com
+// a foto (ou a inicial), o nome e os papéis. Tocando numa, abre a ficha dela (todos os papéis e, do Deezer, os fãs e os
+// álbuns) e, tocando na ficha, a página dela. Embaixo, as versões de outros artistas e os detalhes
+function explorarCreditos(d) {
+  const { titulo, artista, capa, cor, detalhes = [], aoIrParaArtista, liturgia = false } = d;
+  let pessoas = d.pessoas || [];
+  document.querySelector('.creditos-dlg')?.remove();
   const dlg = document.createElement('dialog');
   dlg.className = 'creditos-dlg';
   if (cor) dlg.style.setProperty('--cor-creditos', cor);
-  dlg.innerHTML = `<div class="cr-topo"><button class="icon-btn" data-cr="fechar" aria-label="Voltar" title="Voltar">${icon('back', 22)}</button><b>Créditos</b><span></span></div>
+  const ano = () => detalhes.find(([k]) => k === 'Ano')?.[1] || d.web?.ano || '';
+  const tocandoEsta = () => Boolean(player.atual && ((d.songId && player.atual.songId === d.songId) || (d.youtube && player.atual.youtube === d.youtube)));
+  const desenharPessoas = () => {
+    const box = $('.cr-constelacao', dlg);
+    box.classList.toggle('poucas', pessoas.length <= 2);
+    box.innerHTML = pessoas.map((p, i) => `<button class="cr-no${i === 0 ? ' principal' : ''}" data-no="${i}" style="--i:${i}">
+      <span class="ref-avatar cr-avatar sem-foto" data-foto="${i}"><span class="cr-inicial">${esc((p.nome.trim()[0] || '?').toUpperCase())}</span></span>
+      <b>${esc(p.nome)}</b><small>${esc(papeisCurtos(p))}</small></button>`).join('');
+    porFotos(dlg, pessoas, { liturgia });
+  };
+  dlg.innerHTML = `<div class="cr-topo"><button class="icon-btn" data-cr="fechar" aria-label="Voltar" title="Voltar">${icon('back', 22)}</button><b>Por trás da música</b>
+      <span class="cr-topo-dir"><button class="icon-btn" data-cr="compartilhar" aria-label="Compartilhar" title="Compartilhar">${icon('share', 20)}</button><button class="icon-btn" data-cr="fechar" aria-label="Fechar" title="Fechar">${icon('x', 22)}</button></span></div>
     <div class="cr-musica">${capa ? `<span class="cr-capa" style="background-image:url('${esc(capa)}')"></span>` : `<span class="cr-capa">${icon('music', 26)}</span>`}
-      <span class="grow"><b>${esc(titulo)}</b><small>${esc(artista || '')}</small></span></div>
+      <span class="grow"><b>${esc(titulo)}</b><small class="cr-sub">${esc([ano(), artista].filter(Boolean).join(' • '))}</small></span>
+      ${tocandoEsta() ? `<button class="cr-play" data-cr="play" aria-label="Tocar/pausar">${icon(player.estado === 'tocando' ? 'pause' : 'play', 20)}</button>` : ''}</div>
     <h3>Participantes</h3>
-    <div class="cr-pessoas${pessoas.length === 1 ? ' uma' : ''}">${pessoas.map((p, i) => `<button class="cr-pessoa" data-artista="${i}" title="Ver as músicas de ${esc(p.nome)}">${avatarDe(p, i, 'ref-avatar cr-avatar')}<b>${esc(p.nome)}</b><small>${esc(p.papeis.join(' • '))}</small></button>`).join('')}</div>
+    <div class="cr-constelacao"></div>
+    <div class="cr-ficha" hidden></div>
+    <div class="cr-versoes" hidden><div class="cr-secao-cab"><h3>Versões de outros artistas</h3></div><div class="cr-versoes-lista"></div></div>
     ${detalhes.length ? `<h3>Detalhes</h3><div class="cr-detalhes">${detalhes.map(([k, v, html]) => `<div class="ref-linha"><span class="grow"><b>${html ? v : esc(v)}</b><small>${esc(k)}</small></span></div>`).join('')}</div>` : ''}`;
   document.body.append(dlg);
-  dlg.addEventListener('click', (e) => {
-    if (e.target.closest('[data-cr="fechar"]')) dlg.close();
-    const a = e.target.closest('[data-artista]');
-    if (a) { dlg.close(); aoIrParaArtista?.(); irParaArtista(pessoas[Number(a.dataset.artista)].nome); }
+  desenharPessoas();
+  let versoes = [];
+  const ficha = $('.cr-ficha', dlg);
+  let fichaDe = -1;
+  const fecharFicha = () => { ficha.hidden = true; fichaDe = -1; dlg.querySelectorAll('.cr-no.aberto').forEach((x) => x.classList.remove('aberto')); };
+  // a ficha da pessoa, embaixo da bolinha tocada
+  const abrirFicha = (i, no) => {
+    if (fichaDe === i) { fecharFicha(); return; }
+    const p = pessoas[i];
+    fichaDe = i;
+    dlg.querySelectorAll('.cr-no.aberto').forEach((x) => x.classList.remove('aberto'));
+    no.classList.add('aberto');
+    ficha.innerHTML = `<button class="cr-ficha-bt" data-cr="ir" data-i="${i}"><span class="grow"><b>${esc(p.nome)}</b><small>${esc(p.papeis.join(', '))}</small><small class="cr-ficha-num">${navigator.onLine ? 'Procurando…' : ''}</small></span>${icon('next', 18)}</button>`;
+    ficha.hidden = false;
+    // (a ficha embaixo da bolinha: na mesma altura dela, dentro da tela)
+    const r = no.getBoundingClientRect();
+    const rd = dlg.getBoundingClientRect();
+    ficha.style.top = `${r.bottom - rd.top + dlg.scrollTop - 6}px`;
+    ficha.style.left = `${Math.max(12, Math.min(rd.width - 292, r.left - rd.left + r.width / 2 - 140))}px`;
+    // (do Deezer, os fãs e os álbuns: da pessoa da música só quando o nome é o mesmo)
+    const num = $('.cr-ficha-num', ficha);
+    deezerDoArtista(p.nome, i === 0 ? { titulo } : {}).then((dz) => {
+      if (fichaDe !== i || !num.isConnected) return;
+      num.textContent = dz?.fas ? `${dz.fas.toLocaleString('pt-BR')} fãs no Deezer${dz.albuns ? ` · ${dz.albuns.toLocaleString('pt-BR')} álbuns` : ''}` : 'Toque para ver as músicas';
+    }).catch(() => { num.textContent = 'Toque para ver as músicas'; });
+  };
+  dlg.addEventListener('click', async (e) => {
+    const cr = e.target.closest('[data-cr]')?.dataset.cr;
+    if (cr === 'fechar') { dlg.close(); return; }
+    if (cr === 'compartilhar') {
+      const texto = `${titulo}${artista ? ` — ${artista}` : ''}\n\n${pessoas.map((p) => `${p.nome}: ${p.papeis.join(', ')}`).join('\n')}`;
+      try { if (navigator.share) await navigator.share({ title: titulo, text: texto }); else { await navigator.clipboard.writeText(texto); toast('Créditos copiados'); } } catch { /* desistiu */ }
+      return;
+    }
+    if (cr === 'play') { player.alternar(); setTimeout(() => { const b = $('[data-cr="play"]', dlg); if (b) b.innerHTML = icon(player.estado === 'tocando' ? 'pause' : 'play', 20); }, 250); return; }
+    if (cr === 'ir') { const p = pessoas[e.target.closest('[data-i]').dataset.i]; dlg.close(); aoIrParaArtista?.(); fecharTocandoAgoraParaIr(); irParaArtista(p.nome); return; }
+    const v = e.target.closest('[data-versao]');
+    if (v && versoes[v.dataset.versao]) { dlg.close(); void abrirMusicaPeloNome(versoes[v.dataset.versao]); return; }
+    const no = e.target.closest('[data-no]');
+    if (no) { abrirFicha(Number(no.dataset.no), no); return; }
+    if (!e.target.closest('.cr-ficha')) fecharFicha();
   });
+  $('.cr-constelacao', dlg).addEventListener('scroll', fecharFicha, { passive: true });
   dlg.addEventListener('close', () => dlg.remove());
   dlg.showModal();
-  porFotos(dlg, pessoas, { liturgia });
+  // os créditos completos (a ficha da música na Wikipédia), quando ainda não vieram
+  if (!d.web && !liturgia) creditosDaMusicaNaWeb(titulo, artista).then((c) => {
+    if (!c || !dlg.open) return;
+    d.web = c;
+    pessoas = pessoasComCreditos(pessoas, c);
+    d.pessoas = pessoas;
+    fecharFicha();
+    desenharPessoas();
+    $('.cr-sub', dlg).textContent = [ano(), artista].filter(Boolean).join(' • ');
+  }).catch(() => {});
+  // as versões de outros artistas
+  if (!liturgia && navigator.onLine) versoesDeOutros(titulo, primeiroArtistaDe(artista)).then((l) => {
+    if (!l.length || !dlg.open) return;
+    versoes = l;
+    $('.cr-versoes-lista', dlg).innerHTML = l.map((m, i) => `<button class="cr-versao" data-versao="${i}"><span class="cr-versao-capa"${m.capa ? ` style="background-image:url('${esc(m.capa)}')"` : ''}>${m.capa ? '' : icon('music', 18)}</span><span class="grow"><b>${esc(m.titulo)}</b><small>${esc(m.artista)}</small></span>${icon('next', 16)}</button>`).join('');
+    $('.cr-versoes', dlg).hidden = false;
+  }).catch(() => {});
 }
 // O que se sabe de cada artista (a apresentação, as fotos, os seguidores, os fãs, o canal) fica guardado no aparelho,
 // como no Spotify: com internet, cada vez vem o valor atual e ele passa a ser o guardado; sem internet (a música
@@ -8424,7 +8748,8 @@ function descricaoDoArtista(nome) {
       const certa = paginas.find((pg) => mesmoNomeDeArtista(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
         && !/desambigua/i.test(pg.description || ''));
       // (sem as datas e a pronúncia entre parênteses do começo, que só atrapalham numa leitura rápida)
-      const texto = String(certa?.extract || '').replace(/\s*\([^()]*\d{4}[^()]*\)/, '').split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+      // (e sem o nome em outras escritas: "Jungkook (em coreano: 정국; hanja: 柾國; romanização…)")
+      const texto = String(certa?.extract || '').replace(/\s*\((?:[^()]|\([^()]*\))*?(?:\d{4}|coreano|hangul|hanja|japon[eê]s|chin[eê]s|romaniza|pron[uú]ncia|AFI)(?:[^()]|\([^()]*\))*\)/gi, '').split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
       return texto ? { texto, foto: certa.thumbnail?.source || '', url: certa.fullurl || '' } : null;
     }).catch(() => { descricoesArtistas.delete(k); return null; }));
   }
