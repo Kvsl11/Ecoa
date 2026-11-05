@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 505, data: '2026-11-04', titulo: 'A prévia da playlist ocupa a tela toda no tablet',
+    itens: [
+      { tipo: 'melhoria', texto: 'No tablet, a prévia da playlist (os clipes das músicas, um de cada vez, que abre pela capinha ao lado do baixar) ficava numa coluna estreita no meio da tela. Agora ela ocupa a tela toda, em pé e deitado, como no celular: o clipe preenche a tela, e o artista e o cartão da música ficam embaixo, maiores e mais fáceis de tocar.' },
+    ],
+  },
+  {
     versao: 504, data: '2026-11-04', titulo: 'A gaveta do perfil de cara nova',
     itens: [
       { tipo: 'melhoria', texto: 'A gaveta que abre pela sua foto ficou mais moderna: o topo na cor da sua foto, com o seu nome, o e-mail e o botão Ver perfil; a sincronia com a conta Google numa linha só, com o botão de sincronizar ao lado (ele gira enquanto sincroniza); os números da biblioteca numa faixa; a última música tocada num cartão com a capa ao fundo e o botão de tocar; e o menu num cartão com ícones coloridos.' },
@@ -63,14 +69,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'A sua foto de perfil aparece também no topo da Biblioteca, no lugar do logo do Ecoa, como no Início, na Busca, nas Partituras e na Liturgia. Tocando nela, abre a gaveta do perfil.' },
       { tipo: 'melhoria', texto: 'Nas suas playlists e repertórios, onde estava o logo do Ecoa e "Você", agora aparecem a sua foto e o seu nome, como no Spotify.' },
       { tipo: 'melhoria', texto: 'No Início, a engrenagem dos Ajustes saiu do topo: os Ajustes ficam na gaveta que abre ao tocar na sua foto e no seu perfil, como no Spotify.' },
-    ],
-  },
-  {
-    versao: 495, data: '2026-11-04', titulo: 'Entre com o Google e tenha o seu perfil',
-    itens: [
-      { tipo: 'novo', texto: 'Agora dá para entrar com a sua conta Google. As suas músicas, os repertórios e as tocadas recentemente ficam guardados na conta: abra o Ecoa no celular, no tablet ou no computador e está tudo lá, e nada se perde se o navegador for limpo. Os downloads continuam sendo de cada aparelho.' },
-      { tipo: 'novo', texto: 'A sua foto aparece no canto de cima, como no Spotify. Tocando nela, abre a gaveta do perfil, com as suas informações: o e-mail da conta e quando ela sincronizou, quantas músicas curtidas, repertórios, artistas e baixadas você tem, a música que você tocou por último e a versão do app. Embaixo ficam Ver perfil, Novidades, Tocadas recentemente e Ajustes.' },
-      { tipo: 'novo', texto: 'A página do perfil tem o topo na cor da sua foto, o seu nome com quantos repertórios e músicas você tem, os botões Editar (para mudar o nome), Ajustes e ⋯ (Compartilhar o Ecoa, Sincronizar agora, Sair da conta), os seus repertórios e os artistas que você tocou recentemente.' },
     ],
   },
 ];
