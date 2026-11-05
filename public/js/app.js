@@ -1532,7 +1532,8 @@ function botaoBaixarSet(set) {
   const estado = feitas === ss.length ? 'baixada' : naFila.length ? 'baixando' : '';
   const pct = naFila.length ? Math.round(((feitas + naFila.reduce((a, s) => a + baixando.get(s.id).pct / 100, 0)) / ss.length) * 100) : 0;
   const titulo = estado === 'baixada' ? 'Todas baixadas: tocam sem internet (tocar para remover)' : estado === 'baixando' ? `Baixando… ${feitas} de ${ss.length}` : `Baixar as ${ss.length} músicas para ouvir sem internet`;
-  return `<button class="icon-btn btn-baixar ${estado}" data-baixar-set="${esc(set.id)}" aria-label="${titulo}" title="${titulo}" style="--pct:${pct}">${icon(estado === 'baixada' ? 'baixada' : 'baixar', 24)}</button>`;
+  // (baixando, o botão da playlist só pisca, como as setas das músicas nas listas, sem o anel; tudo baixado, fica verde)
+  return `<button class="icon-btn btn-baixar btn-baixar-set ${estado}" data-baixar-set="${esc(set.id)}" aria-label="${titulo}" title="${titulo}" style="--pct:${pct}">${icon(estado === 'baixada' ? 'baixada' : 'baixar', 24)}</button>`;
 }
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-baixar-set]');
@@ -1609,7 +1610,15 @@ window.addEventListener('offline', () => player.reavaliarFonte());
 window.addEventListener('songbook:karaoke', () => atualizarIndicadores());
 window.addEventListener('songbook:downloads', () => {
   player.reavaliarFonte();
-  document.querySelectorAll('[data-baixar-set]').forEach((b) => { const set = db.set(b.dataset.baixarSet); if (set) b.outerHTML = botaoBaixarSet(set); });
+  // (o botão da playlist só é trocado quando muda de estado; no mesmo estado, só o título e a porcentagem mudam: trocar o
+  // botão a cada avanço fazia a piscada recomeçar do zero)
+  document.querySelectorAll('[data-baixar-set]').forEach((b) => {
+    const set = db.set(b.dataset.baixarSet);
+    if (!set) return;
+    const novo = document.createRange().createContextualFragment(botaoBaixarSet(set)).firstElementChild;
+    if (!novo || novo.className !== b.className) { b.outerHTML = botaoBaixarSet(set); return; }
+    for (const a of ['title', 'aria-label', 'style']) b.setAttribute(a, novo.getAttribute(a));
+  });
   atualizarIndicadores();
   document.querySelectorAll('[data-baixar]').forEach((b) => { const s = db.song(b.dataset.baixar); if (s) b.outerHTML = botaoBaixar(s, [...b.classList].filter((c) => !['icon-btn', 'btn-baixar', 'baixada', 'baixando'].includes(c)).join(' ')); });
 });

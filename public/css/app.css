@@ -5531,3 +5531,10 @@ dialog.tons-na-cor .btn.ghost { color: #fff; background: rgb(255 255 255 / 0.1);
 dialog.tons-na-cor .btn.ghost:hover { background: rgb(255 255 255 / 0.18); }
 /* a baixada pela metade (falta o clipe ou o áudio): a seta apagada, sem pulsar, até se completar */
 .ind-i.ind-incompleta { background: none; color: var(--muted); opacity: 0.7; }
+
+/* o botão de baixar da playlist, baixando: só a seta piscando de leve (como as das músicas nas listas), sem o anel
+   verde em volta; com todas baixadas, o círculo verde */
+.btn-baixar-set.baixando::after { content: none; }
+.btn-baixar-set.baixando { color: var(--text); }
+.btn-baixar-set.baixando .ic { opacity: 1; animation: baixando-pulsa 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .btn-baixar-set.baixando .ic { animation: none; opacity: 0.6; } }
