@@ -5716,13 +5716,10 @@ button.ct-linha { cursor: pointer; }
 /* (o play da barrinha de cima no tamanho dela, e não no dos controles grandes do celular) */
 html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; }
 #player .pl-fixo-txt small[hidden] { display: none; }
-/* a barrinha de cima: o play só o triângulo (sem o círculo branco dos controles grandes) e, com um fone conectado, o
-   ícone dele na cor do app, antes do ✓ (sem fone, não aparece) */
+/* a barrinha de cima: o play só o triângulo (sem o círculo branco dos controles grandes); o fone conectado aparece
+   só embaixo do nome (como no Spotify), sem o ícone repetido ao lado do ✓ */
 html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; background: none; color: #fff; border-radius: 50%; box-shadow: none; }
 #player .pl-fixo-play svg { width: 26px; height: 26px; }
-#player .pl-fixo-fone { all: unset; box-sizing: border-box; display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; color: var(--accent); cursor: pointer; }
-#player .pl-fixo-fone[hidden] { display: none; }
-#player .pl-fixo-fone svg { width: 24px; height: 24px; }
 
 /* ============ o nome que não cabe anda para o lado (como no Spotify): na barrinha de baixo, no Tocando agora e na
    barrinha de cima. Parado um pouco no começo, anda até o fim, para e volta ao começo; as pontas somem aos poucos */
