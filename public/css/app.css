@@ -5432,13 +5432,13 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
   animation: esq-brilho 1.4s ease-in-out infinite; }
 @keyframes esq-brilho { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .esq-lista { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.esq-lista li { display: flex; align-items: center; gap: 12px; padding: 8px 6px; }
-.esq-lista li > span { flex: 1; display: grid; gap: 8px; }
+.esq-lista li, .esq-li { display: flex; align-items: center; gap: 12px; padding: 8px 6px; list-style: none; }
+.esq-lista li > span, .esq-li > span { flex: 1; display: grid; gap: 8px; }
 .esq-capa { width: 48px; height: 48px; flex: none; border-radius: 6px; }
 .esq-l1 { width: 62%; height: 12px; }
 .esq-l2 { width: 38%; height: 10px; }
-.esq-lista li:nth-child(2n) .esq-l1 { width: 48%; }
-.esq-lista li:nth-child(3n) .esq-l2 { width: 28%; }
+.esq-lista li:nth-child(2n) .esq-l1, .esq-li:nth-child(2n) .esq-l1 { width: 48%; }
+.esq-lista li:nth-child(3n) .esq-l2, .esq-li:nth-child(3n) .esq-l2 { width: 28%; }
 .esq-artistas, .esq-tiles { pointer-events: none; }
 .esq-artista { display: grid; justify-items: center; gap: 10px; }
 .esq-artista > .esq:first-child { width: 100%; aspect-ratio: 1; border-radius: 50%; }
@@ -5479,3 +5479,24 @@ html.sem-conta .entrada { position: fixed; inset: 0; z-index: 200; display: grid
 .track.preparando { animation: linha-pulsa 1.2s ease-in-out infinite; }
 @keyframes linha-pulsa { 50% { background: color-mix(in srgb, var(--text) 8%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .chegando { transition: none; } .track.preparando { animation: none; } }
+
+/* ---- os esqueletos do app todo (esqueleto() em app.js): lista, grade de capas, página (álbum/artista), texto e a
+   folha da partitura */
+.esq-bloco { margin: 8px 0; }
+.esq-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+.esq-pagina { display: grid; gap: 18px; padding-top: 8px; }
+.esq-hero { display: grid; justify-items: center; gap: 12px; padding: 8px 0 6px; }
+.esq-hero-img { width: min(56vw, 230px); aspect-ratio: 1; border-radius: 8px; box-shadow: 0 14px 36px rgb(0 0 0 / 0.25); }
+.esq-pagina.redonda .esq-hero-img { border-radius: 50%; }
+.esq-hero .esq-l1 { width: 46%; height: 22px; }
+.esq-hero .esq-l2 { width: 30%; height: 12px; }
+.esq-texto { display: grid; gap: 14px; padding: 10px 0; }
+.esq-texto .esq { height: 14px; }
+.esq-folha { display: grid; gap: 30px; padding: 22px 18px; border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+.esq-folha-titulo { width: 44%; height: 20px; margin: 0 auto 6px; }
+.esq-pauta { height: 46px; border-radius: 4px; }
+.esq-quadrado { width: 100%; aspect-ratio: 1; border-radius: 8px; }
+.esq-dur { display: inline-block; width: 30px; height: 10px; vertical-align: middle; }
+.esq-chip { display: inline-block; width: 150px; height: 14px; border-radius: 999px; }
+.esq-lit-hero { height: 180px; margin-bottom: 14px; border-radius: var(--radius); }
+.leitor-tela .loading-note { display: block; font-size: inherit; line-height: inherit; color: inherit; padding: 16px; }

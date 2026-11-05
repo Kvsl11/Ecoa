@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 524, data: '2026-11-05', titulo: 'O mesmo carregando no app todo',
+    itens: [
+      { tipo: 'melhoria', texto: 'Em todo o app, o carregando virou o contorno do que vai aparecer, com um brilho passando, no lugar exato: as linhas das músicas (artista, setores, acervo, orações, fontes, vídeos), as capas lado a lado (álbuns, trocar a capa), a capa grande do álbum e a foto redonda do artista, os parágrafos (Sobre o artista, oração) e a folha da partitura. Antes eram círculos girando com um texto embaixo.' },
+      { tipo: 'melhoria', texto: 'Os cantos da Cindy Ferrarezi abrem como as músicas da busca: a tela do canto aparece na hora, com o contorno da letra.' },
+    ],
+  },
+  {
     versao: 523, data: '2026-11-05', titulo: 'Sem o círculo girando ao abrir a música',
     itens: [
       { tipo: 'melhoria', texto: 'Ao tocar numa música da busca que ainda está sendo preparada, a tela dela abre na hora, com a cor, a capa, o nome e o contorno da letra, e se completa sozinha quando tudo chega. Antes aparecia um círculo girando no lugar dos botões da linha. A seta de voltar desiste da música e volta para a busca.' },
@@ -64,12 +71,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto, agora usa a mesma capa borrada do cartão "Tocou por último", e as cores dos dois ficam iguais (antes o topo ficava num tom diferente).' },
       { tipo: 'melhoria', texto: 'Os ícones de Novidades, Tocadas recentemente e Ajustes, na gaveta do perfil, agora ficam no cinza do app.' },
-    ],
-  },
-  {
-    versao: 514, data: '2026-11-05', titulo: 'O topo do perfil na cor da última música',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto e do seu nome, agora fica na cor da capa da música do "Tocou por último", combinando com o cartão dela.' },
     ],
   },
 ];

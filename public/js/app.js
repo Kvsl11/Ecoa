@@ -464,6 +464,25 @@ function download(name, text, type = 'text/plain') {
 }
 
 const fmtData = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+// ---- o carregando do app todo (como no Spotify): o contorno do que vai aparecer, no lugar exato, com um brilho
+// passando — no lugar do círculo girando com um texto embaixo. O texto fica para o leitor de tela. Os tipos:
+//   lista (linhas com capa), linhas (só os <li>, para dentro de uma lista), grade (capas lado a lado), pagina (a capa
+//   grande e as linhas: álbum), artista (a foto redonda e as linhas), texto (parágrafos), folha (a partitura)
+const ESQ_LINHA = '<li class="esq-li"><i class="esq esq-capa"></i><span><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span></li>';
+function esqueleto(tipo = 'lista', texto = 'Carregando…', n = 0) {
+  const rot = `role="status" aria-label="${esc(texto)}"`;
+  const linhas = (k) => `<ul class="esq-lista">${ESQ_LINHA.repeat(k)}</ul>`;
+  const larguras = [94, 88, 97, 72, 90, 64, 85, 78];
+  switch (tipo) {
+    case 'linhas': return ESQ_LINHA.replace('<li class="esq-li"', `<li class="esq-li" ${rot}`) + ESQ_LINHA.repeat((n || 4) - 1);
+    case 'grade': return `<div class="esq-bloco" ${rot}><div class="esq-grade">${'<span class="esq-tile"><i class="esq"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span>'.repeat(n || 6)}</div></div>`;
+    case 'pagina': case 'artista':
+      return `<div class="esq-bloco esq-pagina${tipo === 'artista' ? ' redonda' : ''}" ${rot}><div class="esq-hero"><i class="esq esq-hero-img"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></div>${linhas(n || 6)}</div>`;
+    case 'texto': return `<div class="esq-bloco esq-texto" ${rot}>${larguras.slice(0, n || 6).map((w) => `<i class="esq" style="width:${w}%"></i>`).join('')}</div>`;
+    case 'folha': return `<div class="esq-bloco esq-folha" ${rot}><i class="esq esq-folha-titulo"></i>${'<i class="esq esq-pauta"></i>'.repeat(n || 5)}</div>`;
+    default: return `<div class="esq-bloco" ${rot}>${linhas(n || 5)}</div>`;
+  }
+}
 const hojeISO = () => {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -1990,7 +2009,7 @@ function escolherVideo(song, tipo = 'video') {
   return openDialog(`
     <h3>${tituloDialogo}</h3>
     <label class="field">${icon('search', 18)}<input class="search" type="search" id="yt-q" value="${esc(termo)}" placeholder="${dicaBusca}"></label>
-    <ul class="tracks lista-videos" id="yt-lista"><li class="loading-note"><span class="spin"></span>Buscando vídeos…</li></ul>
+    <ul class="tracks lista-videos" id="yt-lista">${esqueleto('linhas', 'Buscando vídeos…')}</ul>
     <details class="colar-link"><summary>Tenho o link do vídeo</summary>
       <span class="input-btn"><input class="input" id="yt-link" placeholder="https://www.youtube.com/watch?v=…" value="${esc(atualId && !ehArquivo(atualId) ? 'https://www.youtube.com/watch?v=' + atualId : '')}"><button class="btn small" type="button" data-colar>Colar</button><button class="btn small primary" type="button" data-ok>Usar</button></span>
       <p class="muted" id="yt-info" style="margin:6px 0 0;font-size:13px"></p>
@@ -2002,7 +2021,7 @@ function escolherVideo(song, tipo = 'video') {
     const ul = $('#yt-lista', dlg);
     let achados = [];
     const buscar = async (q) => {
-      ul.innerHTML = '<li class="loading-note"><span class="spin"></span>Buscando vídeos…</li>';
+      ul.innerHTML = esqueleto('linhas', 'Buscando vídeos…');
       try {
         achados = await buscarYoutube(q);
         for (const v of achados) if (v.id && v.segundos > 0) duracoesDaBusca.set(v.id, v.segundos);
@@ -4771,7 +4790,7 @@ const semLinhasDeAcordes = (sinc) => {
         return `<div class="lista-op fila-item${tocando ? ' atual' : ''}${!reproduzivel ? ' indisponivel' : ''}" role="option" tabindex="0" aria-selected="${tocando}" data-fila-pos="${pos}" data-original="${original}">
           <span class="fila-capa${tocando ? ' tocando' : ''}">${capa(s)}${tocando ? '<span class="fila-eq" aria-hidden="true"><i></i><i></i><i></i></span>' : ''}</span>
           <span class="lista-txt"><b>${esc(s.title || 'Música')}</b><small>${esc([parte, s.artist].filter(Boolean).join(' · '))}</small></span>
-          <span class="lista-dir">${duracao ? fmtTempo(duracao) : procurando ? '<span class="spin"></span>' : '—:—'}</span>
+          <span class="lista-dir">${duracao ? fmtTempo(duracao) : procurando ? '<i class="esq esq-dur"></i>' : '—:—'}</span>
           ${tocando ? '' : `<span class="fila-reordenar" aria-hidden="true" title="Segure e arraste para mudar a ordem">${icon('reordenar', 20)}</span>`}
         </div>`;
       }).join('');
@@ -5941,7 +5960,7 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
     let achados = {};
     let seq = 0;
     let timer;
-    const secao = (titulo, id) => `<div class="pk-sec"><b>${titulo}</b><div id="${id}"><div class="loading-note"><span class="spin"></span>Buscando…</div></div></div>`;
+    const secao = (titulo, id) => `<div class="pk-sec"><b>${titulo}</b><div id="${id}">${esqueleto('lista', 'Buscando…', 3)}</div></div>`;
     const lista = (tipo, itens, linha) => (itens.length ? `<ul class="tracks">${itens.map((it, i) => linha(it, i).replace('<li class="track', `<li data-tipo="${tipo}" data-n="${i}" class="track`)).join('')}</ul>` : '<p class="muted" style="margin:4px 0">Nada encontrado.</p>');
     const linhaSimples = (it) => `<li class="track clickable" style="grid-template-columns:auto 1fr auto">${capa({ titulo: it.titulo, capa: it.capa || it.video?.capa }, { ic: it.letra ? 'text' : 'music' })}<div class="info"><div class="t">${esc(it.titulo)}</div><div class="s">${indicadoresWeb(it)}${esc(it.artista || it.sub || '')}</div></div><span class="acts"><span class="chip sm">${icon('plus', 13)} Adicionar</span></span></li>`;
     const desenhar = () => {
@@ -6355,7 +6374,7 @@ function escolherCapaDaMusica(song) {
   return openDialog(`
     <h3>Trocar a capa</h3>
     <p class="muted">${esc([song.title, song.artist].filter(Boolean).join(' · '))}</p>
-    <div class="capas-grade" data-capas><div class="capas-carregando"><span class="spin"></span> Procurando as capas…</div></div>
+    <div class="capas-grade" data-capas role="status" aria-label="Procurando as capas…">${'<i class="esq esq-quadrado"></i>'.repeat(6)}</div>
     <input type="file" accept="image/*" data-arquivo hidden>
     <div class="acts"><button class="btn ghost" data-foto>${icon('imagem', 16)} Foto do aparelho</button>${song.capaEscolhida ? `<button class="btn ghost" data-auto>${icon('refresh', 16)} Automática</button>` : ''}<span class="spacer"></span><button class="btn ghost" data-no>Cancelar</button></div>`,
   (dlg, done) => {
@@ -6817,13 +6836,14 @@ const linhaCindy = (c) => `
     <span class="acts"><button class="icon-btn" aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 async function abrirCindy(url, el, back) {
-  el?.querySelector('.acts')?.replaceChildren(document.createRange().createContextualFragment('<span class="spin"></span>'));
+  // (a tela do canto abre na hora, com o contorno da letra, como a música da busca)
+  const chegando = telaChegando({ titulo: el?.querySelector('.t')?.textContent || 'Canto', artista: 'Cindy Ferrarezi', capa: el?.querySelector('img')?.src || '' });
   try {
     const c = await getCanto(url);
-    await abrirPrevia(c.chordpro, c.url, back);
+    if (chegando.meu === abrindoDaBusca) await abrirPrevia(c.chordpro, c.url, back, null, null, { vez: chegando.meu });
   } catch (e) {
     toast('Erro: ' + e.message);
-  }
+  } finally { setTimeout(() => chegando.fechar(), location.hash === '#/musica/previa' ? 150 : 0); }
 }
 
 function ligarListaCindy(box, back) {
@@ -8207,7 +8227,7 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   tela.setAttribute('role', 'dialog');
   tela.setAttribute('aria-label', `Sobre ${nome}`);
   tela.innerHTML = `<header class="sa-topo"><button class="icon-btn" data-sa="voltar" aria-label="Voltar">${icon('back', 24)}</button><b>${esc(nome)}</b><span></span></header>
-    <div class="sa-fotos"></div><div class="sa-numeros" hidden></div><div class="sa-texto"><div class="loading-note"><span class="spin"></span>Carregando…</div></div><div class="sa-links"></div>`;
+    <div class="sa-fotos"></div><div class="sa-numeros" hidden></div><div class="sa-texto">${esqueleto('texto', 'Carregando…', 5)}</div><div class="sa-links"></div>`;
   document.body.append(tela);
   history.pushState({ ...history.state, sobreArtista: true }, '');
   // (o voltar que só fecha uma foto aberta em tela cheia volta para esta tela: ela continua)
@@ -8485,7 +8505,7 @@ async function viewEstilo(k) {
   view.innerHTML = `<h2 class="estilo-titulo">${esc(nome)}</h2>
     <div class="shelf-head"><h2>Artistas</h2></div><div class="shelf" id="est-art"></div>
     <div class="shelf-head"><h2>Mais tocadas</h2><span class="muted" style="font-size:13px">com cifra, letra e vídeo</span></div>
-    <div id="est-mus"><div class="loading-note"><span class="spin"></span>Carregando as mais tocadas…</div></div>`;
+    <div id="est-mus">${esqueleto('lista', 'Carregando as mais tocadas…')}</div>`;
   const aqui = location.hash;
   let lista = [];
   $('#est-mus').addEventListener('click', (e) => {
@@ -8771,13 +8791,13 @@ async function viewArtista(slug, nome) {
     <label class="field">${icon('search', 18)}<input class="search" id="art-busca" type="search" placeholder="Buscar nas músicas de ${esc(nome || 'artista')}"></label>
     <div class="chips" id="art-abas" style="margin:12px 0 4px">
       <button class="chip" data-aba="top">Mais tocadas</button><button class="chip" data-aba="todas">Todas as músicas</button><button class="chip" data-aba="albuns">Álbuns</button></div>
-    <div id="art-conteudo"><div class="loading-note"><span class="spin"></span>Carregando as músicas…</div></div>`;
+    <div id="art-conteudo">${esqueleto('lista', 'Carregando as músicas…')}</div>`;
   const d = carregarArtista(slug, nome);
   let lista = [];
   let foto = '';
   const box = () => $('#art-conteudo');
   const listaHtml = (itens) => (itens.length ? `<ul class="tracks">${itens.map((f, i) => linhaFaixa(f, i, i + 1, foto, nome)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>');
-  const carregando = (txt) => { box().innerHTML = `<div class="loading-note"><span class="spin"></span>${txt}</div>`; };
+  const carregando = (txt, tipo = 'lista') => { box().innerHTML = esqueleto(tipo, txt); };
   let vez = 0;
   const desenhar = async () => {
     const minha = ++vez;
@@ -8800,7 +8820,7 @@ async function viewArtista(slug, nome) {
       return;
     }
     if (aba === 'albuns') {
-      carregando('Carregando os álbuns…');
+      carregando('Carregando os álbuns…', 'grade');
       const disc = await d.disc;
       if (minha !== vez || !box()) return;
       lista = [];
@@ -8920,7 +8940,7 @@ async function viewAlbumDaMusica(titulo, artista, fonte = '') {
   setTab('buscar');
   setTint('#2f3a4f');
   setHeader('Álbum', { back: () => history.back(), eyebrow: artista });
-  view.innerHTML = '<div class="loading-note"><span class="spin"></span>Procurando o álbum…</div>';
+  view.innerHTML = esqueleto('pagina', 'Procurando o álbum…');
   const achado = await acharAlbum({ titulo, artista, fonte }).catch(() => null);
   if (location.hash !== aqui) return;
   if (achado?.al) {
@@ -8942,7 +8962,7 @@ async function viewArtistaPeloNome(nome) {
   setTab('buscar');
   setTint('#3a2f4f');
   setHeader(nome || 'Artista', { back: () => history.back(), eyebrow: 'Artista' });
-  view.innerHTML = '<div class="loading-note"><span class="spin"></span>Procurando o artista…</div>';
+  view.innerHTML = esqueleto('artista', 'Procurando o artista…');
   const achado = await buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).catch(() => null);
   if (location.hash !== aqui) return;
   if (achado?.slug) { location.replace(`#/artista/${encodeURIComponent(achado.slug)}/${encodeURIComponent(achado.nome || nome)}`); return; }
@@ -8956,7 +8976,7 @@ async function viewAlbum(slug, nome, albumUrl) {
   setTint('#2f3a4f');
   const voltar = `#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(nome)}`;
   setHeader('Álbum', { back: voltar, eyebrow: nome });
-  view.innerHTML = '<div class="loading-note"><span class="spin"></span>Carregando o álbum…</div>';
+  view.innerHTML = esqueleto('pagina', 'Carregando o álbum…');
   const disc = await carregarArtista(slug, nome).disc;
   const al = disc.find((x) => x.url === albumUrl);
   if (!al) { location.hash = voltar; return; }
@@ -9002,7 +9022,7 @@ async function viewCategoria(id, nome) {
   view.innerHTML = `
     <section class="page-hero"><div class="cover gen" style="--h:${h}">${icon(CATEGORIAS[i]?.[2] || 'music', 64)}</div>
       <div><div class="kind">Seção da missa</div><h2>${esc(nome)}</h2><div class="meta">Cantos cifrados de <b>cindyferrarezi.com</b></div></div></section>
-    <div id="lista"><div class="loading-note"><span class="spin"></span>Carregando…</div></div>`;
+    <div id="lista">${esqueleto()}</div>`;
   ligarListaCindy($('#lista'), location.hash);
   try {
     const lista = await buscarCindy('', { categoria: id });
@@ -9118,7 +9138,7 @@ async function viewSetor(k, parte) {
       <div class="grade-partes">${CATEGORIAS.map(([nome, id, ic], i) => `<a class="parte-card" href="#/buscar/categoria/${id}/${encodeURIComponent(nome)}" style="--h:${(i * 47 + 200) % 360}">${icon(ic, 20)}<b>${esc(nome)}</b></a>`).join('')}</div>`;
     return;
   }
-  view.innerHTML = `${topo}<div id="setor-corpo"><div class="loading-note"><span class="spin"></span>Carregando as músicas…</div></div>`;
+  view.innerHTML = `${topo}<div id="setor-corpo">${esqueleto('lista', 'Carregando as músicas…')}</div>`;
   const ac = await acervoClassificado();
   const corpo = $('#setor-corpo');
   if (!corpo) return;
@@ -9202,11 +9222,11 @@ async function viewParteDoSetor(setor, pk) {
   view.innerHTML = `<h2 class="greet">${esc(parte[1])}</h2>
     <label class="field">${icon('search', 20)}<input class="search" type="search" placeholder="Procurar em ${esc(parte[1])}"></label>
     <div style="height:14px"></div>
-    ${completas ? `<div id="missa-sugerida"><div class="loading-note"><span class="spin"></span>Montando a missa de hoje…</div></div>
+    ${completas ? `<div id="missa-sugerida">${esqueleto('lista', 'Montando a missa de hoje…', 4)}</div>
       <div class="shelf-head"><h2>Missas completas do acervo</h2></div>` : ''}
     ${pk === 'creio' ? `<div class="shelf-head"><h2>Rezar o Creio</h2></div><div class="grade-oe">${CREIO_TEXTOS.map(([slug, nome, sub], k) => cartaoOracao({ href: `#/oracao/${slug}`, h: 265 + k * 12, selo: inicial(nome), small: 'Profissão de fé', titulo: nome, sub })).join('')}</div>
       <div class="shelf-head" id="creio-cantado" style="margin-top:18px" hidden><h2>Creio cantado</h2></div>` : ''}
-    <div id="cantos"><div class="loading-note"><span class="spin"></span>Carregando as músicas…</div></div>
+    <div id="cantos">${esqueleto('lista', 'Carregando as músicas…')}</div>
     ${sentidoHTML(pk)}`;
   if (completas) missaCompletaSugerida($('#missa-sugerida'));
   const ac = await acervoClassificado();
@@ -9323,7 +9343,7 @@ async function viewAcervo(caminho = '') {
   setHeader(nome, { back: '#/setor/liturgica', eyebrow: 'Missa litúrgica' });
   view.innerHTML = `<h2 class="greet">${esc(nome)}</h2>
     <label class="field">${icon('search', 20)}<input class="search" type="search" placeholder="Procurar nesta pasta"></label>
-    <div id="pastas" style="margin-top:12px"></div><div id="cantos"><div class="loading-note"><span class="spin"></span>Carregando as músicas…</div></div>`;
+    <div id="pastas" style="margin-top:12px"></div><div id="cantos">${esqueleto('lista', 'Carregando as músicas…')}</div>`;
   const ac = await acervoClassificado();
   const box = $('#cantos');
   if (!box) return;
@@ -9372,7 +9392,7 @@ async function viewBuscaAcervo(termo) {
   setTab('buscar');
   setTint('#24425c');
   setHeader('Acervo litúrgico', { back: '#/buscar', eyebrow: 'Busca' });
-  view.innerHTML = `<h2 class="greet">“${esc(termo)}” no acervo litúrgico</h2><div id="cantos"><div class="loading-note"><span class="spin"></span>Procurando…</div></div>`;
+  view.innerHTML = `<h2 class="greet">“${esc(termo)}” no acervo litúrgico</h2><div id="cantos">${esqueleto('lista', 'Procurando…')}</div>`;
   const ac = await acervoClassificado();
   const box = $('#cantos');
   if (!box) return;
@@ -10476,7 +10496,7 @@ async function viewCompor(id, de = '') {
   const mxl = mxlDaPartitura(song.content);
   if (!song.partitura?.pautas?.length && de === 'desenhada' && mxl) {
     setHeader(titulo, { back: `#/musica/${id}/partitura`, eyebrow: 'Editar partitura' });
-    view.innerHTML = `<div class="loading-note"><span class="spin"></span>Abrindo a partitura para editar…</div>`;
+    view.innerHTML = esqueleto('folha', 'Abrindo a partitura para editar…');
     try {
       const modelo = modeloDoXML(await textoDoMusicXML(mxl));
       if (!location.hash.startsWith(`#/musica/${id}/compor`)) return;
@@ -10610,7 +10630,7 @@ function editorPartitura(song, titulo) {
       <button class="chip cp-ajustes" id="cp-ajustes" title="Título, compasso, tom, andamento e vozes">${icon('settings', 15)}<span id="cp-resumo"></span></button>
     </div>
     <div class="cp-janela" id="cp-janela" hidden></div>
-    <div class="osmd-box compor-folha" id="cp-folha"><div class="loading-note"><span class="spin"></span>Preparando o editor…</div></div>
+    <div class="osmd-box compor-folha" id="cp-folha">${esqueleto('folha', 'Preparando o editor…', 3)}</div>
     <div class="ensaio" id="cp-ensaio" hidden></div>
     <div class="compor-palheta" id="cp-palheta">
       <div class="cp-cabeca">
@@ -11465,7 +11485,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   const modoIA = 'mistura'; // a música inteira (voz e instrumentos), do arquivo de áudio
   // espera o app saber do servidor (ao abrir, ele ainda confere se o do computador responde): antes, a tela que abria
   // nesse meio-tempo ia direto para "escolher o arquivo", sem tentar gerar
-  view.innerHTML = `<div class="loading-note"><span class="spin"></span>Preparando a IA…</div>`;
+  view.innerHTML = esqueleto('texto', 'Preparando a IA…');
   await carregarServidor();
   const aqui = location.hash;
   if (!aqui.startsWith(`#/musica/${id}/compor/`)) return;
@@ -11483,7 +11503,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   let fonte = fonteDaPartitura(song);
   // a música ainda sem vídeo: procura no YouTube (e já vincula) antes de pedir um arquivo
   if (!fonte && temServidor) {
-    view.innerHTML = `<div class="loading-note"><span class="spin"></span>Procurando o áudio da música…</div>`;
+    view.innerHTML = esqueleto('texto', 'Procurando o áudio da música…');
     const v = await videoDaMusica(song.title, song.artist, song.source).catch(() => null);
     if (location.hash !== aqui) return;
     if (v && db.song(id) && !db.song(id).youtube) {
@@ -11849,7 +11869,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     passo.innerHTML = `<div class="ia-pronto">
       <section class="ia-pronto-cab"><span class="ia-pronto-ic">${icon('check', 16)}</span><b>Partitura pronta</b><small>Ouça, confira e salve</small></section>
       <div class="ia-resumo" id="ia-resumo"></div>
-      <div class="osmd-box ia-previa" id="ia-previa"><div class="loading-note"><span class="spin"></span>Desenhando…</div></div>
+      <div class="osmd-box ia-previa" id="ia-previa">${esqueleto('folha', 'Desenhando…', 3)}</div>
       <div class="ensaio" id="ia-ensaio" hidden></div>
       <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar</b><small>Vozes, andamento, tom, compasso</small></span>${icon('down', 18)}</summary>
       <div class="settings-group ia-ajustes">
@@ -11990,7 +12010,7 @@ async function viewCompartilhado() {
   setTab('partituras');
   setTint('#2c3b3d');
   setHeader('Áudio recebido', { back: '#/partituras', eyebrow: 'Gerar partitura com IA' });
-  view.innerHTML = `<div class="loading-note"><span class="spin"></span>Abrindo o áudio…</div>`;
+  view.innerHTML = esqueleto('texto', 'Abrindo o áudio…');
   let arquivo = null;
   try {
     const r = await (await caches.open(CACHE_COMPARTILHADO)).match('audio');
@@ -12030,7 +12050,7 @@ async function viewPartitura(id) {
   setTab(id === 'previa' ? (preview?.back?.startsWith('#/liturgia') ? 'liturgia' : 'buscar') : 'partituras');
   setTint('#3a3a3a');
   setHeader(titulo, { back: '#/musica/' + id, eyebrow: 'Partitura' });
-  view.innerHTML = `<div class="partitura"><div class="loading-note"><span class="spin"></span>Preparando a partitura…</div></div>`;
+  view.innerHTML = `<div class="partitura">${esqueleto('folha', 'Preparando a partitura…')}</div>`;
   // a partitura feita no app (Compor) vale mais que a desenhada por leitura automática da original
   const propria = song.partitura?.pautas?.some((p) => p.ev?.length);
   // partitura feita no app ainda sem letra ou sem cifra: a da música entra sozinha (uma vez; corrige-se no editor)
@@ -12082,7 +12102,7 @@ async function viewPartitura(id) {
     const c = coresDoTema();
     try {
       if (!osmd) {
-        caixa.innerHTML = '<div class="loading-note"><span class="spin"></span>Desenhando a partitura…</div>';
+        caixa.innerHTML = esqueleto('folha', 'Desenhando a partitura…');
         await carregarScript(OSMD_JS);
         caixa.innerHTML = '';
         osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(caixa, {
@@ -12661,7 +12681,7 @@ function viewSong(id, ctx = {}) {
     box.hidden = !estado;
     box.className = `sinc-estado ${estado}`;
     box.innerHTML = estado === 'ok' ? `${icon('text', 13)}<span>Letra sincronizada${sinc?.aproximada ? ' (aproximada)' : ''}</span>`
-      : estado === 'procurando' ? '<span class="spin" role="status" aria-label="Procurando a letra sincronizada"></span>'
+      : estado === 'procurando' ? '<i class="esq esq-chip" role="status" aria-label="Procurando a letra sincronizada"></i>'
         : estado === 'sem' ? `${icon('info', 13)}<span>Sem letra sincronizada para esta música</span>` : '';
   };
   const seguir = setInterval(() => {
@@ -14613,11 +14633,10 @@ function leituraHTML(l) {
 }
 
 function skeletonLiturgia() {
-  return `<div class="skeleton sk-hero"></div>
-    <div class="loading-note"><span class="spin"></span>${tipoMissa() === 'liturgica'
+  const texto = tipoMissa() === 'liturgica'
     ? 'Buscando a liturgia na CNBB e os cantos do acervo litúrgico e do Hinário da CNBB…'
-    : 'Buscando a liturgia na CNBB e os cantos da Cindy Ferrarezi e do Músicas para Missa…'}</div>
-    ${'<div class="skeleton sk-row"></div>'.repeat(6)}`;
+    : 'Buscando a liturgia na CNBB e os cantos da Cindy Ferrarezi e do Músicas para Missa…';
+  return `<div class="esq-bloco" role="status" aria-label="${esc(texto)}"><i class="esq esq-lit-hero"></i>${esqueleto('lista', texto, 6).replace(/ role="status" aria-label="[^"]*"/, '')}</div>`;
 }
 
 async function viewLiturgia(data) {
@@ -15727,7 +15746,7 @@ async function viewOracoes() {
     <p class="muted" style="margin:-6px 0 14px">Do Missal Romano: orações eucarísticas, prefácios, o ordinário da missa e outras orações.</p>
     <label class="field">${icon('search', 18)}<input class="search" id="busca-oracao" type="search" placeholder="Buscar oração (ex.: Oração Eucarística II, prefácio do Advento)"></label>
     <div class="chips cat-oracao" id="cats" style="margin:14px 0 6px"></div>
-    <div id="lista-oracoes"><div class="loading-note"><span class="spin"></span>Carregando orações…</div></div>`;
+    <div id="lista-oracoes">${esqueleto('texto', 'Carregando orações…')}</div>`;
   let indice;
   try { indice = await indiceOracoes(); } catch {
     $('#lista-oracoes').innerHTML = `<div class="empty"><div class="bubble">${icon('book', 30)}</div><h3>Orações ainda não disponíveis</h3><p>${navigator.onLine === false ? 'Sem internet e sem orações guardadas. Abra esta tela uma vez com internet.' : 'A cópia diária das orações ainda não foi gerada. Tente mais tarde.'}</p></div>`;
@@ -15789,7 +15808,7 @@ async function viewOracao(slug) {
   setTab('oracoes');
   setTint('#3b2f5c');
   setHeader('Oração', { back: '#/oracoes' });
-  view.innerHTML = '<div class="loading-note"><span class="spin"></span>Carregando…</div>';
+  view.innerHTML = esqueleto('texto');
   let o;
   try { o = await getOracao(slug); } catch { return viewNotFound(); }
   const titulo = String(o.titulo || '').replace(/\s*\((?:\d+|[A-Z]\d)\)\s*/, ' ').trim(); // "Oração Eucarística (02) II" -> "Oração Eucarística II"
@@ -15847,7 +15866,7 @@ async function viewFontes() {
     <p class="muted" style="margin:-6px 0 14px">Hinários da CNBB, preces, partituras, documentos e formação para músicos — reunidos por <a href="https://sites.google.com/view/juniormusicacatolica/m%C3%BAsica-lit%C3%BArgica-para-missa" target="_blank" rel="noopener">Junior Música Católica</a>. Partituras e arquivos abrem aqui no app; os vídeos tocam no player.</p>
     <label class="field" style="margin-bottom:12px">${icon('search', 18)}<input class="search" id="busca-fonte" type="search" placeholder="Buscar (ex.: salmos, Advento, partitura, Glória)"></label>
     <div class="chips" id="fonte-abas" style="margin-bottom:14px"></div>
-    <div id="fontes"><div class="loading-note"><span class="spin"></span>Carregando…</div></div>`;
+    <div id="fontes">${esqueleto()}</div>`;
   let d;
   try { d = await diretorioJunior(); } catch {
     $('#fontes').innerHTML = '<p class="muted">Ainda não disponível. Tente mais tarde.</p>';
@@ -18499,7 +18518,7 @@ function viewArquivo(url, titulo, voltar = '') {
   view.innerHTML = `<div class="leitor">
     <div class="leitor-barra"><b>${esc(titulo || 'Arquivo')}</b><span class="spacer"></span>
       <a class="btn small" href="${esc(url)}" target="_blank" rel="noopener">${icon('external', 14)} Abrir no ${idDrive(url) || idPastaDrive(url) ? 'Drive' : 'site'}</a></div>
-    <div class="leitor-tela"><div class="loading-note"><span class="spin"></span>Abrindo o arquivo…</div><iframe src="${esc(leitor)}" title="${esc(titulo || 'Arquivo')}" allow="autoplay; fullscreen" loading="eager"></iframe></div></div>`;
+    <div class="leitor-tela"><div class="loading-note">${esqueleto('folha', 'Abrindo o arquivo…')}</div><iframe src="${esc(leitor)}" title="${esc(titulo || 'Arquivo')}" allow="autoplay; fullscreen" loading="eager"></iframe></div></div>`;
 }
 const tituloBonitoPagina = (t) => t.charAt(0) + t.slice(1).toLowerCase().replace(/\bcnbb\b/g, 'CNBB').replace(/\(preces\)/, '(Preces)');
 
