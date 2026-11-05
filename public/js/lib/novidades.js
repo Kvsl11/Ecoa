@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 506, data: '2026-11-05', titulo: 'O "Tocou por último" toca ali mesmo e ganhou movimento',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na gaveta do perfil, as cores da capa no fundo do cartão "Tocou por último" agora se mexem devagar, sem parar. Com uma música tocando, elas correm mais rápido e o brilho pulsa de leve.' },
+      { tipo: 'melhoria', texto: 'O botão de tocar desse cartão agora toca a música ali mesmo, sem sair da gaveta (ela aparece tocando no player), e vira o botão de pausar. Tocando no resto do cartão, a música abre, como antes.' },
+      { tipo: 'correcao', texto: 'O triângulo do botão de tocar desse cartão estava puxado para a direita. Agora fica no centro da bola.' },
+    ],
+  },
+  {
     versao: 505, data: '2026-11-04', titulo: 'A prévia da playlist ocupa a tela toda no tablet',
     itens: [
       { tipo: 'melhoria', texto: 'No tablet, a prévia da playlist (os clipes das músicas, um de cada vez, que abre pela capinha ao lado do baixar) ficava numa coluna estreita no meio da tela. Agora ela ocupa a tela toda, em pé e deitado, como no celular: o clipe preenche a tela, e o artista e o cartão da música ficam embaixo, maiores e mais fáceis de tocar.' },
@@ -60,15 +68,6 @@ export const NOVIDADES = [
     versao: 497, data: '2026-11-04', titulo: 'Ícones novos no menu do perfil',
     itens: [
       { tipo: 'melhoria', texto: 'O menu ⋯ do perfil ganhou ícones novos: a seta saindo da caixa para compartilhar, as duas setas para sincronizar e a porta com a flecha, em vermelho, para sair da conta. O seu e-mail aparece embaixo do nome.' },
-    ],
-  },
-  {
-    versao: 496, data: '2026-11-04', titulo: 'A tela de entrada do Ecoa',
-    itens: [
-      { tipo: 'novo', texto: 'O Ecoa agora abre com uma tela de entrada: para usar o app, entre com a sua conta Google. Você entra uma vez e continua entrado no aparelho, mesmo fechando o app, até tocar em Sair da conta (no ⋯ do seu perfil).' },
-      { tipo: 'correcao', texto: 'A sua foto de perfil aparece também no topo da Biblioteca, no lugar do logo do Ecoa, como no Início, na Busca, nas Partituras e na Liturgia. Tocando nela, abre a gaveta do perfil.' },
-      { tipo: 'melhoria', texto: 'Nas suas playlists e repertórios, onde estava o logo do Ecoa e "Você", agora aparecem a sua foto e o seu nome, como no Spotify.' },
-      { tipo: 'melhoria', texto: 'No Início, a engrenagem dos Ajustes saiu do topo: os Ajustes ficam na gaveta que abre ao tocar na sua foto e no seu perfil, como no Spotify.' },
     ],
   },
 ];

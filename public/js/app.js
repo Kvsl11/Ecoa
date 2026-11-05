@@ -15016,6 +15016,12 @@ async function entrarPelaTela() {
 }
 
 // as informações da gaveta: a sincronia com a conta, os números da biblioteca e a última música tocada
+// o play do "Tocou por último": toca (ou pausa) ali mesmo, sem sair da gaveta; o resto do cartão abre a música
+const ultimaTocando = (song) => Boolean(song && midiaDe(song) && player.desta(midiaDe(song)) && player.estado === 'tocando');
+function botaoPlayDaUltima(song) {
+  const toca = ultimaTocando(song);
+  return `<span class="pg-play${toca ? ' pausar' : ''}" role="button" tabindex="0" data-tocar aria-label="${toca ? 'Pausar' : 'Tocar'}">${icon(toca ? 'pause' : 'play', 18)}</span>`;
+}
 function infoDaGaveta(u) {
   const musicas = db.songs().filter((x) => !x.soNoRepertorio);
   const artistas = new Set(musicas.map((x) => normalizar(x.artist || '')).filter(Boolean)).size;
@@ -15034,10 +15040,10 @@ function infoDaGaveta(u) {
       ${numero(artistas, artistas === 1 ? 'artista' : 'artistas', '#/biblioteca')}
       ${numero(baixadas, baixadas === 1 ? 'baixada' : 'baixadas', '#/offline')}
     </div>
-    ${ultima ? `<a class="pg-ultima" href="#/musica/${encodeURIComponent(ultima.id)}">
+    ${ultima ? `<a class="pg-ultima${player.estado === 'tocando' ? ' tocando' : ''}" href="#/musica/${encodeURIComponent(ultima.id)}" data-id="${esc(ultima.id)}">
         ${fundo ? `<span class="pg-ultima-fundo" style="background-image:url('${esc(fundo).replace(/'/g, '%27')}')"></span>` : ''}
         ${capa(ultima, { cls: 'sm' })}<span class="grow"><small>Tocou por último</small><b>${esc(ultima.title)}</b>${ultima.artist ? `<small>${esc(ultima.artist)}</small>` : ''}</span>
-        <span class="pg-play" aria-hidden="true">${icon('play', 18)}</span></a>` : ''}`;
+        ${botaoPlayDaUltima(ultima)}</a>` : ''}`;
 }
 
 function abrirGavetaDoPerfil() {
@@ -15059,8 +15065,25 @@ function abrirGavetaDoPerfil() {
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
     </nav>`;
   document.body.append(g);
+  // o fundo do "Tocou por último" se mexe sempre devagar; com música tocando, mais vivo
+  const marcarTocando = () => {
+    const c = $('.pg-ultima', g);
+    if (!c) return;
+    c.classList.toggle('tocando', player.estado === 'tocando');
+    const b = $('[data-tocar]', c);
+    const toca = ultimaTocando(db.song(c.dataset.id));
+    if (b && b.classList.contains('pausar') !== toca) b.outerHTML = botaoPlayDaUltima(db.song(c.dataset.id));
+  };
+  const tocarUltima = (c) => {
+    const song = db.song(c.dataset.id);
+    if (!song) return;
+    if (!midiaDe(song)) { location.hash = c.getAttribute('href'); return; } // sem vídeo nem áudio: a tela dela é onde se escolhe um
+    if (player.desta(midiaDe(song))) player.alternar(); else player.tocar(itemDoPlayer(song));
+  };
+  const pararDeOuvir = player.ouvir(marcarTocando);
   const fechar = () => {
     g.classList.remove('aberta');
+    pararDeOuvir();
     removeEventListener('hashchange', fechar);
     removeEventListener('songbook:conta', atualizar);
     removeEventListener('keydown', aoTeclar);
@@ -15073,6 +15096,8 @@ function abrirGavetaDoPerfil() {
     $('.pg-conta', g)?.classList.toggle('erro', !!estadoConta.erro);
   };
   g.addEventListener('click', (e) => {
+    const play = e.target.closest('[data-tocar]');
+    if (play) { e.preventDefault(); tocarUltima(play.closest('.pg-ultima')); return; }
     if (e.target === g || e.target.closest('a')) { fechar(); return; }
     if (e.target.closest('[data-entrar]')) { fechar(); entrarPelaTela(); return; }
     if (e.target.closest('[data-sinc]')) sincronizar({ forcar: true });
@@ -15083,7 +15108,10 @@ function abrirGavetaDoPerfil() {
   g.addEventListener('pointerup', (e) => { if (x0 != null && x0 - e.clientX > 60) fechar(); x0 = null; });
   addEventListener('hashchange', fechar);
   addEventListener('songbook:conta', atualizar);
-  const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
+  const aoTeclar = (e) => {
+    if (e.key === 'Escape') fechar();
+    else if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-tocar]')) { e.preventDefault(); tocarUltima(e.target.closest('.pg-ultima')); }
+  };
   addEventListener('keydown', aoTeclar);
   requestAnimationFrame(() => requestAnimationFrame(() => g.classList.add('aberta')));
 }
