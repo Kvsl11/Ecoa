@@ -267,3 +267,59 @@ export function casarLinhas(cantadas, naTela) {
     return melhor;
   });
 }
+
+// O arquivo baixado pelo servidor, recebido no aparelho sem travar: os blocos chegam aos poucos (com a porcentagem); se
+// a conexão para de mandar por `inatividade` ms, ela é cortada e o app pede de novo — do ponto em que parou, quando o
+// servidor aceita (Range), ou do começo. O tamanho que o servidor informou confere o arquivo no fim (o incompleto não
+// vale). aoProgresso(fração de 0 a 1). Devolve o Blob
+export async function receberArquivo(cfg, numero, { tamanho = 0, tipo = '', aoProgresso = () => {}, tentativas = 4, inatividade = 40000,
+  fetchImpl = fetch, aguardar = esperar } = {}) {
+  const base = baseDoServidor(cfg?.url);
+  if (!base) throw new Error('A IA do servidor ainda não está disponível');
+  const blocos = [];
+  let recebido = 0;
+  let ultimo;
+  for (let i = 0; i < tentativas; i++) {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    let parado = null;
+    const vigiar = () => { clearTimeout(parado); parado = setTimeout(() => ctrl?.abort(), inatividade); };
+    try {
+      vigiar();
+      const headers = { ...cabecalhos(base, cfg?.chave), ...(recebido ? { Range: `bytes=${recebido}-` } : {}) };
+      const resp = await fetchImpl(`${base}/baixar/${encodeURIComponent(numero)}`, { headers, cache: 'no-store', signal: ctrl?.signal });
+      if (!resp.ok) {
+        const texto = await resp.text().catch(() => '');
+        throw erroDaResposta(resp.status, texto);
+      }
+      // (o servidor não continuou de onde parou: recomeça do zero)
+      if (recebido && resp.status !== 206) { blocos.length = 0; recebido = 0; }
+      const total = tamanho || (Number(resp.headers.get('content-length')) || 0) + recebido;
+      if (resp.body?.getReader) {
+        const leitor = resp.body.getReader();
+        for (;;) {
+          const { done, value } = await leitor.read();
+          if (done) break;
+          vigiar();
+          blocos.push(value);
+          recebido += value.byteLength;
+          if (total > 0) aoProgresso(Math.min(1, recebido / total));
+        }
+      } else {
+        const b = new Uint8Array(await resp.arrayBuffer());
+        blocos.push(b);
+        recebido += b.byteLength;
+      }
+      clearTimeout(parado);
+      if (tamanho && recebido < tamanho) throw new Error(`o arquivo chegou incompleto (${recebido} de ${tamanho} bytes)`);
+      aoProgresso(1);
+      return new Blob(blocos, { type: tipo || resp.headers.get('content-type') || 'application/octet-stream' });
+    } catch (e) {
+      clearTimeout(parado);
+      // (404: o servidor não tem mais o arquivo; outros erros dele, fora os de passagem, não melhoram repetindo)
+      if (e.status && ![408, 425, 429, 500, 502, 503, 504].includes(e.status)) throw e;
+      ultimo = e.name === 'AbortError' ? new Error('a conexão com o servidor parou no meio do arquivo') : e;
+    }
+    if (i + 1 < tentativas) await aguardar(1000 * (i + 1));
+  }
+  throw ultimo || new Error('Não foi possível receber o arquivo do servidor');
+}

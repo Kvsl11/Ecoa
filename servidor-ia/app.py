@@ -545,9 +545,14 @@ _prontos: dict[str, dict] = {}
 _prontos_trava = threading.Lock()
 
 
+ENTREGUE_FICA = 10 * 60  # o arquivo já entregue fica 10 min: se a entrega caiu no fim, o app pede de novo sem rebaixar
+
+
 def _apagar_prontos_velhos():
+    agora = time.time()
     with _prontos_trava:
-        velhos = [k for k, v in _prontos.items() if time.time() - v["criado"] > GUARDAR_TAREFA]
+        velhos = [k for k, v in _prontos.items() if agora - v["criado"] > GUARDAR_TAREFA
+                  or (v.get("entregue") and agora - v["entregue"] > ENTREGUE_FICA)]
         for k in velhos:
             shutil.rmtree(_prontos.pop(k)["pasta"], ignore_errors=True)
 
@@ -581,13 +586,14 @@ def baixar_para_o_app(pedido: PedidoBaixar, etapas: bool = Query(False), tarefa:
 
 
 def _finalizar_entrega(numero: str, pasta: str) -> None:
-    # Só invalida o identificador depois que o envio do FileResponse termina.
-    # Se a conexão cair durante a transferência, o app pode repetir o GET com o mesmo número.
+    # A entrega terminou do lado do servidor, mas pode ter caído no caminho até o celular (a internet oscilou no fim):
+    # o arquivo fica mais alguns minutos (ENTREGUE_FICA) para o app pedir de novo com o mesmo número, sem baixar do
+    # YouTube outra vez. Depois sai sozinho (_apagar_prontos_velhos)
     with _prontos_trava:
         atual = _prontos.get(numero)
         if atual and atual.get("pasta") == pasta:
-            _prontos.pop(numero, None)
-    shutil.rmtree(pasta, ignore_errors=True)
+            atual["entregue"] = time.time()
+    _apagar_prontos_velhos()
 
 
 @app.get("/baixar/{numero}", dependencies=[Depends(conferir_chave)])

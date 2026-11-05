@@ -20,7 +20,7 @@ import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } fro
 import { harmonizarCoral } from './lib/harmonizar.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
-import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
+import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
@@ -873,7 +873,7 @@ function baixadoDe(yt) {
 }
 const baixando = new Map(); // id da música → { pct } (as que estão na fila ou baixando agora)
 const filaBaixar = [];
-let andandoFila = null;
+const andandoFila = new Set(); // (as filas que estão baixando agora: até DOWNLOADS_JUNTOS)
 const avisarDownloads = () => window.dispatchEvent(new CustomEvent('songbook:downloads'));
 // Em "Áudio e vídeo", baixa o áudio oficial e o videoclipe mesmo quando forem gravações diferentes.
 // Em "Só o áudio", baixa apenas o áudio oficial (ou o som do vídeo quando não houver outra faixa).
@@ -882,7 +882,9 @@ function arquivosParaBaixar(song) {
   const comVideo = db.prefs().baixarVideo !== false && !song.semClipe;
   const vs = versoesDe(song);
   const audio = vs && !ehArquivo(vs.audio) ? vs.audio : '';
-  const lista = audio ? [{ yt: audio, video: false }] : [];
+  // (o áudio oficial que é o próprio vídeo da música — o clipe é a gravação — é baixado uma vez só, como vídeo: antes
+  // eram dois downloads do mesmo vídeo guardados no mesmo lugar, e o do áudio, chegando por último, apagava o clipe)
+  const lista = audio && !(audio === song.youtube && comVideo) ? [{ yt: audio, video: false }] : [];
   // Com "Áudio e vídeo", o clipe é obrigatório mesmo se for uma gravação diferente do áudio oficial.
   if (song.youtube && (comVideo || (!audio && !song.audioProprio))) lista.push({ yt: song.youtube, video: comVideo });
   return lista;
@@ -896,6 +898,15 @@ function precisaBaixar(song) {
     return !arquivo || (video && !String(arquivo.tipo || '').toLowerCase().startsWith('video/'));
   });
 }
+// O arquivo baixado numa qualidade menor que a escolhida nos Ajustes (o YouTube não entregou a escolhida na hora e o app
+// aceitou uma menor, para a música não ficar sem o clipe; ou a pessoa mudou a qualidade depois): ele continua valendo
+// (a música toca sem internet), e é baixado de novo na escolhida, sozinho, trocando o arquivo só quando o novo chegar
+const ORDEM_QUALIDADE = { normal: 0, alta: 1, 'muito-alta': 2 };
+const abaixoDaQualidade = (arquivo, video) => Boolean(arquivo) && (ORDEM_QUALIDADE[arquivo.qualidade] ?? 2) < ORDEM_QUALIDADE[qualidadeDoDownload(video)];
+// (todas: também a baixada numa qualidade maior — a pessoa escolheu uma menor, para ocupar menos espaço —, pelo
+// "Atualizar os downloads" dos Ajustes)
+const foraDaQualidade = (arquivo, video, todas = false) => Boolean(arquivo) && (todas ? (arquivo.qualidade || '') !== qualidadeDoDownload(video) : abaixoDaQualidade(arquivo, video));
+const precisaMelhorar = (song, todas = false) => Boolean(song?.baixado) && arquivosParaBaixar(song).some(({ yt, video }) => foraDaQualidade(song.baixado.arquivos?.[yt], video, todas));
 // a qualidade dos downloads, como no Spotify (Ajustes → Economia de dados e offline): normal, alta ou muito alta, uma
 // para o áudio e outra para o vídeo; vale para todos os downloads dali em diante. Sem escolher, a muito alta (o vídeo
 // em até 1080p). No iPhone o áudio fica no máximo na alta: o muito alto vem em Opus, que o Safari não toca
@@ -909,9 +920,10 @@ function qualidadeDoDownload(video) {
 // sem Wi-Fi (no Android o navegador diz): pergunta antes, como no Spotify (uma vez, ao baixar várias)
 const podeBaixarAgora = async () => navigator.connection?.type !== 'cellular' || db.prefs().baixarDadosMoveis
   || ask({ title: 'Baixar com os dados móveis?', text: 'Você está sem Wi-Fi e o download pode gastar bastante do seu plano. Dá para liberar sempre em Ajustes → Economia de dados e offline.', ok: 'Baixar assim mesmo' });
-async function baixarMusica(song, { perguntou = false } = {}) {
+async function baixarMusica(song, { perguntou = false, qualidade = false } = {}) {
   const s = song?.id && db.song(song.id);
-  if (!s || !precisaBaixar(s) || baixando.has(s.id)) return;
+  // (qualidade: a baixada numa qualidade menor que a escolhida é baixada de novo nela)
+  if (!s || !(precisaBaixar(s) || (qualidade && precisaMelhorar(s, qualidade === 'todas'))) || baixando.has(s.id)) return;
 
   // O estado visual começa no clique, antes de consultar o servidor ou pedir confirmação
   // de dados móveis. Assim o ícone não fica parado enquanto o app verifica as condições.
@@ -924,47 +936,51 @@ async function baixarMusica(song, { perguntou = false } = {}) {
     imagem: capaDaNotificacao(s),
   });
 
-  filaBaixar.push({ id: s.id, perguntou });
-  andandoFila ||= (async () => {
-    while (filaBaixar.length) {
-      const pedido = filaBaixar.shift();
-      const id = pedido.id;
-      try {
-        const atual = db.song(id);
-        if (!atual) throw new Error('a música não está mais na biblioteca');
-        if (arquivosParaBaixar(atual).length) await carregarServidor();
-        if (arquivosParaBaixar(atual).length && !servidorIA().url) {
-          throw new Error('servidor de download não conectado. Confira Ajustes → Avançado no computador');
-        }
-        if (!pedido.perguntou && !(await podeBaixarAgora())) {
-          continue;
-        }
-        baixando.set(id, { pct: 0 });
-        avisarDownloads();
-        void notificarSistema({
-          titulo: atual.title || 'Download',
-          texto: 'Download iniciado · preparando áudio e videoclipe',
-          tag: 'baixar-' + id, silenciosa: true, href: '#/musica/' + id,
-          imagem: capaDaNotificacao(atual),
-        });
-        // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois)
-        await noMaximo(garantirClipe(id).catch(() => null), 30000, null);
-        await baixarAgora(id);
-      } catch (e) {
-        const atual = db.song(id);
-        void notificarSistema({
-          titulo: atual?.title || 'Download',
-          texto: 'Não deu para baixar · ' + erroExplicado(e),
-          tag: 'baixar-' + id, renovar: true, href: '#/musica/' + id,
-          imagem: capaDaNotificacao(atual),
-        });
-      } finally {
-        baixando.delete(id);
-        avisarDownloads();
-      }
+  filaBaixar.push({ id: s.id, perguntou, qualidade });
+  // duas músicas ao mesmo tempo (o servidor baixa as duas do YouTube em paralelo); antes, uma por vez, e a que travava
+  // segurava a fila inteira
+  while (andandoFila.size < DOWNLOADS_JUNTOS && filaBaixar.length) {
+    const vez = (async () => {
+      while (filaBaixar.length) await baixarDaFila(filaBaixar.shift());
+    })();
+    andandoFila.add(vez);
+    vez.finally(() => andandoFila.delete(vez));
+  }
+}
+const DOWNLOADS_JUNTOS = 2;
+async function baixarDaFila(pedido) {
+  const id = pedido.id;
+  try {
+    const atual = db.song(id);
+    if (!atual) throw new Error('a música não está mais na biblioteca');
+    if (arquivosParaBaixar(atual).length) await carregarServidor();
+    if (arquivosParaBaixar(atual).length && !servidorIA().url) {
+      throw new Error('servidor de download não conectado. Confira Ajustes → Avançado no computador');
     }
-    andandoFila = null;
-  })();
+    if (!pedido.perguntou && !(await podeBaixarAgora())) return;
+    baixando.set(id, { pct: 0 });
+    avisarDownloads();
+    void notificarSistema({
+      titulo: atual.title || 'Download',
+      texto: 'Download iniciado · preparando áudio e videoclipe',
+      tag: 'baixar-' + id, silenciosa: true, href: '#/musica/' + id,
+      imagem: capaDaNotificacao(atual),
+    });
+    // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois; com limite, para não segurar o download)
+    await noMaximo(garantirClipe(id).catch(() => null), 12000, null);
+    await baixarAgora(id, { qualidade: pedido.qualidade });
+  } catch (e) {
+    const atual = db.song(id);
+    void notificarSistema({
+      titulo: atual?.title || 'Download',
+      texto: 'Não deu para baixar · ' + erroExplicado(e),
+      tag: 'baixar-' + id, renovar: true, href: '#/musica/' + id,
+      imagem: capaDaNotificacao(atual),
+    });
+  } finally {
+    baixando.delete(id);
+    avisarDownloads();
+  }
 }
 // Em "Áudio e vídeo", a música tem que vir com o clipe. Quando o vídeo dela é só o áudio (o "Nome - Topic" do YouTube
 // Music, o "Official Audio", o vídeo com a letra), o download trazia só o áudio: o Topic o YouTube nem deixa baixar como
@@ -1102,13 +1118,15 @@ async function garantirClipe(id) {
 }
 // um arquivo do download pelo servidor, com as tentativas: o vídeo na qualidade escolhida e depois nas mais baixas; o
 // áudio, de novo na mesma. Entre uma e outra, uma espera curta (o servidor pode estar ligando)
+// (a qualidade escolhida nos Ajustes vale: o vídeo tenta duas vezes nela e só depois aceita uma menor, para a música não
+// ficar sem o clipe; o arquivo menor fica marcado e é baixado de novo na escolhida depois: precisaMelhorar)
 const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'] };
 async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar) {
   const q = qualidadeDoDownload(video);
-  const qualidades = video ? [q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
+  const qualidades = video ? [q, q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
   let erro;
   for (let t = 0; t < qualidades.length; t++) {
-    if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 4000 * t)); }
+    if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 3000 * t)); }
     try {
       const r = await chamarComEtapas(cfg, '/baixar', { json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidades[t] } },
         (etapa, p) => { if (etapa === 'baixando' && p !== null) aoProgresso(p); });
@@ -1122,7 +1140,7 @@ async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar) {
   }
   throw erro;
 }
-async function baixarAgora(id) {
+async function baixarAgora(id, { qualidade = false } = {}) {
   const song = db.song(id);
   if (!song) return;
   const lista = arquivosParaBaixar(song);
@@ -1154,7 +1172,9 @@ async function baixarAgora(id) {
 
   await Promise.all(lista.map(async ({ yt, video }) => {
     const ja = baixadoDe(yt);
-    if (ja && (!video || String(ja.tipo).startsWith('video'))) {
+    // (o que já está no aparelho fica; com qualidade, o que está numa qualidade menor que a escolhida baixa de novo, e o
+    // arquivo de antes continua valendo até o novo chegar inteiro)
+    if (ja && (!video || String(ja.tipo).startsWith('video')) && !(qualidade && foraDaQualidade(ja, video, qualidade === 'todas'))) {
       arquivos[yt] = ja;
       progressoArquivos.set(yt, 1);
       return;
@@ -1164,37 +1184,31 @@ async function baixarAgora(id) {
       // (o mesmo servidor do começo ao fim: o arquivo baixado fica no que baixou, e o Codespace pode ligar no meio)
       const cfg = servidorIA();
       // O videoclipe é o arquivo grande e o que mais falha (o servidor demora, o YouTube não entrega aquela qualidade):
-      // antes ele falhava uma vez e a música ficava só com o áudio. Agora cada arquivo tenta até 3 vezes e o vídeo desce
-      // de qualidade a cada tentativa (muito alta → alta → normal), para o clipe vir sempre junto com a música
-      const r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0));
-
-      const resp = await baixarArquivoDoServidor(cfg, r.arquivo);
-
-      // Lê o arquivo em blocos para a barra continuar avançando enquanto ele
-      // atravessa a rede do servidor até o celular (não ficar parada em 80%).
+      // cada arquivo tenta várias vezes (o vídeo, duas na qualidade escolhida antes de aceitar uma menor). A entrega do
+      // servidor ao celular não trava: parada por 40 s, é pedida de novo, de onde parou (receberArquivo); e o arquivo
+      // que o servidor não tem mais (a entrega caiu e ele já tinha apagado) é baixado do YouTube de novo (2 voltas)
+      let r;
       let blob;
-      if (resp.body?.getReader) {
-        const reader = resp.body.getReader();
-        const blocos = [];
-        let recebido = 0;
-        const total = Number(resp.headers.get('content-length')) || 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          blocos.push(value);
-          recebido += value.byteLength;
-          if (total > 0) atualizarProgresso(yt, 0.8 + 0.19 * Math.min(1, recebido / total));
+      for (let volta = 0; volta < 2 && !blob; volta++) {
+        r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0));
+        try {
+          blob = await receberArquivo(cfg, r.arquivo, { tamanho: Number(r.tamanho) || 0, tipo: r.tipo, aoProgresso: (p) => atualizarProgresso(yt, 0.8 + 0.19 * p) });
+        } catch (e) {
+          if (volta || !(e.status === 404 || /não está mais no servidor/.test(String(e.message)))) throw e;
+          progressoArquivos.set(yt, 0);
         }
-        blob = new Blob(blocos, { type: r.tipo || resp.headers.get('content-type') || 'application/octet-stream' });
-      } else {
-        blob = await resp.blob();
       }
+      // (o arquivo conferido: inteiro e, pedido o clipe, de vídeo — o só som não vale como clipe)
+      if (!blob || blob.size < 10000) throw new Error('o arquivo chegou vazio');
+      if (video && !String(r.tipo || blob.type).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
       atualizarProgresso(yt, 0.99);
       await guardarAudio(chaveBaixada(yt), blob);
       arquivos[yt] = { tipo: r.tipo || blob.type, tamanho: blob.size, ...(r.qualidade ? { qualidade: r.qualidade } : {}), ...(r.altura ? { altura: r.altura } : {}) };
       atualizarProgresso(yt, 1);
     } catch (e) {
-      falhas.push({ yt, video, e });
+      // (o arquivo de antes, numa qualidade menor, continua valendo: a música não fica sem ele)
+      if (ja && (!video || String(ja.tipo).startsWith('video'))) arquivos[yt] = ja;
+      else falhas.push({ yt, video, e });
       progressoArquivos.set(yt, 1);
       atualizarProgresso(yt, 1);
     }
@@ -1225,7 +1239,7 @@ async function baixarAgora(id) {
   if (!db.song(id)) return;
   const tamanho = Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0);
   db.updateSong(id, { baixado: { arquivos, tamanho, em: Date.now() }, rebaixar: undefined });
-  if (falhas.length) completarDepois(id);
+  if (falhas.length || precisaMelhorar(db.song(id))) completarDepois(id);
   // (e o karaokê dela, em segundo plano, se a letra é sincronizada)
   setTimeout(() => karaokeDoDownload(id), 0);
   // A música fica pronta assim que áudio/vídeo forem guardados. Capas, fotos,
@@ -1245,20 +1259,24 @@ async function baixarAgora(id) {
 // 3 vezes nesta abertura do app) e, ao abrir o app, as baixadas pela metade voltam para a fila. Só baixa o que falta
 // (o arquivo que já veio fica)
 const tentativasDeCompletar = new Map();
-function completarDepois(id, ms = 3 * 60e3) {
+// (com espera crescente — 2, 5, 15, 30 e 60 min — até 5 vezes nesta abertura do app; e também a baixada numa qualidade
+// menor que a escolhida, para ficar na escolhida)
+const ESPERAS_DE_COMPLETAR = [2, 5, 15, 30, 60].map((m) => m * 60e3);
+function completarDepois(id) {
   const n = tentativasDeCompletar.get(id) || 0;
-  if (n >= 3) return;
+  if (n >= ESPERAS_DE_COMPLETAR.length) return;
   tentativasDeCompletar.set(id, n + 1);
   setTimeout(async () => {
     const s = db.song(id);
-    if (!s?.baixado || !precisaBaixar(s) || baixando.has(id) || !(await podeBaixarSozinho())) return;
-    baixarMusica(s, { perguntou: true });
-  }, ms * (n + 1));
+    if (!s?.baixado || !(precisaBaixar(s) || precisaMelhorar(s)) || baixando.has(id)) return;
+    if (!(await podeBaixarSozinho())) { completarDepois(id); return; }
+    baixarMusica(s, { perguntou: true, qualidade: true });
+  }, ESPERAS_DE_COMPLETAR[n]);
 }
 setTimeout(async () => {
-  const pelaMetade = db.songs().filter((s) => s.baixado && precisaBaixar(s) && midiaDe(s) && !baixando.has(s.id));
+  const pelaMetade = db.songs().filter((s) => s.baixado && (precisaBaixar(s) || precisaMelhorar(s)) && midiaDe(s) && !baixando.has(s.id));
   if (!pelaMetade.length || !(await podeBaixarSozinho())) return;
-  for (const s of pelaMetade) baixarMusica(s, { perguntou: true });
+  for (const s of pelaMetade) baixarMusica(s, { perguntou: true, qualidade: true });
 }, 45e3);
 
 // as capas e a partitura da música no cache dos downloads (o service worker usa sem internet)
@@ -1686,6 +1704,10 @@ const REVISOES = [
   // conferência da v530 não reconhecia e deixava a música só música (como Standing Next to You, do Jungkook) e, nas
   // baixadas, tirava o clipe do aparelho. As marcadas sem clipe são conferidas de novo, e o clipe volta a ser baixado
   { rev: 20, conferirClipe: true, arquivos: true, quais: (s) => s.semClipe === true },
+  // v535: quando o áudio oficial é o próprio vídeo da música (o clipe é a gravação), o download pedia o mesmo vídeo duas
+  // vezes, como áudio e como vídeo, guardados no mesmo lugar, e o áudio, chegando por último, apagava o clipe: a música
+  // ficava só com o som. As baixadas pela metade baixam o que falta (agora uma vez só, como vídeo)
+  { rev: 21, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -6130,8 +6152,11 @@ function indicadores(s) {
   const tem = (ic, t) => `<span class="ind-i" title="${t}" aria-label="${t}">${icon(ic, 14)}</span>`;
   // Como nas listas do Spotify: a setinha verde (baixada), o "E" (explícita), a cifra e o vídeo com o nome "Vídeo",
   // e um "•" antes do artista
-  const baixada = s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>`
-    : baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>` : '';
+  // (a seta verde só com tudo no aparelho: a baixada pela metade — falta o clipe ou o áudio — fica com a seta apagada,
+  // até se completar sozinha)
+  const baixada = baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>`
+    : s.baixado && precisaBaixar(s) ? `<span class="ind-i ind-incompleta" title="Download incompleto: completa sozinho" aria-label="Download incompleto">${icon('baixar', 15)}</span>`
+      : s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>` : '';
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
   // (sem clipe de verdade — o vídeo é só a capa —, a música não tem o ícone de vídeo)
   const video = Boolean(s.youtube) && !s.semClipe;
@@ -15574,10 +15599,9 @@ function viewQualidade() {
     if (!velhas.length) return;
     if (!servidorIA().url) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
     if (!(await podeBaixarAgora())) return;
-    for (const s of velhas) {
-      await removerDownload(s);
-      await baixarMusica(db.song(s.id), { perguntou: true });
-    }
+    // (sem apagar antes: cada arquivo é trocado só quando o novo, na qualidade escolhida, chega inteiro; até lá, a
+    // música continua tocando sem internet)
+    for (const s of velhas) await baixarMusica(db.song(s.id), { perguntou: true, qualidade: 'todas' });
     toast(`${velhas.length} música${velhas.length > 1 ? 's' : ''} na fila para baixar de novo`);
     desenharAtualizar();
   };

@@ -5529,3 +5529,5 @@ dialog.tons-na-cor .tons .tom[aria-pressed="true"] small { color: #111; opacity:
 dialog.tons-na-cor .tons .tom:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 dialog.tons-na-cor .btn.ghost { color: #fff; background: rgb(255 255 255 / 0.1); border-color: transparent; }
 dialog.tons-na-cor .btn.ghost:hover { background: rgb(255 255 255 / 0.18); }
+/* a baixada pela metade (falta o clipe ou o áudio): a seta apagada, sem pulsar, até se completar */
+.ind-i.ind-incompleta { background: none; color: var(--muted); opacity: 0.7; }
