@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 539, data: '2026-11-05', titulo: 'A seta de download piscando direito',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas listas, a seta das músicas baixando piscava de um jeito estranho (ora piscava, ora não): ela era redesenhada a cada avanço do download e a piscada recomeçava do zero. Agora ela só muda quando o estado muda (baixando, incompleta, baixada), e a piscada fica contínua.' },
+    ],
+  },
+  {
+    versao: 538, data: '2026-11-05', titulo: 'Um download por vez, com uma notificação só',
+    itens: [
+      { tipo: 'melhoria', texto: 'O app baixa uma música por vez (o som e depois o vídeo dela), também ao baixar uma playlist inteira.' },
+      { tipo: 'melhoria', texto: 'As notificações do download viraram uma só, que vai sendo atualizada ("Baixando 45% · música 2 de 4"), no lugar de uma para cada música abrindo todas de uma vez. No fim, o resumo: quantas foram baixadas.' },
+    ],
+  },
+  {
     versao: 537, data: '2026-11-05', titulo: 'Pausar o download da playlist',
     itens: [
       { tipo: 'novo', texto: 'Tocando no botão de baixar da playlist enquanto ela baixa, o download pausa onde está: as músicas já baixadas ficam, as que esperavam saem da fila e a que estava baixando para. Tocando de novo, ele continua, baixando só as que faltam. O que você pausou não volta a baixar sozinho.' },
@@ -57,21 +70,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e só aceita clipe de canal oficial (o do artista, o VEVO ou a gravadora; não o de fã). Ele procura o clipe oficial; Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
       { tipo: 'correcao', texto: 'O clipe e o áudio oficial com os outros artistas no nome ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open") voltam a ser reconhecidos. As músicas que tinham perdido o áudio oficial por isso o procuram de novo, sozinhas.' },
       { tipo: 'melhoria', texto: 'As músicas que você já tinha, inclusive as baixadas, são conferidas sozinhas, em segundo plano. Nas baixadas, o clipe oficial achado é baixado; na que fica só música, o vídeo parado sai do aparelho (sobra mais espaço) e ela continua tocando sem internet, só com o som.' },
-    ],
-  },
-  {
-    versao: 529, data: '2026-11-05', titulo: 'A cifra certa da música',
-    itens: [
-      { tipo: 'correcao', texto: 'Algumas músicas vinham com a cifra de outra música com o mesmo nome (a primeira achada no Cifra Club). Agora o app confere a cifra pela letra da música: se não for ela, tenta as outras cifras com o mesmo título e fica com a que é da música. Se nenhuma for, a música fica só com a letra, em vez de uma cifra errada.' },
-      { tipo: 'correcao', texto: 'Quando o app consegue ouvir a gravação (música baixada, áudio importado ou o seu servidor), ele confere também os acordes: se a cifra não casa com o som em nenhum tom, procura entre as outras cifras da mesma música uma que case e troca, avisando.' },
-      { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano. A cifra que você escreveu ou editou nunca é trocada.' },
-    ],
-  },
-  {
-    versao: 528, data: '2026-11-05', titulo: 'A última música na barra e o app abrindo no Início',
-    itens: [
-      { tipo: 'melhoria', texto: 'A barra do player embaixo continua com a última música tocada mesmo depois de fechar o app ou de ele se atualizar: abrindo de novo, ela está lá, pausada no ponto em que parou, pronta para continuar (com a fila de antes).' },
-      { tipo: 'melhoria', texto: 'Abrindo o app de novo, ele começa sempre no Início, e não na tela em que você estava ao sair. Voltando para ele depois de mais de 2 minutos fora (sem música tocando), também. Recarregando, você fica na mesma tela; os avisos e os links de uma música continuam abrindo direto nela, e uma edição em andamento não é largada.' },
     ],
   },
 ];

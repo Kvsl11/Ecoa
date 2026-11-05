@@ -15,12 +15,14 @@ test('download de vídeo: o app pede vídeo e o servidor valida o arquivo final'
   assert.match(youtube, /nunca um fragmento \.f137\.mp4/);
 });
 
-test('download: áudio e vídeo avançam em paralelo e o progresso inclui a transferência ao celular', async () => {
+test('download: o som e o vídeo, um depois do outro, e o progresso inclui a transferência ao celular', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const youtube = await readFile(new URL('../servidor-ia/youtube.py', import.meta.url), 'utf8');
-  assert.match(app, /await Promise\.all\(lista\.map\(async/);
+  // (um arquivo por vez: o som e depois o vídeo; e uma música por vez na fila)
+  assert.match(app, /for \(const a of \[\.\.\.lista\]\.sort\(\(x, y\) => Number\(x\.video\) - Number\(y\.video\)\)\)/);
+  assert.match(app, /const DOWNLOADS_JUNTOS = 1;/);
   assert.match(app, /resp\.body\?\.getReader/);
-  assert.ok(app.includes('texto: `Baixando ${pct}%`'));
+  assert.ok(app.includes('texto: `Baixando ${pct}%${posicaoNoLote()}`'));
   assert.match(app, /void guardarImagensDaMusica\(song\)\.catch/);
   assert.match(youtube, /"concurrent_fragment_downloads": 4/);
   assert.match(youtube, /if not pede_login\(e\) or indice == 5/);
@@ -55,7 +57,7 @@ test('download: o ícone entra em andamento imediatamente, antes da verificaçã
   const rotina = app.slice(inicio, fim);
   assert.ok(rotina.indexOf('baixando.set(s.id, { pct: 0, preparando: true })') < rotina.indexOf('!servidorIA().url'));
   assert.ok(rotina.indexOf('baixando.set(s.id, { pct: 0, preparando: true })') < rotina.indexOf('avisarDownloads()'));
-  assert.match(rotina, /texto: 'Download iniciado · preparando áudio e videoclipe'/);
+  assert.match(rotina, /texto: `Download iniciado · preparando áudio e videoclipe\$\{posicaoNoLote\(\)\}`/);
   assert.match(rotina, /Não deu para baixar/);
   assert.match(rotina, /finally[\s\S]*baixando\.delete\(id\)/);
 });
@@ -176,4 +178,13 @@ test('download: a entrega pausada para na hora, sem tentar de novo', async () =>
   };
   await assert.rejects(receberArquivo({ url: 'https://servidor.test' }, 'n', { tamanho: 50000, sinal: ctrl.signal, fetchImpl, aguardar: async () => {} }), /Cancelado/);
   assert.equal(pedidos, 1);
+});
+
+test('download: uma notificação só para a fila toda (não uma por música ao entrar na fila)', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const fila = app.slice(app.indexOf('async function baixarMusica(song'), app.indexOf('async function baixarDaFila('));
+  assert.doesNotMatch(fila, /notificarSistema/);
+  assert.doesNotMatch(app, /tag: `baixar-\$\{id\}`|tag: 'baixar-' \+/);
+  assert.match(app, /const TAG_DOWNLOAD = 'baixar';/);
+  assert.match(app, /titulo: 'Downloads concluídos'/);
 });

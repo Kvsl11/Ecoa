@@ -929,16 +929,14 @@ async function baixarMusica(song, { perguntou = false, qualidade = false } = {})
   // de dados móveis. Assim o ícone não fica parado enquanto o app verifica as condições.
   baixando.set(s.id, { pct: 0, preparando: true });
   avisarDownloads();
-  void notificarSistema({
-    titulo: s.title || 'Download',
-    texto: 'Preparando download…',
-    tag: 'baixar-' + s.id, silenciosa: true, href: '#/musica/' + s.id,
-    imagem: capaDaNotificacao(s),
-  });
+  // (a notificação é uma só para a fila toda — a da música que está baixando agora, com a posição dela —, e não uma por
+  // música na hora de entrar na fila: numa playlist, abriam todas de uma vez)
+  if (!andandoFila.size && !filaBaixar.length) loteDeDownloads = { total: 0, feitas: 0, ok: 0 };
+  loteDeDownloads.total++;
 
   filaBaixar.push({ id: s.id, perguntou, qualidade });
-  // duas músicas ao mesmo tempo (o servidor baixa as duas do YouTube em paralelo); antes, uma por vez, e a que travava
-  // segurava a fila inteira
+  // uma música por vez (o som e depois o vídeo dela): mais leve para o celular e para o servidor, e a notificação
+  // mostra uma só; a entrega que trava não segura mais a fila (receberArquivo corta e tenta de novo)
   while (andandoFila.size < DOWNLOADS_JUNTOS && filaBaixar.length) {
     const vez = (async () => {
       while (filaBaixar.length) await baixarDaFila(filaBaixar.shift());
@@ -947,7 +945,12 @@ async function baixarMusica(song, { perguntou = false, qualidade = false } = {})
     vez.finally(() => andandoFila.delete(vez));
   }
 }
-const DOWNLOADS_JUNTOS = 2;
+const DOWNLOADS_JUNTOS = 1;
+// a fila que está baixando agora: quantas entraram, quantas já passaram e quantas deram certo (a notificação diz
+// "música 2 de 4" e, no fim, o resumo)
+let loteDeDownloads = { total: 0, feitas: 0, ok: 0 };
+const TAG_DOWNLOAD = 'baixar';
+const posicaoNoLote = () => (loteDeDownloads.total > 1 ? ` · música ${Math.min(loteDeDownloads.feitas + 1, loteDeDownloads.total)} de ${loteDeDownloads.total}` : '');
 // (o download de cada música pode ser pausado: o botão da playlist tocado no meio — pausarDownloads)
 const controlesDeDownload = new Map();
 async function baixarDaFila(pedido) {
@@ -967,8 +970,8 @@ async function baixarDaFila(pedido) {
     avisarDownloads();
     void notificarSistema({
       titulo: atual.title || 'Download',
-      texto: 'Download iniciado · preparando áudio e videoclipe',
-      tag: 'baixar-' + id, silenciosa: true, href: '#/musica/' + id,
+      texto: `Download iniciado · preparando áudio e videoclipe${posicaoNoLote()}`,
+      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
       imagem: capaDaNotificacao(atual),
     });
     // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois; com limite, para não segurar o download)
@@ -979,14 +982,25 @@ async function baixarDaFila(pedido) {
     const atual = db.song(id);
     void notificarSistema({
       titulo: atual?.title || 'Download',
-      texto: 'Não deu para baixar · ' + erroExplicado(e),
-      tag: 'baixar-' + id, renovar: true, href: '#/musica/' + id,
+      texto: 'Não deu para baixar · ' + erroExplicado(e) + posicaoNoLote(),
+      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
       imagem: capaDaNotificacao(atual),
     });
   } finally {
     controlesDeDownload.delete(id);
     baixando.delete(id);
     avisarDownloads();
+    loteDeDownloads.feitas++;
+    if (db.song(id)?.baixado && !precisaBaixar(db.song(id))) loteDeDownloads.ok++;
+    // (a fila acabou: o resumo, na mesma notificação)
+    if (!filaBaixar.length && loteDeDownloads.total > 1) {
+      const { total, ok } = loteDeDownloads;
+      void notificarSistema({
+        titulo: 'Downloads concluídos',
+        texto: ok === total ? `${total} músicas baixadas: tocam sem internet` : `${ok} de ${total} músicas baixadas · as que faltaram tentam de novo sozinhas`,
+        tag: TAG_DOWNLOAD, renovar: true, href: '#/biblioteca/baixadas',
+      });
+    }
   }
 }
 // Pausa os downloads destas músicas onde estão: as que esperam na fila saem dela, a que está baixando para no meio (o
@@ -998,7 +1012,7 @@ function pausarDownloads(songs) {
     const s = db.song(id);
     if (s && (precisaBaixar(s) || baixando.has(id))) db.updateSong(id, { baixarPausado: true });
   }
-  for (let i = filaBaixar.length - 1; i >= 0; i--) if (ids.has(filaBaixar[i].id)) { baixando.delete(filaBaixar[i].id); filaBaixar.splice(i, 1); }
+  for (let i = filaBaixar.length - 1; i >= 0; i--) if (ids.has(filaBaixar[i].id)) { baixando.delete(filaBaixar[i].id); filaBaixar.splice(i, 1); loteDeDownloads.total = Math.max(0, loteDeDownloads.total - 1); }
   for (const id of ids) controlesDeDownload.get(id)?.abort();
   avisarDownloads();
 }
@@ -1185,14 +1199,15 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       ultimoAviso = pct;
       void notificarSistema({
         titulo: song.title,
-        texto: `Baixando ${pct}%`,
-        tag: `baixar-${id}`, silenciosa: true, href: `#/musica/${id}`,
+        texto: `Baixando ${pct}%${posicaoNoLote()}`,
+        tag: TAG_DOWNLOAD, silenciosa: true, href: `#/musica/${id}`,
         imagem: capaDaNotificacao(song),
       });
     }
   };
 
-  await Promise.all(lista.map(async ({ yt, video }) => {
+  // um arquivo por vez: o som e depois o vídeo (antes os dois juntos, disputando a internet do celular)
+  const baixarArquivo = async ({ yt, video }) => {
     const ja = baixadoDe(yt);
     // (o que já está no aparelho fica; com qualidade, o que está numa qualidade menor que a escolhida baixa de novo, e o
     // arquivo de antes continua valendo até o novo chegar inteiro)
@@ -1235,7 +1250,11 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       progressoArquivos.set(yt, 1);
       atualizarProgresso(yt, 1);
     }
-  }));
+  };
+  for (const a of [...lista].sort((x, y) => Number(x.video) - Number(y.video))) {
+    if (sinal?.aborted) break;
+    await baixarArquivo(a);
+  }
 
   // (pausado pela pessoa: o que já veio fica guardado, e o resto espera ela tocar de novo; nada é refeito sozinho)
   if (sinal?.aborted) {
@@ -1278,8 +1297,8 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
   avisarDownloads();
   void notificarSistema({
     titulo: song.title,
-    texto: `${avisoFalhas ? 'Download parcial · ' + avisoFalhas : 'Download concluído'}${song.artist ? ` · ${song.artist}` : ''} · ${fmtBytes(tamanho)}`,
-    tag: `baixar-${id}`, renovar: true, href: `#/musica/${id}`,
+    texto: `${avisoFalhas ? 'Download parcial · ' + avisoFalhas : 'Download concluído'}${song.artist ? ` · ${song.artist}` : ''} · ${fmtBytes(tamanho)}${posicaoNoLote()}`,
+    tag: TAG_DOWNLOAD, renovar: loteDeDownloads.total <= 1, silenciosa: loteDeDownloads.total > 1, href: `#/musica/${id}`,
     imagem: capaDaNotificacao(song),
   });
 }
@@ -1634,8 +1653,10 @@ function atualizarIndicadores() {
   document.querySelectorAll('.track[data-id], .track[data-musica], .lib-item[data-k]').forEach((li) => {
     const s = db.song(li.dataset.id || li.dataset.musica || li.dataset.k);
     if (!s) return;
-    const agora = `${s.baixado ? 'ok' : baixando.has(s.id) ? 'andando' : ''}|${temKaraokePronto(s)}`;
-    const antes = `${li.querySelector('.ind-baixada') ? 'ok' : li.querySelector('.ind-baixando') ? 'andando' : ''}|${Boolean(li.querySelector('.ind-karaoke'))}`;
+    // (só redesenha quando o estado muda: no meio do download o ícone fica o mesmo, e a piscada segue sem recomeçar)
+    const agora = `${estadoDoDownload(s)}|${temKaraokePronto(s)}`;
+    const naTela = li.querySelector('.ind-baixando') ? 'baixando' : li.querySelector('.ind-incompleta') ? 'incompleta' : li.querySelector('.ind-baixada') ? 'baixada' : '';
+    const antes = `${naTela}|${Boolean(li.querySelector('.ind-karaoke'))}`;
     if (agora === antes) return;
     const sub = li.querySelector('.info .s');
     const velho = sub?.querySelector('.ind');
@@ -6189,6 +6210,10 @@ async function exportarPowerPointModelo(set) {
 // indicadores bem pequenos nas listas: a música tem cifra (a letra vem junto) e/ou vídeo
 const memoCifra = new Map();
 const temKaraokePronto = (s) => Boolean(s?.karaoke && s.karaoke[fonteDoKaraoke(s)]);
+// o estado do download da música, o mesmo para o ícone da lista e para saber se ele precisa ser redesenhado (antes cada
+// um tinha a sua ordem: a música pela metade baixando de novo era "baixada" para um e "baixando" para o outro, e o ícone
+// era redesenhado a cada avanço do download, com a piscada recomeçando do zero)
+const estadoDoDownload = (s) => (baixando.has(s.id) ? 'baixando' : s.baixado && precisaBaixar(s) ? 'incompleta' : s.baixado ? 'baixada' : '');
 function indicadores(s) {
   if (!s) return '';
   let c = memoCifra.get(s.content);
@@ -6200,9 +6225,10 @@ function indicadores(s) {
   // e um "•" antes do artista
   // (a seta verde só com tudo no aparelho: a baixada pela metade — falta o clipe ou o áudio — fica com a seta apagada,
   // até se completar sozinha)
-  const baixada = baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>`
-    : s.baixado && precisaBaixar(s) ? `<span class="ind-i ind-incompleta" title="Download incompleto: completa sozinho" aria-label="Download incompleto">${icon('baixar', 15)}</span>`
-      : s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>` : '';
+  const estado = estadoDoDownload(s);
+  const baixada = estado === 'baixando' ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>`
+    : estado === 'incompleta' ? `<span class="ind-i ind-incompleta" title="Download incompleto: completa sozinho" aria-label="Download incompleto">${icon('baixar', 15)}</span>`
+      : estado === 'baixada' ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>` : '';
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
   // (sem clipe de verdade — o vídeo é só a capa —, a música não tem o ícone de vídeo)
   const video = Boolean(s.youtube) && !s.semClipe;
