@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emIngles, hashtagsDaMusica, idiomaDaLetra, numeroCurto } from '../public/js/lib/hashtags.js';
-import { generosDaMusicBrainz, musicaDaAudioDb } from '../public/js/lib/web.js';
+import { artistaDaMusicBrainz, generosDaMusicBrainz, musicaDaAudioDb } from '../public/js/lib/web.js';
 
 test('número curto dos seguidores, como nos stories', () => {
   assert.equal(numeroCurto(90300000), '90,3M');
@@ -64,4 +64,8 @@ test('musicaDaAudioDb: só a do mesmo artista e título, e só com algo para as 
   assert.deepEqual(musicaDaAudioDb(json, 'Coldplay', 'Yellow'), { mood: 'Relaxed', theme: 'In Love', style: 'Rock/Pop', genre: 'Pop-Rock' });
   assert.equal(musicaDaAudioDb(json, 'Outro', 'Yellow'), null);
   assert.equal(musicaDaAudioDb({ track: [{ strArtist: 'Bruno Mars', strTrack: 'I Just Might' }] }, 'Bruno Mars', 'I Just Might'), null);
+});
+
+test('MusicBrainz: o id e os gêneros do artista', () => {
+  assert.deepEqual(artistaDaMusicBrainz({ artists: [{ id: 'afb', name: 'Bruno Mars', score: 100, tags: [{ count: 2, name: 'Pop' }] }] }, 'Bruno Mars'), { id: 'afb', generos: ['pop'] });
 });

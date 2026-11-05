@@ -33,7 +33,6 @@ import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
 import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
-import { SPOTIFY_CLIENT_ID, buscarArtistaNoSpotify, desafioDoVerificador, gerarVerificador, renovarToken, tokenGuardado, trocarCodigo, urlDeLogin } from './lib/spotify.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -7414,88 +7413,16 @@ function comUltimoValor(tipo, nome, promessa) {
 const ultimoValorDoArtista = (tipo, nome) => { const v = artistasGuardados[`${tipo}:${normalizar(nome)}`]?.v; return tipo === 'foto' || tipo === 'capa' ? fotoReal(v) : v; };
 const canalGuardado = (nome) => comUltimoValor('canal', nome, canalDoArtista(nome));
 const audioDbGuardado = (nome) => comUltimoValor('adb', nome, audioDbDoArtista(nome));
-// ---- o Spotify (lib/spotify.js): os seguidores do artista, os de agora, pela API oficial. Conecta-se uma vez nos
-// Ajustes (o login é o do Spotify); a chave fica no aparelho e se renova sozinha. Sem conexão, os seguidores do Spotify
-// não aparecem (os da TheAudioDB eram uma cópia meses atrasada: 70M para quem já passava de 90M)
-const CHAVE_SPOTIFY = 'songbook.spotify';
-const CHAVE_PKCE = 'songbook.spotify.pkce';
-let spotifyToken = (() => { try { return JSON.parse(localStorage.getItem(CHAVE_SPOTIFY) || 'null'); } catch { return null; } })();
-const guardarSpotify = (t) => {
-  spotifyToken = t;
-  try { if (t) localStorage.setItem(CHAVE_SPOTIFY, JSON.stringify(t)); else localStorage.removeItem(CHAVE_SPOTIFY); } catch { /* sem espaço */ }
-};
-const spotifyDisponivel = () => Boolean(SPOTIFY_CLIENT_ID);
-const spotifyConectado = () => spotifyDisponivel() && Boolean(spotifyToken?.refresh);
-// (o endereço de volta do login: o do app, sem o #; tem de estar cadastrado no app do painel do Spotify)
-const voltaDoSpotify = () => location.origin + location.pathname;
-async function conectarSpotify() {
-  const verificador = gerarVerificador();
-  const estado = gerarVerificador().slice(0, 20);
-  try { sessionStorage.setItem(CHAVE_PKCE, JSON.stringify({ verificador, estado, volta: location.hash })); } catch { /* segue */ }
-  location.href = urlDeLogin({ clientId: SPOTIFY_CLIENT_ID, redirect: voltaDoSpotify(), desafio: await desafioDoVerificador(verificador), estado });
-}
-const desconectarSpotify = () => { guardarSpotify(null); spotifyArtistas.clear(); };
-// a volta do login do Spotify (?code=...&state=...): troca o código pela chave e volta para a tela de onde saiu
-let spotifyAcabouDeConectar = null; // null | true | false (para os Ajustes dizerem como foi)
-const voltaDoLoginSpotify = (async () => {
-  const q = new URLSearchParams(location.search);
-  if (!q.has('state') || !(q.has('code') || q.has('error'))) return;
-  let pk = null;
-  try { pk = JSON.parse(sessionStorage.getItem(CHAVE_PKCE) || 'null'); sessionStorage.removeItem(CHAVE_PKCE); } catch { /* sem a sessão */ }
-  history.replaceState(null, '', location.pathname + (pk?.volta || location.hash));
-  if (!pk || pk.estado !== q.get('state') || q.has('error')) { spotifyAcabouDeConectar = false; return; }
-  try {
-    const t = tokenGuardado(await trocarCodigo({ clientId: SPOTIFY_CLIENT_ID, codigo: q.get('code'), redirect: voltaDoSpotify(), verificador: pk.verificador }));
-    guardarSpotify(t);
-    spotifyAcabouDeConectar = Boolean(t);
-  } catch { spotifyAcabouDeConectar = false; }
-  // (de volta aos Ajustes do Spotify: a tela já desenhada passa a dizer como foi)
-  if (location.hash === '#/ajustes/spotify') viewSettings('spotify');
-})();
-async function acessoSpotify() {
-  await voltaDoLoginSpotify;
-  if (!spotifyConectado()) return '';
-  if (spotifyToken.expira > Date.now() && spotifyToken.access) return spotifyToken.access;
-  try {
-    guardarSpotify(tokenGuardado(await renovarToken({ clientId: SPOTIFY_CLIENT_ID, refresh: spotifyToken.refresh }), spotifyToken));
-    return spotifyToken?.access || '';
-  } catch (e) {
-    if (/HTTP 400/.test(e.message)) guardarSpotify(null); // (a conexão foi desfeita no Spotify)
-    return '';
-  }
-}
-// o artista no Spotify ({ id, seguidores, popularidade, foto }): lido de novo a cada 10 min; sem internet, o último
-const spotifyArtistas = new Map();
-function spotifyDoArtista(nome) {
-  if (!spotifyConectado() || !nome) return Promise.resolve(null);
-  const k = normalizar(nome);
-  const memo = spotifyArtistas.get(k);
-  if (!memo || Date.now() - memo.em > 10 * 60 * 1000) {
-    const p = (async () => {
-      const a = await acessoSpotify();
-      if (!a) return null;
-      try { return await buscarArtistaNoSpotify(nome, a); } catch (e) {
-        if (!e.vencida) throw e;
-        spotifyToken.expira = 0; // (a chave venceu antes da hora: renova e tenta de novo)
-        return buscarArtistaNoSpotify(nome, await acessoSpotify());
-      }
-    })().catch(() => null);
-    spotifyArtistas.set(k, { em: Date.now(), p });
-  }
-  return comUltimoValor('spotify', nome, spotifyArtistas.get(k).p);
-}
 const fotosDosVideosGuardadas = (nome, canal) => comUltimoValor('fotosvideos', nome, fotosDosVideos(nome, canal));
 // a foto de um artista pelo nome; guardada na sessão, para não buscar de novo a cada música
 const fotosArtistas = new Map();
 // (primeiro a do canal do artista no YouTube, a mais atual, só quando o canal é com certeza dele: verificado ou o
 // "Tópico" do YouTube; depois o Cifra Club; se não tiver, o Deezer, que tem a foto de quase todo artista; por fim a
 // Wikipédia)
-// a foto do artista no Spotify (a de agora, a oficial), com o Spotify conectado: vem antes das outras
-const fotoDoSpotify = (nome) => (spotifyConectado() ? spotifyDoArtista(nome).then((a) => a?.foto || '').catch(() => '') : Promise.resolve(''));
 function fotoDoArtista(nome, slug = '') {
   const k = normalizar(nome);
   // a música veio do Cifra Club: o artista é o da página dela (sem adivinhar pelo nome)
-  if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoSpotify(nome).then((f) => f || fotoDoCanalDeVerdade(nome)).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
+  if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
     .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
     .then((f) => f || fotoDeezer(nome))));
   if (!fotosArtistas.has(k)) {
@@ -7503,7 +7430,7 @@ function fotoDoArtista(nome, slug = '') {
     // que aparece ao abrir o artista (sem isso, o Deezer trazia a foto de outro artista com o mesmo nome)
     const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
       || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-    fotosArtistas.set(k, fotoDoSpotify(nome).then((f) => f || fotoDoCanalDeVerdade(nome)).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
+    fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
@@ -8122,8 +8049,8 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   };
   window.addEventListener('popstate', fechar);
   tela.querySelector('[data-sa="voltar"]').onclick = () => history.back();
-  const [info, dz, foto, canal, adb, sp] = await Promise.all([descricaoDoArtista(nome), deezerDoArtista(nome), fotoDoArtista(nome, slug).catch(() => ''),
-    canalGuardado(nome).catch(() => null), audioDbGuardado(nome).catch(() => null), spotifyDoArtista(nome)]);
+  const [info, dz, foto, canal, adb] = await Promise.all([descricaoDoArtista(nome), deezerDoArtista(nome), fotoDoArtista(nome, slug).catch(() => ''),
+    canalGuardado(nome).catch(() => null), audioDbGuardado(nome).catch(() => null)]);
   if (!tela.isConnected) return;
   tela.classList.remove('carregando');
   // as fotos (sem repetir): a do cartão, a do canal do YouTube, as da TheAudioDB (a principal e as de fundo), a do
@@ -8175,9 +8102,9 @@ async function abrirSobreArtista({ nome, slug = '' }) {
       caixaFotos.append(img);
     }
   };
-  // (a do Spotify, com ele conectado, logo depois da do cartão: a de agora; as da TheAudioDB, que podem ser antigas, depois
-  // das do canal e do Deezer)
-  porFotos([foto, sp?.foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', dz?.foto, ...(adb?.fotos || []), info?.foto], { comPrincipal: Boolean(foto) });
+  // (as mais novas logo depois da do cartão: a do canal do YouTube e a do Deezer; as da TheAudioDB, que podem ser
+  // antigas, e a da Wikipédia depois)
+  porFotos([foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', dz?.foto, ...(adb?.fotos || []), info?.foto], { comPrincipal: Boolean(foto) });
   if (!vistas.size) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
   // tocar numa foto: ela abre em tela cheia, e dá para passar para as outras
   caixaFotos.addEventListener('click', (e) => {
@@ -8188,12 +8115,11 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   });
   // mais fotos: as do artigo da Wikipédia em que ele aparece (com o nome dele no arquivo)
   fotosDaWikipediaGuardadas(nome).then((l) => { if (tela.isConnected && l?.length) porFotos(l); }).catch(() => {});
-  // os números grandes (como os ouvintes do Spotify): os seguidores no Spotify (pela API do Spotify, os de agora; sem
-  // o Spotify conectado, um atalho para conectar), os inscritos no canal do YouTube e os fãs no Deezer, os que houver
+  // os números grandes (como os ouvintes do Spotify): os inscritos no canal do YouTube e os fãs no Deezer, os que
+  // houver, os dois lidos na hora. (Os seguidores no Spotify não entram: a API do Spotify deixou de dar os seguidores aos
+  // apps novos em 2026, e os da TheAudioDB eram uma cópia meses atrasada: 70M para quem já passava de 90M)
   const num = (n, rotulo) => `<div><b>${n.toLocaleString('pt-BR')}</b><small>${rotulo}</small></div>`;
-  const numeros = [sp?.seguidores && num(sp.seguidores, 'seguidores no Spotify'), canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'),
-    dz?.fas && num(dz.fas, 'fãs no Deezer')].filter(Boolean);
-  if (!sp && spotifyDisponivel() && !spotifyConectado()) numeros.push(`<a class="sa-conectar" href="#/ajustes/spotify">${icon('link', 16)} Conecte o Spotify para ver os seguidores de agora</a>`);
+  const numeros = [canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'), dz?.fas && num(dz.fas, 'fãs no Deezer')].filter(Boolean);
   if (numeros.length) { const caixa = tela.querySelector('.sa-numeros'); caixa.hidden = false; caixa.innerHTML = numeros.join(''); }
   // a apresentação: a da Wikipédia ou, sem ela, a biografia em português da TheAudioDB
   const texto = info?.texto || adb?.bio || '';
@@ -13657,8 +13583,8 @@ function previaDaPlaylist(set, inicio = 0) {
     atual = null;
   };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
-  // os seguidores do artista no Spotify ("90,3M seguidores", os de agora, pela API do Spotify) e as hashtags da música
-  // (#happy, #upbeat...), da TheAudioDB. Guardados no aparelho (sem internet, os últimos), na música da tela e na próxima
+  // os seguidores do artista (os do YouTube) e as hashtags da música.
+  // Guardados no aparelho (sem internet, os últimos), na música da tela e na próxima
   const generosPedidos = new Map();
   const generosPorArtista = (nome) => { const k = normalizar(nome); if (!generosPedidos.has(k)) generosPedidos.set(k, generosDoArtista(nome)); return generosPedidos.get(k); };
   const infoDoSlide = (k) => {
@@ -13668,10 +13594,11 @@ function previaDaPlaylist(set, inicio = 0) {
     const { s } = faixas[k];
     const adb = s.artist ? audioDbGuardado(s.artist) : Promise.resolve(null);
     const daMusica = s.artist ? comUltimoValor('adbm', `${s.artist}|${s.title}`, audioDbDaMusica(s.artist, s.title)) : Promise.resolve(null);
-    if (s.artist) spotifyDoArtista(s.artist).then((a) => {
+    // (embaixo do nome: os seguidores, que são os inscritos no canal do YouTube, lidos na hora: "41,2M seguidores")
+    if (s.artist) canalGuardado(s.artist).then((c) => {
       const seg = slide.querySelector('.pv-seg');
-      if (seg && a?.seguidores) { seg.textContent = `${numeroCurto(a.seguidores)} seguidores`; seg.hidden = false; }
-    });
+      if (seg && c?.inscritos) { seg.textContent = `${numeroCurto(c.inscritos)} seguidores`; seg.hidden = false; }
+    }).catch(() => {});
     // (os gêneros do artista na MusicBrainz, os mais votados: um pedido por artista, guardado)
     const generos = s.artist ? comUltimoValor('mbgen', s.artist, generosPorArtista(s.artist)) : Promise.resolve([]);
     Promise.all([adb, daMusica, generos]).then(([a, m, g]) => {
@@ -14794,7 +14721,7 @@ function viewTopicosAjustes() {
       <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
     </section>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
-      ${TOPICOS_AJUSTES.filter((t) => t.id !== 'spotify' || spotifyDisponivel()).map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
+      ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
     </nav></div>`;
   // o microfone só se sabe esperando a consulta do navegador
   estadoDoMicrofone().then((m) => {
@@ -14926,7 +14853,6 @@ const TOPICOS_AJUSTES = [
   { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
-  { id: 'spotify', secao: 'Spotify', ic: 'link', t: 'Spotify', s: 'Os seguidores dos artistas, os de agora' },
   { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
   { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: 'Versão · Novidades · Instalar o app' },
 ];
@@ -15001,13 +14927,6 @@ function viewSettings(topico) {
       <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Músicas, repertórios e ajustes deste aparelho</div></div><button class="btn small danger" id="clr">Apagar</button></div>
     </div>`)}
 
-    ${secao('Spotify', `
-    <div class="settings-group">
-      <div class="setting"><span class="ico">${icon('link', 18)}</span><div class="grow"><div class="t">${spotifyConectado() ? 'Spotify conectado' : 'Conectar o Spotify'}</div>
-        <div class="s">${spotifyAcabouDeConectar === false ? 'Não deu para conectar. Tente de novo.' : spotifyConectado() ? 'Os seguidores dos artistas vêm direto do Spotify, os de agora' : 'Para ver os seguidores dos artistas no Spotify, sempre atualizados. O login é o do próprio Spotify'}</div></div>
-        ${spotifyConectado() ? '<button class="btn small" data-spotify-sair>Desconectar</button>' : '<button class="btn small primary" data-spotify-conectar>Conectar</button>'}</div>
-    </div>`)}
-
     ${secao('Sobre', `
     <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
     <div class="settings-group">
@@ -15023,8 +14942,6 @@ function viewSettings(topico) {
     sec.hidden = !deste;
     if (deste && h) h.hidden = true;
   });
-  $('[data-spotify-conectar]', view)?.addEventListener('click', () => conectarSpotify());
-  $('[data-spotify-sair]', view)?.addEventListener('click', () => { desconectarSpotify(); viewSettings('spotify'); });
   // (o Avançado aberto: é a página dele)
   const nomeCor = () => {
     const a = db.prefs().accent || COR_PADRAO;
