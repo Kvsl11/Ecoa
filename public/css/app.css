@@ -5746,3 +5746,23 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
   html:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] { color: var(--accent); }
   html:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] svg { width: 24px; height: 24px; }
 }
+/* Conectar: dar o nome ao fone (o Android só diz "Bluetooth headset") */
+.ap-nomear { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 8px; padding: 10px 14px; border-radius: 10px;
+  color: var(--accent-ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+.ap-nomear:hover, .ap-nomear:focus-visible { background: var(--surface-2); }
+.ap-nomear svg { flex: none; }
+/* celular, a barrinha de baixo com o vídeo tocando (como no Spotify): o vídeo colado na borda esquerda, da altura da
+   barrinha, sem margem; o nome, o fone e os botões ao lado */
+@media (max-width: 899px) {
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video {
+    width: 112px; aspect-ratio: 16 / 9; margin: 0; border-radius: 8px 0 0 8px; align-self: stretch; }
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-info { padding-left: 12px; }
+}
+/* a barra de botões de baixo das folhas vai de ponta a ponta (o max-width de .dlg > * deixava ela 44 px mais curta,
+   com o conteúdo aparecendo do lado direito, como no Diagnóstico) */
+dialog.folha .dlg > .acts { max-width: none; }
+/* o Diagnóstico: "Consertar agora" em cima, de ponta a ponta; "Copiar" e "Fechar" lado a lado embaixo */
+.diag-acts { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+.diag-acts [data-consertar] { grid-column: 1 / -1; justify-content: center; }
+.diag-acts .btn { justify-content: center; }
+.diag-item b { word-break: break-word; }
