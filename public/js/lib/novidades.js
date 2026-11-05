@@ -8,6 +8,7 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O nome da música que não cabe gira num laço contínuo, como no Spotify: quando ele termina, o começo já vem logo atrás, depois de um espaço, sem voltar de uma vez para o início.' },
       { tipo: 'correcao', texto: 'Com o vídeo na barrinha de baixo, a primeira letra do nome aparecia meio apagada. Agora ela aparece inteira; só a ponta da direita some aos poucos.' },
+      { tipo: 'melhoria', texto: 'Com o vídeo tocando, a barrinha de baixo fica como a do Spotify: em cima o nome da música (girando quando não cabe) e embaixo o artista, sem a linha do fone (o ícone do fone continua à direita). Só com o áudio, continua o nome e o artista em cima e o fone embaixo.' },
     ],
   },
   {

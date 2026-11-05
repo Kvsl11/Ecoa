@@ -5766,3 +5766,11 @@ dialog.folha .dlg > .acts { max-width: none; }
 .diag-acts [data-consertar] { grid-column: 1 / -1; justify-content: center; }
 .diag-acts .btn { justify-content: center; }
 .diag-item b { word-break: break-word; }
+/* celular, a barrinha de baixo com o vídeo (como no Spotify): em cima só o nome da música (girando quando não cabe) e
+   embaixo o artista; a linha do fone não aparece (o ícone do fone continua à direita). Só com o áudio (a capa), o nome e
+   o artista vão juntos em cima e o fone embaixo */
+@media (max-width: 899px) {
+  html:not(.tablet):not(.pp) #player.com-fone:not(.capa-na-barra):not(.sem-video) .pl-art-junto { display: none; }
+  html:not(.tablet):not(.pp) #player.com-fone:not(.capa-na-barra):not(.sem-video) .pl-txt small { display: block; }
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video) .pl-onde { display: none; }
+}
