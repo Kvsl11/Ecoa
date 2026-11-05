@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 531, data: '2026-11-05', titulo: 'Os clipes do K-pop',
+    itens: [
+      { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
+      { tipo: 'correcao', texto: 'As músicas que tinham ficado só música por isso são conferidas de novo, sozinhas; nas baixadas, o clipe volta a ser baixado.' },
+    ],
+  },
+  {
     versao: 530, data: '2026-11-05', titulo: 'Só clipe de verdade',
     itens: [
       { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e só aceita clipe de canal oficial (o do artista, o VEVO ou a gravadora; não o de fã). Ele procura o clipe oficial; Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
@@ -66,14 +73,6 @@ export const NOVIDADES = [
     versao: 522, data: '2026-11-05', titulo: 'A música da busca abre na hora',
     itens: [
       { tipo: 'melhoria', texto: 'Na Busca, as primeiras músicas da lista já vão sendo preparadas enquanto você olha: a cifra, a letra, o vídeo, a letra sincronizada, o áudio oficial e a capa. Ao tocar numa delas, ela abre na hora, já com tudo sincronizado. As outras começam a ser preparadas no instante em que o dedo encosta. Com a economia de dados ligada, só a que você toca é preparada.' },
-    ],
-  },
-  {
-    versao: 521, data: '2026-11-05', titulo: 'A busca sem bolinhas girando',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na Busca, enquanto você digita, o resultado anterior continua na tela (mais apagado) e uma linha fina corre embaixo da barra de busca. Quando chega o resultado novo, a tela troca de uma vez, sem pular. Antes cada seção (Artistas, Acervo, Músicas) apagava e ganhava uma bolinha girando.' },
-      { tipo: 'melhoria', texto: 'Na primeira busca e em "Católicas em alta" e "Artistas católicos", aparece o contorno das capas e das linhas no lugar exato do que vai chegar. As músicas vêm primeiro, depois os artistas e o acervo.' },
-      { tipo: 'melhoria', texto: 'No resto do app, o carregando virou três pontinhos discretos, no lugar do anel colorido girando.' },
     ],
   },
 ];

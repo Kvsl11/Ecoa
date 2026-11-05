@@ -1669,6 +1669,10 @@ const REVISOES = [
   // do traço ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open"), e pode ter tirado o áudio dessas músicas.
   // As que ficaram sem o áudio oficial o procuram de novo (e a letra sincronizada, que estava nele, é refeita)
   { rev: 19, versoes: true, letra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && !versoesDe(s)?.audio },
+  // v531: no K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP…) e se chama "Official MV": a
+  // conferência da v530 não reconhecia e deixava a música só música (como Standing Next to You, do Jungkook) e, nas
+  // baixadas, tirava o clipe do aparelho. As marcadas sem clipe são conferidas de novo, e o clipe volta a ser baixado
+  { rev: 20, conferirClipe: true, arquivos: true, quais: (s) => s.semClipe === true },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
