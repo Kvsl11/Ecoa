@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 527, data: '2026-11-05', titulo: 'Os tons no estilo dos desenhos dos acordes',
+    itens: [
+      { tipo: 'melhoria', texto: 'No player, tocando no tom, os 12 tons abrem logo embaixo das ferramentas, no mesmo estilo da faixa dos desenhos dos acordes: os cartões na cor do fundo da letra, o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo nas pontas. Fica aberto para você experimentar; tocando no tom de novo, fecha.' },
+    ],
+  },
+  {
     versao: 526, data: '2026-11-05', titulo: 'A cifra no tom da gravação e a tabela de tons',
     itens: [
       { tipo: 'novo', texto: 'A cifra no tom da música que toca: algumas cifras vêm em outro tom (quem escreveu tirou em outro, ou escreveu com o capotraste). O app ouve a gravação, compara as notas que soam com as dos acordes da cifra e, quando a resposta é clara, põe a cifra no tom da gravação, avisando ("Cifra no tom da gravação: D → E"). Ele ouve pelo arquivo baixado, pelo áudio que você importou ou pelo seu servidor; o tom que você escolher à mão nunca é mudado.' },
@@ -64,16 +70,6 @@ export const NOVIDADES = [
     versao: 518, data: '2026-11-05', titulo: 'O botão do tamanho da letra não pisca mais',
     itens: [
       { tipo: 'correcao', texto: 'Na letra em tela cheia, o botão do tamanho da letra (o A pequeno e o A grande) e os outros botões ao lado piscavam um quadrado claro enquanto a letra corria. Agora ficam firmes.' },
-    ],
-  },
-  {
-    versao: 517, data: '2026-11-05', titulo: 'Estatísticas, Recentes por dia e a gaveta do perfil nova',
-    itens: [
-      { tipo: 'novo', texto: 'Estatísticas: veja quantos minutos você ouviu esta semana, o artista e a música mais ouvidos (com a lista completa de cada um), o gráfico de cada dia e, em "Seus últimos destaques", quanto você ouviu nos meses que passaram. Dá para compartilhar o resumo da semana.' },
-      { tipo: 'novo', texto: 'Recentes: o que você tocou, separado por dia (Hoje, Ontem e as datas), com os repertórios juntos num item só. Os botões Músicas e Repertórios mostram só um tipo.' },
-      { tipo: 'novo', texto: 'Sessão privada, nos Ajustes: enquanto estiver ligada, o que você ouve não entra nos Recentes nem nas Estatísticas.' },
-      { tipo: 'melhoria', texto: 'A gaveta do perfil ficou como a do Spotify: o cartão com a sua foto e o "Ver perfil", e os atalhos Estatísticas, Recentes, Novidades e Ajustes e privacidade.' },
-      { tipo: 'melhoria', texto: 'No alto dos Ajustes, três atalhos ligam e desligam na hora a economia de dados, a sessão privada e a capa animada. Com a conta Google, o botão Sair fica no fim da lista.' },
     ],
   },
 ];
