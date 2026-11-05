@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 541, data: '2026-11-05', titulo: 'Baixar todas as músicas curtidas',
+    itens: [
+      { tipo: 'novo', texto: 'As Músicas curtidas ganharam o botão de baixar tudo, como nas playlists: um toque baixa todas as músicas salvas para ouvir sem internet; tocando enquanto baixa, o download pausa, e com todas baixadas o botão fica verde.' },
+    ],
+  },
+  {
     versao: 540, data: '2026-11-05', titulo: 'Por trás da música, o fone conectado e o artista certo',
     itens: [
       { tipo: 'novo', texto: 'No Tocando agora, embaixo da letra: o artista com o selo de confirmado e os fãs, os vídeos relacionados dele (tocam na hora), as pessoas por trás da música em fotos grandes, o "Explorar" do artista (as músicas dele, os artistas parecidos e as músicas parecidas) e os créditos com o "Mostrar tudo", que abre todos em grupos: artista, composição e letra, produção, detalhes e fontes (o selo).' },
@@ -68,13 +74,6 @@ export const NOVIDADES = [
     versao: 532, data: '2026-11-05', titulo: 'A capa uma vez só',
     itens: [
       { tipo: 'melhoria', texto: 'No Tocando agora, a música sem capa animada (como as que não têm clipe) mostrava a capa duas vezes: a grande em cima e a pequena ao lado do nome. Agora fica só a grande, como no Spotify. Com a capa animada ou no modo vídeo, a pequena continua.' },
-    ],
-  },
-  {
-    versao: 531, data: '2026-11-05', titulo: 'Os clipes do K-pop',
-    itens: [
-      { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
-      { tipo: 'correcao', texto: 'As músicas que tinham ficado só música por isso são conferidas de novo, sozinhas; nas baixadas, o clipe volta a ser baixado.' },
     ],
   },
 ];

@@ -1571,6 +1571,10 @@ async function apagarKaraoke(song, fonte = fonteDoKaraoke(song)) {
 // o botão de baixar o repertório ou a playlist inteira (como no Spotify): verde com todas baixadas; baixando, o anel
 // com o andamento do conjunto
 const musicasDoSet = (set) => [...new Set(set.items.map((it) => it.songId))].map((id) => db.song(id)).filter((s) => s && midiaDe(s));
+// as Músicas curtidas também têm o botão de baixar tudo: um conjunto de mentira com todas as músicas salvas
+const ID_CURTIDAS = 'curtidas';
+const setDasCurtidas = () => ({ id: ID_CURTIDAS, name: 'Músicas curtidas', items: db.songs().filter((x) => !x.soNoRepertorio).map((x) => ({ songId: x.id })) });
+const setParaBaixar = (id) => (id === ID_CURTIDAS ? setDasCurtidas() : db.set(id));
 function botaoBaixarSet(set) {
   const ss = musicasDoSet(set);
   if (!ss.length) return '';
@@ -1586,7 +1590,7 @@ document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-baixar-set]');
   if (!b) return;
   e.preventDefault();
-  const set = db.set(b.dataset.baixarSet);
+  const set = setParaBaixar(b.dataset.baixarSet);
   if (!set) return;
   const ss = musicasDoSet(set);
   // baixando: o toque pausa onde está (as baixadas ficam; tocar de novo baixa o resto)
@@ -1671,7 +1675,7 @@ window.addEventListener('songbook:downloads', () => {
   // (o botão da playlist só é trocado quando muda de estado; no mesmo estado, só o título e a porcentagem mudam: trocar o
   // botão a cada avanço fazia a piscada recomeçar do zero)
   document.querySelectorAll('[data-baixar-set]').forEach((b) => {
-    const set = db.set(b.dataset.baixarSet);
+    const set = setParaBaixar(b.dataset.baixarSet);
     if (!set) return;
     const novo = document.createRange().createContextualFragment(botaoBaixarSet(set)).firstElementChild;
     if (!novo || novo.className !== b.className) { b.outerHTML = botaoBaixarSet(set); return; }
@@ -10614,6 +10618,7 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
     <div class="spot-acoes">
       <button class="icon-btn" id="lib-nova-mus" aria-label="Criar música" title="Criar música">${icon('edit', 22)}</button>
       <button class="icon-btn" id="lib-importar" aria-label="Importar arquivos" title="Importar arquivos ChordPro, PDF, texto">${icon('upload', 22)}</button>
+      ${selecionando ? '' : botaoBaixarSet(setDasCurtidas())}
       ${itens.length ? `<button class="icon-btn${selecionando ? ' ativo' : ''}" id="lib-sel" aria-pressed="${selecionando}" aria-label="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}" title="${selecionando ? 'Cancelar' : 'Selecionar para excluir'}">${icon(selecionando ? 'x' : 'check', 22)}</button>` : ''}
       <span class="spacer"></span>
       ${itens.some(midiaDe) ? `<button class="icon-btn spot-aleat${db.prefs().aleatorio ? ' ligado' : ''}" id="mus-aleat" aria-pressed="${Boolean(db.prefs().aleatorio)}" aria-label="Aleatório" title="Aleatório">${icon('shuffle', 24)}</button>
