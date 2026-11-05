@@ -90,7 +90,7 @@ test('só compartilha o mesmo vídeo entre Música e Vídeo quando a sincronia �
 test('a busca abre a música depois de localizar o videoclipe e esperar (com limite) áudio + LRCLIB', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const abrir = app.indexOf('async function abrirPrevia(');
-  const buscarVideo = app.indexOf('let v = await busca;', abrir);
+  const buscarVideo = app.indexOf('const v = await busca;', abrir);
   const metadados = app.indexOf('Object.assign(novo, {', buscarVideo);
   const preparar = app.indexOf('prepararMusicaAoAbrir(novo)', metadados);
   const esperar = app.indexOf('await Promise.all([noMaximo(preparo,', preparar);
