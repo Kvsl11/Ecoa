@@ -13488,20 +13488,21 @@ async function animarCapinha(set) {
 // A prévia da playlist (a capinha ao lado do baixar), como a do Spotify: as músicas em tela cheia, uma de cada vez,
 // com o clipe rodando (30 s do refrão, achado pela letra sincronizada; do aparelho, quando a música está baixada), o
 // artista e o cartão da música embaixo, com a barrinha do tempo.
-// Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Começa sem som; o alto-falante do
-// topo liga (e pausa o que estiver tocando no player, que volta ao fechar). Tocar no cartão toca a playlist dali
+// Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Já começa com som (e pausa o que
+// estiver tocando no player, que volta ao fechar); o alto-falante do topo tira o som. Tocar no cartão toca a playlist dali
 function previaDaPlaylist(set, inicio = 0) {
   const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => x.s?.youtube);
   if (!faixas.length) { toast('Nenhuma música desta playlist tem vídeo ainda'); return; }
-  let comSom = false;
+  let comSom = true;
   let pausouPlayer = false;
+  if (player.tocandoAlgo()) { player.alternar(); pausouPlayer = true; }
   let ativa = -1;
   let t0 = 0;
   let raf = 0;
   const dlg = document.createElement('dialog');
   dlg.className = 'pl-previa';
   dlg.innerHTML = `<div class="pv-cab"><button class="icon-btn" data-fechar aria-label="Fechar" title="Fechar">${icon('back', 24)}</button><b>${esc(set.name)}</b>
-      <button class="icon-btn" data-som aria-label="Ligar o som" title="Ligar o som">${icon('mudo', 22)}</button></div>
+      <button class="icon-btn" data-som aria-label="Tirar o som" title="Tirar o som">${icon('som', 22)}</button></div>
     <div class="pv-feed">${faixas.map(({ s }, k) => {
       const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
       return `<section class="pv-slide" data-k="${k}">

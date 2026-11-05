@@ -5092,11 +5092,11 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-foto { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; overflow: hidden; background: rgb(255 255 255 / 0.2); }
 .pv-foto img { width: 100%; height: 100%; object-fit: cover; }
 .pv-nome { color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
-.pv-cartao { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px 10px 8px; border: 0; border-radius: 8px; background: rgb(40 40 40 / 0.72); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: #fff; text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
-.pv-cartao .cover { width: 40px; height: 40px; flex: none; border-radius: 4px; }
+.pv-cartao { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px 12px 8px; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 14px; background: rgb(255 255 255 / 0.12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
+.pv-cartao .cover { width: 52px; height: 52px; flex: none; border-radius: 8px; }
 .pv-cartao .lista-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.pv-cartao .lista-txt b { font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-cartao .lista-txt small { display: flex; align-items: center; gap: 4px; color: rgb(255 255 255 / 0.7); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-cartao .lista-txt b { font-size: 15.5px; text-shadow: 0 1px 4px rgb(0 0 0 / 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-cartao .lista-txt small { display: flex; align-items: center; gap: 4px; color: rgb(255 255 255 / 0.85); text-shadow: 0 1px 4px rgb(0 0 0 / 0.4); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-ok { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 .pv-prog { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.25); }
 .pv-prog b { display: block; width: 0; height: 100%; border-radius: 1px; background: #fff; }
@@ -5112,7 +5112,7 @@ html.tablet .pv-artista { gap: 12px; margin-bottom: 12px; }
 html.tablet .pv-artista .icon-btn { width: 44px; height: 44px; }
 html.tablet .pv-foto { width: 40px; height: 40px; }
 html.tablet .pv-nome { font-size: 18px; }
-html.tablet .pv-cartao { gap: 14px; padding: 10px 16px 14px 10px; border-radius: 12px; }
+html.tablet .pv-cartao { gap: 14px; padding: 10px 16px 14px 10px; border-radius: 18px; }
 html.tablet .pv-cartao .cover { width: 56px; height: 56px; border-radius: 6px; }
 html.tablet .pv-cartao .lista-txt b { font-size: 17px; }
 html.tablet .pv-cartao .lista-txt small { font-size: 14px; }
