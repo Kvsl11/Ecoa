@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 520, data: '2026-11-05', titulo: 'As duplas não são mais separadas',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas músicas de duplas, como "Voa Beija-flor" de Jorge & Mateus, o app separava os nomes e mostrava outros artistas: o "Sobre o artista" vinha com o Jorge Ben e as fotos de outras pessoas. Agora a dupla fica junta, com a foto, a apresentação e a capa dela. Quando "&" liga dois artistas diferentes (como "Anitta & Ludmilla"), o app confere e mostra cada um.' },
+      { tipo: 'correcao', texto: 'As músicas de duplas que já estavam na biblioteca têm a capa automática conferida de novo, e as baixadas guardam de novo o "Sobre o artista" certo, sozinhas, em segundo plano. A capa escolhida por você fica.' },
+    ],
+  },
+  {
     versao: 519, data: '2026-11-05', titulo: 'Voltar para a gaveta do perfil',
     itens: [
       { tipo: 'melhoria', texto: 'O que você abre pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes e o seu perfil) agora volta direto para a gaveta, aberta na tela em que você estava. Antes a seta de Novidades passava por Sobre e por Ajustes até chegar ao início.' },
@@ -62,15 +69,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Em "Sobre o artista", as fotos mais novas vêm primeiro (a do canal do YouTube e a do Deezer), e as que podem ser antigas ficam para o fim. Com o Spotify conectado, a foto do artista é a do Spotify, a oficial de agora.' },
       { tipo: 'melhoria', texto: 'Ao abrir "Sobre o artista", o círculo de carregando fica no meio da tela (antes ficava lá em cima, com a tela vazia).' },
-    ],
-  },
-  {
-    versao: 510, data: '2026-11-05', titulo: 'Os seguidores do Spotify direto do Spotify, e mais hashtags',
-    itens: [
-      { tipo: 'correcao', texto: 'Na prévia da playlist, a boca do cantor saía fora do tempo do som em algumas músicas baixadas: a prévia mostrava o clipe e tocava por cima o áudio oficial, que é outra gravação. Agora o som é sempre o do próprio clipe.' },
-      { tipo: 'melhoria', texto: 'Na prévia da playlist, cada música ganhou de 6 a 10 hashtags, diferentes entre as músicas do mesmo artista: os estilos de verdade do artista (#pop, #funk), os temas da letra (#love song, #late night, #saudade), o clima da música e outras do estilo dela. Arraste para o lado para ver todas.' },
-      { tipo: 'correcao', texto: 'Os seguidores no Spotify da tela do artista e da prévia da playlist estavam meses atrasados (o Bruno Mars aparecia com 70M, e no Spotify já passa de 90M): vinham de um site que guarda uma cópia antiga deles.' },
-      { tipo: 'novo', texto: 'Agora eles vêm direto do Spotify, sempre os de agora: conecte a sua conta do Spotify uma vez em Ajustes → Spotify (o login é o do próprio Spotify). Sem conectar, os seguidores do Spotify não aparecem, e a tela do artista mostra o atalho para conectar.' },
     ],
   },
 ];
