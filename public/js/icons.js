@@ -108,6 +108,7 @@ const P = {
   // violão em traço (como o símbolo do Cifra Club), na cor do app
   violao: '<path d="M13.2 9.4c-1.6-1.3-3.8-1.4-5 0-.8.9-.9 2-1.9 2.6-1 .6-2.4.4-3.4 1.6-1.9 2.2-1.2 5.8 1.2 7.9 2.1 2.4 5.7 3.1 7.9 1.2 1.2-1 1-2.4 1.6-3.4.6-1 1.7-1.1 2.6-1.9 1.4-1.2 1.3-3.4 0-5"/><circle cx="9.2" cy="15.4" r="2.1"/><path d="M11.6 12.9 20.6 3.9M13.4 14.7 22.2 5.9"/>',
   book: '<path d="M2 4h7a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h8z"/>',
+  instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none"/>',
   youtube: '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/>',
   score: '<path d="M3 6h18M3 10h18M3 14h18M3 18h18" opacity=".45"/><path d="M14 16V5l5 1.5"/><ellipse cx="11.5" cy="16.5" rx="2.6" ry="2" fill="currentColor" transform="rotate(-20 11.5 16.5)"/>',
   file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',

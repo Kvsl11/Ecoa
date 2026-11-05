@@ -4,9 +4,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 512, data: '2026-11-05', titulo: 'Os fãs do artista, sempre atualizados',
+    versao: 512, data: '2026-11-05', titulo: 'Os seguidores do artista e o Instagram dele na prévia da playlist',
     itens: [
-      { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os fãs dele no Deezer e os inscritos no canal do YouTube, os dois lidos na hora (12,9M fãs no Deezer · 41,2M inscritos no YouTube). Os seguidores do Spotify saíram: o Spotify deixou de liberar esse número para apps como o Ecoa em 2026, e a cópia que havia estava meses atrasada. A opção de conectar o Spotify também saiu.' },
+      { tipo: 'novo', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os seguidores dele (os do canal do YouTube, lidos na hora: 41,2M seguidores) e um botão para o perfil oficial dele no Instagram. Para quem não tem Instagram, o botão abre o canal oficial no YouTube.' },
+      { tipo: 'correcao', texto: 'Os seguidores do Spotify saíram: o Spotify deixou de liberar esse número para apps como o Ecoa em 2026, e a cópia que havia estava meses atrasada. A opção de conectar o Spotify também saiu. Na tela do artista ficam os inscritos no YouTube e os fãs no Deezer, os dois atualizados.' },
     ],
   },
   {

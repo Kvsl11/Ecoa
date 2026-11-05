@@ -1210,20 +1210,52 @@ export function musicaDaAudioDb(json, artista, titulo) {
   const m = { mood: t.strMood || '', theme: t.strTheme || '', style: t.strStyle || '', genre: t.strGenre || '' };
   return Object.values(m).some(Boolean) ? m : null;
 }
-// os gêneros do artista na MusicBrainz (a base aberta, sem chave), os mais votados primeiro: ['pop', 'funk', 'r&b'...],
-// para as hashtags da prévia da playlist. Só vale o artista com o mesmo nome. [] quando não acha
-export function generosDaMusicBrainz(json, artista) {
+// ---- o artista na MusicBrainz (a base aberta, sem chave): os gêneros dele (para as hashtags da prévia da playlist) e
+// os perfis oficiais (o Instagram e o canal do YouTube, para o botão da prévia). A MusicBrainz pede no máximo um pedido
+// por segundo: os pedidos daqui vão numa fila, um depois do outro
+let filaMb = Promise.resolve();
+function pedirMb(url, fetchImpl) {
+  const vez = filaMb.then(() => buscar(url, { fetchImpl, timeout: 10000 }));
+  filaMb = vez.catch(() => null).then(() => new Promise((ok) => setTimeout(ok, 1100)));
+  return vez;
+}
+// a busca de artistas -> o artista com o mesmo nome (o de mais pontos): { id, generos } (os gêneros mais votados
+// primeiro: ['pop', 'funk', 'r&b'...]); null quando não acha
+export function artistaDaMusicBrainz(json, artista) {
   const quem = nomeDoCanal(artista);
   const a = (json?.artists || []).filter((x) => nomeDoCanal(x.name) === quem).sort((x, y) => (y.score || 0) - (x.score || 0))[0];
-  return (a?.tags || []).filter((t) => (t.count || 0) > 0).sort((x, y) => (y.count || 0) - (x.count || 0)).map((t) => String(t.name || '').toLowerCase()).filter(Boolean).slice(0, 12);
+  if (!a) return null;
+  const generos = (a.tags || []).filter((t) => (t.count || 0) > 0).sort((x, y) => (y.count || 0) - (x.count || 0)).map((t) => String(t.name || '').toLowerCase()).filter(Boolean).slice(0, 12);
+  return { id: a.id || '', generos };
 }
-export async function generosDoArtista(artista, fetchImpl) {
+export const generosDaMusicBrainz = (json, artista) => artistaDaMusicBrainz(json, artista)?.generos || [];
+const buscasMb = new Map();
+const artistaNaMusicBrainz = (artista, fetchImpl) => {
   const a = String(artista || '').trim();
-  if (!a) return [];
+  if (!a) return Promise.resolve(null);
+  const k = nomeDoCanal(a);
+  if (!buscasMb.has(k)) {
+    buscasMb.set(k, pedirMb(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(`artist:"${a.replace(/"/g, '')}"`)}&limit=5&fmt=json`, fetchImpl)
+      .then(async (res) => (res.ok ? artistaDaMusicBrainz(await res.json(), a) : null)).catch(() => null));
+  }
+  return buscasMb.get(k);
+};
+export const generosDoArtista = (artista, fetchImpl) => artistaNaMusicBrainz(artista, fetchImpl).then((a) => a?.generos || []);
+// os links do artista na MusicBrainz -> os perfis oficiais: { instagram: 'https://www.instagram.com/brunomars/',
+// youtube: 'https://www.youtube.com/channel/UC...' } (os que houver)
+export function perfisDaMusicBrainz(json) {
+  const urls = (json?.relations || []).map((r) => String(r?.url?.resource || ''));
+  const instagram = urls.find((u) => /^https?:\/\/(www\.)?instagram\.com\/[\w.]+\/?$/i.test(u) && !/instagram\.com\/(p|explore|reel|stories)\b/i.test(u)) || '';
+  const youtube = urls.find((u) => /^https?:\/\/(www\.)?youtube\.com\/(channel\/[\w-]+|@[\w.-]+|user\/[\w-]+|c\/[\w-]+)\/?$/i.test(u)) || '';
+  return { instagram: instagram.replace(/^http:/, 'https:'), youtube: youtube.replace(/^http:/, 'https:') };
+}
+export async function perfisDoArtista(artista, fetchImpl) {
+  const a = await artistaNaMusicBrainz(artista, fetchImpl);
+  if (!a?.id) return null;
   try {
-    const res = await buscar(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(`artist:"${a.replace(/"/g, '')}"`)}&limit=5&fmt=json`, { fetchImpl, timeout: 10000 });
-    return res.ok ? generosDaMusicBrainz(await res.json(), a) : [];
-  } catch { return []; }
+    const res = await pedirMb(`https://musicbrainz.org/ws/2/artist/${encodeURIComponent(a.id)}?inc=url-rels&fmt=json`, fetchImpl);
+    return res.ok ? perfisDaMusicBrainz(await res.json()) : null;
+  } catch { return null; }
 }
 export async function audioDbDaMusica(artista, titulo, fetchImpl) {
   const a = String(artista || '').trim();
