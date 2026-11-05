@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 544, data: '2026-11-05', titulo: 'O ícone de ouvir em outro aparelho',
+    itens: [
+      { tipo: 'melhoria', texto: 'O ícone de ouvir em outro aparelho ficou mais parecido com o do Spotify: um tracinho embaixo do celular (no lugar do ponto) e um vão separando o celular da caixa de som.' },
+    ],
+  },
+  {
     versao: 543, data: '2026-11-05', titulo: 'A barrinha de baixo como a do Spotify e o fone',
     itens: [
       { tipo: 'melhoria', texto: 'O nome da música que não cabe anda devagar para o lado, numa linha só, e volta ao começo: na barrinha de baixo, no Tocando agora e na barrinha de cima.' },
@@ -74,12 +80,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Mais rápido: duas músicas baixam ao mesmo tempo (antes uma por vez, e a que travava segurava a fila), e a procura do clipe antes do download espera menos.' },
       { tipo: 'melhoria', texto: 'A qualidade de áudio e de vídeo escolhida nos Ajustes vale: o clipe tenta duas vezes nela antes de aceitar uma menor (para a música não ficar sem ele), e o que veio numa qualidade menor é baixado de novo na escolhida, sozinho. "Atualizar os downloads" não apaga mais antes: cada arquivo só é trocado quando o novo chega inteiro, e a música continua tocando sem internet.' },
       { tipo: 'melhoria', texto: 'O download que ficou pela metade tenta se completar com mais insistência (em 2, 5, 15, 30 e 60 minutos) e, nas listas, aparece com a seta apagada até ficar completo (a verde é só com tudo no aparelho).' },
-    ],
-  },
-  {
-    versao: 534, data: '2026-11-05', titulo: 'A prévia da playlist só com clipes',
-    itens: [
-      { tipo: 'correcao', texto: 'A prévia da playlist (os clipes passando, como stories) e a capinha animada ao lado do baixar ainda mostravam as músicas sem clipe de verdade, como Blast Off, com a capa parada. Agora elas mostram só as músicas que têm clipe. Ao abrir a playlist, as músicas que ainda não tinham sido conferidas são conferidas na hora.' },
     ],
   },
 ];
