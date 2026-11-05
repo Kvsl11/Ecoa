@@ -2386,6 +2386,7 @@ function escolherVideo(song, tipo = 'video') {
 const player = (() => {
   let atual = null;
   let foneAgora = ''; // o fone ou a caixa por onde o som está saindo (o nome; '' sem nenhum ou sem saber)
+  let foneConferido = false; // (o primeiro conferir, ao abrir o app, não avisa: o fone já estava conectado)
   let local = null; // tocando do aparelho (o áudio da pessoa ou um download): veja localDe
   // a transição entre as músicas em andamento (o crossfade ou o automix) e o plano da próxima: veja modoTransicao
   let transicao = null;
@@ -2414,7 +2415,7 @@ const player = (() => {
   el.hidden = true;
   el.innerHTML = `
     <div class="pl-fundo quadros" aria-hidden="true" hidden></div>
-    <div class="pl-fixo"><div class="pl-fixo-barra"><button class="pl-fixo-txt" data-pl="topo" aria-label="Voltar ao topo"><b><span class="pl-fixo-rolar"><span class="pl-fixo-nome"></span><span class="pl-fixo-art"></span></span></b><small hidden></small></button>
+    <div class="pl-fixo"><div class="pl-fixo-barra"><button class="pl-fixo-txt" data-pl="topo" aria-label="Voltar ao topo"><b><span class="rolar pl-fixo-rolar"><span class="pl-fixo-nome"></span><span class="pl-fixo-art"></span></span></b><small hidden></small></button>
       <button class="pl-fixo-fone" data-pl="aparelhos" hidden aria-label="Tocando no fone: ouvir em outro aparelho" title="Ouvir em outro aparelho">${icon('fone', 24)}</button>
       <button class="salvar-btn pl-fixo-salva" data-pl="salva" aria-label="Salvar na biblioteca">${icon('plus', 16)}</button>
       <button class="icon-btn pl-play pl-fixo-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 18)}</button>
@@ -2424,7 +2425,7 @@ const player = (() => {
     <button class="pl-troca" data-pl="troca">${icon('music', 18)}<span>Mudar para música</span></button>
     <div class="pl-meio">
       <span class="pl-capinha" aria-hidden="true"></span>
-      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b></b><small></small><span class="pl-onde" hidden></span></span></button>
+      <button class="pl-info" data-pl="abrir" title="Abrir a música"><span class="pl-txt"><b><span class="rolar"><span class="pl-nome"></span><span class="pl-art-junto"></span></span></b><small><span class="rolar"></span></small><span class="pl-onde" hidden></span></span></button>
       <button class="salvar-btn pl-salva" data-pl="salva" hidden></button>
     </div>
     <div class="pl-ctrl">
@@ -2595,16 +2596,25 @@ const player = (() => {
   };
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   const avisar = () => ouvintes.forEach((fn) => fn());
-  // o nome da barrinha de cima que não cabe anda devagar para o lado (como no Spotify), indo e voltando
-  const medirNomeDaBarrinha = () => requestAnimationFrame(() => {
-    const b = $('.pl-fixo-txt b', el);
-    const r = $('.pl-fixo-rolar', el);
-    if (!b || !r) return;
-    const sobra = r.scrollWidth - b.clientWidth;
-    b.classList.toggle('anda', sobra > 4);
-    b.style.setProperty('--sobra', `${-Math.max(0, sobra + 12)}px`);
-    b.style.setProperty('--tempo-anda', `${Math.max(6, (sobra + 12) / 18)}s`);
+  // O nome que não cabe anda devagar para o lado e volta ao começo (como no Spotify): o da barrinha de baixo, o do
+  // Tocando agora e o da barrinha de cima. Cada linha tem o texto dentro de um .rolar; medida a sobra, a linha ganha a
+  // classe anda e a distância e o tempo do passeio (uns 30 px por segundo)
+  const medirNomes = () => requestAnimationFrame(() => {
+    el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b').forEach((linha) => {
+      const r = $('.rolar', linha);
+      if (!r || !linha.clientWidth) return;
+      const sobra = r.scrollWidth - linha.clientWidth;
+      const anda = sobra > 4;
+      linha.classList.toggle('anda', anda);
+      if (anda) {
+        linha.style.setProperty('--sobra', `${-(sobra + 16)}px`);
+        linha.style.setProperty('--tempo-anda', `${Math.max(7, (sobra + 16) / 30 + 5)}s`);
+      }
+    });
   });
+  const medirNomeDaBarrinha = medirNomes;
+  // (mudou o tamanho: a barrinha virou o Tocando agora, a tela girou)
+  new ResizeObserver(() => medirNomes()).observe(el);
   // a altura do player (muda ao ampliar o vídeo) vai para o CSS: as barras flutuantes da página ficam acima dele
   // rolando o Tocando agora na tela toda para baixo dos controles, a barrinha de cima (o nome e o play) aparece, como no
   // Spotify
@@ -2638,16 +2648,18 @@ const player = (() => {
     el.style.setProperty('--cor-musica', corDoFundo);
     fundoCasa.style.setProperty('--cor-musica', corDoFundo);
     el.style.setProperty('--tint-cifra', corDaCifra(corDoFundo)); // os acordes na cor do fundo do player, mais clara
-    porTexto($('.pl-txt b', el), atual.titulo || 'Vídeo');
+    porTexto($('.pl-nome', el), atual.titulo || 'Vídeo');
+    // (na barrinha de baixo com um fone, o artista vai na linha do nome, e o fone embaixo, como no Spotify)
+    porTexto($('.pl-art-junto', el), atual.artista ? ` • ${atual.artista}` : '');
     // a barrinha de cima (rolando): o nome e o artista numa linha só, que anda devagar quando não cabe, e embaixo onde o
     // som está saindo (o fone, em verde) ou, sem fone, o artista
     porTexto($('.pl-fixo-nome', el), atual.titulo || 'Vídeo');
     porTexto($('.pl-fixo-art', el), atual.artista ? ` • ${atual.artista}` : '');
-    if (el.classList.contains('rolou')) medirNomeDaBarrinha();
+    medirNomes();
     // só o artista (e a parte da missa): o tempo fica na barra de tempo (no celular ele ia junto do artista e cortava o
     // nome, "3:17 / 3:…"; a barrinha de progresso embaixo já mostra quanto falta)
     // (com o "E" de explícita antes, como no Spotify)
-    porHtml($('.pl-txt small', el), seloExplicita(atual.titulo, atual.artista) + esc([atual.parte, atual.artista].filter(Boolean).join(' · ')));
+    porHtml($('.pl-txt small', el), `<span class="rolar">${seloExplicita(atual.titulo, atual.artista) + esc([atual.parte, atual.artista].filter(Boolean).join(' · '))}</span>`);
     // música sem vídeo: o play é o de sempre; tocando nele (ou na pílula "Escolher um vídeo"), escolhe um vídeo do YouTube
     el.querySelectorAll('.pl-play').forEach((b) => { porHtml(b, icon(estado === 'tocando' && !atual.semVideo ? 'pause' : 'play', 20)); b.title = atual.semVideo ? 'Escolher um vídeo para tocar' : ''; });
     // a bolinha de salva (na barrinha recolhida do tablet): ✓ se a música está na biblioteca, + se não
@@ -5375,6 +5387,10 @@ const semLinhasDeAcordes = (sinc) => {
   const ehFone = (l) => /bluetooth|headset|headphone|fone|buds|airpods|beats|jbl|bose|sony|wh-|wf-|soundcore|edifier|qcy|usb|wired|com fio|earbuds/i.test(l)
     && !/earpiece|speakerphone|alto-falante|^speaker$|default|padrão|communications|comunicações|microphone array|interno|internal|built-in/i.test(l);
   const nomeDaSaida = (l) => l.replace(/\s*\((?:[0-9a-f]{4}:[0-9a-f]{4}|bluetooth)\)\s*$/i, '').replace(/^(default|padrão|communications|comunicações)\s*-\s*/i, '').replace(/\s*(hands-?free|stereo|a2dp)\s*$/i, '').trim();
+  // O Android só diz "Bluetooth headset" (ou "Fone de ouvido Bluetooth") para qualquer fone: a pessoa pode dar o nome dele
+  // na folha Conectar ("JBL Tour Pro 3"), e ele aparece no lugar do nome genérico
+  const NOME_GENERICO = /^(bluetooth( headset| headphones| audio)?|headset|headphones|fones? de ouvido( bluetooth)?|fone bluetooth|wired headset|usb headset)$/i;
+  const nomeDado = (l) => (db.prefs().nomesFones || {})[l] || '';
   const lerSaidasDeSom = async () => {
     let aparelhos = [];
     try { aparelhos = await navigator.mediaDevices.enumerateDevices(); } catch { /* o navegador não lista */ }
@@ -5382,27 +5398,39 @@ const semLinhasDeAcordes = (sinc) => {
     const fones = [...new Set(som.filter((d) => d.label && ehFone(d.label)).map((d) => nomeDaSaida(d.label)))];
     const saidas = [...new Set(som.filter((d) => d.kind === 'audiooutput' && d.label && !['default', 'communications'].includes(d.deviceId)).map((d) => nomeDaSaida(d.label)))]
       .filter((l) => !fones.includes(l));
-    return { fone: fones[0] || '', fones, saidas, comNomes: som.some((d) => d.label) };
+    const dar = (l) => nomeDado(l) || l;
+    return { fone: fones[0] ? dar(fones[0]) : '', foneOriginal: fones[0] || '', generico: Boolean(fones[0] && NOME_GENERICO.test(fones[0]) && !nomeDado(fones[0])),
+      fones: fones.map(dar), saidas, comNomes: som.some((d) => d.label) };
   };
   // Onde o som está saindo, embaixo dos controles e no player pequeno (como no Spotify): com um fone ou uma caixa
   // conectada, o ícone do fone e o nome dele, em verde; sem, só o ícone de aparelhos
   const mostrarAparelho = async () => {
     const { fone } = await lerSaidasDeSom();
+    // conectou ou desconectou o fone com o app aberto: avisa embaixo, como o Spotify ("Tocando em JBL Tour Pro 3")
+    if (foneConferido && fone !== foneAgora) {
+      if (fone) toast(`🎧 Tocando em ${fone}`);
+      else if (foneAgora) toast(`O fone ${foneAgora} desconectou: o som voltou para este aparelho`);
+    }
+    foneConferido = true;
     foneAgora = fone;
     const b = $('.pl-acoes .pl-aparelho', el);
     if (b) {
       b.classList.toggle('com-fone', Boolean(fone));
-      b.innerHTML = `${icon(fone ? 'fone' : 'aparelhos', fone ? 18 : 20)}<span class="pl-aparelho-nome">${esc(fone)}</span>`;
+      b.innerHTML = `${icon(fone ? 'fone' : 'aparelhos', 20)}<span class="pl-aparelho-nome">${esc(fone)}</span>`;
       b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
     }
     const onde = $('.pl-onde', el);
-    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon('bluetooth', 11)}<span>${esc(fone)}</span>` : ''; }
+    // (na barrinha de baixo, o botão de aparelhos vira o fone, na cor do app; sem fone, ele some no celular)
+    const lado = $('.pl-lado [data-pl="aparelhos"]', el);
+    if (lado) lado.innerHTML = icon(fone ? 'fone' : 'aparelhos', 18);
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
     if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
     const ff = $('.pl-fixo-fone', el);
     if (ff) { ff.hidden = !fone; if (fone) ff.title = `Tocando em ${fone}: ouvir em outro aparelho`; }
     el.classList.toggle('com-fone', Boolean(fone));
+    medirNomes();
   };
   navigator.mediaDevices?.addEventListener?.('devicechange', () => void mostrarAparelho());
   setTimeout(() => void mostrarAparelho(), 1500);
@@ -5417,7 +5445,7 @@ const semLinhasDeAcordes = (sinc) => {
     // app pode usar o microfone; sem isso a lista vem sem nomes e o app não sabe que há um fone (mostrava "Este celular"
     // mesmo com o fone). Com o fone conectado, ele aparece como o aparelho que está tocando, e este aparelho embaixo
     const desenharCorpo = async () => {
-      const { fone, fones, saidas, comNomes } = await lerSaidasDeSom();
+      const { fone, generico, fones, saidas, comNomes } = await lerSaidasDeSom();
       void mostrarAparelho();
       const musica = esc([atual?.titulo, atual?.artista].filter(Boolean).join(' – '));
       // (a qualidade: a do arquivo baixado que toca, ou a da internet)
@@ -5428,6 +5456,7 @@ const semLinhasDeAcordes = (sinc) => {
           <b>${esc(fone || tipo[1])}${qual ? `<i class="ap-qual">${esc(qual)}</i>` : ''}</b>
           ${fone ? `<small class="ap-via">${icon('bluetooth', 13)} ${esc(tipo[1])}</small>` : ''}
           ${musica ? `<small class="ap-musica">${tocando ? '<span class="ap-barras" aria-hidden="true"><i></i><i></i><i></i></span>' : icon('music', 13)} ${musica}</small>` : ''}</span>${icon(fone ? 'fone' : tipo[0], 38)}</div>
+        ${fone ? `<button class="ap-nomear" data-ap="nomear">${icon('edit', 16)}<span>${generico ? 'O celular só diz "fone Bluetooth": toque para dar o nome dele' : 'Mudar o nome deste fone'}</span></button>` : ''}
         ${fone ? `<div class="ap-saida ap-este">${icon(tipo[0], 22)}<span>${esc(tipo[1])}</span></div>` : ''}
         ${fones.length > 1 || saidas.length ? `<h4>Outras saídas de som</h4>${[...fones.slice(1), ...saidas].map((l) => `<div class="ap-saida">${icon(ehFone(l) ? 'fone' : 'som', 22)}<span>${esc(l)}</span></div>`).join('')}` : ''}
         ${!comNomes && navigator.mediaDevices?.getUserMedia ? `<button class="ap-ver" data-ap="ver">${icon('fone', 22)}<span class="grow"><b>Mostrar fones e caixas conectados</b><small>O navegador pede para usar o microfone só para dizer os nomes dos aparelhos; nada é gravado</small></span></button>`
@@ -5443,6 +5472,16 @@ const semLinhasDeAcordes = (sinc) => {
     dlg.addEventListener('click', (e) => {
       if (e.target === dlg) { dlg.close(); return; }
       const ap = e.target.closest('[data-ap]')?.dataset.ap;
+      if (ap === 'nomear') {
+        void lerSaidasDeSom().then(async ({ foneOriginal, fone }) => {
+          if (!foneOriginal) return;
+          const nome = await ask({ title: 'O nome deste fone', text: 'Ele aparece embaixo dos controles e na barrinha (por exemplo, JBL Tour Pro 3).', value: fone === foneOriginal && NOME_GENERICO.test(fone) ? '' : fone, ok: 'Salvar' });
+          if (nome === null) return;
+          db.setPref('nomesFones', { ...(db.prefs().nomesFones || {}), [foneOriginal]: nome });
+          await desenharCorpo();
+        });
+        return;
+      }
       if (ap === 'ver') {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then((st) => { st.getTracks().forEach((t) => t.stop()); return desenharCorpo(); })
@@ -5528,7 +5567,8 @@ const semLinhasDeAcordes = (sinc) => {
     let sec = null;
     const secao = (titulo) => { sec = { titulo, itens: [] }; secoes.push(sec); };
     // estado: 'ok' (certo), 'aviso' (falta algo, mas funciona), 'erro' (está errado); '' = só informação
-    const item = (rotulo, valor, estado = '', problema = '') => sec.itens.push({ rotulo, valor: String(valor ?? '-'), estado, problema });
+    // (completo: o texto inteiro, que vai só no "Copiar"; na tela, o valor curto)
+    const item = (rotulo, valor, estado = '', problema = '', completo = '') => sec.itens.push({ rotulo, valor: String(valor ?? '-'), estado, problema, completo });
     const midia = song ? midiaDe(song) : atual?.youtube;
     secao('Tocando');
     item('Vídeo agora', `${atual?.youtube || '-'} · clipe ${atual?.video || '-'} · áudio oficial ${atual?.audio || '-'}`);
@@ -5547,7 +5587,12 @@ const semLinhasDeAcordes = (sinc) => {
       item('Clipe e áudio', `clipe ${vs.video || '-'} · áudio ${vs.audio || '-'} (${seg(vs.duracao)})`, vs.audio ? 'ok' : 'aviso');
       item('Ligação', `casadas ${sim(vs.casadas)} · pela letra ${sim(vs.porLetra)} · diferentes ${sim(vs.diferentes)} · ${vs.pares?.length || 0} pares`);
       // (os pontos que ligam o áudio ao clipe, segundo no áudio → segundo no clipe: para conferir a troca entre os dois)
-      if (vs.pares?.length > 1) item('Pares (áudio→clipe)', vs.pares.map(([x, y]) => `${Math.round(x)}→${Math.round(y)}`).join(' '));
+      if (vs.pares?.length > 1) {
+        const pares = vs.pares.map(([x, y]) => `${Math.round(x)}→${Math.round(y)}`);
+        // (na tela, só o começo e o fim: a lista inteira, de centenas de pares, enchia a tela; o "Copiar" leva todos)
+        const curto = pares.length > 8 ? `${pares.slice(0, 4).join(' ')} … ${pares.slice(-3).join(' ')} (${pares.length} pares)` : pares.join(' ');
+        item('Pares (áudio→clipe)', curto, '', '', pares.join(' '));
+      }
     } else item('Áudio oficial', 'nenhum guardado', song?.youtube && !song.audioProprio ? 'aviso' : '', song?.youtube && !song.audioProprio ? 'o áudio oficial (o modo música) não foi achado' : '');
     secao('Download');
     const arqs = Object.entries(song?.baixado?.arquivos || {});
@@ -5621,7 +5666,7 @@ const semLinhasDeAcordes = (sinc) => {
     const cab = [`App ${APP_VERSAO} · ${new Date().toLocaleString('pt-BR')} · ${navigator.onLine ? 'com internet' : 'sem internet'}`,
       `Música: ${atual?.titulo || '?'} — ${atual?.artista || '?'} (${atual?.songId || 'sem id'}${song ? '' : ', não encontrada'})`];
     const marca = { ok: '✓', aviso: '!', erro: '✗' };
-    const texto = [...cab, ...secoes.flatMap((s) => ['', `[${s.titulo}]`, ...s.itens.map((i) => `${marca[i.estado] ? marca[i.estado] + ' ' : ''}${i.rotulo}: ${i.valor}`)])].join('\n');
+    const texto = [...cab, ...secoes.flatMap((s) => ['', `[${s.titulo}]`, ...s.itens.map((i) => `${marca[i.estado] ? marca[i.estado] + ' ' : ''}${i.rotulo}: ${i.completo || i.valor}`)])].join('\n');
     return { secoes, problemas, avisos, texto, song };
   };
   const htmlDiagnostico = (d) => {
@@ -5641,7 +5686,7 @@ const semLinhasDeAcordes = (sinc) => {
     await openDialog(`${cabeca}
       <div class="diag-corpo">${esqueleto('texto', 'Conferindo…', 6)}</div>
       <div class="diag-feito" hidden></div>
-      <div class="acts"><button class="btn primary" data-consertar disabled>${icon('refresh', 16)} Consertar agora</button><button class="btn ghost" data-copiar disabled>${icon('copy', 16)} Copiar</button><span class="spacer"></span><button class="btn ghost" data-ok>Fechar</button></div>`,
+      <div class="acts diag-acts"><button class="btn primary" data-consertar disabled>${icon('refresh', 16)} Consertar agora</button><button class="btn ghost" data-copiar disabled>${icon('copy', 16)} Copiar</button><button class="btn ghost" data-ok>Fechar</button></div>`,
     (dlg, done) => {
       const corpo = $('.diag-corpo', dlg);
       const bConsertar = $('[data-consertar]', dlg);

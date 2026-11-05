@@ -19,7 +19,9 @@ const P = {
   shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.3M8.3 13.3l7.4 4.3"/>',
-  aparelhos: '<rect x="3" y="4" width="9" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/><circle cx="17.5" cy="14" r="2"/><circle cx="17.5" cy="8" r=".8" fill="currentColor"/>',
+  // ouvir em outro aparelho (como o do Spotify): o celular atrás, só a borda da esquerda e o pontinho embaixo, e a caixa
+  // de som na frente, com o alto-falante grande e o pequeno
+  aparelhos: '<path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15H10"/><circle cx="7" cy="19" r="1.1" fill="currentColor" stroke="none"/><rect x="12" y="3" width="9" height="18" rx="2"/><circle cx="16.5" cy="14.5" r="2.6"/><circle cx="16.5" cy="7.8" r="1.1"/>',
   maisCirculo: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
   menosCirculo: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
   pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
@@ -37,7 +39,8 @@ const P = {
   tablet: '<rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M11 18.5h2"/>',
   tv: '<rect x="2.5" y="5" width="19" height="12" rx="1.5"/><path d="M8 21h8M2.5 14.5a6 6 0 0 1 4 3M2.5 11.5a9 9 0 0 1 7 6"/>',
   bluetooth: '<path d="M7 7l10 10-5 4V3l5 4L7 17"/>',
-  fone: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/>',
+  // o fone (como o do Spotify): o arco por cima e as duas conchas arredondadas
+  fone: '<path d="M3.5 17v-4.5a8.5 8.5 0 0 1 17 0V17"/><path d="M3.5 15a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2zM20.5 15a2 2 0 0 0-2-2h-1a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2z"/>',
   // o painel ao lado (o "Tocando agora" do Spotify: o quadro com a coluna e a setinha)
   sidebar: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/>',
   palette: '<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-.9-.7-1.4-.7-2.3 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/>',
