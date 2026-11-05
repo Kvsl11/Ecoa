@@ -293,7 +293,8 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (!doMesmoArtista(v, artista) || !mesmoTitulo(v, titulo, artista)) continue;
     const doArtista = a && (canal === a || canal.startsWith(`${a} `) || canal === `${a.replace(/ /g, '')}vevo` || canal.replace(/ /g, '') === `${a.replace(/ /g, '')}vevo`);
     const temNome = CLIPE.test(nome);
-    if (!doArtista && !temNome) continue;
+    // (só de canal oficial: o do artista, o VEVO ou a gravadora com "official video" no nome; não o de um fã)
+    if (!doArtista && !(temNome && canalOficial(v.canal, artista))) continue;
     let n = 0;
     if (doArtista) n += 10;
     if (temNome) n += 4;
@@ -302,6 +303,16 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (n > nota) { nota = n; melhor = v; }
   }
   return melhor;
+}
+
+// O canal é oficial: o do próprio artista (ou de um dos artistas juntos), o VEVO dele ou o de uma gravadora — não o de
+// um fã, de letras ou de covers, mesmo que o vídeo se diga "Music Video"
+const GRAVADORA = /\b(vevo|records|recordings|som livre|sony music|universal music|warner music|warner records|atlantic|emi|island|columbia|interscope|republic|rca|def jam|capitol|epic|kondzilla|gr6|onerpm|deckdisc|mk music|graca music|cancao nova|paulinas|paulus|central gospel|todah|musile|sentimental|virgin)\b/;
+export function canalOficial(canal, artista = '') {
+  const c = normal(canal).replace(/\s+topic$/, '');
+  if (!c) return false;
+  if (GRAVADORA.test(c) || /vevo$/.test(c.replace(/ /g, ''))) return true;
+  return Boolean(artista) && doMesmoArtista({ canal: c }, artista);
 }
 
 // O vídeo é só a capa parada (o "Art Track", a capa do disco o vídeo inteiro)? O YouTube publica três quadros de cada

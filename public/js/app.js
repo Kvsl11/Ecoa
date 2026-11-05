@@ -23,7 +23,7 @@ import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaCo
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
-import { doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
+import { canalOficial, doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
@@ -1010,12 +1010,13 @@ function videoParado(id) {
   }
   return conferindoParado.get(id);
 }
-// o vídeo é um clipe de verdade? (v: { id, titulo, canal }; sem o nome, ele é perguntado ao YouTube)
-async function ehClipe(v) {
+// o vídeo é um clipe de verdade? De canal oficial (o do artista, o VEVO, a gravadora), não só o áudio e não a capa
+// parada (v: { id, titulo, canal }; sem o nome e o canal, eles são perguntados ao YouTube)
+async function ehClipe(v, artista = '') {
   if (!v?.id) return false;
-  let info = v.titulo ? v : null;
+  let info = v.titulo && v.canal ? v : null;
   if (!info) info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${v.id}`).catch(() => null);
-  if (info && pareceSoAudio(info)) return false;
+  if (info && (pareceSoAudio(info) || (artista && !canalOficial(info.canal, artista)))) return false;
   return (await videoParado(v.id)) !== true;
 }
 // o clipe oficial da música no YouTube (do canal do artista, ou com "official video" no nome), que não seja só a capa
@@ -1042,7 +1043,7 @@ async function conferirClipeSalva(id) {
   if (!navigator.onLine) return false;
   const vs = versoesDe(s);
   const video = vs?.video || s.youtube;
-  if (await ehClipe({ id: video })) { if (db.song(id)?.semClipe !== false) db.updateSong(id, { semClipe: false }); return true; }
+  if (await ehClipe({ id: video }, s.artist)) { if (db.song(id)?.semClipe !== false) db.updateSong(id, { semClipe: false }); return true; }
   const clipe = await procurarClipe(s.title, s.artist, video).catch(() => null);
   s = db.song(id);
   if (!s || (versoesDe(s)?.video || s.youtube) !== video) return true;
@@ -1065,7 +1066,7 @@ async function garantirClipe(id) {
   if (String(s.baixado?.arquivos?.[s.youtube]?.tipo || '').startsWith('video/')) return null;
   const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${s.youtube}`).catch(() => null);
   // (é clipe: nada a fazer; o vídeo só com a capa parada, mesmo sem dizer no nome, não é)
-  if (!info || await ehClipe({ id: s.youtube, ...info })) return null;
+  if (!info || await ehClipe({ id: s.youtube, ...info }, s.artist)) return null;
   const vs = versoesDe(s);
   // o áudio oficial: o que a música já tinha achado ou, sem ele, o próprio vídeo que é só o áudio
   const audio = vs?.audio || s.youtube;
@@ -4404,7 +4405,7 @@ const semLinhasDeAcordes = (sinc) => {
       }
       if (!(atual.songId === song.id || desta(vs.video))) return;
       const audioAntes = atual.audio;
-      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: false };
+      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: Boolean(song?.semClipe) }; // (a música sem clipe de verdade continua só música)
       // (outra versão só música no lugar da que tocava: a mesma gravação, no mesmo ponto)
       if (audioAntes && audioAntes !== vs.audio && atual.youtube === audioAntes) trocarVersao(vs.audio, api.tempoAgora);
       else if (comCapa && atual.youtube === vs.video && atual.youtube !== vs.audio) trocarVersao(vs.audio, tempoNoAudio(vs.pares, api.tempoAgora));
@@ -7411,13 +7412,7 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
     const busca = (videoJa
       ? videoJa.then((vs) => vs?.[0] || videoDaMusica(m.title, m.artist, source))
       : videoDaMusica(m.title, m.artist, source)).catch(() => null);
-    let v = await busca;
-    // o vídeo que é só a capa parada (ou só o áudio) não é clipe: no lugar dele, o clipe oficial; sem clipe oficial, a
-    // música abre só como música (ele continua sendo o som dela). Com limite de tempo: passando, abre como está
-    if (v?.id && !(await noMaximo(ehClipe(v), 3000, true))) {
-      const clipe = await noMaximo(procurarClipe(m.title, m.artist || m.subtitle || '', v.id), 5000, null);
-      if (clipe) v = { ...clipe, url: `https://www.youtube.com/watch?v=${clipe.id}` }; else novo.semClipe = true;
-    } else if (v?.id) novo.semClipe = false;
+    const v = await busca;
     if (v?.url) novo.content = definirMeta(novo.content, 'youtube', v.url);
     else novo.semVideo = true;
     novo.videoProcurado = true;
@@ -7432,6 +7427,20 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
     youtube: youtubeId(m.youtube) || '',
     cover: m.cover || '',
   });
+
+  // o vídeo que é só a capa parada (ou só o áudio, ou o de um canal que não é oficial) não é clipe: no lugar dele, o clipe
+  // oficial; sem clipe oficial, a música abre só como música (o vídeo continua sendo o som dela). Venha o vídeo da
+  // busca ou da página da cifra. Com limite de tempo: passando, abre como está
+  if (novo.youtube && !String(source || '').startsWith('cnbb:')) {
+    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 3000, true))) {
+      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 5000, null);
+      if (clipe) {
+        novo.content = definirMeta(novo.content, 'youtube', `https://www.youtube.com/watch?v=${clipe.id}`);
+        novo.youtube = clipe.id;
+        novo.semClipe = false;
+      } else novo.semClipe = true;
+    } else novo.semClipe = false;
+  }
 
   const jaNaPrevia = location.hash === '#/musica/previa';
   preview = novo;
@@ -8670,7 +8679,7 @@ const indicadoresWeb = (r) => {
   // (já na biblioteca e sem clipe de verdade, o vídeo achado é outra gravação: não conta)
   const salva = r.cifra && db.songBySource(r.cifra);
   // (o vídeo que é só o áudio ou a capa parada não conta: não é clipe)
-  const video = Boolean(r.video) && !pareceSoAudio(r.video) && paradosGuardados()[r.video.id] !== true && !salva?.semClipe;
+  const video = Boolean(r.video) && !pareceSoAudio(r.video) && (!r.video.canal || canalOficial(r.video.canal, r.artista)) && paradosGuardados()[r.video.id] !== true && !salva?.semClipe;
   const sinais = (r.cifra ? tem('chord', 'Tem cifra') : '') + (r.cifra || r.letra ? tem('text', 'Tem letra') : '') + (video ? tem('youtube', 'Tem vídeo') : '');
   return sinais ? `<span class="ind">${sinais}</span>` : '';
 };
@@ -8956,6 +8965,8 @@ function viewSearch() {
           aplicar(meu, 'mu-res', () => {
             achados.musica = lista;
             $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+            // (o vídeo que é só a capa parada, sem dizer no nome: o ícone de vídeo sai assim que as imagens dele são vistas)
+            lista.forEach((r, i) => { if (r.video?.id && $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)) void videoParado(r.video.id).then((p) => { if (p) $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)?.remove(); }); });
             // as primeiras já vão sendo preparadas (sem a economia de dados ligada): abrem na hora
             if (!db.prefs().economiaDados) lista.slice(0, 3).forEach((r) => prepararDaBusca(r));
           });
