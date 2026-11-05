@@ -3351,12 +3351,12 @@ html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-barra { position: absolu
 #player .pl-fixo-txt b.anda .pl-fixo-rolar { animation: pl-anda var(--tempo-anda, 8s) ease-in-out 1.2s infinite alternate; }
 @keyframes pl-anda { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(var(--sobra, 0)); } }
 #player .pl-fixo-txt small { display: flex; align-items: center; gap: 4px; font-size: 13px; color: rgb(255 255 255 / 0.75); white-space: nowrap; overflow: hidden; }
-#player .pl-fixo-txt small.com-fone { color: #1ed760; font-weight: 700; }
+#player .pl-fixo-txt small.com-fone { color: var(--accent); font-weight: 700; }
 #player .pl-fixo-txt small svg { flex: none; }
 #player .pl-fixo-txt small span { overflow: hidden; text-overflow: ellipsis; }
 #player .pl-fixo-play, html.tablet body.painel-cheio #player .pl-fixo-play { width: 38px; height: 38px; flex: none; }
 #player .pl-fixo-salva { display: inline-grid; flex: none; width: 30px; height: 30px; border-color: rgb(255 255 255 / 0.85); color: #fff; }
-#player .pl-fixo-salva.salva { border-color: #1ed760; background: #1ed760; color: #000; }
+#player .pl-fixo-salva.salva { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 /* a linha do andamento, colada embaixo da barrinha, de ponta a ponta */
 #player .pl-fixo-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgb(255 255 255 / 0.18); }
 #player .pl-fixo-prog i { display: block; height: 100%; width: 0; background: #fff; }
@@ -5564,7 +5564,7 @@ dialog.tons-na-cor .btn.ghost:hover { background: rgb(255 255 255 / 0.18); }
 .diag-resumo > svg { flex: none; margin-top: 1px; }
 .diag-resumo ul, .diag-feito ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
 .diag-resumo li, .diag-feito li { margin: 2px 0; }
-.diag-resumo.ok { color: #1db954; background: color-mix(in srgb, #1db954 12%, var(--surface-2)); }
+.diag-resumo.ok { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .diag-resumo.ok b { color: var(--text); }
 .diag-resumo.aviso { background: color-mix(in srgb, #f5a524 14%, var(--surface-2)); }
 .diag-resumo.aviso > svg { color: #f5a524; }
@@ -5580,14 +5580,14 @@ dialog.folha .diag-secoes { max-height: none; }
 .diag-item small { display: block; color: var(--muted); font-size: 12px; }
 .diag-item b { display: block; font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; user-select: text; }
 .diag-sinal { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: color-mix(in srgb, var(--text) 18%, transparent); }
-.diag-item.ok .diag-sinal { background: #1db954; }
+.diag-item.ok .diag-sinal { background: var(--accent); }
 .diag-item.aviso .diag-sinal { background: #f5a524; }
 .diag-item.erro .diag-sinal { background: var(--danger); }
 .diag-item.erro b { color: var(--danger); }
-.diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, #1db954 12%, var(--surface-2)); }
+.diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .diag-feito[hidden] { display: none; }
 .diag-feito > b { display: flex; gap: 8px; align-items: center; }
-.diag-feito > b svg { color: #1db954; }
+.diag-feito > b svg { color: var(--accent-ink); }
 [data-consertar] { display: inline-flex; align-items: center; gap: 8px; }
 [data-consertar] .spin { border-top-color: currentColor; }
 
@@ -5601,7 +5601,7 @@ html.pp #player .pl-artista-nome { overflow: hidden; white-space: nowrap; text-o
 /* o cabeçalho dos cartões com o "Mostrar tudo" à direita */
 html.pp #player .pl-cartao-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 html.pp #player .pl-cartao-cab h4 { margin: 0; }
-.pl-mostrar { all: unset; cursor: pointer; font-size: 14px; font-weight: 800; color: #1ed760; padding: 6px 0; }
+.pl-mostrar { all: unset; cursor: pointer; font-size: 14px; font-weight: 800; color: var(--accent); padding: 6px 0; }
 .pl-mostrar:hover { text-decoration: underline; }
 /* as linhas dos créditos: o nome e, embaixo, os papéis */
 .pl-cr-linha { padding: 9px 0; }
@@ -5621,7 +5621,7 @@ html.pp #player .pl-videos[hidden], html.pp #player .pl-explorar[hidden] { displ
 .pl-video-rel small { font-size: 12.5px; color: rgb(255 255 255 / 0.7); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .pl-video-rel:active .pl-video-capa { transform: scale(0.98); }
 /* as pessoas: o cartão em verde escuro, com as fotos grandes */
-html.pp #player .pl-dna .pl-pessoas { background: color-mix(in srgb, var(--cor-musica, #1db954) 45%, #0b1f14); }
+html.pp #player .pl-dna .pl-pessoas { background: color-mix(in srgb, var(--cor-musica, var(--accent)) 45%, #0b0b0b); }
 /* "Explorar o artista": três quadros em pé, com a foto e o nome por cima */
 .pl-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
 .pl-tile { all: unset; box-sizing: border-box; position: relative; display: block; aspect-ratio: 3 / 4; border-radius: 8px; overflow: hidden; cursor: pointer; background: #2a2a2a; }
@@ -5660,7 +5660,7 @@ button.ct-linha { cursor: pointer; }
 .cr-constelacao:not(.poucas) .cr-no:nth-child(even) { transform: translateX(50%); }
 .cr-no .ref-avatar.cr-avatar { width: 84px; margin-bottom: 6px; font-size: 30px; transition: transform 0.2s, box-shadow 0.2s; }
 .cr-no.principal .ref-avatar.cr-avatar { width: 104px; }
-.cr-no .ref-avatar.sem-foto { background: color-mix(in srgb, var(--cor-creditos, #1db954) 45%, #10301f); color: #fff; }
+.cr-no .ref-avatar.sem-foto { background: color-mix(in srgb, var(--cor-creditos, var(--accent)) 45%, #101010); color: #fff; }
 .cr-no .ref-avatar.sem-foto .sem-foto-artista { display: none; }
 .cr-no.aberto .ref-avatar, .cr-no:focus-visible .ref-avatar { box-shadow: 0 0 0 3px #fff; }
 .cr-no:active .ref-avatar { transform: scale(0.96); }
@@ -5692,22 +5692,22 @@ button.ct-linha { cursor: pointer; }
 #player .pl-aparelho svg { flex: none; width: 22px; height: 22px; }
 #player .pl-aparelho-nome { font-size: 13px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 #player .pl-aparelho-nome:empty { display: none; }
-#player .pl-aparelho.com-fone { color: #1ed760; padding-left: 8px; }
+#player .pl-aparelho.com-fone { color: var(--accent); padding-left: 8px; }
 #player .pl-aparelho.com-fone svg { width: 18px; height: 18px; }
-#player .pl-onde { display: flex; align-items: center; gap: 4px; margin-top: 1px; font-size: 11.5px; font-weight: 700; color: #1ed760; white-space: nowrap; overflow: hidden; }
+#player .pl-onde { display: flex; align-items: center; gap: 4px; margin-top: 1px; font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; }
 #player .pl-onde[hidden], html.pp #player .pl-onde { display: none; }
 #player .pl-onde span { overflow: hidden; text-overflow: ellipsis; }
 #player .pl-onde svg { flex: none; }
 /* a folha "Conectar": o aparelho que toca (o fone, com a qualidade, "via" este aparelho e a música tocando, em verde) */
-.ap-atual.com-fone svg:last-child { color: #1ed760; }
+.ap-atual.com-fone svg:last-child { color: var(--accent-ink); }
 .ap-atual b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ap-qual { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--surface-3); color: var(--muted); }
 .ap-atual small.ap-via { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; }
 .ap-atual small.ap-via::before { content: "└"; opacity: 0.6; }
-.ap-atual small.ap-musica { display: flex; align-items: center; gap: 6px; color: #1ed760; font-size: 13.5px; font-weight: 600; }
-.ap-atual small.ap-musica svg { flex: none; color: #1ed760; }
+.ap-atual small.ap-musica { display: flex; align-items: center; gap: 6px; color: var(--accent-ink); font-size: 13.5px; font-weight: 600; }
+.ap-atual small.ap-musica svg { flex: none; color: var(--accent-ink); }
 .ap-barras { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; flex: none; }
-.ap-barras i { width: 2.5px; background: #1ed760; border-radius: 1px; animation: ap-barra 0.9s ease-in-out infinite; }
+.ap-barras i { width: 2.5px; background: var(--accent-ink); border-radius: 1px; animation: ap-barra 0.9s ease-in-out infinite; }
 .ap-barras i:nth-child(1) { height: 50%; } .ap-barras i:nth-child(2) { height: 100%; animation-delay: 0.2s; } .ap-barras i:nth-child(3) { height: 70%; animation-delay: 0.4s; }
 @keyframes ap-barra { 50% { transform: scaleY(0.4); } }
 .ap-barras i { transform-origin: bottom; }
@@ -5719,3 +5719,10 @@ button.ct-linha { cursor: pointer; }
 /* (o play da barrinha de cima no tamanho dela, e não no dos controles grandes do celular) */
 html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; }
 #player .pl-fixo-txt small[hidden] { display: none; }
+/* a barrinha de cima: o play só o triângulo (sem o círculo branco dos controles grandes) e, com um fone conectado, o
+   ícone dele na cor do app, antes do ✓ (sem fone, não aparece) */
+html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, html.pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { width: 40px; height: 40px; background: none; color: #fff; border-radius: 50%; box-shadow: none; }
+#player .pl-fixo-play svg { width: 26px; height: 26px; }
+#player .pl-fixo-fone { all: unset; box-sizing: border-box; display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; color: var(--accent); cursor: pointer; }
+#player .pl-fixo-fone[hidden] { display: none; }
+#player .pl-fixo-fone svg { width: 24px; height: 24px; }

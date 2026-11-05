@@ -2411,6 +2411,7 @@ const player = (() => {
   el.innerHTML = `
     <div class="pl-fundo quadros" aria-hidden="true" hidden></div>
     <div class="pl-fixo"><div class="pl-fixo-barra"><button class="pl-fixo-txt" data-pl="topo" aria-label="Voltar ao topo"><b><span class="pl-fixo-rolar"><span class="pl-fixo-nome"></span><span class="pl-fixo-art"></span></span></b><small hidden></small></button>
+      <button class="pl-fixo-fone" data-pl="aparelhos" hidden aria-label="Tocando no fone: ouvir em outro aparelho" title="Ouvir em outro aparelho">${icon('fone', 24)}</button>
       <button class="salvar-btn pl-fixo-salva" data-pl="salva" aria-label="Salvar na biblioteca">${icon('plus', 16)}</button>
       <button class="icon-btn pl-play pl-fixo-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 18)}</button>
       <span class="pl-fixo-prog" aria-hidden="true"><i></i></span></div></div>
@@ -5395,6 +5396,8 @@ const semLinhasDeAcordes = (sinc) => {
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
     if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
+    const ff = $('.pl-fixo-fone', el);
+    if (ff) { ff.hidden = !fone; if (fone) ff.title = `Tocando em ${fone}: ouvir em outro aparelho`; }
     el.classList.toggle('com-fone', Boolean(fone));
   };
   navigator.mediaDevices?.addEventListener?.('devicechange', () => void mostrarAparelho());
