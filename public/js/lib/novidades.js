@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 537, data: '2026-11-05', titulo: 'Pausar o download da playlist',
+    itens: [
+      { tipo: 'novo', texto: 'Tocando no botão de baixar da playlist enquanto ela baixa, o download pausa onde está: as músicas já baixadas ficam, as que esperavam saem da fila e a que estava baixando para. Tocando de novo, ele continua, baixando só as que faltam. O que você pausou não volta a baixar sozinho.' },
+      { tipo: 'melhoria', texto: 'O botão fica verde só com todas as músicas da playlist baixadas; com uma música nova que ainda não foi baixada, ele volta a ficar cinza.' },
+    ],
+  },
+  {
     versao: 536, data: '2026-11-05', titulo: 'O botão de baixar da playlist',
     itens: [
       { tipo: 'melhoria', texto: 'Na playlist, enquanto as músicas baixam, o botão de baixar só pisca de leve (como as setas das músicas na lista), sem o anel verde em volta. Com todas baixadas, ele fica verde.' },
@@ -65,12 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A barra do player embaixo continua com a última música tocada mesmo depois de fechar o app ou de ele se atualizar: abrindo de novo, ela está lá, pausada no ponto em que parou, pronta para continuar (com a fila de antes).' },
       { tipo: 'melhoria', texto: 'Abrindo o app de novo, ele começa sempre no Início, e não na tela em que você estava ao sair. Voltando para ele depois de mais de 2 minutos fora (sem música tocando), também. Recarregando, você fica na mesma tela; os avisos e os links de uma música continuam abrindo direto nela, e uma edição em andamento não é largada.' },
-    ],
-  },
-  {
-    versao: 527, data: '2026-11-05', titulo: 'Os tons na cor da música',
-    itens: [
-      { tipo: 'melhoria', texto: 'No player, tocando no tom, abre a janela com os 12 tons juntos, pintada na cor da música como os desenhos dos acordes: o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
     ],
   },
 ];

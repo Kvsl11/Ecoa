@@ -84,8 +84,8 @@ test('download: o videoclipe tenta de novo, descendo de qualidade, e o parcial s
   assert.match(tentar, /video && r\?\.tipo && !String\(r\.tipo\)\.startsWith\('video\/'\)/);
   // o download parcial volta para a fila sozinho, e ao abrir o app as baixadas pela metade também
   const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// O download que ficou parcial'));
-  assert.match(baixar, /if \(falhas\.length \|\| precisaMelhorar\(db\.song\(id\)\)\) completarDepois\(id\)/);
-  assert.match(app, /s\.baixado && \(precisaBaixar\(s\) \|\| precisaMelhorar\(s\)\) && midiaDe\(s\)/);
+  assert.match(baixar, /if \(\(falhas\.length \|\| precisaMelhorar\(db\.song\(id\)\)\) && !db\.song\(id\)\?\.baixarPausado\) completarDepois\(id\)/);
+  assert.match(app, /s\.baixado && !s\.baixarPausado && \(precisaBaixar\(s\) \|\| precisaMelhorar\(s\)\) && midiaDe\(s\)/);
 });
 test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravação', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
@@ -149,4 +149,31 @@ test('download: a entrega do servidor não trava (tempo sem dados, nova tentativ
   // o servidor que não tem mais o arquivo: erro na hora (o app baixa do YouTube de novo)
   const sem = async () => ({ ok: false, status: 404, text: async () => '{"detail":"o arquivo não está mais no servidor"}', headers: new Map() });
   await assert.rejects(receberArquivo({ url: 'https://servidor.test' }, 'n2', { fetchImpl: sem, aguardar: async () => {} }), (e) => e.status === 404);
+});
+
+test('download da playlist: o toque no meio pausa onde está, e o pausado não volta sozinho', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const pausar = app.slice(app.indexOf('function pausarDownloads(songs)'), app.indexOf('// Em "Áudio e vídeo", a música tem que vir com o clipe'));
+  assert.match(pausar, /baixarPausado: true/);
+  assert.match(pausar, /filaBaixar\.splice\(i, 1\)/);
+  assert.match(pausar, /controlesDeDownload\.get\(id\)\?\.abort\(\)/);
+  // (o botão da playlist pausa quando há música baixando; tocar de novo tira a pausa e baixa só as que faltam)
+  assert.match(app, /if \(ss\.some\(\(s\) => baixando\.has\(s\.id\)\)\) \{\n    pausarDownloads\(ss\);/);
+  assert.match(app, /if \(s\.baixarPausado\) db\.updateSong\(s\.id, \{ baixarPausado: undefined \}\)/);
+  // e nada retoma sozinho o que foi pausado
+  assert.match(app, /s\.baixado && !s\.baixarPausado && \(precisaBaixar\(s\) \|\| precisaMelhorar\(s\)\)/);
+  assert.match(app, /if \(s && precisaBaixar\(s\) && !s\.baixarPausado\)/);
+});
+
+test('download: a entrega pausada para na hora, sem tentar de novo', async () => {
+  const { receberArquivo } = await import('../public/js/lib/servidor-ia.js');
+  const ctrl = new AbortController();
+  let pedidos = 0;
+  const fetchImpl = async (url, { signal }) => {
+    pedidos++;
+    const body = new ReadableStream({ start(c) { c.enqueue(new Uint8Array(1000)); signal.addEventListener('abort', () => c.error(Object.assign(new Error('x'), { name: 'AbortError' }))); setTimeout(() => ctrl.abort(), 10); } });
+    return { ok: true, status: 200, headers: new Map([['content-length', '50000']]), body };
+  };
+  await assert.rejects(receberArquivo({ url: 'https://servidor.test' }, 'n', { tamanho: 50000, sinal: ctrl.signal, fetchImpl, aguardar: async () => {} }), /Cancelado/);
+  assert.equal(pedidos, 1);
 });
