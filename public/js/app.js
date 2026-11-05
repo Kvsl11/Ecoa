@@ -7490,10 +7490,12 @@ const fotosArtistas = new Map();
 // (primeiro a do canal do artista no YouTube, a mais atual, só quando o canal é com certeza dele: verificado ou o
 // "Tópico" do YouTube; depois o Cifra Club; se não tiver, o Deezer, que tem a foto de quase todo artista; por fim a
 // Wikipédia)
+// a foto do artista no Spotify (a de agora, a oficial), com o Spotify conectado: vem antes das outras
+const fotoDoSpotify = (nome) => (spotifyConectado() ? spotifyDoArtista(nome).then((a) => a?.foto || '').catch(() => '') : Promise.resolve(''));
 function fotoDoArtista(nome, slug = '') {
   const k = normalizar(nome);
   // a música veio do Cifra Club: o artista é o da página dela (sem adivinhar pelo nome)
-  if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
+  if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoSpotify(nome).then((f) => f || fotoDoCanalDeVerdade(nome)).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
     .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
     .then((f) => f || fotoDeezer(nome))));
   if (!fotosArtistas.has(k)) {
@@ -7501,7 +7503,7 @@ function fotoDoArtista(nome, slug = '') {
     // que aparece ao abrir o artista (sem isso, o Deezer trazia a foto de outro artista com o mesmo nome)
     const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
       || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-    fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
+    fotosArtistas.set(k, fotoDoSpotify(nome).then((f) => f || fotoDoCanalDeVerdade(nome)).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
@@ -8173,7 +8175,9 @@ async function abrirSobreArtista({ nome, slug = '' }) {
       caixaFotos.append(img);
     }
   };
-  porFotos([foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', ...(adb?.fotos || []), dz?.foto, info?.foto], { comPrincipal: Boolean(foto) });
+  // (a do Spotify, com ele conectado, logo depois da do cartão: a de agora; as da TheAudioDB, que podem ser antigas, depois
+  // das do canal e do Deezer)
+  porFotos([foto, sp?.foto, canal?.foto && !(await ehFotoGenerica(canal.foto)) ? canal.foto : '', dz?.foto, ...(adb?.fotos || []), info?.foto], { comPrincipal: Boolean(foto) });
   if (!vistas.size) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
   // tocar numa foto: ela abre em tela cheia, e dá para passar para as outras
   caixaFotos.addEventListener('click', (e) => {

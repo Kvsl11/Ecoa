@@ -6,6 +6,7 @@ export const NOVIDADES = [
   {
     versao: 511, data: '2026-11-05', titulo: 'O carregando do "Sobre o artista" no meio da tela',
     itens: [
+      { tipo: 'melhoria', texto: 'Em "Sobre o artista", as fotos mais novas vêm primeiro (a do canal do YouTube e a do Deezer), e as que podem ser antigas ficam para o fim. Com o Spotify conectado, a foto do artista é a do Spotify, a oficial de agora.' },
       { tipo: 'melhoria', texto: 'Ao abrir "Sobre o artista", o círculo de carregando fica no meio da tela (antes ficava lá em cima, com a tela vazia).' },
     ],
   },
