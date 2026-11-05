@@ -5092,11 +5092,24 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-video video.on { opacity: 1; }
 .pv-sombra { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 55%, rgb(0 0 0 / 0.75)); }
 .pv-info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 12px calc(16px + env(safe-area-inset-bottom)); }
-.pv-artista { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.pv-artista .icon-btn { color: #fff; width: 36px; height: 36px; }
-.pv-foto { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; overflow: hidden; background: rgb(255 255 255 / 0.2); }
+/* como nos stories: o artista (com os seguidores) e as hashtags à esquerda; compartilhar e ⋮ em pé, à direita */
+.pv-meta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; row-gap: 6px; margin-bottom: 10px; }
+.pv-meta .icon-btn { color: #fff; width: 40px; height: 40px; filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.5)); }
+.pv-compartilhar { grid-column: 2; grid-row: 1; }
+.pv-mais { grid-column: 2; grid-row: 2; }
+.pv-artista { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pv-quem { display: flex; flex-direction: column; min-width: 0; }
+.pv-quem .pv-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-seg { color: rgb(255 255 255 / 0.85); font-size: 12.5px; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
+/* as hashtags: quantas houver, numa linha que se arrasta para o lado */
+.pv-tags { grid-column: 1; grid-row: 2; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+.pv-tags::-webkit-scrollbar { display: none; }
+.pv-tags span { flex: none; color: #fff; font-weight: 700; font-size: 14.5px; white-space: nowrap; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
+.pv-tags span:last-child { padding-right: 20px; }
+.pv-foto { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; overflow: hidden; background: rgb(255 255 255 / 0.2); }
 .pv-foto img { width: 100%; height: 100%; object-fit: cover; }
-.pv-nome { color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
+.pv-nome { color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
 .pv-cartao { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px 12px 8px; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 14px; background: rgb(255 255 255 / 0.12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
 .pv-cartao .cover { width: 52px; height: 52px; flex: none; border-radius: 8px; }
 .pv-cartao .lista-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -5113,9 +5126,12 @@ html.tablet .pv-cab { padding: calc(14px + env(safe-area-inset-top)) 16px 28px; 
 html.tablet .pv-cab b { font-size: 18px; }
 html.tablet .pv-sombra { background: linear-gradient(transparent 50%, rgb(0 0 0 / 0.8)); }
 html.tablet .pv-info { right: auto; width: min(640px, 100%); padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
-html.tablet .pv-artista { gap: 12px; margin-bottom: 12px; }
-html.tablet .pv-artista .icon-btn { width: 44px; height: 44px; }
-html.tablet .pv-foto { width: 40px; height: 40px; }
+html.tablet .pv-artista { gap: 12px; }
+html.tablet .pv-meta { margin-bottom: 14px; row-gap: 8px; }
+html.tablet .pv-meta .icon-btn { width: 44px; height: 44px; }
+html.tablet .pv-foto { width: 48px; height: 48px; }
+html.tablet .pv-seg { font-size: 14px; }
+html.tablet .pv-tags span { font-size: 16px; }
 html.tablet .pv-nome { font-size: 18px; }
 html.tablet .pv-cartao { gap: 14px; padding: 10px 16px 14px 10px; border-radius: 18px; }
 html.tablet .pv-cartao .cover { width: 56px; height: 56px; border-radius: 6px; }
@@ -5235,16 +5251,13 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-ultima { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 12px; margin: 12px 16px 0; padding: 10px;
   border-radius: 16px; background: var(--surface); color: var(--text); text-decoration: none; }
 .pg-ultima-fundo { position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; z-index: -2; background-size: cover; background-position: center; filter: blur(26px) saturate(1.4); opacity: 0.55;
-  animation: pg-ultima-fluir 18s ease-in-out infinite alternate; will-change: transform; }
-/* tocando: as cores correm mais rápido e o brilho pulsa de leve */
-.pg-ultima.tocando .pg-ultima-fundo { animation: pg-ultima-fluir 7s ease-in-out infinite alternate, pg-ultima-pulsar 1.2s ease-in-out infinite alternate; }
+  animation: pg-ultima-fluir 12s ease-in-out infinite alternate; will-change: transform; }
 @keyframes pg-ultima-fluir {
   0% { transform: translate(-54%, -52%) rotate(0deg) scale(1); }
   33% { transform: translate(-46%, -47%) rotate(40deg) scale(1.15); }
   66% { transform: translate(-52%, -46%) rotate(-25deg) scale(1.05); }
   100% { transform: translate(-45%, -54%) rotate(70deg) scale(1.2); }
 }
-@keyframes pg-ultima-pulsar { from { opacity: 0.5; } to { opacity: 0.75; } }
 .pg-ultima::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(0 0 0 / 0.15), rgb(0 0 0 / 0.45)); }
 :root[data-theme="light"] .pg-ultima::after { background: linear-gradient(90deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.65)); }
 .pg-ultima .cover { width: 52px; height: 52px; flex: none; border-radius: 10px; box-shadow: 0 6px 16px rgb(0 0 0 / 0.35); }

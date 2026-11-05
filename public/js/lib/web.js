@@ -1198,7 +1198,26 @@ export function artistaDaAudioDb(json, nome) {
   if (!a) return null;
   const fotos = ['strArtistThumb', 'strArtistFanart', 'strArtistFanart2', 'strArtistFanart3', 'strArtistFanart4', 'strArtistWideThumb']
     .map((k) => a[k]).filter((u) => /^https?:\/\//.test(u || '')).map((u) => u.replace(/^http:/, 'https:'));
-  return { seguidores: Number(a.intFollowers) || 0, fotos, bio: String(a.strBiographyPT || '').trim(), genero: a.strGenre || a.strStyle || '' };
+  return { seguidores: Number(a.intFollowers) || 0, fotos, bio: String(a.strBiographyPT || '').trim(), genero: a.strGenre || a.strStyle || '', pais: a.strCountryCode || '' };
+}
+// a música na TheAudioDB: o clima (Happy, Relaxed...), o tema (In Love...), o estilo e o gênero, para as hashtags da
+// prévia da playlist. Só vale a do mesmo artista e título. null quando não acha (ou ela não tem nada disso)
+export function musicaDaAudioDb(json, artista, titulo) {
+  const quem = nomeDoCanal(artista);
+  const qual = nomeDoCanal(titulo);
+  const t = (json?.track || []).find((x) => nomeDoCanal(x.strArtist) === quem && nomeDoCanal(x.strTrack) === qual);
+  if (!t) return null;
+  const m = { mood: t.strMood || '', theme: t.strTheme || '', style: t.strStyle || '', genre: t.strGenre || '' };
+  return Object.values(m).some(Boolean) ? m : null;
+}
+export async function audioDbDaMusica(artista, titulo, fetchImpl) {
+  const a = String(artista || '').trim();
+  const t = String(titulo || '').replace(/\s*[([](feat|ft|with)\.?[^)\]]*[)\]]/gi, '').trim();
+  if (!a || !t) return null;
+  try {
+    const res = await buscar(`https://www.theaudiodb.com/api/v1/json/123/searchtrack.php?s=${encodeURIComponent(a)}&t=${encodeURIComponent(t)}`, { fetchImpl, timeout: 10000 });
+    return res.ok ? musicaDaAudioDb(await res.json(), a, t) : null;
+  } catch { return null; }
 }
 export async function audioDbDoArtista(nome, fetchImpl) {
   const q = String(nome || '').trim();

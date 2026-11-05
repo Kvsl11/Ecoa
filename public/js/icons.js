@@ -57,6 +57,7 @@ const P = {
   legenda: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/>',
   legendaOff: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/><path d="M3 3l18 18"/>',
   more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
+  maisEmPe: '<circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/>',
   // o desenho de um acorde: o braço do violão de frente (pestana em cima, 4 cordas, 3 casas) com dois dedos
   diagrama: '<path d="M4 4.5h16" stroke-width="2.6"/><path d="M4 4.5V20M7.2 4.5V20M10.4 4.5V20M13.6 4.5V20M16.8 4.5V20M20 4.5V20M4 9.67h16M4 14.83h16M4 20h16" stroke-width="1.2"/><circle cx="16.8" cy="7.1" r="1.75" fill="currentColor" stroke="none"/><circle cx="10.4" cy="12.25" r="1.75" fill="currentColor" stroke="none"/><circle cx="13.6" cy="12.25" r="1.75" fill="currentColor" stroke="none"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
