@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 525, data: '2026-11-05', titulo: 'O vídeo e a música são da mesma música',
+    itens: [
+      { tipo: 'correcao', texto: 'Muitas vezes o clipe vinha certo, mas o modo música tocava outra: a mesma música de outro artista, ou outra música com o nome dentro ("Beija-flor" no lugar de "Voa Beija-flor", um pot-pourri). Agora o áudio oficial e o clipe só valem quando são do artista certo e com o título exato; sem um assim, fica só o clipe.' },
+      { tipo: 'correcao', texto: 'A cifra e a letra também: o título igual vem antes do parecido, e uma dupla como "Jorge & Mateus" não é mais confundida com outro "Jorge".' },
+      { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano: o áudio de outra música sai, o certo é procurado, e a letra sincronizada e o download são refeitos. O áudio que você importou fica.' },
+    ],
+  },
+  {
     versao: 524, data: '2026-11-05', titulo: 'O mesmo carregando no app todo',
     itens: [
       { tipo: 'melhoria', texto: 'Em todo o app, o carregando virou o contorno do que vai aparecer, com um brilho passando, no lugar exato: as linhas das músicas (artista, setores, acervo, orações, fontes, vídeos), as capas lado a lado (álbuns, trocar a capa), a capa grande do álbum e a foto redonda do artista, os parágrafos (Sobre o artista, oração) e a folha da partitura. Antes eram círculos girando com um texto embaixo.' },
@@ -64,13 +72,6 @@ export const NOVIDADES = [
     versao: 516, data: '2026-11-05', titulo: 'A gaveta do perfil mais enxuta',
     itens: [
       { tipo: 'melhoria', texto: 'Na gaveta do perfil, saiu o cartão "Conta Google · Sincronizada agora": a sua conta já aparece lá em cima, com a foto e o e-mail. O cartão só volta se a sincronia der erro. Para sincronizar na hora, use "Ver perfil".' },
-    ],
-  },
-  {
-    versao: 515, data: '2026-11-05', titulo: 'O topo do perfil com as mesmas cores do "Tocou por último"',
-    itens: [
-      { tipo: 'correcao', texto: 'Na gaveta do perfil, o fundo lá em cima, atrás da sua foto, agora usa a mesma capa borrada do cartão "Tocou por último", e as cores dos dois ficam iguais (antes o topo ficava num tom diferente).' },
-      { tipo: 'melhoria', texto: 'Os ícones de Novidades, Tocadas recentemente e Ajustes, na gaveta do perfil, agora ficam no cinza do app.' },
     ],
   },
 ];

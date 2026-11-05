@@ -23,7 +23,7 @@ import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaCo
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
-import { escolherAudio, escolherClipe, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
+import { doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
@@ -1555,6 +1555,10 @@ const REVISOES = [
   // "Sobre o artista" é guardado de novo
   { rev: 13, capa: true, quais: (s) => temDupla(s) && !s.capaEscolhida && capaAutomatica(s.cover) },
   { rev: 14, sobreArtista: true, quais: (s) => temDupla(s) && Boolean(s.baixado) },
+  // v525: o áudio oficial podia ser de outra música — a mesma de outro artista, ou outra com o título dentro ("Beija-flor"
+  // em "Voa Beija-flor") —: o modo música tocava outra coisa com o clipe certo. O guardado é conferido pelo nome e pelo
+  // canal no YouTube; sendo de outra música, sai, o certo é procurado e a letra sincronizada e o download são refeitos
+  { rev: 15, conferirAudio: true, versoes: true, letra: true, arquivos: true, quais: (s) => { const vs = versoesDe(s); return Boolean(vs?.audio) && !ehArquivo(vs.audio) && vs.audio !== vs.video && !s.audioProprio; } },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1659,6 +1663,24 @@ async function revisarMusica(id, pendentes, chaves) {
       }
     }
     s = db.song(id);
+  }
+  // o áudio oficial guardado que era de outra música (outro artista, ou outra música com o título dentro): conferido pelo
+  // nome e pelo canal do vídeo no YouTube; não sendo a mesma música, sai — o certo é procurado de novo (versoes) e a
+  // letra sincronizada, que estava nele, é refeita (letra). O áudio da própria pessoa fica
+  if (quer('conferirAudio') && s) {
+    const vs = versoesDe(s);
+    if (vs?.audio && !ehArquivo(vs.audio) && vs.audio !== vs.video && !s.audioProprio) {
+      if (!navigator.onLine) completa = false;
+      else {
+        const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${vs.audio}`).catch(() => null);
+        if (!info) completa = false;
+        else if (!doMesmoArtista(info, s.artist) || !mesmoTitulo(info, s.title, s.artist)) {
+          db.updateSong(id, { versoes: undefined });
+          s = db.song(id);
+          player.versoes(s);
+        }
+      }
+    }
   }
   // a letra sincronizada (a feita à mão pela pessoa fica como está)
   if (quer('letra') && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
@@ -6864,7 +6886,8 @@ const mesmoNome = (a, b) => { const A = normalizar(a); const B = normalizar(b); 
 // quem canta: o artista e os participantes do título ("Aba (part. Kemuel)", "feat. X", "e Y")
 const artistasDe = (titulo, artista) => {
   const part = [...String(titulo || '').matchAll(/\((?:part\.?|feat\.?|ft\.?|participa[çc][ãa]o( de)?|com)\s+([^)]+)\)/gi)].map((m) => m[2]);
-  return [artista, ...part].flatMap((x) => String(x || '').split(/\s*(?:,|&| e | x |\/)\s*/i)).map((x) => x.trim()).filter(Boolean);
+  // (a dupla fica junta: "Jorge & Mateus" não vira "Jorge" e "Mateus"; veja artistasDoNome)
+  return [artista, ...part].flatMap((x) => artistasDoNome(x)).map((x) => x.trim()).filter(Boolean);
 };
 // o nome sem espaços nem pontuação: "Jung Kook" e "Jungkook", "AC/DC" e "ACDC" são o mesmo artista
 const nomeCompacto = (x) => normalizar(x).replace(/[^a-z0-9]/g, '');
@@ -6873,15 +6896,32 @@ const parecidoNome = (a, b) => { const A = nomeCompacto(a); const B = nomeCompac
 // contando os participantes. Sem o artista certo, aceita o mesmo título exato entre os primeiros resultados só se o
 // artista for o mesmo escrito de outro jeito (antes aceitava qualquer artista: "Neverender", do Justice, vinha com a
 // letra e a cifra da "Neverender" do Coheed and Cambria)
+// o mesmo artista, escrito de outro jeito ("Jorge & Mateus" e "Jorge e Mateus", "AC/DC" e "ACDC"); um nome de uma
+// palavra só não vale como parte de outro ("Jorge" não é "Jorge & Mateus" — antes era, e a cifra vinha do Jorge Ben)
+// o artista aparece no texto (o título e o canal do vídeo), com "&" ou "e" ligando a dupla de qualquer jeito
+const artistaNoTexto = (a, texto) => { const A = semLigacao(a); return Boolean(A) && (` ${semLigacao(texto)} `.includes(` ${A} `) || (A.length >= 5 && nomeCompacto(semLigacao(texto)).includes(nomeCompacto(A)))); };
+const semLigacao = (x) => normalizar(x).replace(/\b(e|and)\b/g, ' ').replace(/\s+/g, ' ').trim();
+function mesmoArtistaNome(a, b) {
+  const A = semLigacao(a);
+  const B = semLigacao(b);
+  if (!A || !B) return false;
+  if (A === B || nomeCompacto(A) === nomeCompacto(B)) return true;
+  const [curto, longo] = A.length <= B.length ? [A, B] : [B, A];
+  return curto.includes(' ') && ` ${longo} `.includes(` ${curto} `);
+}
+// A mesma música entre os resultados de uma busca (a cifra, a letra): o título igual — o título só parecido ("Beija-flor"
+// dentro de "Voa Beija-flor") vale apenas quando não há o igual — e do mesmo artista (a dupla não é separada)
 function mesmaMusica(lista, titulo, artista, artistaIncerto = false) {
   const t = tituloLimpo(titulo);
-  const doTitulo = lista.filter((r) => mesmoNome(tituloLimpo(r.titulo), t));
+  const iguais = lista.filter((r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t));
+  const doTitulo = iguais.length ? iguais : lista.filter((r) => mesmoNome(tituloLimpo(r.titulo), t));
   const quem = artistasDe(titulo, artista);
-  const certo = doTitulo.find((r) => !quem.length || artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => mesmoNome(a, b))));
+  const deQuem = (r) => artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => mesmoArtistaNome(a, b)));
+  const certo = (iguais.length ? iguais : []).find((r) => !quem.length || deQuem(r)) || doTitulo.find((r) => !quem.length || deQuem(r));
   if (certo) return certo;
   if (artistaIncerto || !quem.length) return doTitulo[0] || null;
   return lista.slice(0, 3).find((r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t)
-    && artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => parecidoNome(a, b)))) || null;
+    && artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => parecidoNome(a, b) && mesmoArtistaNome(a, b)))) || null;
 }
 
 // procura a cifra da música no Cifra Club: pelo título com o artista, com cada participante e só pelo título
@@ -6924,7 +6964,7 @@ async function musicaDoVideo(v, conhecido = {}) {
   const lista = await buscarMusicas(cru.replace(/\s[|–—-]\s/g, ' ')).catch(() => []);
   const tit = (r) => normalizar(tituloLimpo(r.titulo));
   const cabe = lista.filter((r) => tit(r).length >= 3 && noVideo.includes(` ${tit(r)} `));
-  const doArtista = cabe.filter((r) => r.artista && artistasDe('', r.artista).some((a) => quem.includes(` ${normalizar(a)} `) || nomeCompacto(quem).includes(nomeCompacto(a))));
+  const doArtista = cabe.filter((r) => r.artista && artistasDe('', r.artista).some((a) => artistaNoTexto(a, quem)));
   const maior = (l) => [...l].sort((a, b) => tit(b).length - tit(a).length)[0];
   // "Justice - Neverender": o que vem antes do traço é o artista, a não ser que seja o próprio título ("Música - Ao Vivo")
   const esquerda = / [-–—] /.test(cru) ? normalizar(cru.split(/ [-–—] /)[0]) : '';
@@ -7364,7 +7404,7 @@ const videosPorPreferencia = (videos, titulo = '') => (videos || []).map((v, i) 
 function videosDaMusica(videos, titulo, artista = '') {
   const t = normalizar(tituloLimpo(titulo));
   const comTitulo = (videos || []).filter((v) => t && ` ${normalizar(tituloCruDoVideo(v.titulo))} `.includes(` ${t} `));
-  const doArtista = comTitulo.filter((v) => artistasDe('', artista).some((a) => quemNoVideo(v).includes(` ${normalizar(a)} `)));
+  const doArtista = comTitulo.filter((v) => artistasDe('', artista).some((a) => artistaNoTexto(a, quemNoVideo(v))));
   const melhores = videosPorPreferencia(doArtista.length ? doArtista : comTitulo, titulo);
   return melhores.length ? [...melhores, ...(videos || []).filter((v) => !melhores.includes(v))] : (videos || []);
 }
@@ -7378,7 +7418,7 @@ function juntarVideos(musicas, videos) {
     const noTitulo = ` ${normalizar(cru)} `;
     const quem = quemNoVideo(v);
     const m = porTamanho.find((x) => tit(x).length >= 2 && noTitulo.includes(` ${tit(x)} `)
-      && artistasDe('', x.artista).some((a) => quem.includes(` ${normalizar(a)} `)));
+      && artistasDe('', x.artista).some((a) => artistaNoTexto(a, quem)));
     // outro vídeo da mesma música (ao vivo, letra, outra versão) não se repete na lista; fica o clipe oficial (antes
     // ficava o primeiro achado, que podia ser o de letra)
     if (m) { if (!m.video || notaDoVideo(v, m.titulo) > notaDoVideo(m.video, m.titulo)) m.video = v; } else sobra.push(v);
