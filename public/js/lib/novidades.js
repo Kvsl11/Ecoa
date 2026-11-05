@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 533, data: '2026-11-05', titulo: 'O clipe volta para as músicas do K-pop',
+    itens: [
+      { tipo: 'correcao', texto: 'A música que tinha ficado sem clipe por engano (como Standing Next to You, do Jungkook) não voltava se ela fosse a última que você tocou: a conferência em segundo plano pulava a música que está no player, e desde a versão anterior a última tocada fica sempre lá. Agora ela só pula a que está tocando, e a música marcada sem clipe é conferida de novo assim que você abre ou toca ela: o clipe volta na hora e, se ela é baixada, o clipe é baixado de novo (com o servidor ligado e no Wi-Fi).' },
+    ],
+  },
+  {
     versao: 532, data: '2026-11-05', titulo: 'A capa uma vez só',
     itens: [
       { tipo: 'melhoria', texto: 'No Tocando agora, a música sem capa animada (como as que não têm clipe) mostrava a capa duas vezes: a grande em cima e a pequena ao lado do nome. Agora fica só a grande, como no Spotify. Com a capa animada ou no modo vídeo, a pequena continua.' },
@@ -66,13 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Em todo o app, o carregando virou o contorno do que vai aparecer, com um brilho passando, no lugar exato: as linhas das músicas (artista, setores, acervo, orações, fontes, vídeos), as capas lado a lado (álbuns, trocar a capa), a capa grande do álbum e a foto redonda do artista, os parágrafos (Sobre o artista, oração) e a folha da partitura. Antes eram círculos girando com um texto embaixo.' },
       { tipo: 'melhoria', texto: 'Os cantos da Cindy Ferrarezi abrem como as músicas da busca: a tela do canto aparece na hora, com o contorno da letra.' },
-    ],
-  },
-  {
-    versao: 523, data: '2026-11-05', titulo: 'Sem o círculo girando ao abrir a música',
-    itens: [
-      { tipo: 'melhoria', texto: 'Ao tocar numa música da busca que ainda está sendo preparada, a tela dela abre na hora, com a cor, a capa, o nome e o contorno da letra, e se completa sozinha quando tudo chega. Antes aparecia um círculo girando no lugar dos botões da linha. A seta de voltar desiste da música e volta para a busca.' },
-      { tipo: 'melhoria', texto: 'Com o player aberto, a música tocada vai direto para ele, e a linha só pulsa de leve enquanto ela é preparada.' },
     ],
   },
 ];
