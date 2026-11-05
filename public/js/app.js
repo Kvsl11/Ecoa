@@ -19948,6 +19948,19 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
     reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    // a versão nova que não conseguiu baixar o pacote (a internet caiu no meio, o servidor recusou um arquivo): tenta de
+    // novo sozinha daqui a pouco, sem esperar a pessoa fechar e abrir o app (até 5 vezes nesta abertura)
+    let novasTentativas = 0;
+    reg.addEventListener('updatefound', () => {
+      const nova = reg.installing;
+      nova?.addEventListener('statechange', () => {
+        if (nova.state !== 'redundant' || reg.waiting || reg.active === nova || novasTentativas >= 5) return;
+        novasTentativas++;
+        setTimeout(() => { if (navigator.onLine) reg.update().catch(() => {}); }, 15000 * novasTentativas);
+      });
+    });
+    // (e de vez em quando com o app aberto: a versão publicada enquanto ele está na tela também chega)
+    setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) reg.update().catch(() => {}); }, 10 * 60e3);
   }).catch(() => {});
 }
 // a tela Novidades: as versões, da mais nova para a mais antiga, cada mudança com o tipo (novo, melhoria, correção)

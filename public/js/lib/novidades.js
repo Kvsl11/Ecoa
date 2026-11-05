@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 542, data: '2026-11-05', titulo: 'A atualização do app sem falhar',
+    itens: [
+      { tipo: 'correcao', texto: 'Às vezes o app abria e não atualizava para a versão nova: bastava um dos arquivos do app não chegar (o servidor recusava um deles quando eram pedidos todos de uma vez) para a versão nova ser descartada até a próxima abertura. Agora cada arquivo é pedido de novo quando falha, em grupos menores, e a atualização que não deu certo tenta de novo sozinha em poucos segundos. Com o app aberto, ele também confere de 10 em 10 minutos se há versão nova.' },
+    ],
+  },
+  {
     versao: 541, data: '2026-11-05', titulo: 'Baixar todas as músicas curtidas',
     itens: [
       { tipo: 'novo', texto: 'As Músicas curtidas ganharam o botão de baixar tudo, como nas playlists: um toque baixa todas as músicas salvas para ouvir sem internet; tocando enquanto baixa, o download pausa, e com todas baixadas o botão fica verde.' },
@@ -68,12 +74,6 @@ export const NOVIDADES = [
     versao: 533, data: '2026-11-05', titulo: 'O clipe volta para as músicas do K-pop',
     itens: [
       { tipo: 'correcao', texto: 'A música que tinha ficado sem clipe por engano (como Standing Next to You, do Jungkook) não voltava se ela fosse a última que você tocou: a conferência em segundo plano pulava a música que está no player, e desde a versão anterior a última tocada fica sempre lá. Agora ela só pula a que está tocando, e a música marcada sem clipe é conferida de novo assim que você abre ou toca ela: o clipe volta na hora e, se ela é baixada, o clipe é baixado de novo (com o servidor ligado e no Wi-Fi).' },
-    ],
-  },
-  {
-    versao: 532, data: '2026-11-05', titulo: 'A capa uma vez só',
-    itens: [
-      { tipo: 'melhoria', texto: 'No Tocando agora, a música sem capa animada (como as que não têm clipe) mostrava a capa duas vezes: a grande em cima e a pequena ao lado do nome. Agora fica só a grande, como no Spotify. Com a capa animada ou no modo vídeo, a pequena continua.' },
     ],
   },
 ];
