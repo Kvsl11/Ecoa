@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 529, data: '2026-11-05', titulo: 'A cifra certa da música',
+    itens: [
+      { tipo: 'correcao', texto: 'Algumas músicas vinham com a cifra de outra música com o mesmo nome (a primeira achada no Cifra Club). Agora o app confere a cifra pela letra da música: se não for ela, tenta as outras cifras com o mesmo título e fica com a que é da música. Se nenhuma for, a música fica só com a letra, em vez de uma cifra errada.' },
+      { tipo: 'correcao', texto: 'Quando o app consegue ouvir a gravação (música baixada, áudio importado ou o seu servidor), ele confere também os acordes: se a cifra não casa com o som em nenhum tom, procura entre as outras cifras da mesma música uma que case e troca, avisando.' },
+      { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano. A cifra que você escreveu ou editou nunca é trocada.' },
+    ],
+  },
+  {
     versao: 528, data: '2026-11-05', titulo: 'A última música na barra e o app abrindo no Início',
     itens: [
       { tipo: 'melhoria', texto: 'A barra do player embaixo continua com a última música tocada mesmo depois de fechar o app ou de ele se atualizar: abrindo de novo, ela está lá, pausada no ponto em que parou, pronta para continuar (com a fila de antes).' },
@@ -65,12 +73,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Nas músicas de duplas, como "Voa Beija-flor" de Jorge & Mateus, o app separava os nomes e mostrava outros artistas: o "Sobre o artista" vinha com o Jorge Ben e as fotos de outras pessoas. Agora a dupla fica junta, com a foto, a apresentação e a capa dela. Quando "&" liga dois artistas diferentes (como "Anitta & Ludmilla"), o app confere e mostra cada um.' },
       { tipo: 'correcao', texto: 'As músicas de duplas que já estavam na biblioteca têm a capa automática conferida de novo, e as baixadas guardam de novo o "Sobre o artista" certo, sozinhas, em segundo plano. A capa escolhida por você fica.' },
-    ],
-  },
-  {
-    versao: 519, data: '2026-11-05', titulo: 'Voltar para a gaveta do perfil',
-    itens: [
-      { tipo: 'melhoria', texto: 'O que você abre pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes e o seu perfil) agora volta direto para a gaveta, aberta na tela em que você estava. Antes a seta de Novidades passava por Sobre e por Ajustes até chegar ao início.' },
     ],
   },
 ];

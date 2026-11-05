@@ -28,6 +28,7 @@ import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
+import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
@@ -1564,6 +1565,10 @@ const REVISOES = [
   // baixadas (o som está no aparelho), o app ouve a gravação e, com a resposta clara, põe a cifra no tom dela. O tom
   // escolhido à mão fica
   { rev: 16, tomGravacao: true, quais: (s) => Boolean(s.baixado) && temCifra(s.content || '') && !s.tomManual && !s.tomGravacao },
+  // v529: a cifra trazida do Cifra Club podia ser de outra música com o mesmo título (a primeira achada). As salvas são
+  // conferidas pela letra sincronizada e, nas baixadas, pelo som; a de outra música é trocada pela certa. A cifra
+  // escrita ou mudada pela pessoa fica
+  { rev: 17, conferirCifra: true, quais: (s) => !s.cifraEditada && temCifra(s.content || '') && /cifraclub\.com\.br/.test(s.source || '') },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1686,6 +1691,11 @@ async function revisarMusica(id, pendentes, chaves) {
         }
       }
     }
+  }
+  // a cifra de outra música, trocada pela certa (a escrita ou mudada pela pessoa fica)
+  if (quer('conferirCifra') && s) {
+    if (!(await conferirCifraSalva(id))) completa = false;
+    s = db.song(id);
   }
   // a cifra no tom da gravação (a do tom escolhido à mão fica)
   if (quer('tomGravacao') && s && !s.tomManual) {
@@ -6959,16 +6969,77 @@ function mesmaMusica(lista, titulo, artista, artistaIncerto = false) {
     && artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => parecidoNome(a, b) && mesmoArtistaNome(a, b)))) || null;
 }
 
-// procura a cifra da música no Cifra Club: pelo título com o artista, com cada participante e só pelo título
-async function acharNoCifraClub(titulo, artista = '', artistaIncerto = false) {
+// A cifra certa da música no Cifra Club (lib/cifras.js): as achadas com o título dela — primeiro a do artista dela,
+// depois as do mesmo título de outros artistas — são trazidas uma por vez e conferidas pela letra (a do Letras ou a do
+// LRCLIB, ou a que a música já tem). A primeira cuja letra é a da música vale; nenhuma sendo, nenhuma (antes vinha a
+// primeira achada, que às vezes era de outra música). Sem a letra da música para comparar, só a do artista dela
+// letra: o texto da letra, ou uma promessa dele (espera até 6 s); cifraUrl: a escolhida na busca, que vem primeiro
+// A cifra salva conferida de novo (a revisão das músicas salvas): pela letra sincronizada (a do LRCLIB, que é a da
+// gravação), e, nas baixadas, pelo som. A cifra de outra música é trocada pela certa, se for achada; a escrita ou mudada
+// pela pessoa fica. false: sem internet, para tentar de novo depois
+async function conferirCifraSalva(id) {
+  let s = db.song(id);
+  if (!s || s.cifraEditada || !temCifra(s.content || '') || !ehCifraClub(s.source || '')) return true;
+  if (!navigator.onLine) return false;
+  const linhas = s.sincronia?.fonte === 'lrclib' && Array.isArray(s.sincronia.linhas) ? s.sincronia.linhas.join('\n') : '';
+  const p = linhas ? parecencaDaLetra(s.content, linhas) : null;
+  if (p !== null && p < 0.3) {
+    const c = await cifraCertaNoCifraClub(s.title, s.artist, { letra: linhas }).catch(() => null);
+    s = db.song(id);
+    if (s && c && c.url !== s.source && temCifra(c.chordpro) && !s.cifraEditada) {
+      let content = c.chordpro;
+      const meta = renderSong(s.content).meta;
+      for (const k of ['youtube', 'x_canvas', 'x_parte', 'composer', 'cover']) if (meta[k]) content = definirMeta(content, k, meta[k]);
+      db.updateSong(id, { content, source: c.url, capo: capoDaCifra(content) || 0, ...(s.tomManual ? {} : { transpose: 0, tomGravacao: undefined }) });
+      s = db.song(id);
+    }
+  }
+  // (nas baixadas, o som: os acordes conferidos com a gravação de novo, agora também trocando a cifra que não casa)
+  if (s?.baixado && !s.tomManual) {
+    if (s.tomGravacao && !(s.tomGravacao.casamento < 0.4)) return true;
+    db.updateSong(id, { tomGravacao: undefined });
+    await noMaximo(ajustarTomDaGravacao(db.song(id)), 90000, false).catch(() => {});
+  }
+  return true;
+}
+
+// (procura pelo título com o artista, com cada participante e só pelo título)
+async function cifraCertaNoCifraClub(titulo, artista = '', { artistaIncerto = false, letra = '', cifraUrl = '' } = {}) {
   const t = tituloLimpo(titulo);
   const consultas = [...new Set([`${t} ${artista}`.trim(), ...artistasDe(titulo, '').map((a) => `${t} ${a}`), t])];
+  const achadas = new Map();
+  let doArtista = null;
   for (const q of consultas) {
-    const achada = mesmaMusica(await buscarCifraClub(q).catch(() => []), titulo, artista, artistaIncerto);
-    if (achada) return achada;
+    const lista = await buscarCifraClub(q).catch(() => []);
+    lista.forEach((r) => { if (!achadas.has(r.url)) achadas.set(r.url, r); });
+    doArtista ||= mesmaMusica(lista, titulo, artista, artistaIncerto);
+    if (doArtista) break;
   }
-  return null;
+  const igual = (r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t);
+  const outras = [...achadas.values()].filter((r) => r.url !== doArtista?.url && r.url !== cifraUrl && igual(r));
+  const candidatas = [...(cifraUrl ? [{ url: cifraUrl }] : []), ...(doArtista && doArtista.url !== cifraUrl ? [doArtista] : []), ...outras].slice(0, 4);
+  if (!candidatas.length) return null;
+  let textoDaLetra = null;
+  const letraDaMusica = async () => {
+    if (textoDaLetra === null) {
+      const l = typeof letra === 'string' ? letra : await noMaximo(Promise.resolve(letra), 6000, null);
+      textoDaLetra = typeof l === 'string' ? l : l?.letra || '';
+    }
+    return textoDaLetra;
+  };
+  const trazidas = [];
+  for (const [i, c] of candidatas.entries()) {
+    // (sem a letra para conferir, as de outros artistas não entram: podiam ser de outra música)
+    if (i > 0 && !(await letraDaMusica()) && c !== doArtista) break;
+    const pg = await getCifraClub(c.url).catch(() => getCifraClub(c.url)).catch(() => null);
+    if (!pg) continue;
+    trazidas.push({ ...pg, url: c.url });
+    const p = parecencaDaLetra(pg.chordpro, await letraDaMusica());
+    if (p === null || p >= 0.5) break;
+  }
+  return escolherCifra(trazidas, await letraDaMusica());
 }
+
 
 // "Padre Marcelo Rossi - Deus Está Aqui (Noites Traiçoeiras) ft. Belo" -> artista e título
 // ("Ninguém Te Ama Como Eu | Frei Gilson": com a barra, o título vem antes)
@@ -7075,12 +7146,10 @@ function prepararDaBusca(dados) {
 
 async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, video = null, artistaIncerto = false }) {
   const termo = `${tituloLimpo(titulo)} ${artista}`.trim();
+  // a cifra certa: conferida pela letra da música (a que vem do Letras/LRCLIB, logo abaixo)
   const pCifra = (async () => {
-    const url = cifra || (await acharNoCifraClub(titulo, artista, artistaIncerto))?.url;
-    if (!url) return null;
-    // o site às vezes demora: tenta de novo antes de desistir da cifra
-    const c = await getCifraClub(url).catch(() => getCifraClub(url));
-    return { ...c, url };
+    await null; // (a letra, logo abaixo, já está sendo procurada quando a cifra precisar dela)
+    return cifraCertaNoCifraClub(titulo, artista, { artistaIncerto, cifraUrl: cifra, letra: pLetra });
   })().catch(() => null);
   // o vídeo é procurado junto com a cifra (pelo título e o artista da busca); só com o link da cifra, sem o nome,
   // espera a cifra para procurar pelo nome que vem nela
@@ -12476,11 +12545,9 @@ function viewSong(id, ctx = {}) {
     const hashAntes = location.hash;
     let novo = null;
     try {
-      const achada = await acharNoCifraClub(song.title, song.artist);
-      if (achada) {
-        const c = await getCifraClub(achada.url).catch(() => getCifraClub(achada.url));
-        if (temCifra(c.chordpro)) novo = { content: c.chordpro, source: achada.url };
-      }
+      // (conferida pela letra que a música já tem)
+      const c = await cifraCertaNoCifraClub(song.title, song.artist, { letra: letraDe(song.content) });
+      if (c && temCifra(c.chordpro)) novo = { content: c.chordpro, source: c.url };
     } catch { return; } // sem conexão: tenta de novo na próxima vez
     const dono = isPreview ? preview : db.song(song.id);
     const semQuadros = (t) => definirMeta(t, 'x_canvas', ''); // os quadros do vídeo podem ter sido gravados nesse meio-tempo
@@ -13058,6 +13125,26 @@ function cromaDaGravacao(id) {
   }
   return cromasDaGravacao.get(id);
 }
+// Entre as outras cifras da mesma música no Cifra Club (o mesmo título; a letra parecida com a dela, para não ser outra
+// música), a que mais casa com o som da gravação — se casar bem (0,55) e bem melhor que a de agora (+0,15)
+async function cifraQueCasaComAGravacao(song, croma, casamentoAgora) {
+  const t = tituloLimpo(song.title || '');
+  if (!t) return null;
+  const letra = letraDe(song.content);
+  const achadas = new Map();
+  for (const q of [`${t} ${song.artist || ''}`.trim(), t]) for (const r of await buscarCifraClub(q).catch(() => [])) if (!achadas.has(r.url)) achadas.set(r.url, r);
+  const candidatas = [...achadas.values()].filter((r) => r.url !== song.source && normalizar(tituloLimpo(r.titulo)) === normalizar(t)).slice(0, 4);
+  let melhor = null;
+  for (const c of candidatas) {
+    const pg = await getCifraClub(c.url).catch(() => null);
+    if (!pg || !temCifra(pg.chordpro)) continue;
+    const p = parecencaDaLetra(pg.chordpro, letra);
+    if (p !== null && p < 0.4) continue;
+    const r = tomQueCasa(acordesDaCifra(pg.chordpro), croma);
+    if (r && (!melhor || r.casamento > melhor.r.casamento)) melhor = { ...pg, url: c.url, r };
+  }
+  return melhor && melhor.r.casamento >= 0.55 && melhor.r.casamento >= casamentoAgora + 0.15 ? melhor : null;
+}
 const acordesDaCifra = (content) => [...String(content || '').matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim()).filter((a) => isChord(a));
 const ajustandoTom = new Set();
 async function ajustarTomDaGravacao(song) {
@@ -13070,10 +13157,30 @@ async function ajustarTomDaGravacao(song) {
   try {
     const croma = await cromaDaGravacao(id);
     if (!croma) return false;
-    const r = tomQueCasa(acordesDaCifra(song.content), croma);
+    let r = tomQueCasa(acordesDaCifra(song.content), croma);
     if (!r) return false;
-    const atual = song.id === 'previa' ? preview : db.song(song.id);
+    let atual = song.id === 'previa' ? preview : db.song(song.id);
     if (!atual || atual.tomManual || atual.content !== song.content) return false;
+    // os acordes não casam com a gravação em nenhum tom: a cifra é de outro arranjo (ou erra a harmonia). Procura,
+    // entre as outras cifras da mesma música, uma que case bem com o som; a escrita ou mudada pela pessoa fica
+    let trocou = false;
+    if (r.casamento < 0.4 && !atual.cifraEditada && navigator.onLine) {
+      const outra = await cifraQueCasaComAGravacao(atual, croma, r.casamento).catch(() => null);
+      atual = song.id === 'previa' ? preview : db.song(song.id);
+      if (outra && atual && !atual.tomManual && atual.content === song.content) {
+        let content = outra.chordpro;
+        const meta = renderSong(atual.content).meta;
+        for (const k of ['youtube', 'x_canvas', 'x_parte', 'composer', 'cover']) if (meta[k]) content = definirMeta(content, k, meta[k]);
+        const capo = capoDaCifra(content) || 0;
+        Object.assign(atual, { content, source: outra.url, capo, transpose: 0 });
+        if (atual !== preview && db.song(atual.id)) db.updateSong(atual.id, { content, source: outra.url, capo, transpose: 0 });
+        song = atual;
+        r = outra.r;
+        trocou = true;
+        toast('Troquei a cifra por uma que casa com a gravação');
+        window.dispatchEvent(new CustomEvent('songbook:cifra-trocada', { detail: { id: atual.id } }));
+      }
+    }
     const tomGravacao = { video: id, semitons: r.semitons, casamento: r.casamento };
     const mudar = r.ajustar && !(atual.transpose || 0);
     const novo = { tomGravacao, ...(mudar ? { transpose: r.semitons, tomAuto: true } : {}) };
@@ -13083,7 +13190,7 @@ async function ajustarTomDaGravacao(song) {
       const base = tomEscritoDaCifra(atual);
       toast(base ? `Cifra no tom da gravação: ${base} → ${transposeKey(base, r.semitons)}` : 'Cifra ajustada ao tom da gravação');
     }
-    return mudar;
+    return mudar || trocou;
   } finally { ajustandoTom.delete(`${song.id}|${id}`); }
 }
 
@@ -13577,7 +13684,9 @@ function viewEditor(id, setId) {
   $('#save').onclick = () => {
     if (!campo('title').value.trim()) { toast('Dê um título à música'); campo('title').focus(); return; }
     const parte = campo('parte').value;
-    const saved = db.saveSong({ ...song, content: montar() });
+    // (a cifra escrita ou mudada pela pessoa: o app nunca troca ela por outra achada na internet)
+    const conteudo = montar();
+    const saved = db.saveSong({ ...song, content: conteudo, ...(isNew || conteudo !== song.content ? { cifraEditada: true } : {}) });
     apagarRascunho();
     mudou = false;
     // a parte nova vale também nos repertórios onde a música estava sem parte ou com a parte antiga
