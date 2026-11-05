@@ -32,7 +32,8 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDaMusica, audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -13545,10 +13546,12 @@ function previaDaPlaylist(set, inicio = 0) {
       return `<section class="pv-slide" data-k="${k}">
       <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hqdefault.jpg" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
-        <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
-          <a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a>` : ''}<span class="spacer"></span>
-          <button class="icon-btn" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 20)}</button>
-          <button class="icon-btn" data-mais aria-label="Mais opções" title="Mais opções">${icon('more', 20)}</button></div>
+        <div class="pv-meta">
+          <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
+            <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><small class="pv-seg" hidden></small></span>` : ''}</div>
+          <button class="icon-btn pv-compartilhar" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
+          <div class="pv-tags" hidden></div>
+          <button class="icon-btn pv-mais" data-mais aria-label="Mais opções" title="Mais opções">${icon('maisEmPe', 22)}</button></div>
         <button class="pv-cartao" data-tocar aria-label="Tocar ${esc(s.title)}">${capa(s)}<span class="lista-txt"><b>${esc(s.title)}</b><small>${icon('videoclipe', 12)} Vídeo${s.artist ? ` • ${esc(s.artist)}` : ''}</small></span>
           <span class="pv-ok" title="Na sua biblioteca">${icon('check', 14)}</span><i class="pv-prog"><b></b></i></button>
       </div></section>`;
@@ -13583,8 +13586,32 @@ function previaDaPlaylist(set, inicio = 0) {
     atual = null;
   };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
+  // os seguidores do artista no Spotify ("90,3M seguidores") e as hashtags da música (#happy pop, #upbeat...): vêm da
+  // TheAudioDB (guardadas no aparelho: sem internet, as últimas), na música da tela e na próxima
+  const infoDoSlide = (k) => {
+    const slide = slides[k];
+    if (!slide || slide.dataset.info) return;
+    slide.dataset.info = '1';
+    const { s } = faixas[k];
+    const adb = s.artist ? audioDbGuardado(s.artist) : Promise.resolve(null);
+    const daMusica = s.artist ? comUltimoValor('adbm', `${s.artist}|${s.title}`, audioDbDaMusica(s.artist, s.title)) : Promise.resolve(null);
+    adb.then((a) => {
+      const seg = slide.querySelector('.pv-seg');
+      if (seg && a?.seguidores) { seg.textContent = `${numeroCurto(a.seguidores)} seguidores`; seg.hidden = false; }
+    });
+    Promise.all([adb, daMusica]).then(([a, m]) => {
+      const fe = String(s.source || '').startsWith('cnbb:') ? 'liturgia' : '';
+      const tags = hashtagsDaMusica({ musica: m || {}, generoArtista: [a?.genero, fe].filter(Boolean).join(' '), ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });
+      const caixa = slide.querySelector('.pv-tags');
+      if (!caixa || !tags.length) return;
+      caixa.innerHTML = tags.map((t) => `<span>#${esc(t)}</span>`).join('');
+      caixa.hidden = false;
+    });
+  };
   const ativar = async (k) => {
     if (k === ativa || k < 0 || k >= slides.length) return;
+    infoDoSlide(k);
+    infoDoSlide(k + 1);
     largar();
     ativa = k;
     t0 = performance.now();

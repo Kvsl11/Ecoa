@@ -4,8 +4,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 509, data: '2026-11-05', titulo: 'O fundo do "Tocou por último" se mexe sempre igual',
+    versao: 509, data: '2026-11-05', titulo: 'A prévia da playlist com os seguidores e as hashtags da música',
     itens: [
+      { tipo: 'novo', texto: 'Na prévia da playlist (os clipes em tela cheia), embaixo do nome do artista aparecem os seguidores dele no Spotify, no jeito curto (90,3M seguidores). E, embaixo, as hashtags da música, que dizem a sensação dela (#happy, #upbeat, #good mood...): em inglês quando a música é cantada em inglês e em português nas outras. Quando são muitas, é só arrastar para o lado. Os botões de compartilhar e de mais opções ficam em pé, à direita.' },
       { tipo: 'melhoria', texto: 'As cores no fundo do cartão "Tocou por último", na gaveta do perfil, agora se mexem sempre do mesmo jeito, com a música tocando ou pausada.' },
     ],
   },
