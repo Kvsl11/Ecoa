@@ -948,9 +948,14 @@ async function baixarMusica(song, { perguntou = false, qualidade = false } = {})
   }
 }
 const DOWNLOADS_JUNTOS = 2;
+// (o download de cada música pode ser pausado: o botão da playlist tocado no meio — pausarDownloads)
+const controlesDeDownload = new Map();
 async function baixarDaFila(pedido) {
   const id = pedido.id;
+  const controle = new AbortController();
+  controlesDeDownload.set(id, controle);
   try {
+    if (db.song(id)?.baixarPausado) return; // (pausado enquanto esperava na fila)
     const atual = db.song(id);
     if (!atual) throw new Error('a música não está mais na biblioteca');
     if (arquivosParaBaixar(atual).length) await carregarServidor();
@@ -968,8 +973,9 @@ async function baixarDaFila(pedido) {
     });
     // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois; com limite, para não segurar o download)
     await noMaximo(garantirClipe(id).catch(() => null), 12000, null);
-    await baixarAgora(id, { qualidade: pedido.qualidade });
+    await baixarAgora(id, { qualidade: pedido.qualidade, sinal: controle.signal });
   } catch (e) {
+    if (controle.signal.aborted) return; // (pausado: sem aviso de erro)
     const atual = db.song(id);
     void notificarSistema({
       titulo: atual?.title || 'Download',
@@ -978,9 +984,23 @@ async function baixarDaFila(pedido) {
       imagem: capaDaNotificacao(atual),
     });
   } finally {
+    controlesDeDownload.delete(id);
     baixando.delete(id);
     avisarDownloads();
   }
+}
+// Pausa os downloads destas músicas onde estão: as que esperam na fila saem dela, a que está baixando para no meio (o
+// arquivo que já veio fica guardado). Ficam marcadas como pausadas: o app não retoma sozinho (a revisão, o completar
+// depois, o abrir do app), só quando a pessoa tocar para baixar de novo
+function pausarDownloads(songs) {
+  const ids = new Set(songs.map((s) => s.id));
+  for (const id of ids) {
+    const s = db.song(id);
+    if (s && (precisaBaixar(s) || baixando.has(id))) db.updateSong(id, { baixarPausado: true });
+  }
+  for (let i = filaBaixar.length - 1; i >= 0; i--) if (ids.has(filaBaixar[i].id)) { baixando.delete(filaBaixar[i].id); filaBaixar.splice(i, 1); }
+  for (const id of ids) controlesDeDownload.get(id)?.abort();
+  avisarDownloads();
 }
 // Em "Áudio e vídeo", a música tem que vir com o clipe. Quando o vídeo dela é só o áudio (o "Nome - Topic" do YouTube
 // Music, o "Official Audio", o vídeo com a letra), o download trazia só o áudio: o Topic o YouTube nem deixa baixar como
@@ -1121,26 +1141,28 @@ async function garantirClipe(id) {
 // (a qualidade escolhida nos Ajustes vale: o vídeo tenta duas vezes nela e só depois aceita uma menor, para a música não
 // ficar sem o clipe; o arquivo menor fica marcado e é baixado de novo na escolhida depois: precisaMelhorar)
 const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'] };
-async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar) {
+async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar, sinal) {
   const q = qualidadeDoDownload(video);
   const qualidades = video ? [q, q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
   let erro;
   for (let t = 0; t < qualidades.length; t++) {
     if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 3000 * t)); }
+    if (sinal?.aborted) throw new Error('Cancelado');
     try {
-      const r = await chamarComEtapas(cfg, '/baixar', { json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidades[t] } },
+      const r = await chamarComEtapas(cfg, '/baixar', { json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidades[t] }, sinal },
         (etapa, p) => { if (etapa === 'baixando' && p !== null) aoProgresso(p); });
       // (pediu o clipe e veio só o som: não vale, tenta de novo)
       if (video && r?.tipo && !String(r.tipo).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
       return r;
     } catch (e) {
       erro = e;
+      if (sinal?.aborted) throw new Error('Cancelado'); // (pausado: para aqui)
       if (!navigator.onLine) break; // sem internet, as outras tentativas falhariam também
     }
   }
   throw erro;
 }
-async function baixarAgora(id, { qualidade = false } = {}) {
+async function baixarAgora(id, { qualidade = false, sinal } = {}) {
   const song = db.song(id);
   if (!song) return;
   const lista = arquivosParaBaixar(song);
@@ -1190,15 +1212,16 @@ async function baixarAgora(id, { qualidade = false } = {}) {
       let r;
       let blob;
       for (let volta = 0; volta < 2 && !blob; volta++) {
-        r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0));
+        r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0), sinal);
         try {
-          blob = await receberArquivo(cfg, r.arquivo, { tamanho: Number(r.tamanho) || 0, tipo: r.tipo, aoProgresso: (p) => atualizarProgresso(yt, 0.8 + 0.19 * p) });
+          blob = await receberArquivo(cfg, r.arquivo, { tamanho: Number(r.tamanho) || 0, tipo: r.tipo, sinal, aoProgresso: (p) => atualizarProgresso(yt, 0.8 + 0.19 * p) });
         } catch (e) {
-          if (volta || !(e.status === 404 || /não está mais no servidor/.test(String(e.message)))) throw e;
+          if (volta || sinal?.aborted || !(e.status === 404 || /não está mais no servidor/.test(String(e.message)))) throw e;
           progressoArquivos.set(yt, 0);
         }
       }
       // (o arquivo conferido: inteiro e, pedido o clipe, de vídeo — o só som não vale como clipe)
+      if (sinal?.aborted) throw new Error('Cancelado');
       if (!blob || blob.size < 10000) throw new Error('o arquivo chegou vazio');
       if (video && !String(r.tipo || blob.type).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
       atualizarProgresso(yt, 0.99);
@@ -1214,6 +1237,11 @@ async function baixarAgora(id, { qualidade = false } = {}) {
     }
   }));
 
+  // (pausado pela pessoa: o que já veio fica guardado, e o resto espera ela tocar de novo; nada é refeito sozinho)
+  if (sinal?.aborted) {
+    if (Object.keys(arquivos).length && db.song(id)) db.updateSong(id, { baixado: { arquivos, tamanho: Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0), em: Date.now() } });
+    return;
+  }
   if (!Object.keys(arquivos).length) throw falhas[0]?.e || new Error('nada para baixar');
   const vsAqui = versoesDe(db.song(id) || song);
   if (vsAqui?.audio && arquivos[vsAqui.audio] && arquivos[vsAqui.video] && !vsAqui.casadas && !vsAqui.diferentes) {
@@ -1239,7 +1267,7 @@ async function baixarAgora(id, { qualidade = false } = {}) {
   if (!db.song(id)) return;
   const tamanho = Object.values(arquivos).reduce((a, x) => a + (x.tamanho || 0), 0);
   db.updateSong(id, { baixado: { arquivos, tamanho, em: Date.now() }, rebaixar: undefined });
-  if (falhas.length || precisaMelhorar(db.song(id))) completarDepois(id);
+  if ((falhas.length || precisaMelhorar(db.song(id))) && !db.song(id)?.baixarPausado) completarDepois(id);
   // (e o karaokê dela, em segundo plano, se a letra é sincronizada)
   setTimeout(() => karaokeDoDownload(id), 0);
   // A música fica pronta assim que áudio/vídeo forem guardados. Capas, fotos,
@@ -1268,13 +1296,13 @@ function completarDepois(id) {
   tentativasDeCompletar.set(id, n + 1);
   setTimeout(async () => {
     const s = db.song(id);
-    if (!s?.baixado || !(precisaBaixar(s) || precisaMelhorar(s)) || baixando.has(id)) return;
+    if (!s?.baixado || s.baixarPausado || !(precisaBaixar(s) || precisaMelhorar(s)) || baixando.has(id)) return;
     if (!(await podeBaixarSozinho())) { completarDepois(id); return; }
     baixarMusica(s, { perguntou: true, qualidade: true });
   }, ESPERAS_DE_COMPLETAR[n]);
 }
 setTimeout(async () => {
-  const pelaMetade = db.songs().filter((s) => s.baixado && (precisaBaixar(s) || precisaMelhorar(s)) && midiaDe(s) && !baixando.has(s.id));
+  const pelaMetade = db.songs().filter((s) => s.baixado && !s.baixarPausado && (precisaBaixar(s) || precisaMelhorar(s)) && midiaDe(s) && !baixando.has(s.id));
   if (!pelaMetade.length || !(await podeBaixarSozinho())) return;
   for (const s of pelaMetade) baixarMusica(s, { perguntou: true, qualidade: true });
 }, 45e3);
@@ -1542,8 +1570,14 @@ document.addEventListener('click', async (e) => {
   const set = db.set(b.dataset.baixarSet);
   if (!set) return;
   const ss = musicasDoSet(set);
+  // baixando: o toque pausa onde está (as baixadas ficam; tocar de novo baixa o resto)
+  if (ss.some((s) => baixando.has(s.id))) {
+    pausarDownloads(ss);
+    const feitas = ss.filter((s) => !precisaBaixar(db.song(s.id) || s)).length;
+    toast(`Download pausado · ${feitas} de ${ss.length} baixada${ss.length > 1 ? 's' : ''}. Toque de novo para continuar`);
+    return;
+  }
   const faltam = ss.filter((s) => precisaBaixar(s) && !baixando.has(s.id));
-  if (!faltam.length && ss.some((s) => baixando.has(s.id))) { toast('Baixando as músicas…'); return; }
   if (!faltam.length && ss.every((s) => !precisaBaixar(s))) {
     if (await ask({ title: 'Remover os downloads?', text: `As ${ss.length} músicas de “${set.name}” continuam na biblioteca, mas só tocam com internet.`, ok: 'Remover', danger: true })) {
       for (const s of ss) await removerDownload(s);
@@ -1553,7 +1587,8 @@ document.addEventListener('click', async (e) => {
   }
   if (faltam.some((s) => arquivosParaBaixar(s).length) && !servidorIA().url) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
   if (!(await podeBaixarAgora())) return;
-  for (const s of faltam) await baixarMusica(s, { perguntou: true });
+  // (continua de onde parou: só as que faltam, e a pausa sai)
+  for (const s of faltam) { if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined }); await baixarMusica(db.song(s.id), { perguntou: true }); }
   toast(`${faltam.length} música${faltam.length > 1 ? 's' : ''} na fila para baixar`);
 });
 // tocar no botão de baixar, onde ele estiver: baixa, ou pergunta se tira o download
@@ -1569,7 +1604,9 @@ document.addEventListener('click', async (e) => {
     if (await ask({ title: 'Remover o download?', text: `“${s.title}” continua na biblioteca, mas só toca com internet.`, ok: 'Remover', danger: true })) { await removerDownload(s); toast('Download removido'); }
     return;
   }
-  baixarMusica(s);
+  // (tocar para baixar tira a pausa desta música)
+  if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
+  baixarMusica(db.song(s.id));
 });
 // salvar na biblioteca já baixa a música (como o "Baixar" ligado numa playlist do Spotify), com o servidor ligado, no
 // Wi-Fi (ou com os dados móveis liberados) e com "Baixar ao salvar" ligado. Várias de uma vez (importar um backup) não:
@@ -1960,7 +1997,7 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   s = db.song(id);
   // e baixa o que falta (era baixada: mesmo a que ficou sem arquivo nenhum volta a baixar)
-  if (s && precisaBaixar(s)) {
+  if (s && precisaBaixar(s) && !s.baixarPausado) {
     if (!(await podeBaixarSozinho())) return false;
     await baixarMusica(s, { perguntou: true });
   } else if (s?.rebaixar) db.updateSong(id, { rebaixar: undefined });

@@ -272,15 +272,19 @@ export function casarLinhas(cantadas, naTela) {
 // a conexão para de mandar por `inatividade` ms, ela é cortada e o app pede de novo — do ponto em que parou, quando o
 // servidor aceita (Range), ou do começo. O tamanho que o servidor informou confere o arquivo no fim (o incompleto não
 // vale). aoProgresso(fração de 0 a 1). Devolve o Blob
+// sinal: o AbortSignal de quem pausou o download (para na hora, sem tentar de novo)
 export async function receberArquivo(cfg, numero, { tamanho = 0, tipo = '', aoProgresso = () => {}, tentativas = 4, inatividade = 40000,
-  fetchImpl = fetch, aguardar = esperar } = {}) {
+  fetchImpl = fetch, aguardar = esperar, sinal } = {}) {
   const base = baseDoServidor(cfg?.url);
   if (!base) throw new Error('A IA do servidor ainda não está disponível');
   const blocos = [];
   let recebido = 0;
   let ultimo;
   for (let i = 0; i < tentativas; i++) {
+    if (sinal?.aborted) throw new Error('Cancelado');
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const pausar = () => ctrl?.abort();
+    sinal?.addEventListener('abort', pausar, { once: true });
     let parado = null;
     const vigiar = () => { clearTimeout(parado); parado = setTimeout(() => ctrl?.abort(), inatividade); };
     try {
@@ -310,11 +314,14 @@ export async function receberArquivo(cfg, numero, { tamanho = 0, tipo = '', aoPr
         recebido += b.byteLength;
       }
       clearTimeout(parado);
+      sinal?.removeEventListener('abort', pausar);
       if (tamanho && recebido < tamanho) throw new Error(`o arquivo chegou incompleto (${recebido} de ${tamanho} bytes)`);
       aoProgresso(1);
       return new Blob(blocos, { type: tipo || resp.headers.get('content-type') || 'application/octet-stream' });
     } catch (e) {
       clearTimeout(parado);
+      sinal?.removeEventListener('abort', pausar);
+      if (sinal?.aborted) throw new Error('Cancelado');
       // (404: o servidor não tem mais o arquivo; outros erros dele, fora os de passagem, não melhoram repetindo)
       if (e.status && ![408, 425, 429, 500, 502, 503, 504].includes(e.status)) throw e;
       ultimo = e.name === 'AbortError' ? new Error('a conexão com o servidor parou no meio do arquivo') : e;
