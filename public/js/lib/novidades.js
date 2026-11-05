@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 540, data: '2026-11-05', titulo: 'Por trás da música, o fone conectado e o artista certo',
+    itens: [
+      { tipo: 'novo', texto: 'No Tocando agora, embaixo da letra: o artista com o selo de confirmado e os fãs, os vídeos relacionados dele (tocam na hora), as pessoas por trás da música em fotos grandes, o "Explorar" do artista (as músicas dele, os artistas parecidos e as músicas parecidas) e os créditos com o "Mostrar tudo", que abre todos em grupos: artista, composição e letra, produção, detalhes e fontes (o selo).' },
+      { tipo: 'novo', texto: 'Os créditos ficaram completos: quem compôs, escreveu a letra e produziu, e o selo, vêm da ficha da música na Wikipédia. A foto de quem só compôs ou produziu só aparece quando é com certeza da pessoa.' },
+      { tipo: 'melhoria', texto: 'O "Explorar" das pessoas da música foi refeito: as pessoas espalhadas em duas fileiras que andam para o lado; tocando numa, abre a ficha dela (os papéis, os fãs e os álbuns); embaixo, as versões da música por outros artistas.' },
+      { tipo: 'novo', texto: 'Com um fone ou uma caixa conectada, o nome dele aparece em verde embaixo dos controles e no player pequeno, e a folha Conectar mostra o fone tocando a música, pelo celular.' },
+      { tipo: 'novo', texto: 'No celular, rolando o Tocando agora, aparece a barrinha de cima (como no tablet): o nome e o artista, que andam quando não cabem, o fone conectado (o nome e o ícone dele, que só aparece com fone), o ✓ da biblioteca, o play e a linha do andamento. Tocando no nome, volta ao topo. O fone, o ✓ e o "Mostrar tudo" ficam na cor do app.' },
+      { tipo: 'correcao', texto: 'O "Sobre o artista" podia mostrar outra pessoa com o mesmo nome: em Standing Next to You, o Jung Kook aparecia com a foto e os 7.899 fãs de um artista de música indiana. Agora vale o artista que canta a própria música e, entre os de nome igual (escrito junto ou separado, como "Jung Kook" e "Jungkook"), o mais conhecido. As músicas já salvas e baixadas são conferidas sozinhas.' },
+      { tipo: 'melhoria', texto: 'O "Consertar agora" do Diagnóstico da música agora também conserta o artista (procura de novo os fãs, a foto e a apresentação) e, no fim, diz o que mudou.' },
+      { tipo: 'melhoria', texto: 'A tela do Diagnóstico ficou mais fácil de ler: em cima, o resumo do que está errado; embaixo, cada parte com um sinal verde, amarelo ou vermelho. O "Copiar" continua levando o texto inteiro.' },
+    ],
+  },
+  {
     versao: 539, data: '2026-11-05', titulo: 'A seta de download piscando direito',
     itens: [
       { tipo: 'correcao', texto: 'Nas listas, a seta das músicas baixando piscava de um jeito estranho (ora piscava, ora não): ela era redesenhada a cada avanço do download e a piscada recomeçava do zero. Agora ela só muda quando o estado muda (baixando, incompleta, baixada), e a piscada fica contínua.' },
@@ -62,14 +75,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No K-pop o clipe oficial sai no canal da empresa (HYBE LABELS, SMTOWN, JYP, YG, 1theK…) e se chama "Official MV", e o app achava que músicas como Standing Next to You, do Jungkook, não tinham clipe. Agora esses canais e o "MV" contam como oficiais.' },
       { tipo: 'correcao', texto: 'As músicas que tinham ficado só música por isso são conferidas de novo, sozinhas; nas baixadas, o clipe volta a ser baixado.' },
-    ],
-  },
-  {
-    versao: 530, data: '2026-11-05', titulo: 'Só clipe de verdade',
-    itens: [
-      { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e só aceita clipe de canal oficial (o do artista, o VEVO ou a gravadora; não o de fã). Ele procura o clipe oficial; Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
-      { tipo: 'correcao', texto: 'O clipe e o áudio oficial com os outros artistas no nome ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open") voltam a ser reconhecidos. As músicas que tinham perdido o áudio oficial por isso o procuram de novo, sozinhas.' },
-      { tipo: 'melhoria', texto: 'As músicas que você já tinha, inclusive as baixadas, são conferidas sozinhas, em segundo plano. Nas baixadas, o clipe oficial achado é baixado; na que fica só música, o vídeo parado sai do aparelho (sobra mais espaço) e ela continua tocando sem internet, só com o som.' },
     ],
   },
 ];
