@@ -9589,6 +9589,13 @@ function marcarTocandoNasListas() {
 let marcarAgendado = 0;
 const agendarMarcarTocando = () => { if (!marcarAgendado) marcarAgendado = requestAnimationFrame(() => { marcarAgendado = 0; marcarTocandoNasListas(); }); };
 player.ouvir(agendarMarcarTocando);
+// a música que começa a tocar entra nas tocadas recentemente (o "Tocou por último" da gaveta), venha de onde vier:
+// a tela dela, uma lista, a fila, o play da gaveta. Antes só abrir a tela da música contava
+player.ouvir(() => {
+  const id = player.atual?.songId;
+  if (player.estado !== 'tocando' || !id || !db.song(id) || db.recent()[0]?.id === id) return;
+  db.touchRecent(id);
+});
 // (listas novas na tela: a página desenhada, a busca que chegou, a lista reordenada)
 new MutationObserver(agendarMarcarTocando).observe(view, { childList: true, subtree: true });
 
@@ -15065,7 +15072,8 @@ function infoDaGaveta(u) {
   const baixadas = db.songs().filter((x) => x.baixado).length;
   const sets = db.sets().length;
   const numero = (n, t, href) => `<a class="pg-num" href="${href}"><b>${n}</b><small>${t}</small></a>`;
-  const ultima = db.recent()[0];
+  // (sem tocadas na lista, como quando a sincronia trouxe a lista vazia: a música que está no player)
+  const ultima = db.recent()[0] || db.song(player.atual?.songId || '');
   const fundo = ultima ? capaDaMusica(ultima) : '';
   return `
     ${u ? `<div class="pg-conta${estadoConta.erro ? ' erro' : ''}">${LOGO_GOOGLE}<span class="grow"><small>Conta Google</small><b id="pg-estado">${esc(resumoDaSincronia())}</b></span>

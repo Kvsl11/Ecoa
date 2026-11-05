@@ -7,6 +7,7 @@ export const NOVIDADES = [
     versao: 507, data: '2026-11-05', titulo: 'A prévia da playlist abre com som e o cartão ficou transparente',
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
+      { tipo: 'correcao', texto: 'O "Tocou por último" da gaveta do perfil só mudava quando você abria a tela da música, e podia sumir. Agora conta qualquer música que começa a tocar (pelas listas, pela fila ou pelo play da própria gaveta), e, se a lista de tocadas estiver vazia, mostra a música que está no player.' },
       { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
     ],
   },
