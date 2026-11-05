@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 508, data: '2026-11-05', titulo: 'O "Tocou por último" não some mais',
+    itens: [
+      { tipo: 'correcao', texto: 'O "Tocou por último" da gaveta do perfil só mudava quando você abria a tela da música, e podia sumir. Agora conta qualquer música que começa a tocar (pelas listas, pela fila ou pelo play da própria gaveta), e, se a lista de tocadas estiver vazia, mostra a música que está no player.' },
+    ],
+  },
+  {
     versao: 507, data: '2026-11-05', titulo: 'A prévia da playlist abre com som e o cartão ficou transparente',
     itens: [
       { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
@@ -62,13 +68,6 @@ export const NOVIDADES = [
     versao: 499, data: '2026-11-04', titulo: 'Uma tela de entrada nova',
     itens: [
       { tipo: 'melhoria', texto: 'A tela de entrada ficou nova. No fundo, um mural com quadros de clipes famosos passa devagar, em fileiras inclinadas: Michael Jackson, The Beatles, Bruno Mars, Lady Gaga, Sabrina Carpenter, Queen e outros. No alto, aparece o nome de um dos clipes, trocando de tempos em tempos. Na frente ficam o "Ouça. Cante. Ecoe.", o que o app tem e o botão Entrar com o Google. No computador, o convite fica à esquerda e o mural ocupa o resto da tela.' },
-    ],
-  },
-  {
-    versao: 498, data: '2026-11-04', titulo: 'O carregamento como no Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'Enquanto uma tela ou parte dela ainda está carregando, aparece só o círculo girando no meio, na cor do app, como no Spotify, no lugar dos textos "Carregando…" e "Buscando…". Vale em todas as telas: Busca, Início, Liturgia, Orações, artistas, álbuns, partituras e as outras.' },
-      { tipo: 'melhoria', texto: 'Na Busca, ao tocar numa música, os textos que apareciam e sumiam embaixo do nome ("Trazendo a cifra e a letra…", "Sincronizando a letra…") saíram: fica só o círculo girando na linha até a música abrir. No Início, o aviso "buscando sugestões…" da liturgia de hoje também saiu, e na música a procura da letra sincronizada aparece só com o círculo.' },
     ],
   },
 ];
