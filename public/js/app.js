@@ -1063,6 +1063,19 @@ async function conferirClipeSalva(id) {
   void acertarVersoes(depois, depois?.sincronia?.fonte === 'lrclib' ? depois.sincronia : null).catch(() => {});
   return true;
 }
+// A música marcada sem clipe, aberta ou tocada: conferida de novo na hora (uma vez por vez que o app abre), com as regras
+// de agora. Voltando o clipe, o player passa a ter o "Mudar para vídeo" e, na baixada, o clipe é baixado de novo
+const clipeConferidoAgora = new Set();
+async function conferirClipeAoTocar(id) {
+  const s = db.song(id);
+  if (!s?.semClipe || clipeConferidoAgora.has(id) || !navigator.onLine) return;
+  clipeConferidoAgora.add(id);
+  await conferirClipeSalva(id).catch(() => {});
+  const depois = db.song(id);
+  if (!depois || depois.semClipe) return;
+  if (player.atual?.songId === id) { player.atualizar({ soMusica: false }); player.versoes(depois); }
+  if (depois.baixado && precisaBaixar(depois) && await podeBaixarSozinho()) void baixarMusica(depois, { perguntou: true });
+}
 // (a música que acabou de entrar na biblioteca é conferida logo depois)
 window.addEventListener('songbook:nova-musica', (e) => setTimeout(() => { const s = db.song(e.detail?.id); if (s && s.semClipe === undefined) void conferirClipeSalva(s.id); }, 4000));
 
@@ -1945,8 +1958,9 @@ async function revisarMusicasSalvas() {
     atrasadas.sort((a, b) => Number(Boolean(b.baixado)) - Number(Boolean(a.baixado)));
     for (const s0 of atrasadas) {
       if (!db.song(s0.id) || revisando.has(s0.id)) continue;
-      // (não disputa a internet com a música que a pessoa abriu agora)
-      if (player.atual?.songId === s0.id) continue;
+      // (não disputa a internet com a música que está tocando agora; a que só está parada no player — a última tocada,
+      // que volta ao abrir o app — é revisada: antes ela ficava de fora para sempre)
+      if (player.atual?.songId === s0.id && player.estado === 'tocando') continue;
       revisando.add(s0.id);
       try {
         const feitas = Number(s0.revisao) || 0;
@@ -10135,6 +10149,8 @@ function marcarTocandoNasListas() {
 let marcarAgendado = 0;
 const agendarMarcarTocando = () => { if (!marcarAgendado) marcarAgendado = requestAnimationFrame(() => { marcarAgendado = 0; marcarTocandoNasListas(); }); };
 player.ouvir(agendarMarcarTocando);
+// (a música marcada sem clipe que começa a tocar, ou fica no player, é conferida de novo: veja conferirClipeAoTocar)
+player.ouvir(() => { const id = player.atual?.songId; if (id && id !== 'previa') void conferirClipeAoTocar(id); });
 // a música que começa a tocar entra nas tocadas recentemente (o "Tocou por último" da gaveta), venha de onde vier:
 // a tela dela, uma lista, a fila, o play da gaveta. Antes só abrir a tela da música contava
 player.ouvir(() => {
