@@ -403,3 +403,27 @@ test('o vídeo que é só o áudio e o clipe oficial da música', async () => {
   ];
   assert.equal(escolherClipe(baby, { titulo: 'Baby', artista: 'Justin Bieber' })?.id, 'kffacxfA7G4');
 });
+
+test('o áudio oficial é da mesma música: o artista certo e o título exato (não outra com o título dentro)', () => {
+  const v = (id, titulo, canal, segundos = 207, tipo) => ({ id, titulo, canal, segundos, ...(tipo ? { tipo } : {}) });
+  const lista = [
+    v('outroartist', 'Voa Beija-flor', 'Fulano de Tal', 207, 'music'),
+    v('potpourri01', 'Jorge e Mateus - Voa Beija Flor Pot-Pourri', 'Jorge & Mateus Oficial', 210),
+    v('certo000001', 'Voa Beija-flor', 'Jorge & Mateus', 207, 'music'),
+  ];
+  assert.equal(escolherAudio(lista, { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus', duracao: 207 })?.id, 'certo000001');
+  assert.equal(escolherAudio(lista.slice(0, 2), { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus', duracao: 207 }), null);
+  // "Beija-flor" (Jota.pê) não é "Voa Beija-flor", mesmo com o título dentro
+  assert.equal(escolherAudio([v('voabeija001', 'Voa Beija-flor', 'Jota.pê', 207, 'music')], { titulo: 'Beija-flor', artista: 'Jota.pê', duracao: 207 }), null);
+  // a dupla escrita de outro jeito no canal, o VEVO, o participante e o "Official Audio" continuam valendo
+  assert.equal(escolherAudio([v('duplaee0001', 'Voa Beija-flor (Official Audio)', 'Jorge e Mateus', 207)], { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus', duracao: 207 })?.id, 'duplaee0001');
+  assert.equal(escolherAudio([v('vevo0000001', 'Espresso (Audio)', 'SabrinaCarpenterVEVO', 175)], { titulo: 'Espresso', artista: 'Sabrina Carpenter', duracao: 175 })?.id, 'vevo0000001');
+  assert.equal(escolherAudio([v('feat0000001', 'Bruno Mars - Die With A Smile ft. Lady Gaga (Official Audio)', 'Bruno Mars', 252)], { titulo: 'Die With A Smile', artista: 'Lady Gaga, Bruno Mars', duracao: 251 })?.id, 'feat0000001');
+});
+
+test('o clipe também é do artista certo e com o título exato', async () => {
+  const { escolherClipe } = await import('../public/js/lib/versoes.js');
+  const v = (id, titulo, canal, segundos = 230) => ({ id, titulo, canal, segundos });
+  assert.equal(escolherClipe([v('outroclipe1', 'Voa Beija-flor (Official Video)', 'Banda Cover')], { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus' }), null);
+  assert.equal(escolherClipe([v('clipecerto1', 'Jorge & Mateus - Voa Beija-flor (Clipe Oficial)', 'Jorge & Mateus')], { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus' })?.id, 'clipecerto1');
+});

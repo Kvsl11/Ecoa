@@ -338,6 +338,38 @@ def casar_versoes(pedido: PedidoVersoes, etapas: bool = Query(False), tarefa: bo
     return com_etapas(trabalho, etapas, pasta, tarefa)
 
 
+class PedidoCroma(BaseModel):
+    video: str  # a gravação (link ou id do YouTube)
+
+
+_cromas: dict[str, dict] = {}  # o mesmo vídeo: a resposta guardada
+
+
+@app.post("/croma", dependencies=[Depends(conferir_chave)])
+def croma_do_video(pedido: PedidoCroma, etapas: bool = Query(False), tarefa: bool = Query(False)):
+    """Quanto soa cada uma das 12 notas na gravação (C, C#, … B; o croma médio, somando 1): o app compara com as notas
+    dos acordes da cifra para pôr a cifra no tom da gravação. {"croma": [12 números]}"""
+    import versoes
+
+    video = youtube.id_do_video(pedido.video)
+    if not video:
+        raise HTTPException(400, "link do YouTube inválido")
+    if video in _cromas:
+        return com_etapas(lambda etapa: _cromas[video], etapas, tarefa=tarefa)
+    pasta = tempfile.mkdtemp(prefix="songbook-croma-")
+
+    def trabalho(etapa):
+        y, _, _ = audio_do_video(video, pasta, etapa)
+        etapa("ouvindo")
+        c = versoes.croma(y, transcricao.SR).sum(axis=0)
+        total = float(c.sum()) or 1.0
+        r = {"croma": [round(float(x) / total, 5) for x in c]}
+        _cromas[video] = r
+        return r
+
+    return com_etapas(trabalho, etapas, pasta, tarefa)
+
+
 class PedidoYoutube(BaseModel):
     url: str
     separar: bool = True

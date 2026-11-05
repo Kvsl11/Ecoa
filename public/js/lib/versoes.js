@@ -21,6 +21,40 @@ const CANAL_SEM_VOZ = /\b(karaoke|instrumentals?|backing|playback|minus one|sing
 // o próprio clipe (o modo música quer o áudio, não outro vídeo com cenas)
 const CLIPE = /\b(official (music )?video|music video|videoclipe|clipe oficial|clipe)\b/;
 
+// ---- é a mesma música? (o áudio oficial e o clipe são procurados no YouTube pelo título e pelo artista, e a busca traz
+// de tudo: a mesma música de outro artista, outra música com o título dentro — "Beija-flor" dentro de "Voa Beija-flor"
+// —, o pot-pourri que passa por ela). Antes valia qualquer vídeo com o título no nome, e o artista quase não pesava:
+// o modo música tocava outra música, com o clipe certo
+const PALAVRAS_DO_NOME = new Set(['official', 'oficial', 'audio', 'video', 'videoclipe', 'clipe', 'clip', 'mv', 'lyric', 'lyrics', 'letra',
+  'legendado', 'traducao', 'hd', 'hq', '4k', '1080p', '720p', 'visualizer', 'visualiser', 'remastered', 'remaster', 'remasterizado',
+  'topic', 'music', 'musica', 'faixa', 'single', 'full', 'song', 'vevo', 'e', 'and', 'x', 'vs', 'com', 'with', 'part', 'feat', 'ft']);
+const palavrasDe = (t) => normal(t).split(' ').filter(Boolean);
+const juntas = (t) => normal(t).replace(/ /g, '');
+// os nomes do artista que valem: o nome todo e cada um dos que ele junta ("Lady Gaga, Bruno Mars", "Jorge & Mateus")
+const nomesDoArtista = (artista) => {
+  const sem = String(artista || '').replace(/\s*(?:\(|\[)?\b(?:feat\.?|ft\.?|featuring|part\.?)\s+/i, ', ');
+  return [sem, ...sem.split(/\s*(?:,|;|\/|&|\s(?:e|and|x)\s)\s*/i)].map((x) => palavrasDe(x).filter((p) => !['e', 'and', 'the', 'x'].includes(p))).filter((x) => x.length);
+};
+// o vídeo é do artista: o nome dele (ou de um dos artistas juntos) no canal ou no título
+export function doMesmoArtista(v, artista) {
+  const nomes = nomesDoArtista(artista);
+  if (!nomes.length) return true;
+  const onde = new Set(palavrasDe(`${v?.canal || ''} ${v?.titulo || ''}`));
+  const ondeJunto = juntas(`${v?.canal || ''} ${v?.titulo || ''}`);
+  return nomes.some((n) => n.every((p) => onde.has(p)) || (n.join('').length >= 5 && ondeJunto.includes(n.join(''))));
+}
+// o título do vídeo é o da música: tirando o que vai entre parênteses, os participantes, o nome do artista e as palavras
+// de sempre ("Official Audio", "Lyric Video", "Topic"), sobra só o título — nenhuma palavra a mais
+export function mesmoTitulo(v, titulo, artista = '') {
+  const t = palavrasDe(String(titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s*(?:\(|\[)?\b(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ''));
+  if (!t.length) return false;
+  const nome = palavrasDe(String(v?.titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' '));
+  if (!` ${nome.join(' ')} `.includes(` ${t.join(' ')} `)) return false;
+  const doTitulo = new Set(t);
+  const doArtista = new Set(nomesDoArtista(artista).flat());
+  return nome.every((p) => doTitulo.has(p) || doArtista.has(p) || PALAVRAS_DO_NOME.has(p) || /^(19|20)\d\d$/.test(p));
+}
+
 // Entre os vídeos achados no YouTube ({ id, titulo, canal, segundos }), o áudio oficial da gravação: o mesmo título,
 // a duração aproximada da gravação do LRCLIB e, de preferência, do canal do artista
 // YouTube Music são o áudio puro). null se nenhum servir
@@ -46,6 +80,8 @@ export function escolherAudio(videos, { titulo = '', artista = '', duracao = 0, 
         : Math.abs(v.segundos - duracao) > Math.max(12, duracao * 0.04)) continue;
     const nome = normal(v.titulo);
     if (!` ${nome} `.includes(` ${t} `) || CLIPE.test(nome) || (OUTRA_GRAVACAO.test(nome) && !OUTRA_GRAVACAO.test(t))) continue;
+    // (a mesma música: do artista certo e com o título exato, sem outra música ou pot-pourri em volta)
+    if (!doMesmoArtista(v, artista) || !mesmoTitulo(v, titulo, artista)) continue;
     // (a instrumental tem a mesma duração da gravação: só o nome diz que ela não tem a voz)
     if (SEM_VOZ.test(nome) && !SEM_VOZ.test(t)) continue;
     const canal = normal(v.canal);
@@ -248,6 +284,7 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (pareceSoAudio({ titulo: v.titulo, canal: v.canal })) continue;
     if ((OUTRA_GRAVACAO.test(nome) && !OUTRA_GRAVACAO.test(t)) || (SEM_VOZ.test(nome) && !SEM_VOZ.test(t)) || CANAL_SEM_VOZ.test(canal)) continue;
     if (SOBRE_O_CLIPE.test(nome) && !SOBRE_O_CLIPE.test(t)) continue;
+    if (!doMesmoArtista(v, artista) || !mesmoTitulo(v, titulo, artista)) continue;
     const doArtista = a && (canal === a || canal.startsWith(`${a} `) || canal === `${a.replace(/ /g, '')}vevo` || canal.replace(/ /g, '') === `${a.replace(/ /g, '')}vevo`);
     const temNome = CLIPE.test(nome);
     if (!doArtista && !temNome) continue;
