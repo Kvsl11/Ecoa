@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 536, data: '2026-11-05', titulo: 'O botão de baixar da playlist',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na playlist, enquanto as músicas baixam, o botão de baixar só pisca de leve (como as setas das músicas na lista), sem o anel verde em volta. Com todas baixadas, ele fica verde.' },
+    ],
+  },
+  {
     versao: 535, data: '2026-11-05', titulo: 'Downloads mais rápidos e sempre com o clipe',
     itens: [
       { tipo: 'correcao', texto: 'Muitas músicas baixavam só o som, sem o clipe: quando o áudio oficial é o próprio clipe, o app pedia o mesmo vídeo duas vezes e o som, chegando por último, apagava o clipe. Agora ele baixa uma vez só, como vídeo. As baixadas que ficaram só com o som completam sozinhas.' },
@@ -65,14 +71,6 @@ export const NOVIDADES = [
     versao: 527, data: '2026-11-05', titulo: 'Os tons na cor da música',
     itens: [
       { tipo: 'melhoria', texto: 'No player, tocando no tom, abre a janela com os 12 tons juntos, pintada na cor da música como os desenhos dos acordes: o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
-    ],
-  },
-  {
-    versao: 526, data: '2026-11-05', titulo: 'A cifra no tom da gravação e a tabela de tons',
-    itens: [
-      { tipo: 'novo', texto: 'A cifra no tom da música que toca: algumas cifras vêm em outro tom (quem escreveu tirou em outro, ou escreveu com o capotraste). O app ouve a gravação, compara as notas que soam com as dos acordes da cifra e, quando a resposta é clara, põe a cifra no tom da gravação, avisando ("Cifra no tom da gravação: D → E"). Ele ouve pelo arquivo baixado, pelo áudio que você importou ou pelo seu servidor; o tom que você escolher à mão nunca é mudado.' },
-      { tipo: 'melhoria', texto: 'No player, o tom virou um botão só: tocando nele, abre a tabela com os 12 tons, com o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
-      { tipo: 'melhoria', texto: 'As músicas baixadas que você já tinha são conferidas sozinhas, em segundo plano, e as que estavam em outro tom passam para o da gravação.' },
     ],
   },
 ];
