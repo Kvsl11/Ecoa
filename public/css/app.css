@@ -5103,12 +5103,6 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-quem { display: flex; flex-direction: column; min-width: 0; }
 .pv-quem .pv-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-seg { color: rgb(255 255 255 / 0.85); font-size: 12.5px; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
-/* os seguidores e o botão do perfil oficial (Instagram; sem ele, YouTube), lado a lado embaixo do nome */
-.pv-linha { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pv-perfil { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px 9px 3px 7px; border: 1px solid rgb(255 255 255 / 0.55); border-radius: 999px;
-  color: #fff; font-size: 12px; font-weight: 700; text-decoration: none; background: rgb(0 0 0 / 0.15); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.pv-perfil[hidden] { display: none; }
-.pv-perfil:active { transform: scale(0.95); }
 /* as hashtags: quantas houver, numa linha que se arrasta para o lado */
 .pv-tags { grid-column: 1; grid-row: 2; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain;
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }

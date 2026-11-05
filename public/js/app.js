@@ -32,7 +32,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, perfisDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -13548,7 +13548,7 @@ function previaDaPlaylist(set, inicio = 0) {
       <div class="pv-info">
         <div class="pv-meta">
           <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
-            <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><span class="pv-linha"><small class="pv-seg" hidden></small><a class="pv-perfil" target="_blank" rel="noopener" hidden></a></span></span>` : ''}</div>
+            <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><small class="pv-seg" hidden></small></span>` : ''}</div>
           <button class="icon-btn pv-compartilhar" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
           <div class="pv-tags" hidden></div>
           <button class="icon-btn pv-mais" data-mais aria-label="Mais opções" title="Mais opções">${icon('maisEmPe', 22)}</button></div>
@@ -13583,7 +13583,7 @@ function previaDaPlaylist(set, inicio = 0) {
     atual = null;
   };
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
-  // os seguidores do artista (os do YouTube), o perfil oficial dele (Instagram ou YouTube) e as hashtags da música.
+  // os seguidores do artista (os do YouTube) e as hashtags da música.
   // Guardados no aparelho (sem internet, os últimos), na música da tela e na próxima
   const generosPedidos = new Map();
   const generosPorArtista = (nome) => { const k = normalizar(nome); if (!generosPedidos.has(k)) generosPedidos.set(k, generosDoArtista(nome)); return generosPedidos.get(k); };
@@ -13594,26 +13594,11 @@ function previaDaPlaylist(set, inicio = 0) {
     const { s } = faixas[k];
     const adb = s.artist ? audioDbGuardado(s.artist) : Promise.resolve(null);
     const daMusica = s.artist ? comUltimoValor('adbm', `${s.artist}|${s.title}`, audioDbDaMusica(s.artist, s.title)) : Promise.resolve(null);
-    // (embaixo do nome: os seguidores, que são os inscritos no canal do YouTube, lidos na hora ("41,2M seguidores"; o
-    // Instagram não abre o número dele), e o botão do perfil oficial do artista no Instagram (pela MusicBrainz); sem
-    // Instagram, o do canal do YouTube)
-    if (s.artist) {
-      const canal = canalGuardado(s.artist).catch(() => null);
-      canal.then((c) => {
-        const seg = slide.querySelector('.pv-seg');
-        if (seg && c?.inscritos) { seg.textContent = `${numeroCurto(c.inscritos)} seguidores`; seg.hidden = false; }
-      });
-      Promise.all([comUltimoValor('perfis', s.artist, perfisDoArtista(s.artist)), canal]).then(([p, c]) => {
-        const b = slide.querySelector('.pv-perfil');
-        const yt = p?.youtube || (c?.id ? `https://www.youtube.com/channel/${c.id}` : '');
-        const [url, ic, nomeRede] = p?.instagram ? [p.instagram, 'instagram', 'Instagram'] : yt ? [yt, 'youtube', 'YouTube'] : [];
-        if (!b || !url) return;
-        b.href = url;
-        b.innerHTML = `${icon(ic, 14)}<span>${nomeRede}</span>`;
-        b.title = b.ariaLabel = `${s.artist} no ${nomeRede}`;
-        b.hidden = false;
-      });
-    }
+    // (embaixo do nome: os seguidores, que são os inscritos no canal do YouTube, lidos na hora: "41,2M seguidores")
+    if (s.artist) canalGuardado(s.artist).then((c) => {
+      const seg = slide.querySelector('.pv-seg');
+      if (seg && c?.inscritos) { seg.textContent = `${numeroCurto(c.inscritos)} seguidores`; seg.hidden = false; }
+    }).catch(() => {});
     // (os gêneros do artista na MusicBrainz, os mais votados: um pedido por artista, guardado)
     const generos = s.artist ? comUltimoValor('mbgen', s.artist, generosPorArtista(s.artist)) : Promise.resolve([]);
     Promise.all([adb, daMusica, generos]).then(([a, m, g]) => {

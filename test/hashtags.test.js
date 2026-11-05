@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emIngles, hashtagsDaMusica, idiomaDaLetra, numeroCurto } from '../public/js/lib/hashtags.js';
-import { artistaDaMusicBrainz, generosDaMusicBrainz, musicaDaAudioDb, perfisDaMusicBrainz } from '../public/js/lib/web.js';
+import { artistaDaMusicBrainz, generosDaMusicBrainz, musicaDaAudioDb } from '../public/js/lib/web.js';
 
 test('número curto dos seguidores, como nos stories', () => {
   assert.equal(numeroCurto(90300000), '90,3M');
@@ -66,14 +66,6 @@ test('musicaDaAudioDb: só a do mesmo artista e título, e só com algo para as 
   assert.equal(musicaDaAudioDb({ track: [{ strArtist: 'Bruno Mars', strTrack: 'I Just Might' }] }, 'Bruno Mars', 'I Just Might'), null);
 });
 
-test('MusicBrainz: o id do artista e os perfis oficiais (Instagram e canal do YouTube)', () => {
+test('MusicBrainz: o id e os gêneros do artista', () => {
   assert.deepEqual(artistaDaMusicBrainz({ artists: [{ id: 'afb', name: 'Bruno Mars', score: 100, tags: [{ count: 2, name: 'Pop' }] }] }, 'Bruno Mars'), { id: 'afb', generos: ['pop'] });
-  const rels = { relations: [
-    { type: 'social network', url: { resource: 'https://www.instagram.com/p/ABC123/' } },
-    { type: 'social network', url: { resource: 'http://www.instagram.com/brunomars/' } },
-    { type: 'youtube', url: { resource: 'https://www.youtube.com/channel/UCoUM-UJ7rirJYP8CQ0EIaHA' } },
-    { type: 'social network', url: { resource: 'https://twitter.com/BrunoMars' } },
-  ] };
-  assert.deepEqual(perfisDaMusicBrainz(rels), { instagram: 'https://www.instagram.com/brunomars/', youtube: 'https://www.youtube.com/channel/UCoUM-UJ7rirJYP8CQ0EIaHA' });
-  assert.deepEqual(perfisDaMusicBrainz({ relations: [] }), { instagram: '', youtube: '' });
 });
