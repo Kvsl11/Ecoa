@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 530, data: '2026-11-05', titulo: 'Só clipe de verdade',
+    itens: [
+      { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e procura o clipe oficial no canal do artista. Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
+      { tipo: 'correcao', texto: 'O clipe e o áudio oficial com os outros artistas no nome ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open") voltam a ser reconhecidos. As músicas que tinham perdido o áudio oficial por isso o procuram de novo, sozinhas.' },
+      { tipo: 'melhoria', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano.' },
+    ],
+  },
+  {
     versao: 529, data: '2026-11-05', titulo: 'A cifra certa da música',
     itens: [
       { tipo: 'correcao', texto: 'Algumas músicas vinham com a cifra de outra música com o mesmo nome (a primeira achada no Cifra Club). Agora o app confere a cifra pela letra da música: se não for ela, tenta as outras cifras com o mesmo título e fica com a que é da música. Se nenhuma for, a música fica só com a letra, em vez de uma cifra errada.' },
@@ -66,13 +74,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na Busca, enquanto você digita, o resultado anterior continua na tela (mais apagado) e uma linha fina corre embaixo da barra de busca. Quando chega o resultado novo, a tela troca de uma vez, sem pular. Antes cada seção (Artistas, Acervo, Músicas) apagava e ganhava uma bolinha girando.' },
       { tipo: 'melhoria', texto: 'Na primeira busca e em "Católicas em alta" e "Artistas católicos", aparece o contorno das capas e das linhas no lugar exato do que vai chegar. As músicas vêm primeiro, depois os artistas e o acervo.' },
       { tipo: 'melhoria', texto: 'No resto do app, o carregando virou três pontinhos discretos, no lugar do anel colorido girando.' },
-    ],
-  },
-  {
-    versao: 520, data: '2026-11-05', titulo: 'As duplas não são mais separadas',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas músicas de duplas, como "Voa Beija-flor" de Jorge & Mateus, o app separava os nomes e mostrava outros artistas: o "Sobre o artista" vinha com o Jorge Ben e as fotos de outras pessoas. Agora a dupla fica junta, com a foto, a apresentação e a capa dela. Quando "&" liga dois artistas diferentes (como "Anitta & Ludmilla"), o app confere e mostra cada um.' },
-      { tipo: 'correcao', texto: 'As músicas de duplas que já estavam na biblioteca têm a capa automática conferida de novo, e as baixadas guardam de novo o "Sobre o artista" certo, sozinhas, em segundo plano. A capa escolhida por você fica.' },
     ],
   },
 ];

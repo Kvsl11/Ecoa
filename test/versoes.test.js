@@ -90,7 +90,7 @@ test('só compartilha o mesmo vídeo entre Música e Vídeo quando a sincronia �
 test('a busca abre a música depois de localizar o videoclipe e esperar (com limite) áudio + LRCLIB', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const abrir = app.indexOf('async function abrirPrevia(');
-  const buscarVideo = app.indexOf('const v = await busca;', abrir);
+  const buscarVideo = app.indexOf('let v = await busca;', abrir);
   const metadados = app.indexOf('Object.assign(novo, {', buscarVideo);
   const preparar = app.indexOf('prepararMusicaAoAbrir(novo)', metadados);
   const esperar = app.indexOf('await Promise.all([noMaximo(preparo,', preparar);
@@ -426,4 +426,23 @@ test('o clipe também é do artista certo e com o título exato', async () => {
   const v = (id, titulo, canal, segundos = 230) => ({ id, titulo, canal, segundos });
   assert.equal(escolherClipe([v('outroclipe1', 'Voa Beija-flor (Official Video)', 'Banda Cover')], { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus' }), null);
   assert.equal(escolherClipe([v('clipecerto1', 'Jorge & Mateus - Voa Beija-flor (Clipe Oficial)', 'Jorge & Mateus')], { titulo: 'Voa Beija-flor', artista: 'Jorge & Mateus' })?.id, 'clipecerto1');
+});
+
+test('o vídeo que é só a capa parada: os três quadros iguais', async () => {
+  const { quadrosParados } = await import('../public/js/lib/versoes.js');
+  const quadro = (f) => Uint8ClampedArray.from({ length: 32 * 24 * 4 }, (_, i) => (i % 4 === 3 ? 255 : f(i)));
+  const capa = quadro((i) => (i * 7) % 255);
+  // (a compressão do JPEG muda um pouco cada quadro: continua parado)
+  const capaJpeg = quadro((i) => ((i * 7) % 255) + ((i % 13) - 6) * 0.3);
+  assert.equal(quadrosParados([capa, capaJpeg, capa]), true);
+  const clipe = [quadro((i) => (i * 3) % 255), quadro((i) => (i * 11 + 40) % 255), quadro((i) => 255 - ((i * 5) % 255))];
+  assert.equal(quadrosParados(clipe), false);
+  assert.equal(quadrosParados([capa]), null);
+});
+
+test('o título exato aceita os outros artistas antes do traço', async () => {
+  const { mesmoTitulo } = await import('../public/js/lib/versoes.js');
+  assert.equal(mesmoTitulo({ titulo: 'Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open [Official Video]' }, 'Leave The Door Open', 'Bruno Mars'), true);
+  assert.equal(mesmoTitulo({ titulo: 'Jorge e Mateus - Voa Beija Flor Pot-Pourri' }, 'Voa Beija-flor', 'Jorge & Mateus'), false);
+  assert.equal(mesmoTitulo({ titulo: 'Fulano - Voa Beija-flor' }, 'Beija-flor', 'Fulano'), false);
 });

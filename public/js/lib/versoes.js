@@ -48,11 +48,17 @@ export function doMesmoArtista(v, artista) {
 export function mesmoTitulo(v, titulo, artista = '') {
   const t = palavrasDe(String(titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s*(?:\(|\[)?\b(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ''));
   if (!t.length) return false;
-  const nome = palavrasDe(String(v?.titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' '));
-  if (!` ${nome.join(' ')} `.includes(` ${t.join(' ')} `)) return false;
   const doTitulo = new Set(t);
   const doArtista = new Set(nomesDoArtista(artista).flat());
-  return nome.every((p) => doTitulo.has(p) || doArtista.has(p) || PALAVRAS_DO_NOME.has(p) || /^(19|20)\d\d$/.test(p));
+  const sobra = (ps) => ps.filter((p) => !doTitulo.has(p) && !doArtista.has(p) && !PALAVRAS_DO_NOME.has(p) && !/^(19|20)\d\d$/.test(p));
+  const semParenteses = String(v?.titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ');
+  const nome = palavrasDe(semParenteses.replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' '));
+  if (!` ${nome.join(' ')} `.includes(` ${t.join(' ')} `)) return false;
+  if (!sobra(nome).length) return true;
+  // "Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open": dos lados do traço (ou da barra), um é o dos
+  // artistas (todos, com quem participa) e o outro é o título; basta o do título ser exato
+  const lados = semParenteses.split(/\s[-–—|]\s/).map((x) => palavrasDe(x.replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' ')));
+  return lados.length > 1 && lados.some((l) => ` ${l.join(' ')} `.includes(` ${t.join(' ')} `) && !sobra(l).length);
 }
 
 // Entre os vídeos achados no YouTube ({ id, titulo, canal, segundos }), o áudio oficial da gravação: o mesmo título,
@@ -296,4 +302,25 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (n > nota) { nota = n; melhor = v; }
   }
   return melhor;
+}
+
+// O vídeo é só a capa parada (o "Art Track", a capa do disco o vídeo inteiro)? O YouTube publica três quadros de cada
+// vídeo, de 25%, 50% e 75% dele (1.jpg, 2.jpg e 3.jpg): num clipe eles mudam; num vídeo que é só a capa, são iguais.
+// quadros: os pixels RGBA dos três (do mesmo tamanho). Parado quando a diferença média entre eles é bem pequena
+export function quadrosParados(quadros, limiar = 6) {
+  const qs = (quadros || []).filter((q) => q?.length);
+  if (qs.length < 2 || qs.some((q) => q.length !== qs[0].length)) return null;
+  let maior = 0;
+  for (let a = 0; a < qs.length; a++) {
+    for (let b = a + 1; b < qs.length; b++) {
+      let soma = 0;
+      let n = 0;
+      for (let i = 0; i < qs[a].length; i += 4) {
+        soma += Math.abs(qs[a][i] - qs[b][i]) + Math.abs(qs[a][i + 1] - qs[b][i + 1]) + Math.abs(qs[a][i + 2] - qs[b][i + 2]);
+        n += 3;
+      }
+      maior = Math.max(maior, soma / n);
+    }
+  }
+  return maior < limiar;
 }
