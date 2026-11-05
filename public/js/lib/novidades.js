@@ -4,8 +4,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 510, data: '2026-11-05', titulo: 'Os seguidores do Spotify direto do Spotify',
+    versao: 510, data: '2026-11-05', titulo: 'Os seguidores do Spotify direto do Spotify, e mais hashtags',
     itens: [
+      { tipo: 'melhoria', texto: 'Na prévia da playlist, cada música ganhou de 6 a 10 hashtags, diferentes entre as músicas do mesmo artista: os estilos de verdade do artista (#pop, #funk), os temas da letra (#love song, #late night, #saudade), o clima da música e outras do estilo dela. Arraste para o lado para ver todas.' },
       { tipo: 'correcao', texto: 'Os seguidores no Spotify da tela do artista e da prévia da playlist estavam meses atrasados (o Bruno Mars aparecia com 70M, e no Spotify já passa de 90M): vinham de um site que guarda uma cópia antiga deles.' },
       { tipo: 'novo', texto: 'Agora eles vêm direto do Spotify, sempre os de agora: conecte a sua conta do Spotify uma vez em Ajustes → Spotify (o login é o do próprio Spotify). Sem conectar, os seguidores do Spotify não aparecem, e a tela do artista mostra o atalho para conectar.' },
     ],

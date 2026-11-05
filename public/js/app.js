@@ -32,7 +32,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { audioDbDaMusica, audioDbDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { SPOTIFY_CLIENT_ID, buscarArtistaNoSpotify, desafioDoVerificador, gerarVerificador, renovarToken, tokenGuardado, trocarCodigo, urlDeLogin } from './lib/spotify.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
@@ -13660,6 +13660,8 @@ function previaDaPlaylist(set, inicio = 0) {
   const desenharSom = () => { const b = $('[data-som]', dlg); b.innerHTML = icon(comSom ? 'som' : 'mudo', 22); b.title = b.ariaLabel = comSom ? 'Tirar o som' : 'Ligar o som'; };
   // os seguidores do artista no Spotify ("90,3M seguidores", os de agora, pela API do Spotify) e as hashtags da música
   // (#happy, #upbeat...), da TheAudioDB. Guardados no aparelho (sem internet, os últimos), na música da tela e na próxima
+  const generosPedidos = new Map();
+  const generosPorArtista = (nome) => { const k = normalizar(nome); if (!generosPedidos.has(k)) generosPedidos.set(k, generosDoArtista(nome)); return generosPedidos.get(k); };
   const infoDoSlide = (k) => {
     const slide = slides[k];
     if (!slide || slide.dataset.info) return;
@@ -13671,9 +13673,12 @@ function previaDaPlaylist(set, inicio = 0) {
       const seg = slide.querySelector('.pv-seg');
       if (seg && a?.seguidores) { seg.textContent = `${numeroCurto(a.seguidores)} seguidores`; seg.hidden = false; }
     });
-    Promise.all([adb, daMusica]).then(([a, m]) => {
+    // (os gêneros do artista na MusicBrainz, os mais votados: um pedido por artista, guardado)
+    const generos = s.artist ? comUltimoValor('mbgen', s.artist, generosPorArtista(s.artist)) : Promise.resolve([]);
+    Promise.all([adb, daMusica, generos]).then(([a, m, g]) => {
       const fe = String(s.source || '').startsWith('cnbb:') ? 'liturgia' : '';
-      const tags = hashtagsDaMusica({ musica: m || {}, generoArtista: [a?.genero, fe].filter(Boolean).join(' '), ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });
+      const tags = hashtagsDaMusica({ musica: m || {}, generos: g || [], generoArtista: [a?.genero, fe].filter(Boolean).join(' '), letra: s.content, semente: s.id || s.title,
+        ingles: emIngles({ letra: s.content, pais: a?.pais, titulo: s.title }) });
       const caixa = slide.querySelector('.pv-tags');
       if (!caixa || !tags.length) return;
       caixa.innerHTML = tags.map((t) => `<span>#${esc(t)}</span>`).join('');
