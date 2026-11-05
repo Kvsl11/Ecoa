@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 512, data: '2026-11-05', titulo: 'Os fãs do artista, sempre atualizados',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na prévia da playlist, embaixo do nome do artista, aparecem os fãs dele no Deezer e os inscritos no canal do YouTube, os dois lidos na hora (12,9M fãs no Deezer · 41,2M inscritos no YouTube). Os seguidores do Spotify saíram: o Spotify deixou de liberar esse número para apps como o Ecoa em 2026, e a cópia que havia estava meses atrasada. A opção de conectar o Spotify também saiu.' },
+    ],
+  },
+  {
     versao: 511, data: '2026-11-05', titulo: 'O carregando do "Sobre o artista" no meio da tela',
     itens: [
       { tipo: 'melhoria', texto: 'Em "Sobre o artista", as fotos mais novas vêm primeiro (a do canal do YouTube e a do Deezer), e as que podem ser antigas ficam para o fim. Com o Spotify conectado, a foto do artista é a do Spotify, a oficial de agora.' },
@@ -63,13 +69,6 @@ export const NOVIDADES = [
     versao: 503, data: '2026-11-04', titulo: 'O vídeo online não para mais por "outro dispositivo"',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo que toca pela internet (sem estar baixado) parava muito com o aviso do YouTube de que a conta estava sendo usada em outros dispositivos. Era o próprio app: além do player que você ouve, ele abre outros do YouTube por baixo (a capa animada, o clipe esperando para a troca entre música e vídeo, a próxima música no crossfade, a prévia das playlists), e cada um contava como outra reprodução da sua conta ao mesmo tempo. Agora só o player que você ouve usa a sua conta do YouTube; os outros abrem sem conta e não contam.' },
-    ],
-  },
-  {
-    versao: 502, data: '2026-11-04', titulo: 'O clipe vem junto mesmo quando a música estava com o vídeo só de áudio',
-    itens: [
-      { tipo: 'correcao', texto: 'Algumas músicas, como Levitating, estavam salvas com o vídeo que é só o áudio: o "Topic" do YouTube Music, com a capa parada. Esse vídeo o YouTube nem deixa baixar como vídeo, e o download trazia só a música. Agora, antes de baixar, o app confere: se o vídeo é só o áudio, procura o clipe oficial (do canal do artista) e baixa o áudio e o clipe.' },
-      { tipo: 'correcao', texto: 'As músicas que você já baixou assim ganham o clipe sozinhas, em segundo plano. Quando falta o clipe, o aviso do download agora diz o porquê.' },
     ],
   },
 ];
