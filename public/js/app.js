@@ -6107,34 +6107,63 @@ function ativarArrastar(lista, aoSoltar) {
   lista.addEventListener('click', (e) => { if (ignorarClique) { e.preventDefault(); e.stopPropagation(); ignorarClique = false; } }, true);
   lista.addEventListener('dragstart', (e) => e.preventDefault()); // sem o "arrastar link" nativo
 
-  // sessão de arraste de um item: começa, acompanha o Y e termina
-  function sessao(item) {
+  // sessão de arraste de um item: começa, acompanha o Y e termina. Como na fila: o card segurado sobe e acompanha o
+  // dedo; os outros deslizam por baixo para abrir o lugar dele; ao soltar, ele desce até o lugar novo
+  function sessao(item, y0) {
     const inicio = itens().indexOf(item);
-    let ultimoY = 0;
+    lista.classList.add('reordenando'); // (a lista vira a referência do offsetTop das linhas)
     item.classList.add('arrastando');
-    lista.classList.add('reordenando');
     navigator.vibrate?.(15);
+    // o topo da linha no lugar dela (sem o deslocamento do arrasto), na tela
+    const topoDoLugar = (x) => lista.getBoundingClientRect().top + x.offsetTop;
+    const dy = y0 - topoDoLugar(item);
+    let ultimoY = y0;
+    const seguir = (y) => {
+      const max = lista.offsetHeight - item.offsetHeight;
+      const alvo = Math.max(0, Math.min(max, y - dy - lista.getBoundingClientRect().top));
+      item.style.transform = `translateY(${alvo - item.offsetTop}px)`;
+    };
+    const trocar = (y) => {
+      const centro = y - dy + item.offsetHeight / 2;
+      const outras = itens().filter((x) => x !== item);
+      const depois = outras.find((x) => centro < topoDoLugar(x) + x.offsetHeight / 2);
+      if (depois ? item.nextElementSibling === depois : lista.lastElementChild === item) return;
+      const antes = new Map(outras.map((x) => [x, x.offsetTop]));
+      if (depois) lista.insertBefore(item, depois); else lista.append(item);
+      for (const x of outras) {
+        const d = antes.get(x) - x.offsetTop;
+        if (!d) continue;
+        x.style.transition = 'none';
+        x.style.transform = `translateY(${d}px)`;
+        x.getBoundingClientRect();
+        x.style.transition = '';
+        x.style.transform = '';
+      }
+    };
+    const mover = (y) => { ultimoY = y; trocar(y); seguir(y); };
+    seguir(y0);
+    // perto da borda, a tela rola sozinha (e o card continua debaixo do dedo)
     const r = rolador();
     let raf = requestAnimationFrame(function rolar() {
       const b = r.getBoundingClientRect();
-      if (ultimoY && ultimoY < b.top + 60) r.scrollTop -= 10;
-      else if (ultimoY > b.bottom - 60) r.scrollTop += 10;
+      const v = ultimoY < b.top + 60 ? -10 : ultimoY > b.bottom - 60 ? 10 : 0;
+      if (v) { const antes = r.scrollTop; r.scrollTop += v; if (r.scrollTop !== antes) mover(ultimoY); }
       raf = requestAnimationFrame(rolar);
     });
     return {
-      mover(y) {
-        ultimoY = y;
-        const alvo = itens().find((x) => x !== item && y < x.getBoundingClientRect().top + x.getBoundingClientRect().height / 2);
-        if (alvo) { if (alvo !== item.nextElementSibling) lista.insertBefore(item, alvo); } else if (item !== lista.lastElementChild) lista.appendChild(item);
-      },
+      mover,
       fim() {
         cancelAnimationFrame(raf);
-        item.classList.remove('arrastando');
-        lista.classList.remove('reordenando');
         ignorarClique = true;
         setTimeout(() => { ignorarClique = false; }, 400);
+        item.classList.add('soltando');
+        item.style.transform = '';
         const final = itens().indexOf(item);
-        if (final !== inicio) aoSoltar(inicio, final);
+        setTimeout(() => {
+          item.classList.remove('arrastando', 'soltando');
+          lista.classList.remove('reordenando');
+          if (final !== inicio) aoSoltar(inicio, final);
+        }, 200);
       },
     };
   }
@@ -6146,13 +6175,14 @@ function ativarArrastar(lista, aoSoltar) {
     const item = linhaDe(e.target);
     if (!item) return;
     const t = e.touches[0];
-    toque = { item, x0: t.clientX, y0: t.clientY, s: null };
-    toque.timer = setTimeout(() => { if (toque) toque.s = sessao(item); }, 350);
+    toque = { item, x0: t.clientX, y0: t.clientY, y: t.clientY, s: null };
+    toque.timer = setTimeout(() => { if (toque) toque.s = sessao(item, toque.y); }, 350);
   }, { passive: false });
   lista.addEventListener('touchmove', (e) => {
     if (!toque) return;
     const t = e.touches[0];
     if (toque.s) { if (e.cancelable) e.preventDefault(); toque.s.mover(t.clientY); return; }
+    toque.y = t.clientY;
     if (Math.hypot(t.clientX - toque.x0, t.clientY - toque.y0) > 10) { clearTimeout(toque.timer); toque = null; } // é rolagem
   }, { passive: false });
   const fimToque = (e) => {
@@ -6172,7 +6202,7 @@ function ativarArrastar(lista, aoSoltar) {
     const x0 = e.clientX, y0 = e.clientY;
     let s = null;
     const mover = (ev) => {
-      if (!s) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; s = sessao(item); }
+      if (!s) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return; s = sessao(item, y0); }
       s.mover(ev.clientY);
     };
     const fim = () => {
@@ -13488,20 +13518,21 @@ async function animarCapinha(set) {
 // A prévia da playlist (a capinha ao lado do baixar), como a do Spotify: as músicas em tela cheia, uma de cada vez,
 // com o clipe rodando (30 s do refrão, achado pela letra sincronizada; do aparelho, quando a música está baixada), o
 // artista e o cartão da música embaixo, com a barrinha do tempo.
-// Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Começa sem som; o alto-falante do
-// topo liga (e pausa o que estiver tocando no player, que volta ao fechar). Tocar no cartão toca a playlist dali
+// Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Já começa com som (e pausa o que
+// estiver tocando no player, que volta ao fechar); o alto-falante do topo tira o som. Tocar no cartão toca a playlist dali
 function previaDaPlaylist(set, inicio = 0) {
   const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => x.s?.youtube);
   if (!faixas.length) { toast('Nenhuma música desta playlist tem vídeo ainda'); return; }
-  let comSom = false;
+  let comSom = true;
   let pausouPlayer = false;
+  if (player.tocandoAlgo()) { player.alternar(); pausouPlayer = true; }
   let ativa = -1;
   let t0 = 0;
   let raf = 0;
   const dlg = document.createElement('dialog');
   dlg.className = 'pl-previa';
   dlg.innerHTML = `<div class="pv-cab"><button class="icon-btn" data-fechar aria-label="Fechar" title="Fechar">${icon('back', 24)}</button><b>${esc(set.name)}</b>
-      <button class="icon-btn" data-som aria-label="Ligar o som" title="Ligar o som">${icon('mudo', 22)}</button></div>
+      <button class="icon-btn" data-som aria-label="Tirar o som" title="Tirar o som">${icon('som', 22)}</button></div>
     <div class="pv-feed">${faixas.map(({ s }, k) => {
       const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
       return `<section class="pv-slide" data-k="${k}">
@@ -13521,13 +13552,19 @@ function previaDaPlaylist(set, inicio = 0) {
   // o que toca na música da tela: o clipe (do aparelho ou do YouTube) e, se baixado à parte, o áudio oficial
   let atual = null;
   const comandoYt = (f, func, args = []) => { try { f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
+  // (se o aparelho não deixar o som começar sozinho, o clipe segue mudo e o alto-falante mostra isso: um toque nele liga;
+  // só o bloqueio do som conta: o play interrompido por passar para a próxima não desliga nada)
+  const semSomLiberado = (e) => { if (!comSom || e?.name !== 'NotAllowedError') return; comSom = false; desenharSom(); if (atual?.audio) { atual.audio.dataset.parado = '1'; atual.audio.pause(); } };
   const aplicarSom = () => {
     if (!atual) return;
     const { video, audio, iframe } = atual;
     if (audio) {
       audio.muted = !comSom;
-      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(() => {}); } else { audio.dataset.parado = '1'; audio.pause(); }
-    } else if (video) video.muted = !comSom;
+      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(semSomLiberado); } else { audio.dataset.parado = '1'; audio.pause(); }
+    } else if (video) {
+      video.muted = !comSom;
+      if (comSom) video.play().catch((e) => { if (e?.name !== 'NotAllowedError') return; video.muted = true; video.play().catch(() => {}); semSomLiberado(e); });
+    }
     else if (iframe) { comandoYt(iframe, comSom ? 'unMute' : 'mute'); if (comSom) comandoYt(iframe, 'setVolume', [100]); }
   };
   const largar = () => {
