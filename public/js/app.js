@@ -13552,13 +13552,19 @@ function previaDaPlaylist(set, inicio = 0) {
   // o que toca na música da tela: o clipe (do aparelho ou do YouTube) e, se baixado à parte, o áudio oficial
   let atual = null;
   const comandoYt = (f, func, args = []) => { try { f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
+  // (se o aparelho não deixar o som começar sozinho, o clipe segue mudo e o alto-falante mostra isso: um toque nele liga;
+  // só o bloqueio do som conta: o play interrompido por passar para a próxima não desliga nada)
+  const semSomLiberado = (e) => { if (!comSom || e?.name !== 'NotAllowedError') return; comSom = false; desenharSom(); if (atual?.audio) { atual.audio.dataset.parado = '1'; atual.audio.pause(); } };
   const aplicarSom = () => {
     if (!atual) return;
     const { video, audio, iframe } = atual;
     if (audio) {
       audio.muted = !comSom;
-      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(() => {}); } else { audio.dataset.parado = '1'; audio.pause(); }
-    } else if (video) video.muted = !comSom;
+      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(semSomLiberado); } else { audio.dataset.parado = '1'; audio.pause(); }
+    } else if (video) {
+      video.muted = !comSom;
+      if (comSom) video.play().catch((e) => { if (e?.name !== 'NotAllowedError') return; video.muted = true; video.play().catch(() => {}); semSomLiberado(e); });
+    }
     else if (iframe) { comandoYt(iframe, comSom ? 'unMute' : 'mute'); if (comSom) comandoYt(iframe, 'setVolume', [100]); }
   };
   const largar = () => {

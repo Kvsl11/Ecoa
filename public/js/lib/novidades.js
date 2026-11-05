@@ -4,12 +4,17 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 506, data: '2026-11-05', titulo: 'A prévia da playlist abre com som, e o "Tocou por último" toca ali mesmo',
+    versao: 507, data: '2026-11-05', titulo: 'A prévia da playlist abre com som e o cartão ficou transparente',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
+      { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
+    ],
+  },
+  {
+    versao: 506, data: '2026-11-05', titulo: 'O "Tocou por último" toca ali mesmo e ganhou movimento',
     itens: [
       { tipo: 'melhoria', texto: 'Na gaveta do perfil, as cores da capa no fundo do cartão "Tocou por último" agora se mexem devagar, sem parar. Com uma música tocando, elas correm mais rápido e o brilho pulsa de leve.' },
       { tipo: 'melhoria', texto: 'O botão de tocar desse cartão agora toca a música ali mesmo, sem sair da gaveta (ela aparece tocando no player), e vira o botão de pausar. Tocando no resto do cartão, a música abre, como antes.' },
-      { tipo: 'melhoria', texto: 'Na prévia da playlist (os clipes em tela cheia), o cartão da música embaixo ficou transparente, mostrando o clipe por trás, com a capa um pouco maior. E a prévia já abre com som: para tirar, toque no alto-falante lá em cima.' },
-      { tipo: 'melhoria', texto: 'Mudar a ordem das músicas em Editar playlist (e no repertório) agora tem o mesmo movimento da fila: a música que você segura sobe e acompanha o dedo, as outras deslizam por baixo para abrir espaço, e ao soltar ela desce até o lugar novo.' },
       { tipo: 'correcao', texto: 'O triângulo do botão de tocar desse cartão estava puxado para a direita. Agora fica no centro da bola.' },
     ],
   },
@@ -64,12 +69,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Enquanto uma tela ou parte dela ainda está carregando, aparece só o círculo girando no meio, na cor do app, como no Spotify, no lugar dos textos "Carregando…" e "Buscando…". Vale em todas as telas: Busca, Início, Liturgia, Orações, artistas, álbuns, partituras e as outras.' },
       { tipo: 'melhoria', texto: 'Na Busca, ao tocar numa música, os textos que apareciam e sumiam embaixo do nome ("Trazendo a cifra e a letra…", "Sincronizando a letra…") saíram: fica só o círculo girando na linha até a música abrir. No Início, o aviso "buscando sugestões…" da liturgia de hoje também saiu, e na música a procura da letra sincronizada aparece só com o círculo.' },
-    ],
-  },
-  {
-    versao: 497, data: '2026-11-04', titulo: 'Ícones novos no menu do perfil',
-    itens: [
-      { tipo: 'melhoria', texto: 'O menu ⋯ do perfil ganhou ícones novos: a seta saindo da caixa para compartilhar, as duas setas para sincronizar e a porta com a flecha, em vermelho, para sair da conta. O seu e-mail aparece embaixo do nome.' },
     ],
   },
 ];
