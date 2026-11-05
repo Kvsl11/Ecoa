@@ -26,7 +26,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { canalOficial, doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
-import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
+import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
@@ -1334,7 +1334,7 @@ async function guardarImagensDaMusica(song) {
   // para a música baixada mostrar tudo sem internet (com internet, os números se atualizam sozinhos)
   const artista = primeiroArtistaDe(song.artist);
   const slug = /cifraclub\.com\.br\/([^/?#]+)/.exec(song.source || '')?.[1] || '';
-  const dele = artista ? await Promise.all([fotoDoArtista(artista, slug).catch(() => ''), descricaoDoArtista(artista).catch(() => null), deezerDoArtista(artista).catch(() => null),
+  const dele = artista ? await Promise.all([fotoDoArtista(artista, slug).catch(() => ''), descricaoDoArtista(artista).catch(() => null), deezerDoArtista(artista, { titulo: song.title }).catch(() => null),
     canalGuardado(artista).catch(() => null), audioDbGuardado(artista).catch(() => null)]) : [];
   const [fotoA, info, dz, canal, adb] = dele;
   const urls = [song.cover, ...yts.flatMap((y) => [`https://i.ytimg.com/vi/${y}/hqdefault.jpg`, `https://i.ytimg.com/vi/${y}/mqdefault.jpg`]),
@@ -1775,6 +1775,11 @@ const REVISOES = [
   // vezes, como áudio e como vídeo, guardados no mesmo lugar, e o áudio, chegando por último, apagava o clipe: a música
   // ficava só com o som. As baixadas pela metade baixam o que falta (agora uma vez só, como vídeo)
   { rev: 21, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
+  // v540: o artista do Deezer podia ser outro com o mesmo nome (o "Jung Kook" de 7.898 fãs, com capa de música indiana,
+  // no lugar do Jungkook de 475 mil): o "Sobre o artista" mostrava a foto e os fãs dele. Agora vale o artista da faixa
+  // da própria música, ou o de nome igual — escrito junto ou separado — com mais fãs. A foto do artista que veio do
+  // Deezer é conferida e, nas baixadas, o "Sobre o artista" é guardado de novo
+  { rev: 22, artista: true, quais: (s) => Boolean(nomeDoArtistaDaMusica(s)) && (Boolean(s.baixado) || /dzcdn\.net\/images\/artist\//.test(s.fotoArtista || '')) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1996,6 +2001,14 @@ async function revisarMusica(id, pendentes, chaves) {
     if (!navigator.onLine) completa = false;
     else { await garantirClipe(id).catch(() => { completa = false; }); s = db.song(id); }
   }
+  // o "Sobre o artista" conferido: o artista do Deezer confirmado pela música (não outro com o mesmo nome), a foto da
+  // música trocada pela certa e, na baixada, tudo guardado de novo para tocar sem internet
+  if (s && quer('artista')) {
+    if (!navigator.onLine) completa = false;
+    else if (!(await consertarArtistaDaMusica(id, { esquecer: false }).catch(() => null))) completa = false;
+    s = db.song(id);
+    if (!s) return true;
+  }
   if (!s?.baixado && !s?.rebaixar) return completa;
   // o "Sobre o artista" (a apresentação, as fotos) guardado de novo para tocar sem internet, com o artista certo
   if (s && quer('sobreArtista')) {
@@ -2025,14 +2038,43 @@ async function revisarMusica(id, pendentes, chaves) {
   return completa;
 }
 // "Consertar agora" (no diagnóstico): a letra é procurada de novo mesmo que a guardada pareça certa (a feita à mão fica),
-// e passa pelo resto da revisão (o áudio oficial que falta e os arquivos baixados)
-async function consertarMusica(id) {
+// o "Sobre o artista" é procurado de novo (o guardado sai: o Deezer confirmado pela música, a foto, a apresentação) e a
+// música passa pelo resto da revisão (o áudio oficial que falta e os arquivos baixados). passo(texto): o que está
+// fazendo agora, para a tela. Devolve o que mudou, em frases para quem usa ([] quando nada precisou mudar)
+async function consertarMusica(id, { passo = () => {} } = {}) {
   const s = db.song(id);
-  if (!s) return;
-  if (midiaDe(s) && navigator.onLine && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) await noMaximo(sincronizarMusica(s), 45000, 'demorou');
+  if (!s) return [];
+  const n = (x) => Number(x || 0).toLocaleString('pt-BR');
+  const antes = { sinc: JSON.stringify(s.sincronia || null), audio: versoesDe(s)?.audio || '', arquivos: Object.keys(s.baixado?.arquivos || {}).join(), rebaixar: Boolean(s.rebaixar) };
+  const mudou = [];
+  if (midiaDe(s) && navigator.onLine && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
+    passo('Procurando a letra…');
+    await noMaximo(sincronizarMusica(s), 45000, 'demorou');
+  }
+  passo('Conferindo o artista…');
+  const art = await consertarArtistaDaMusica(id).catch(() => null);
+  if (art) {
+    const a = art.antes.deezer;
+    const b = art.depois.deezer;
+    const outro = a && b && (a.id ? a.id !== b.id : (a.foto && b.foto ? chaveDaFoto(a.foto) !== chaveDaFoto(b.foto) : a.fas !== b.fas));
+    if (outro) mudou.push(`Artista: era ${a.nome ? `"${a.nome}"` : 'outro artista'} (${n(a.fas)} fãs), agora "${b.nome || art.nome}" (${n(b.fas)} fãs)`);
+    else if (!a && b) mudou.push(`Artista achado no Deezer: "${b.nome || art.nome}" (${n(b.fas)} fãs)`);
+    if (art.fotoTrocada) mudou.push('A foto do artista foi trocada pela certa');
+    if (!art.antes.wiki && art.depois.wiki) mudou.push('A apresentação do artista foi achada');
+  }
+  passo('Conferindo o áudio e o download…');
   const chaves = await chavesDosAudios().catch(() => new Set());
-  const ok = await revisarMusica(id, REVISOES, chaves).catch(() => false);
-  if (ok && db.song(id)) db.updateSong(id, { revisao: REVISAO_MUSICAS });
+  // (o artista já foi conferido acima)
+  const ok = await revisarMusica(id, REVISOES.filter((r) => !r.artista), chaves).catch(() => false);
+  const d = db.song(id);
+  if (ok && d) db.updateSong(id, { revisao: REVISAO_MUSICAS });
+  if (d) {
+    if (JSON.stringify(d.sincronia || null) !== antes.sinc) mudou.push(d.sincronia ? 'A letra sincronizada foi refeita' : 'A letra sincronizada errada saiu');
+    const audio = versoesDe(d)?.audio || '';
+    if (audio !== antes.audio) mudou.push(audio ? 'O áudio oficial (o modo música) foi achado' : 'O áudio oficial errado saiu');
+    if (Object.keys(d.baixado?.arquivos || {}).join() !== antes.arquivos || (d.rebaixar && !antes.rebaixar)) mudou.push('O download foi conferido e o que faltava voltou para baixar');
+  }
+  return mudou;
 }
 let revisaoRodando = false;
 async function revisarMusicasSalvas() {
@@ -3083,7 +3125,7 @@ const player = (() => {
       $('p', bio).textContent = texto;
       bio.classList.toggle('so-mais', !texto);
       bio.hidden = false;
-      bio.onclick = (e) => { e.stopPropagation(); abrirSobreArtista({ nome: nomeBusca, slug }); };
+      bio.onclick = (e) => { e.stopPropagation(); abrirSobreArtista({ nome: nomeBusca, slug, titulo }); };
     }).catch(() => {});
     if (atual?.youtube) infoDoVideo(atual.youtube).then((v) => {
       if (!v || extraDe !== chave) return;
@@ -5367,79 +5409,170 @@ const semLinhasDeAcordes = (sinc) => {
     alvoBt.click();
     alvoBt.remove();
   };
-  // Diagnóstico da música tocando (no ⋯): o que está guardado nela e o que o player está mostrando, para descobrir por
-  // que a letra ou a capa animada não aparecem. "Copiar" leva o texto para colar numa conversa; "Consertar agora"
-  // procura de novo a letra, o áudio oficial e confere os arquivos baixados, na hora
-  const textoDiagnostico = async () => {
+  // Diagnóstico da música tocando (no ⋯): o que está guardado nela, o que o player está mostrando e o que se sabe do
+  // artista, cada coisa com um sinal (certo, atenção, errado) e, em cima, o resumo do que está errado. "Consertar
+  // agora" refaz o que dá (a letra, o áudio oficial, os downloads e o "Sobre o artista") e diz o que mudou; "Copiar"
+  // leva o texto inteiro para colar numa conversa
+  const dadosDiagnostico = async () => {
     const song = musicaTocando();
     const sim = (x) => (x ? 'sim' : 'não');
     const seg = (x) => (Number(x) > 0 ? `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}` : '?');
+    const n = (x) => Number(x || 0).toLocaleString('pt-BR');
     const vs = song && versoesDe(song);
     const sc = song?.sincronia;
-    const f = [];
-    f.push(`App ${APP_VERSAO} · ${new Date().toLocaleString('pt-BR')} · ${navigator.onLine ? 'com internet' : 'sem internet'}`);
-    f.push(`Música: ${atual?.titulo || '?'} — ${atual?.artista || '?'} (${atual?.songId || 'sem id'}${song ? '' : ', não encontrada'})`);
-    f.push('', '[Tocando]');
-    f.push(`vídeo agora: ${atual?.youtube || '-'} · clipe: ${atual?.video || '-'} · áudio oficial: ${atual?.audio || '-'}`);
-    f.push(`modo: ${comCapa ? 'música' : 'vídeo'} · emVideo: ${sim(emVideo())} · noClipe: ${sim(noClipe())} · soMusica: ${sim(atual?.soMusica)} · semVideo: ${sim(atual?.semVideo)}`);
-    f.push(`estado: ${estado} · tempo: ${seg(api.tempoAgora)} de ${seg(duracao)} · anúncio: ${sim(anuncio)} · do aparelho: ${local ? sim(true) + (local.video ? ' (vídeo)' : ' (áudio)') : 'não'}`);
-    f.push('', '[Letra]');
-    f.push(`na tela: ${$('.pl-letra', el).hidden ? 'escondida' : 'aparecendo'} · linhas: ${linhasDaLetra.length} · sincronizada no player: ${sim(tempos)}`);
-    if (sc) f.push(`guardada: fonte ${sc.fonte || '?'} · do vídeo ${sc.video || '?'} · ${sc.tempos?.length || 0} tempos · duração ${seg(sc.duracao)}${sc.provisoria ? ' · provisória' : ''}${sc.aproximada ? ' · aproximada' : ''}${sc.desloc ? ` · deslocada ${sc.desloc}s` : ''}`);
-    else f.push('guardada: nenhuma');
-    f.push(`a letra vale para o vídeo: ${song ? videoDaLetra(song) || '-' : '-'} · confere: ${sim(song && sincOkDe(song))}`);
-    f.push('', '[Versões]');
-    if (vs) f.push(`clipe ${vs.video || '-'} · áudio ${vs.audio || '-'} (${seg(vs.duracao)}) · casadas: ${sim(vs.casadas)} · pela letra: ${sim(vs.porLetra)} · diferentes: ${sim(vs.diferentes)} · pares: ${vs.pares?.length || 0}`);
-    else f.push('sem áudio oficial guardado');
-    // (os pontos que ligam o áudio ao clipe, segundo no áudio → segundo no clipe: para conferir a troca entre os dois)
-    if (vs?.pares?.length > 1) f.push(`pares (áudio→clipe): ${vs.pares.map(([x, y]) => `${Math.round(x)}→${Math.round(y)}`).join(' ')}`);
-    f.push('', '[Download]');
+    const secoes = [];
+    let sec = null;
+    const secao = (titulo) => { sec = { titulo, itens: [] }; secoes.push(sec); };
+    // estado: 'ok' (certo), 'aviso' (falta algo, mas funciona), 'erro' (está errado); '' = só informação
+    const item = (rotulo, valor, estado = '', problema = '') => sec.itens.push({ rotulo, valor: String(valor ?? '-'), estado, problema });
+    const midia = song ? midiaDe(song) : atual?.youtube;
+    secao('Tocando');
+    item('Vídeo agora', `${atual?.youtube || '-'} · clipe ${atual?.video || '-'} · áudio oficial ${atual?.audio || '-'}`);
+    item('Modo', `${comCapa ? 'música' : 'vídeo'} · emVideo ${sim(emVideo())} · noClipe ${sim(noClipe())} · soMusica ${sim(atual?.soMusica)} · semVideo ${sim(atual?.semVideo)}`);
+    item('Estado', `${estado} · ${seg(api.tempoAgora)} de ${seg(duracao)} · anúncio ${sim(anuncio)} · do aparelho ${local ? (local.video ? 'sim (vídeo)' : 'sim (áudio)') : 'não'}`);
+    secao('Letra');
+    item('Na tela', `${$('.pl-letra', el).hidden ? 'escondida' : 'aparecendo'} · ${linhasDaLetra.length} linhas · sincronizada no player: ${sim(tempos)}`);
+    if (sc) item('Guardada', `fonte ${sc.fonte || '?'} · do vídeo ${sc.video || '?'} · ${sc.tempos?.length || 0} tempos · duração ${seg(sc.duracao)}${sc.provisoria ? ' · provisória' : ''}${sc.aproximada ? ' · aproximada' : ''}${sc.desloc ? ` · deslocada ${sc.desloc}s` : ''}`, sc.fonte === 'lrclib' ? (sc.provisoria ? 'aviso' : 'ok') : 'ok');
+    else item('Guardada', 'nenhuma', song && midia ? 'aviso' : '', song && midia ? 'a música está sem a letra sincronizada' : '');
+    if (song && sc?.fonte === 'lrclib') {
+      const ok = sincOkDe(song);
+      item('Vale para o vídeo', `${videoDaLetra(song) || '-'} · confere: ${sim(ok)}`, ok ? 'ok' : 'erro', ok ? '' : 'a letra sincronizada é de outro vídeo da música');
+    }
+    secao('Versões');
+    if (vs) {
+      item('Clipe e áudio', `clipe ${vs.video || '-'} · áudio ${vs.audio || '-'} (${seg(vs.duracao)})`, vs.audio ? 'ok' : 'aviso');
+      item('Ligação', `casadas ${sim(vs.casadas)} · pela letra ${sim(vs.porLetra)} · diferentes ${sim(vs.diferentes)} · ${vs.pares?.length || 0} pares`);
+      // (os pontos que ligam o áudio ao clipe, segundo no áudio → segundo no clipe: para conferir a troca entre os dois)
+      if (vs.pares?.length > 1) item('Pares (áudio→clipe)', vs.pares.map(([x, y]) => `${Math.round(x)}→${Math.round(y)}`).join(' '));
+    } else item('Áudio oficial', 'nenhum guardado', song?.youtube && !song.audioProprio ? 'aviso' : '', song?.youtube && !song.audioProprio ? 'o áudio oficial (o modo música) não foi achado' : '');
+    secao('Download');
     const arqs = Object.entries(song?.baixado?.arquivos || {});
-    if (!arqs.length) f.push(song?.rebaixar ? 'sem arquivos (marcada para baixar de novo)' : 'não baixada');
+    if (!arqs.length) item('Arquivos', song?.rebaixar ? 'nenhum (marcada para baixar de novo)' : 'não baixada', song?.rebaixar ? 'aviso' : '', song?.rebaixar ? 'o download está para ser refeito' : '');
     const chaves = await chavesDosAudios().catch(() => new Set());
     for (const [yt, info] of arqs) {
       let abre = 'não está no aparelho';
+      let st = 'erro';
       if (chaves.has(chaveBaixada(yt))) {
         const blob = await lerAudio(chaveBaixada(yt)).catch(() => null);
         const r = blob ? await abreNoAparelho(blob) : false;
         abre = r === true ? 'abre' : r === false ? 'NÃO abre' : 'não deu para conferir';
+        st = r === true ? 'ok' : r === false ? 'erro' : 'aviso';
       }
-      f.push(`${yt}: ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`);
+      item(String(info?.tipo || '').startsWith('video') ? 'Vídeo' : 'Áudio', `${yt} · ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`, st, st === 'erro' ? `um arquivo baixado ${abre === 'NÃO abre' ? 'está estragado' : 'sumiu do aparelho'}` : '');
     }
-    if (song) f.push(`falta baixar: ${sim(precisaBaixar(song))} · revisão: ${song.revisao || 0} de ${REVISAO_MUSICAS}`);
-    f.push('', '[Karaokê]');
+    if (song) {
+      const falta = precisaBaixar(song);
+      item('Revisão', `falta baixar: ${sim(falta)} · revisão ${song.revisao || 0} de ${REVISAO_MUSICAS}`, falta || (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'aviso' : 'ok',
+        falta ? 'falta baixar uma parte da música' : (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'a música ainda não passou pelas correções mais novas' : '');
+    }
+    // o "Sobre o artista": o que está guardado (o que a tela mostra) e o que é o certo agora, confirmado pela música
+    const nome = song ? nomeDoArtistaDaMusica(song) : primeiroArtistaDe(atual?.artista || '');
+    if (nome) {
+      secao('Artista');
+      const titulo = song?.title || atual?.titulo || '';
+      const guardado = ultimoValorDoArtista('deezer', nome);
+      if (!navigator.onLine) {
+        item('Deezer', guardado ? `${guardado.nome || nome} · ${n(guardado.fas)} fãs (guardado)` : 'nada guardado');
+        item('Conferência', 'sem internet: não deu para conferir', 'aviso');
+      } else {
+        const certo = await noMaximo(artistaDoDeezer(nome, { titulo }), 15000, undefined);
+        const confirmado = Boolean(deezerConfirmados.get(normalizar(nome)) && await deezerConfirmados.get(normalizar(nome)));
+        if (certo === undefined) item('Deezer', 'não respondeu a tempo', 'aviso');
+        else if (!certo) item('Deezer', 'nenhum artista com esse nome', 'aviso');
+        else {
+          const fotoCerta = certo.picture_xl || '';
+          const mesmo = !guardado || (guardado.id ? guardado.id === certo.id : (!guardado.foto || !fotoCerta || chaveDaFoto(guardado.foto) === chaveDaFoto(fotoCerta)));
+          item('Deezer', `${certo.name} · ${n(certo.nb_fan)} fãs · ${n(certo.nb_album)} álbuns${confirmado ? ' · confirmado pela música' : ''}`, mesmo ? 'ok' : 'erro');
+          if (!mesmo) item('Mostrando', `${guardado.nome || 'outro artista'} · ${n(guardado.fas)} fãs`, 'erro', `o "Sobre o artista" mostra outro artista (${n(guardado.fas)} fãs no lugar de ${n(certo.nb_fan)})`);
+          // a foto da música que veio do Deezer, de outro artista
+          const fs = song?.fotoArtista || '';
+          if (/dzcdn\.net\/images\/artist\//.test(fs) && chaveDaFoto(fs) !== chaveDaFoto(fotoCerta)) item('Foto guardada', 'é de outro artista do Deezer', 'erro', 'a foto do artista é de outra pessoa');
+        }
+        const [info, canal] = await Promise.all([
+          noMaximo(descricaoComNomeDoDeezer(nome, certo ? { nome: certo.name } : null), 12000, undefined),
+          noMaximo(canalGuardado(nome).catch(() => null), 12000, undefined),
+        ]);
+        item('Apresentação', info === undefined ? 'a Wikipédia não respondeu a tempo' : info ? 'achada na Wikipédia' : 'não achada', info ? 'ok' : 'aviso');
+        item('Canal do YouTube', canal === undefined ? 'não respondeu a tempo' : canal ? `${canal.nome}${canal.inscritos ? ` · ${n(canal.inscritos)} inscritos` : ''}` : 'não achado', canal ? 'ok' : '');
+      }
+      const fs = song?.fotoArtista || '';
+      const deOnde = /dzcdn\.net/.test(fs) ? 'Deezer' : /(ggpht|googleusercontent)\.com/.test(fs) ? 'YouTube' : /wikimedia\.org/.test(fs) ? 'Wikipédia' : /sscdn\.co|cifraclub/.test(fs) ? 'Cifra Club' : fs ? 'outro site' : 'nenhuma';
+      item('Foto da música', deOnde);
+    }
+    secao('Karaokê');
     const fk = song ? fonteDoKaraoke(song) : '';
     const kar = karaokeDe(fk);
-    f.push(`gravação: ${fk || '-'} · pronto: ${kar ? `sim (${fmtBytes(kar.tamanho || 0)}, ${chaves.has(chaveKaraoke(fk)) ? 'no aparelho' : 'NÃO está no aparelho'})` : preparandoKaraoke.has(fk) ? `preparando ${preparandoKaraoke.get(fk).pct}%` : 'não'}`);
-    f.push(`ligado: ${sim(karaokeLigado)} · tocando o karaokê: ${sim(Boolean(local?.karaoke))} · voz: ${Math.round(nivelVoz * 100)}% · canais conferidos neste navegador: ${sim(db.prefs().karaokeCanais === navigator.userAgent)}${grafoKaraoke ? ` · Web Audio: ${grafoKaraoke.ctx.state}` : ''}`);
-    f.push('', '[Capa animada]');
+    const noAparelho = kar && chaves.has(chaveKaraoke(fk));
+    item('Gravação', `${fk || '-'} · pronto: ${kar ? `sim (${fmtBytes(kar.tamanho || 0)}, ${noAparelho ? 'no aparelho' : 'NÃO está no aparelho'})` : preparandoKaraoke.has(fk) ? `preparando ${preparandoKaraoke.get(fk).pct}%` : 'não'}`, kar ? (noAparelho ? 'ok' : 'erro') : '', kar && !noAparelho ? 'o karaokê sumiu do aparelho' : '');
+    item('Tocando', `ligado ${sim(karaokeLigado)} · o karaokê ${sim(Boolean(local?.karaoke))} · voz ${Math.round(nivelVoz * 100)}% · canais conferidos ${sim(db.prefs().karaokeCanais === navigator.userAgent)}${grafoKaraoke ? ` · Web Audio ${grafoKaraoke.ctx.state}` : ''}`);
+    secao('Capa animada');
     const vids = [...fundo.querySelectorAll('video.pl-canvas')];
-    f.push(`fundo: ${fundo.hidden ? 'escondido' : 'aparecendo'} · clipe baixado no fundo: ${sim(canvas.vaiTocarArquivo(ytDaCapa()))} · vídeos: ${vids.length} (${vids.map((x) => `${x.classList.contains('pronto') ? 'visível' : 'oculto'}${x.paused ? ' parado' : ' andando'}`).join(', ') || '-'}) · imagens do YouTube: ${fundo.querySelectorAll('img.q').length}`);
-    return f.join('\n');
+    item('Fundo', `${fundo.hidden ? 'escondido' : 'aparecendo'} · clipe baixado ${sim(canvas.vaiTocarArquivo(ytDaCapa()))} · ${vids.length} vídeos (${vids.map((x) => `${x.classList.contains('pronto') ? 'visível' : 'oculto'}${x.paused ? ' parado' : ' andando'}`).join(', ') || '-'}) · ${fundo.querySelectorAll('img.q').length} imagens do YouTube`);
+    const problemas = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'erro').map((i) => i.problema));
+    const avisos = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'aviso').map((i) => i.problema));
+    const cab = [`App ${APP_VERSAO} · ${new Date().toLocaleString('pt-BR')} · ${navigator.onLine ? 'com internet' : 'sem internet'}`,
+      `Música: ${atual?.titulo || '?'} — ${atual?.artista || '?'} (${atual?.songId || 'sem id'}${song ? '' : ', não encontrada'})`];
+    const marca = { ok: '✓', aviso: '!', erro: '✗' };
+    const texto = [...cab, ...secoes.flatMap((s) => ['', `[${s.titulo}]`, ...s.itens.map((i) => `${marca[i.estado] ? marca[i.estado] + ' ' : ''}${i.rotulo}: ${i.valor}`)])].join('\n');
+    return { secoes, problemas, avisos, texto, song };
+  };
+  const htmlDiagnostico = (d) => {
+    const resumo = d.problemas.length
+      ? `<div class="diag-resumo erro">${icon('alerta', 18)}<div><b>${d.problemas.length === 1 ? '1 coisa errada' : `${d.problemas.length} coisas erradas`}</b><ul>${d.problemas.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div></div>`
+      : d.avisos.length
+        ? `<div class="diag-resumo aviso">${icon('info', 18)}<div><b>Nada errado, ${d.avisos.length === 1 ? 'mas uma coisa falta' : `mas ${d.avisos.length} coisas faltam`}</b><ul>${d.avisos.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div></div>`
+        : `<div class="diag-resumo ok">${icon('check', 18)}<div><b>Tudo certo</b></div></div>`;
+    const secoes = d.secoes.filter((s) => s.itens.length).map((s) => `<section class="diag-secao"><h4>${esc(s.titulo)}</h4>
+      ${s.itens.map((i) => `<div class="diag-item${i.estado ? ` ${i.estado}` : ''}"><span class="diag-sinal" aria-label="${i.estado === 'ok' ? 'certo' : i.estado === 'aviso' ? 'atenção' : i.estado === 'erro' ? 'errado' : ''}"></span><span class="grow"><small>${esc(i.rotulo)}</small><b>${esc(i.valor)}</b></span></div>`).join('')}</section>`).join('');
+    return `${resumo}<div class="diag-secoes">${secoes}</div>`;
   };
   const abrirDiagnostico = async () => {
-    let texto = await textoDiagnostico();
-    await openDialog(`
-      <h3>Diagnóstico da música</h3>
-      <pre class="diag-texto" style="white-space:pre-wrap;font-size:12px;max-height:55vh;overflow:auto;user-select:text;margin:0 0 12px">${esc(texto)}</pre>
-      <div class="acts"><button class="btn ghost" data-consertar>Consertar agora</button><button class="btn ghost" data-copiar>Copiar</button><button class="btn primary" data-ok>Fechar</button></div>`,
+    const song0 = musicaTocando();
+    const cabeca = `<div class="diag-cab"><h3>Diagnóstico da música</h3><small>${esc(atual?.titulo || '')}${atual?.artista ? ` · ${esc(atual.artista)}` : ''}</small></div>`;
+    let d = null;
+    await openDialog(`${cabeca}
+      <div class="diag-corpo">${esqueleto('texto', 'Conferindo…', 6)}</div>
+      <div class="diag-feito" hidden></div>
+      <div class="acts"><button class="btn primary" data-consertar disabled>${icon('refresh', 16)} Consertar agora</button><button class="btn ghost" data-copiar disabled>${icon('copy', 16)} Copiar</button><span class="spacer"></span><button class="btn ghost" data-ok>Fechar</button></div>`,
     (dlg, done) => {
+      const corpo = $('.diag-corpo', dlg);
+      const bConsertar = $('[data-consertar]', dlg);
+      const bCopiar = $('[data-copiar]', dlg);
+      const mostrar = async () => {
+        d = await dadosDiagnostico().catch(() => null);
+        if (!dlg.open) return;
+        corpo.innerHTML = d ? htmlDiagnostico(d) : '<p class="muted">Não deu para conferir a música.</p>';
+        bCopiar.disabled = !d;
+        bConsertar.disabled = !song0 || !d;
+        bConsertar.classList.toggle('primary', Boolean(d && (d.problemas.length || d.avisos.length)));
+        bConsertar.classList.toggle('ghost', !(d && (d.problemas.length || d.avisos.length)));
+      };
+      void mostrar();
       $('[data-ok]', dlg).onclick = () => done(true);
-      $('[data-copiar]', dlg).onclick = async () => { try { await navigator.clipboard.writeText(texto); toast('Diagnóstico copiado: é só colar na conversa'); } catch { toast('Não consegui copiar: tire um print'); } };
-      $('[data-consertar]', dlg).onclick = async (e) => {
-        const b = e.currentTarget;
+      bCopiar.onclick = async () => { try { await navigator.clipboard.writeText(d?.texto || ''); toast('Diagnóstico copiado: é só colar na conversa'); } catch { toast('Não consegui copiar: tire um print'); } };
+      bConsertar.onclick = async () => {
         const song = atual?.songId && db.song(atual.songId);
         if (!song) { toast('Salve a música na biblioteca para consertar'); return; }
-        b.disabled = true;
-        b.textContent = 'Consertando…';
-        await consertarMusica(song.id).catch(() => {});
+        if (!navigator.onLine) { toast('Sem internet: o conserto precisa dela'); return; }
+        bConsertar.disabled = true;
+        bCopiar.disabled = true;
+        const feito = $('.diag-feito', dlg);
+        feito.hidden = true;
+        const passo = (t) => { if (dlg.open) bConsertar.innerHTML = `<span class="spin"></span> ${esc(t)}`; };
+        const mudou = await consertarMusica(song.id, { passo }).catch(() => null);
         letraDe = '';
+        extraDe = '';
         desenhar();
-        texto = await textoDiagnostico();
-        if (dlg.open) { $('.diag-texto', dlg).textContent = texto; b.disabled = false; b.textContent = 'Consertar agora'; }
-        toast('Pronto: conferi a letra, o áudio oficial e o download');
+        if (!dlg.open) { toast(mudou?.length ? `Consertado: ${mudou[0]}` : 'Conferido: nada precisou mudar'); return; }
+        passo('Conferindo de novo…');
+        await mostrar();
+        if (!dlg.open) return;
+        feito.innerHTML = `<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}`;
+        feito.hidden = false;
+        bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
+        feito.scrollIntoView({ block: 'nearest' });
       };
-    });
+    }, { folha: telaDeCelular() });
   };
   // o "Tocando agora" na tela toda (tablet): o botão do canto de cima troca entre expandir e voltar ao painel
   // No celular e no computador a tela toda é o próprio "Tocando agora": o player muda de jeito (html.pp) só enquanto
@@ -8206,21 +8339,11 @@ function capaOficial(titulo, artista) {
   }
   return comUltimoValor('capa', k, capasOficiais.get(k));
 }
-// o artista do Deezer com o nome pedido: o de nome igual (o único, ou o que tem mais fãs entre os xarás: o "justice"
-// desconhecido vinha antes do Justice). Vários com o mesmo nome e nenhum conhecido costuma ser outro artista (o "Belief"
-// dos créditos de Perfect vinha com a capa de uma banda de 96 fãs), e um nome só parecido também ("Belief Defect" não é
-// o "Belief"; o parecido, como "Frei Gilson - CMES", vale quando não há o igual e ele é conhecido): aí fica o desenho
-function artistaDeezerCerto(lista, nome) {
-  const fas = (x) => x.nb_fan || 0;
-  const parecidos = (lista || []).filter((x) => mesmoNome(x.name, nome)).sort((x, y) => fas(y) - fas(x));
-  const iguais = parecidos.filter((x) => normalizar(x.name) === normalizar(nome));
-  if (iguais.length) return iguais.length > 1 && fas(iguais[0]) < 1000 ? null : iguais[0];
-  return parecidos[0] && fas(parecidos[0]) >= 1000 ? parecidos[0] : null;
-}
+// (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
 async function fotoDeezer(nome) {
-  const r = await jsonp(`https://api.deezer.com/search/artist?q=${encodeURIComponent(nome)}&limit=5`);
-  // com vários do mesmo nome (o "justice" desconhecido vinha antes do Justice), o que tem mais fãs
-  const a = artistaDeezerCerto(r?.data, nome);
+  // (o mesmo artista do "Sobre o artista": o confirmado por uma música dele, quando já se sabe, ou o de nome igual com
+  // mais fãs)
+  const a = await artistaDoDeezer(nome);
   // sem foto, o Deezer devolve uma imagem genérica (o endereço fica com "/artist//")
   const foto = a?.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '';
   return foto && !(await ehFotoVaziaDoDeezer(foto)) ? foto : '';
@@ -8297,7 +8420,8 @@ function descricaoDoArtista(nome) {
     const url = `https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&generator=search&gsrlimit=5&gsrsearch=${encodeURIComponent(nome)}&prop=extracts|description|pageimages|info&exintro=1&explaintext=1&piprop=thumbnail&pithumbsize=900&inprop=url`;
     descricoesArtistas.set(k, fetch(url).then((r) => r.json()).then((j) => {
       const paginas = Object.values(j?.query?.pages || {}).sort((x, y) => (x.index || 0) - (y.index || 0));
-      const certa = paginas.find((pg) => mesmoNome(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
+      // (o nome escrito junto também: a página do "Jung Kook" é a "Jungkook")
+      const certa = paginas.find((pg) => mesmoNomeDeArtista(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
         && !/desambigua/i.test(pg.description || ''));
       // (sem as datas e a pronúncia entre parênteses do começo, que só atrapalham numa leitura rápida)
       const texto = String(certa?.extract || '').replace(/\s*\([^()]*\d{4}[^()]*\)/, '').split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
@@ -8306,21 +8430,89 @@ function descricaoDoArtista(nome) {
   }
   return comUltimoValor('wiki', nome, descricoesArtistas.get(k));
 }
-// o artista no Deezer (o que tem mais fãs, com o mesmo nome): os fãs, os álbuns e a foto grande, para a tela "Sobre o
-// artista" (como os ouvintes mensais do Spotify)
-const deezerArtistas = new Map();
-function deezerDoArtista(nome) {
+// O artista no Deezer. Pelo nome, o de nome igual (escrito junto ou separado) com mais fãs; com uma música dele, o
+// artista da faixa dessa música (o que com certeza canta: o nome sozinho pode ser de outro, como o "Jung Kook" de
+// música indiana no lugar do Jungkook). O confirmado por uma música vale também para as buscas só pelo nome, enquanto o
+// app está aberto
+const deezerPorNome = new Map();
+const deezerConfirmados = new Map(); // nome → a promessa do artista confirmado por uma música
+function artistaDoDeezer(nome, { titulo = '' } = {}) {
   const k = normalizar(nome);
-  if (!deezerArtistas.has(k)) {
-    deezerArtistas.set(k, jsonp(`https://api.deezer.com/search/artist?q=${encodeURIComponent(nome)}&limit=5`).then(async (r) => {
-      const a = artistaDeezerCerto(r?.data, nome);
-      if (!a) return null;
-      const xl = a.picture_xl && !/\/artist\/\//.test(a.picture_xl) ? a.picture_xl : '';
-      const foto = xl && !(await ehFotoVaziaDoDeezer(xl)) ? xl : '';
-      return { fas: a.nb_fan || 0, albuns: a.nb_album || 0, foto };
-    }).catch(() => null));
+  if (!k) return Promise.resolve(null);
+  const porNome = () => {
+    if (!deezerPorNome.has(k)) {
+      deezerPorNome.set(k, jsonp(`https://api.deezer.com/search/artist?q=${encodeURIComponent(nome)}&limit=10`)
+        .then((r) => { if (!r) throw new Error('sem resposta'); return artistaDeezerCerto(r.data, nome); })
+        .catch(() => { deezerPorNome.delete(k); return null; }));
+    }
+    return deezerPorNome.get(k);
+  };
+  if (titulo && !deezerConfirmados.has(k)) {
+    deezerConfirmados.set(k, jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`${nome} ${tituloLimpo(titulo)}`)}&limit=15`).then(async (r) => {
+      const faixa = faixaDaMusica(r?.data, { titulo: tituloLimpo(titulo), artista: nome });
+      if (!faixa) return null;
+      // (a página do artista: os fãs e as fotos; a faixa traz só o nome e o código)
+      const a = await jsonp(`https://api.deezer.com/artist/${faixa.artist.id}`);
+      return a?.id ? a : null;
+    }).then((a) => { if (!a) deezerConfirmados.delete(k); return a; }).catch(() => { deezerConfirmados.delete(k); return null; }));
   }
-  return comUltimoValor('deezer', nome, deezerArtistas.get(k));
+  const confirmado = deezerConfirmados.get(k);
+  return confirmado ? confirmado.then((a) => a || porNome()) : porNome();
+}
+// os fãs, os álbuns e a foto grande do artista no Deezer, para a tela "Sobre o artista" (como os ouvintes mensais do
+// Spotify), com o nome e o código dele (para o diagnóstico: saber qual artista foi achado)
+function deezerDoArtista(nome, { titulo = '' } = {}) {
+  const dados = artistaDoDeezer(nome, { titulo }).then(async (a) => {
+    if (!a) return null;
+    const xl = a.picture_xl && !/\/artist\/\//.test(a.picture_xl) ? a.picture_xl : '';
+    const foto = xl && !(await ehFotoVaziaDoDeezer(xl)) ? xl : '';
+    return { fas: a.nb_fan || 0, albuns: a.nb_album || 0, foto, nome: a.name || '', id: a.id || 0 };
+  }).catch(() => null);
+  return comUltimoValor('deezer', nome, dados);
+}
+// Esquece o que se sabe do artista (o guardado nesta abertura do app e no aparelho), para tudo ser procurado de novo
+// (o "Consertar agora" do diagnóstico). Só com internet: sem ela, o guardado é o que há para mostrar
+function esquecerArtista(nome) {
+  if (!navigator.onLine) return;
+  const k = normalizar(nome);
+  for (const m of [fotosArtistas, deezerPorNome, deezerConfirmados, descricoesArtistas]) m.delete(k);
+  for (const l of ['pt', 'en']) paginasDeMusico.delete(`${l}:${k}`);
+  for (const tipo of ['foto', 'deezer', 'wiki', 'canal', 'adb', 'fotoswiki2', 'fotosvideos']) delete artistasGuardados[`${tipo}:${k}`];
+  try { localStorage.setItem(CHAVE_ARTISTAS, JSON.stringify(artistasGuardados)); } catch { /* sem espaço: fica na sessão */ }
+}
+// o nome com que o artista da música é procurado (o primeiro, sem o "feat."; na música da missa, o nome religioso, e
+// só de quem é com certeza do meio católico): '' quando não se procura nada sobre ele
+function nomeDoArtistaDaMusica(s) {
+  const principal = primeiroArtistaDe(s?.artist || '');
+  if (!principal) return '';
+  if (!ehDaLiturgia(s)) return principal;
+  return confiavelNaLiturgia(principal) ? nomeReligioso(principal) : '';
+}
+// A apresentação do artista: a da Wikipédia pelo nome e, sem ela, pelo nome com que o Deezer o conhece ("Jungkook")
+async function descricaoComNomeDoDeezer(nome, dz) {
+  const info = await descricaoDoArtista(nome).catch(() => null);
+  if (info || !dz?.nome || normalizar(dz.nome) === normalizar(nome)) return info;
+  return descricaoDoArtista(dz.nome).catch(() => null);
+}
+// Confere o "Sobre o artista" da música: tudo procurado de novo (esquecer: o guardado sai antes), a foto do artista
+// guardada na música trocada pela certa e, na baixada, as fotos guardadas de novo para tocar sem internet. Devolve o
+// que mudou ({ antes, depois, fotoTrocada }) ou null (sem internet, ou a música sem artista)
+async function consertarArtistaDaMusica(id, { esquecer = true } = {}) {
+  let s = db.song(id);
+  const nome = nomeDoArtistaDaMusica(s);
+  if (!s || !nome || !navigator.onLine) return null;
+  const slug = /cifraclub\.com\.br\/([^/?#]+)/.exec(s.source || '')?.[1] || '';
+  const antes = { deezer: ultimoValorDoArtista('deezer', nome) || null, foto: s.fotoArtista || '', wiki: Boolean(ultimoValorDoArtista('wiki', nome)) };
+  if (esquecer) { esquecerArtista(nome); esquecerFotoDoArtista(nome); }
+  // (o Deezer primeiro, confirmado pela música: a foto e a apresentação usam o artista que ele achou)
+  const dz = await noMaximo(deezerDoArtista(nome, { titulo: s.title }), 15000, null);
+  const [foto, info] = await Promise.all([noMaximo(fotoDoArtista(nome, slug), 20000, ''), noMaximo(descricaoComNomeDoDeezer(nome, dz), 15000, null)]);
+  s = db.song(id);
+  if (!s) return null;
+  let fotoTrocada = false;
+  if (foto && foto !== s.fotoArtista) { db.updateSong(id, { fotoArtista: foto }); fotoTrocada = true; }
+  if (s.baixado) await guardarImagensDaMusica(db.song(id)).catch(() => {});
+  return { nome, antes, depois: { deezer: dz, foto: foto || s.fotoArtista || '', wiki: Boolean(info) }, fotoTrocada };
 }
 // a tela "Sobre o artista" (o "ver mais" do cartão, como no Spotify): as fotos dele passando para o lado, os fãs, a
 // apresentação inteira e os atalhos (as músicas e os álbuns dele no app, a página na Wikipédia). Abre por cima de
@@ -8395,7 +8587,7 @@ async function fotosDaWikipedia(nome) {
   // jackson", a estrela da calçada. As de lugares e objetos com o nome dele na frente ficam de fora pelas palavras)
   const ehFotoDele = (titulo) => {
     const base = String(titulo || '').replace(/^[^:]+:/, '').replace(/\.[a-z0-9]+$/i, '').replace(/^[\d\s._()-]+/, '');
-    if (!normalizar(base).startsWith(alvo)) return false;
+    if (!normalizar(base).startsWith(alvo) && !nomeJunto(base).startsWith(nomeJunto(nome))) return false;
     if (/^\s*['’]s\b/i.test(base.slice(nome.trim().length))) return false;
     return !/\b(grave|tomb|t[uú]mulo|star|estrela|statue|est[aá]tua|tussauds|wax|cera|memorial|mural|monument|plaque|house|casa|home|ranch|birthplace|signature|assinatura|licen[cs]e|poster|cartaz|stamp|selo|album|cover|capa|logo|jacket|jaqueta|glove|luva|hat|chap[eé]u|shoes?|sapatos?|costume|fantasia|prints?|car|carro|guitar|guitarra|victims?|v[ií]timas?|trial|julgamento|court|tribunal|mugshot)\b/i.test(base);
   };
@@ -8617,7 +8809,7 @@ function verFotos(urls, inicio = 0) {
   v.addEventListener('pointerup', soltar);
   v.addEventListener('pointercancel', soltar);
 }
-async function abrirSobreArtista({ nome, slug = '' }) {
+async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   document.querySelector('.sobre-artista')?.remove();
   const tela = document.createElement('section');
   tela.className = 'sobre-artista carregando'; // (carregando: o círculo no meio da tela, até chegarem as fotos e o texto)
@@ -8636,7 +8828,9 @@ async function abrirSobreArtista({ nome, slug = '' }) {
   };
   window.addEventListener('popstate', fechar);
   tela.querySelector('[data-sa="voltar"]').onclick = () => history.back();
-  const [info, dz, foto, canal, adb] = await Promise.all([descricaoDoArtista(nome), deezerDoArtista(nome), fotoDoArtista(nome, slug).catch(() => ''),
+  // (o Deezer confirmado pela música aberta, quando há: o artista que canta, e não outro com o mesmo nome)
+  const dzP = deezerDoArtista(nome, { titulo });
+  const [info, dz, foto, canal, adb] = await Promise.all([dzP.then((d) => descricaoComNomeDoDeezer(nome, d)), dzP, fotoDoArtista(nome, slug).catch(() => ''),
     canalGuardado(nome).catch(() => null), audioDbGuardado(nome).catch(() => null)]);
   if (!tela.isConnected) return;
   tela.classList.remove('carregando');
@@ -8738,7 +8932,10 @@ const paginasDeMusico = new Map();
 function paginaDoMusico(nome, lingua) {
   const k = `${lingua}:${normalizar(nome)}`;
   if (!paginasDeMusico.has(k)) {
-    const titulos = [nome, ...VARIANTES_MUSICO[lingua].map((v) => `${nome} (${v})`)];
+    // (e o nome escrito junto, que é como alguns artistas têm a página: "Jung Kook" é "Jungkook")
+    const palavras = String(nome).trim().split(/\s+/);
+    const junto = palavras.length > 1 && palavras.length <= 3 ? palavras.join('').replace(/^(.)(.*)$/, (_, a, b) => a.toUpperCase() + b.toLowerCase()) : '';
+    const titulos = [nome, ...VARIANTES_MUSICO[lingua].map((v) => `${nome} (${v})`), ...(junto && junto !== nome ? [junto] : [])];
     paginasDeMusico.set(k, fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titulos.join('|'))}&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&format=json&origin=*`)
       .then((x) => x.json()).then((r) => {
         const q = r?.query || {};

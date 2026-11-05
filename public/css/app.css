@@ -5538,3 +5538,39 @@ dialog.tons-na-cor .btn.ghost:hover { background: rgb(255 255 255 / 0.18); }
 .btn-baixar-set.baixando { color: var(--text); }
 .btn-baixar-set.baixando .ic { opacity: 1; animation: baixando-pulsa 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .btn-baixar-set.baixando .ic { animation: none; opacity: 0.6; } }
+
+/* o diagnóstico da música: o resumo do que está errado em cima e, embaixo, cada parte com um sinal (verde certo,
+   amarelo atenção, vermelho errado) */
+.diag-cab h3 { margin: 0; }
+.diag-cab small { color: var(--muted); display: block; margin-top: 2px; overflow-wrap: anywhere; }
+.diag-corpo { display: grid; gap: 12px; }
+.diag-resumo { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+.diag-resumo > svg { flex: none; margin-top: 1px; }
+.diag-resumo ul, .diag-feito ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.diag-resumo li, .diag-feito li { margin: 2px 0; }
+.diag-resumo.ok { color: #1db954; background: color-mix(in srgb, #1db954 12%, var(--surface-2)); }
+.diag-resumo.ok b { color: var(--text); }
+.diag-resumo.aviso { background: color-mix(in srgb, #f5a524 14%, var(--surface-2)); }
+.diag-resumo.aviso > svg { color: #f5a524; }
+.diag-resumo.erro { background: color-mix(in srgb, var(--danger) 14%, var(--surface-2)); }
+.diag-resumo.erro > svg { color: var(--danger); }
+.diag-secoes { display: grid; gap: 10px; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+dialog.folha .diag-secoes { max-height: none; }
+.diag-secao { border-radius: 10px; background: var(--surface-2); padding: 4px 12px; }
+.diag-secao h4 { margin: 8px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.diag-item { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--border); }
+.diag-secao h4 + .diag-item { border-top: 0; }
+.diag-item .grow { min-width: 0; flex: 1; }
+.diag-item small { display: block; color: var(--muted); font-size: 12px; }
+.diag-item b { display: block; font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; user-select: text; }
+.diag-sinal { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.diag-item.ok .diag-sinal { background: #1db954; }
+.diag-item.aviso .diag-sinal { background: #f5a524; }
+.diag-item.erro .diag-sinal { background: var(--danger); }
+.diag-item.erro b { color: var(--danger); }
+.diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, #1db954 12%, var(--surface-2)); }
+.diag-feito[hidden] { display: none; }
+.diag-feito > b { display: flex; gap: 8px; align-items: center; }
+.diag-feito > b svg { color: #1db954; }
+[data-consertar] { display: inline-flex; align-items: center; gap: 8px; }
+[data-consertar] .spin { border-top-color: currentColor; }
