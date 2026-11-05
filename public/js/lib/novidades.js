@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 534, data: '2026-11-05', titulo: 'A prévia da playlist só com clipes',
+    itens: [
+      { tipo: 'correcao', texto: 'A prévia da playlist (os clipes passando, como stories) e a capinha animada ao lado do baixar ainda mostravam as músicas sem clipe de verdade, como Blast Off, com a capa parada. Agora elas mostram só as músicas que têm clipe. Ao abrir a playlist, as músicas que ainda não tinham sido conferidas são conferidas na hora.' },
+    ],
+  },
+  {
     versao: 533, data: '2026-11-05', titulo: 'O clipe volta para as músicas do K-pop',
     itens: [
       { tipo: 'correcao', texto: 'A música que tinha ficado sem clipe por engano (como Standing Next to You, do Jungkook) não voltava se ela fosse a última que você tocou: a conferência em segundo plano pulava a música que está no player, e desde a versão anterior a última tocada fica sempre lá. Agora ela só pula a que está tocando, e a música marcada sem clipe é conferida de novo assim que você abre ou toca ela: o clipe volta na hora e, se ela é baixada, o clipe é baixado de novo (com o servidor ligado e no Wi-Fi).' },
@@ -65,13 +71,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Muitas vezes o clipe vinha certo, mas o modo música tocava outra: a mesma música de outro artista, ou outra música com o nome dentro ("Beija-flor" no lugar de "Voa Beija-flor", um pot-pourri). Agora o áudio oficial e o clipe só valem quando são do artista certo e com o título exato; sem um assim, fica só o clipe.' },
       { tipo: 'correcao', texto: 'A cifra e a letra também: o título igual vem antes do parecido, e uma dupla como "Jorge & Mateus" não é mais confundida com outro "Jorge".' },
       { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano: o áudio de outra música sai, o certo é procurado, e a letra sincronizada e o download são refeitos. O áudio que você importou fica.' },
-    ],
-  },
-  {
-    versao: 524, data: '2026-11-05', titulo: 'O mesmo carregando no app todo',
-    itens: [
-      { tipo: 'melhoria', texto: 'Em todo o app, o carregando virou o contorno do que vai aparecer, com um brilho passando, no lugar exato: as linhas das músicas (artista, setores, acervo, orações, fontes, vídeos), as capas lado a lado (álbuns, trocar a capa), a capa grande do álbum e a foto redonda do artista, os parágrafos (Sobre o artista, oração) e a folha da partitura. Antes eram círculos girando com um texto embaixo.' },
-      { tipo: 'melhoria', texto: 'Os cantos da Cindy Ferrarezi abrem como as músicas da busca: a tela do canto aparece na hora, com o contorno da letra.' },
     ],
   },
 ];

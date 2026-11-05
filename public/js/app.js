@@ -14017,6 +14017,7 @@ function viewPlaylist(set) {
   // (a música que está tocando, com o nome na cor do app e as barrinhas: marcarTocandoNasListas, para todas as listas)
   // a capinha ganha movimento: o clipe baixado de uma das músicas, no refrão (ou, sem download, as capas passando)
   animarCapinha(set);
+  void conferirClipesDaPlaylist(set);
   ul?.addEventListener('click', (e) => {
     const li = e.target.closest('li[data-i]');
     if (!li) return;
@@ -14153,8 +14154,23 @@ let urlsDaCapinha = [];
 // capinha de celular). Ao entrar na playlist, ela já mostra a primeira música (a imagem do clipe, até o vídeo chegar
 // por cima; nunca a capa da playlist), o contorno se desenha em volta e o cartão de trás sai para a direita
 let capinhaEntrou = null;
+// a música entra na prévia e na capinha da playlist só com clipe de verdade: não a que é só música (o vídeo dela é só a
+// capa parada ou só o áudio, como Blast Off), nem a do áudio da pessoa
+const comClipeDeVerdade = (s) => Boolean(s?.youtube) && !s.semClipe && !ehArquivo(s.youtube) && paradosGuardados()[s.youtube] !== true;
+// as músicas da playlist que ainda não passaram pela conferência do clipe são conferidas ao abrir ela (uma de cada vez);
+// a que fica só música sai da capinha na hora
+async function conferirClipesDaPlaylist(set) {
+  const faltam = set.items.map((it) => db.song(it.songId)).filter((x) => x?.youtube && x.semClipe === undefined && !x.audioProprio && !ehArquivo(x.youtube));
+  let mudou = false;
+  for (const x of [...new Map(faltam.map((f) => [f.id, f])).values()]) {
+    if (!navigator.onLine) break;
+    await noMaximo(conferirClipeSalva(x.id), 20000, true).catch(() => {});
+    if (db.song(x.id)?.semClipe) mudou = true;
+  }
+  if (mudou && $('#pl-mini')) { $('#pl-mini').outerHTML = htmlDaCapinha(db.set(set.id) || set, false); $('#pl-mini')?.addEventListener('click', () => previaDaPlaylist(db.set(set.id) || set)); animarCapinha(db.set(set.id) || set); }
+}
 function htmlDaCapinha(set, entrando) {
-  const yt = set.items.map((it) => db.song(it.songId)?.youtube).find(Boolean);
+  const yt = set.items.map((it) => db.song(it.songId)).find(comClipeDeVerdade)?.youtube;
   const tela = yt ? `<img class="pl-mini-anim pl-mini-ini on" src="https://i.ytimg.com/vi/${esc(yt)}/mqdefault.jpg" alt="">` : capaRepertorio(set);
   return `<button class="pl-mini${entrando ? ' entrando' : ''}" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">
     <span class="pl-mini-atras" aria-hidden="true"></span><span class="pl-mini-tela">${tela}</span>
@@ -14165,7 +14181,7 @@ async function animarCapinha(set) {
   const meus = (urlsDaCapinha = []);
   const box = $('#pl-mini .pl-mini-tela');
   if (!box) return;
-  const songs = [...new Map(set.items.map((it) => db.song(it.songId)).filter((x) => x?.youtube).map((x) => [x.youtube, x])).values()];
+  const songs = [...new Map(set.items.map((it) => db.song(it.songId)).filter(comClipeDeVerdade).map((x) => [x.youtube, x])).values()];
   if (!songs.length) return;
   const arquivos = new Map(); // vídeo → endereço do clipe baixado ('' sem download)
   let k = 0;
@@ -14220,8 +14236,9 @@ async function animarCapinha(set) {
 // Arrastar para cima passa para a próxima (e ela passa sozinha no fim do trecho). Já começa com som (e pausa o que
 // estiver tocando no player, que volta ao fechar); o alto-falante do topo tira o som. Tocar no cartão toca a playlist dali
 function previaDaPlaylist(set, inicio = 0) {
-  const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => x.s?.youtube);
-  if (!faixas.length) { toast('Nenhuma música desta playlist tem vídeo ainda'); return; }
+  // (só as músicas com clipe de verdade: a que é só música não tem o que mostrar)
+  const faixas = set.items.map((it, i) => ({ i, s: db.song(it.songId) })).filter((x) => comClipeDeVerdade(x.s));
+  if (!faixas.length) { toast('Nenhuma música desta playlist tem clipe ainda'); return; }
   let comSom = true;
   let pausouPlayer = false;
   if (player.tocandoAlgo()) { player.alternar(); pausouPlayer = true; }
