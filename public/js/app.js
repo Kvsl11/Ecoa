@@ -13501,15 +13501,12 @@ async function arquivoBaixado(yt, soVideo = false) {
   const blob = await lerAudio(chaveBaixada(yt)).catch(() => null);
   return blob ? URL.createObjectURL(blob) : null;
 }
+// o trecho do refrão no clipe: o arquivo do clipe baixado (com a imagem e o som dele) ou, sem ele, o clipe no YouTube.
+// O som é sempre o do próprio clipe: antes, com o áudio oficial baixado à parte, a prévia tocava esse áudio por cima
+// do clipe, e a boca do cantor saía fora do tempo (o clipe e o áudio oficial são gravações diferentes)
 async function midiaDoRefrao(s) {
-  const { tVideo, tAudio } = tempoDoRefrao(s);
-  const vs = versoesDe(s);
-  const video = await arquivoBaixado(s.youtube, true);
-  let audio = null;
-  if (vs?.audio && vs.audio !== s.youtube) {
-    if (ehArquivo(vs.audio)) { const b = await lerAudio(s.id).catch(() => null); audio = b ? URL.createObjectURL(b) : null; } else audio = await arquivoBaixado(vs.audio);
-  }
-  return { video, audio, tVideo, tAudio };
+  const { tVideo } = tempoDoRefrao(s);
+  return { video: await arquivoBaixado(s.youtube, true), tVideo };
 }
 // um <video> ou <audio> do aparelho, começando no tempo t (e voltando a ele no fim do trecho)
 function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
@@ -13631,19 +13628,16 @@ function previaDaPlaylist(set, inicio = 0) {
   document.body.append(dlg);
   const feed = $('.pv-feed', dlg);
   const slides = [...dlg.querySelectorAll('.pv-slide')];
-  // o que toca na música da tela: o clipe (do aparelho ou do YouTube) e, se baixado à parte, o áudio oficial
+  // o que toca na música da tela: o clipe (do aparelho ou do YouTube), com o som dele
   let atual = null;
   const comandoYt = (f, func, args = []) => { try { f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o vídeo */ } };
   // (se o aparelho não deixar o som começar sozinho, o clipe segue mudo e o alto-falante mostra isso: um toque nele liga;
   // só o bloqueio do som conta: o play interrompido por passar para a próxima não desliga nada)
-  const semSomLiberado = (e) => { if (!comSom || e?.name !== 'NotAllowedError') return; comSom = false; desenharSom(); if (atual?.audio) { atual.audio.dataset.parado = '1'; atual.audio.pause(); } };
+  const semSomLiberado = (e) => { if (!comSom || e?.name !== 'NotAllowedError') return; comSom = false; desenharSom(); };
   const aplicarSom = () => {
     if (!atual) return;
-    const { video, audio, iframe } = atual;
-    if (audio) {
-      audio.muted = !comSom;
-      if (comSom) { delete audio.dataset.parado; if (video) try { audio.currentTime = atual.tAudio + (video.currentTime - atual.tVideo); } catch { /* segue */ } audio.play().catch(semSomLiberado); } else { audio.dataset.parado = '1'; audio.pause(); }
-    } else if (video) {
+    const { video, iframe } = atual;
+    if (video) {
       video.muted = !comSom;
       if (comSom) video.play().catch((e) => { if (e?.name !== 'NotAllowedError') return; video.muted = true; video.play().catch(() => {}); semSomLiberado(e); });
     }
@@ -13651,7 +13645,7 @@ function previaDaPlaylist(set, inicio = 0) {
   };
   const largar = () => {
     if (!atual) return;
-    for (const el of [atual.video, atual.audio]) if (el) { el.pause(); el.removeAttribute('src'); el.load(); }
+    if (atual.video) { atual.video.pause(); atual.video.removeAttribute('src'); atual.video.load(); }
     atual.iframe?.remove();
     atual.video?.remove();
     atual.urls.forEach((u) => URL.revokeObjectURL(u));
@@ -13696,9 +13690,9 @@ function previaDaPlaylist(set, inicio = 0) {
     const m = await midiaDoRefrao(s);
     // (as faixas do clipe baixado medidas antes de ele aparecer: sem a piscada com as faixas pretas)
     const fz = m.video ? await faixasDoArquivo(m.video, s.youtube) : 0;
-    if (ativa !== k || !dlg.isConnected) { [m.video, m.audio].forEach((u) => u && URL.revokeObjectURL(u)); return; }
+    if (ativa !== k || !dlg.isConnected) { if (m.video) URL.revokeObjectURL(m.video); return; }
     const caixa = slides[k].querySelector('.pv-video');
-    atual = { urls: [m.video, m.audio].filter(Boolean), tVideo: m.tVideo, tAudio: m.tAudio };
+    atual = { urls: [m.video].filter(Boolean), tVideo: m.tVideo };
     const zoom = (f) => { if (ativa === k) caixa.style.setProperty('--zoom', zoomDasFaixas(f)); };
     if (m.video) {
       zoom(fz);
@@ -13716,10 +13710,6 @@ function previaDaPlaylist(set, inicio = 0) {
       caixa.append(f);
       atual.iframe = f;
       f.addEventListener('load', () => setTimeout(aplicarSom, 700), { once: true });
-    }
-    if (m.audio) {
-      atual.audio = elementoDoRefrao('audio', m.audio, m.tAudio, { mudo: !comSom });
-      if (!comSom) atual.audio.dataset.parado = '1';
     }
     t0 = performance.now();
     aplicarSom();
