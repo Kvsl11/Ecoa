@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 543, data: '2026-11-05', titulo: 'A barrinha de baixo como a do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'O nome da música que não cabe anda devagar para o lado, numa linha só, e volta ao começo: na barrinha de baixo, no Tocando agora e na barrinha de cima.' },
+      { tipo: 'melhoria', texto: 'Com um fone conectado, a barrinha de baixo fica como a do Spotify: o nome e o artista na mesma linha, o fone embaixo na cor do app e, à direita, o ícone do fone, o ✓ e o play. Sem fone, o ícone do fone não aparece.' },
+      { tipo: 'melhoria', texto: 'No Tocando agora, o ícone do fone embaixo dos controles ficou do tamanho do botão de compartilhar.' },
+    ],
+  },
+  {
     versao: 542, data: '2026-11-05', titulo: 'A atualização do app sem falhar',
     itens: [
       { tipo: 'correcao', texto: 'Às vezes o app abria e não atualizava para a versão nova: bastava um dos arquivos do app não chegar (o servidor recusava um deles quando eram pedidos todos de uma vez) para a versão nova ser descartada até a próxima abertura. Agora cada arquivo é pedido de novo quando falha, em grupos menores, e a atualização que não deu certo tenta de novo sozinha em poucos segundos. Com o app aberto, ele também confere de 10 em 10 minutos se há versão nova.' },
@@ -68,12 +76,6 @@ export const NOVIDADES = [
     versao: 534, data: '2026-11-05', titulo: 'A prévia da playlist só com clipes',
     itens: [
       { tipo: 'correcao', texto: 'A prévia da playlist (os clipes passando, como stories) e a capinha animada ao lado do baixar ainda mostravam as músicas sem clipe de verdade, como Blast Off, com a capa parada. Agora elas mostram só as músicas que têm clipe. Ao abrir a playlist, as músicas que ainda não tinham sido conferidas são conferidas na hora.' },
-    ],
-  },
-  {
-    versao: 533, data: '2026-11-05', titulo: 'O clipe volta para as músicas do K-pop',
-    itens: [
-      { tipo: 'correcao', texto: 'A música que tinha ficado sem clipe por engano (como Standing Next to You, do Jungkook) não voltava se ela fosse a última que você tocou: a conferência em segundo plano pulava a música que está no player, e desde a versão anterior a última tocada fica sempre lá. Agora ela só pula a que está tocando, e a música marcada sem clipe é conferida de novo assim que você abre ou toca ela: o clipe volta na hora e, se ela é baixada, o clipe é baixado de novo (com o servidor ligado e no Wi-Fi).' },
     ],
   },
 ];
