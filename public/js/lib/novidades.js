@@ -4,6 +4,29 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 530, data: '2026-11-05', titulo: 'Só clipe de verdade',
+    itens: [
+      { tipo: 'correcao', texto: 'Músicas como Blast Off, do Bruno Mars, vinham com um "vídeo" que é só a capa da música parada. Agora o app reconhece esses vídeos (pelo nome, como "Official Audio" e "Topic", e pelas imagens do vídeo, que são todas iguais) e só aceita clipe de canal oficial (o do artista, o VEVO ou a gravadora; não o de fã). Ele procura o clipe oficial; Sem clipe oficial, a música fica só música: sem o ícone de vídeo nas listas, sem a capa animada (só a capa normal) e sem o "Mudar para vídeo".' },
+      { tipo: 'correcao', texto: 'O clipe e o áudio oficial com os outros artistas no nome ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open") voltam a ser reconhecidos. As músicas que tinham perdido o áudio oficial por isso o procuram de novo, sozinhas.' },
+      { tipo: 'melhoria', texto: 'As músicas que você já tinha, inclusive as baixadas, são conferidas sozinhas, em segundo plano. Nas baixadas, o clipe oficial achado é baixado; na que fica só música, o vídeo parado sai do aparelho (sobra mais espaço) e ela continua tocando sem internet, só com o som.' },
+    ],
+  },
+  {
+    versao: 529, data: '2026-11-05', titulo: 'A cifra certa da música',
+    itens: [
+      { tipo: 'correcao', texto: 'Algumas músicas vinham com a cifra de outra música com o mesmo nome (a primeira achada no Cifra Club). Agora o app confere a cifra pela letra da música: se não for ela, tenta as outras cifras com o mesmo título e fica com a que é da música. Se nenhuma for, a música fica só com a letra, em vez de uma cifra errada.' },
+      { tipo: 'correcao', texto: 'Quando o app consegue ouvir a gravação (música baixada, áudio importado ou o seu servidor), ele confere também os acordes: se a cifra não casa com o som em nenhum tom, procura entre as outras cifras da mesma música uma que case e troca, avisando.' },
+      { tipo: 'correcao', texto: 'As músicas que você já tinha são conferidas sozinhas, em segundo plano. A cifra que você escreveu ou editou nunca é trocada.' },
+    ],
+  },
+  {
+    versao: 528, data: '2026-11-05', titulo: 'A última música na barra e o app abrindo no Início',
+    itens: [
+      { tipo: 'melhoria', texto: 'A barra do player embaixo continua com a última música tocada mesmo depois de fechar o app ou de ele se atualizar: abrindo de novo, ela está lá, pausada no ponto em que parou, pronta para continuar (com a fila de antes).' },
+      { tipo: 'melhoria', texto: 'Abrindo o app de novo, ele começa sempre no Início, e não na tela em que você estava ao sair. Voltando para ele depois de mais de 2 minutos fora (sem música tocando), também. Recarregando, você fica na mesma tela; os avisos e os links de uma música continuam abrindo direto nela, e uma edição em andamento não é largada.' },
+    ],
+  },
+  {
     versao: 527, data: '2026-11-05', titulo: 'Os tons na cor da música',
     itens: [
       { tipo: 'melhoria', texto: 'No player, tocando no tom, abre a janela com os 12 tons juntos, pintada na cor da música como os desenhos dos acordes: o tom da tela aceso na cor dos acordes, o original da cifra e o da gravação marcados, e o meio tom acima e abaixo embaixo.' },
@@ -51,25 +74,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na Busca, enquanto você digita, o resultado anterior continua na tela (mais apagado) e uma linha fina corre embaixo da barra de busca. Quando chega o resultado novo, a tela troca de uma vez, sem pular. Antes cada seção (Artistas, Acervo, Músicas) apagava e ganhava uma bolinha girando.' },
       { tipo: 'melhoria', texto: 'Na primeira busca e em "Católicas em alta" e "Artistas católicos", aparece o contorno das capas e das linhas no lugar exato do que vai chegar. As músicas vêm primeiro, depois os artistas e o acervo.' },
       { tipo: 'melhoria', texto: 'No resto do app, o carregando virou três pontinhos discretos, no lugar do anel colorido girando.' },
-    ],
-  },
-  {
-    versao: 520, data: '2026-11-05', titulo: 'As duplas não são mais separadas',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas músicas de duplas, como "Voa Beija-flor" de Jorge & Mateus, o app separava os nomes e mostrava outros artistas: o "Sobre o artista" vinha com o Jorge Ben e as fotos de outras pessoas. Agora a dupla fica junta, com a foto, a apresentação e a capa dela. Quando "&" liga dois artistas diferentes (como "Anitta & Ludmilla"), o app confere e mostra cada um.' },
-      { tipo: 'correcao', texto: 'As músicas de duplas que já estavam na biblioteca têm a capa automática conferida de novo, e as baixadas guardam de novo o "Sobre o artista" certo, sozinhas, em segundo plano. A capa escolhida por você fica.' },
-    ],
-  },
-  {
-    versao: 519, data: '2026-11-05', titulo: 'Voltar para a gaveta do perfil',
-    itens: [
-      { tipo: 'melhoria', texto: 'O que você abre pela gaveta do perfil (Novidades, Estatísticas, Recentes, Ajustes e o seu perfil) agora volta direto para a gaveta, aberta na tela em que você estava. Antes a seta de Novidades passava por Sobre e por Ajustes até chegar ao início.' },
-    ],
-  },
-  {
-    versao: 518, data: '2026-11-05', titulo: 'O botão do tamanho da letra não pisca mais',
-    itens: [
-      { tipo: 'correcao', texto: 'Na letra em tela cheia, o botão do tamanho da letra (o A pequeno e o A grande) e os outros botões ao lado piscavam um quadrado claro enquanto a letra corria. Agora ficam firmes.' },
     ],
   },
 ];

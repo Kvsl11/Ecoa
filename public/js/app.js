@@ -23,11 +23,12 @@ import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaCo
 import { baseDoServidor, baixarArquivoDoServidor, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
-import { doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
+import { canalOficial, doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
+import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
@@ -834,7 +835,7 @@ function itemDoPlayer(song, set = null, index = -1) {
   return {
     // (o clipe que é outra gravação — outra edição, cenas, versão estendida — continua sendo o vídeo da música: o
     // "Mudar para vídeo" toca ele. Antes a música ficava só com o áudio, e o clipe escolhido sumia)
-    youtube: vs && (player.modoMusica || !vs.video) ? vs.audio : song.youtube, ...(vs ? { video: vs.video, audio: vs.audio, pares: vs.pares } : {}), titulo: song.title, artista: song.artist || '', capa: song.cover || '', songId: song.id, cor: corDe(song),
+    youtube: vs && (player.modoMusica || !vs.video) ? vs.audio : song.youtube, ...(vs ? { video: vs.video, audio: vs.audio, pares: vs.pares } : {}), soMusica: Boolean(song.semClipe), titulo: song.title, artista: song.artist || '', capa: song.cover || '', songId: song.id, cor: corDe(song),
     href: set ? `#/repertorio/${set.id}/${index}` : song.id && song.id !== 'previa' ? `#/musica/${song.id}` : location.hash,
     parte: set ? set.items[index]?.label || '' : '', setId: set?.id || '', index,
   };
@@ -877,7 +878,8 @@ const avisarDownloads = () => window.dispatchEvent(new CustomEvent('songbook:dow
 // Em "Áudio e vídeo", baixa o áudio oficial e o videoclipe mesmo quando forem gravações diferentes.
 // Em "Só o áudio", baixa apenas o áudio oficial (ou o som do vídeo quando não houver outra faixa).
 function arquivosParaBaixar(song) {
-  const comVideo = db.prefs().baixarVideo !== false;
+  // (a música sem clipe de verdade — o vídeo é só a capa parada — baixa só o som: o vídeo não tem o que mostrar)
+  const comVideo = db.prefs().baixarVideo !== false && !song.semClipe;
   const vs = versoesDe(song);
   const audio = vs && !ehArquivo(vs.audio) ? vs.audio : '';
   const lista = audio ? [{ yt: audio, video: false }] : [];
@@ -971,21 +973,111 @@ async function baixarMusica(song, { perguntou = false } = {}) {
 // Antes de baixar, o app procura o clipe oficial (o mesmo título, do canal do artista ou com "official video" no nome);
 // achando, o clipe passa a ser o vídeo da música e o que ela tinha fica como o áudio oficial (a letra sincronizada, que
 // era dele, continua certa). Sem achar, fica como está
+// ---- clipe de verdade, ou só música: o vídeo que é só a capa parada (o "Art Track" do YouTube, a capa do disco o
+// vídeo inteiro) não é clipe. Ele é reconhecido pelo nome ("Official Audio", "Lyric Video", o canal "- Topic") ou pelos
+// três quadros que o YouTube publica do vídeo, iguais (lib/versoes.js: quadrosParados). Sem o clipe oficial, a música
+// fica só música: sem o ícone de vídeo nas listas, sem a capa animada e sem o "Mudar para vídeo" (song.semClipe)
+const CHAVE_PARADOS = 'songbook.videosParados';
+let videosParados = null;
+const paradosGuardados = () => {
+  if (!videosParados) { try { videosParados = JSON.parse(localStorage.getItem(CHAVE_PARADOS) || '{}') || {}; } catch { videosParados = {}; } }
+  return videosParados;
+};
+const conferindoParado = new Map();
+// true: os quadros do vídeo são iguais (só a capa); undefined: não deu para ver
+function videoParado(id) {
+  if (!/^[\w-]{11}$/.test(id || '')) return Promise.resolve(undefined);
+  if (id in paradosGuardados()) return Promise.resolve(paradosGuardados()[id]);
+  if (!conferindoParado.has(id)) {
+    conferindoParado.set(id, Promise.all([1, 2, 3].map(async (n) => {
+      const r = await fetch(`https://i.ytimg.com/vi/${id}/${n}.jpg`, { mode: 'cors' });
+      if (!r.ok) throw new Error(String(r.status));
+      const bmp = await createImageBitmap(await r.blob());
+      const c = document.createElement('canvas');
+      c.width = 32; c.height = 24;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(bmp, 0, 0, 32, 24);
+      return ctx.getImageData(0, 0, 32, 24).data;
+    })).then((qs) => {
+      const parado = quadrosParados(qs);
+      if (parado === null) return undefined;
+      const g = paradosGuardados();
+      g[id] = parado;
+      const ks = Object.keys(g);
+      if (ks.length > 600) for (const k of ks.slice(0, ks.length - 600)) delete g[k];
+      try { localStorage.setItem(CHAVE_PARADOS, JSON.stringify(g)); } catch { /* sem espaço */ }
+      return parado;
+    }).catch(() => undefined).finally(() => conferindoParado.delete(id)));
+  }
+  return conferindoParado.get(id);
+}
+// o vídeo é um clipe de verdade? De canal oficial (o do artista, o VEVO, a gravadora), não só o áudio e não a capa
+// parada (v: { id, titulo, canal }; sem o nome e o canal, eles são perguntados ao YouTube)
+async function ehClipe(v, artista = '') {
+  if (!v?.id) return false;
+  let info = v.titulo && v.canal ? v : null;
+  if (!info) info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${v.id}`).catch(() => null);
+  if (info && (pareceSoAudio(info) || (artista && !canalOficial(info.canal, artista)))) return false;
+  return (await videoParado(v.id)) !== true;
+}
+// o clipe oficial da música no YouTube (do canal do artista, ou com "official video" no nome), que não seja só a capa
+async function procurarClipe(titulo, artista, evitar = '') {
+  const t = tituloLimpo(titulo);
+  const a = String(artista || '').trim();
+  if (!t) return null;
+  const termos = [`${t} ${a} official music video`, `${t} ${a} official video`, `${t} ${a} clipe oficial`];
+  const listas = await Promise.all(termos.map((q) => buscarYoutube(q, { filtro: 'videos' }).catch(() => [])));
+  let videos = [...new Map(listas.flat().filter((v) => v?.id && v.id !== evitar).map((v) => [v.id, v])).values()];
+  for (let vez = 0; vez < 3; vez++) {
+    const clipe = escolherClipe(videos, { titulo: t, artista: a, evitar });
+    if (!clipe) return null;
+    if ((await videoParado(clipe.id)) !== true) return clipe;
+    videos = videos.filter((v) => v.id !== clipe.id);
+  }
+  return null;
+}
+// A música salva conferida: o vídeo dela é clipe? Se não, o clipe oficial passa a ser o vídeo (o que ela tinha fica como
+// o áudio); sem clipe oficial, ela fica só música. false: sem internet, para tentar de novo depois
+async function conferirClipeSalva(id) {
+  let s = db.song(id);
+  if (!s?.youtube || ehArquivo(s.youtube) || s.audioProprio) return true;
+  if (!navigator.onLine) return false;
+  const vs = versoesDe(s);
+  const video = vs?.video || s.youtube;
+  if (await ehClipe({ id: video }, s.artist)) { if (db.song(id)?.semClipe !== false) db.updateSong(id, { semClipe: false }); return true; }
+  const clipe = await procurarClipe(s.title, s.artist, video).catch(() => null);
+  s = db.song(id);
+  if (!s || (versoesDe(s)?.video || s.youtube) !== video) return true;
+  if (!clipe) {
+    db.updateSong(id, { semClipe: true });
+    player.atualizar?.({});
+    // (baixada: o vídeo parado que estava no aparelho sai, se o som já está baixado sem ele; senão, fica até baixar)
+    if (db.song(id)?.baixado && !precisaBaixar(db.song(id))) await tirarArquivosQueSobram(id);
+    return true;
+  }
+  const audio = vs?.audio || s.youtube;
+  const durAudio = Number(vs?.duracao) || Number(s.sincronia?.duracao) || 0;
+  db.updateSong(id, { youtube: clipe.id, duracao: undefined, semClipe: false });
+  guardarVersoes(db.song(id), { video: clipe.id, audio, ...(durAudio ? { duracao: durAudio } : {}), pares: paresPelaDuracao(Number(clipe.segundos) || 0, durAudio) });
+  const depois = db.song(id);
+  void acertarVersoes(depois, depois?.sincronia?.fonte === 'lrclib' ? depois.sincronia : null).catch(() => {});
+  return true;
+}
+// (a música que acabou de entrar na biblioteca é conferida logo depois)
+window.addEventListener('songbook:nova-musica', (e) => setTimeout(() => { const s = db.song(e.detail?.id); if (s && s.semClipe === undefined) void conferirClipeSalva(s.id); }, 4000));
+
 async function garantirClipe(id) {
   const s = db.song(id);
   if (!s?.youtube || ehArquivo(s.youtube) || db.prefs().baixarVideo === false || s.audioProprio) return null;
   // (o vídeo da música já é o clipe, baixado como vídeo: nada a fazer)
   if (String(s.baixado?.arquivos?.[s.youtube]?.tipo || '').startsWith('video/')) return null;
   const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${s.youtube}`).catch(() => null);
-  if (!info || !pareceSoAudio(info)) return null;
+  // (é clipe: nada a fazer; o vídeo só com a capa parada, mesmo sem dizer no nome, não é)
+  if (!info || await ehClipe({ id: s.youtube, ...info }, s.artist)) return null;
   const vs = versoesDe(s);
   // o áudio oficial: o que a música já tinha achado ou, sem ele, o próprio vídeo que é só o áudio
   const audio = vs?.audio || s.youtube;
-  const titulo = tituloLimpo(s.title);
-  const artista = String(s.artist || '').trim();
-  const termos = [`${titulo} ${artista} official music video`, `${titulo} ${artista} official video`, `${titulo} ${artista} clipe oficial`];
-  const listas = await Promise.all(termos.map((q) => buscarYoutube(q, { filtro: 'videos' }).catch(() => [])));
-  const clipe = escolherClipe(listas.flat().filter((v) => v?.id !== audio), { titulo, artista, evitar: s.youtube });
+  const clipe = await procurarClipe(s.title, s.artist, audio);
   const atual = db.song(id);
   if (!clipe || !atual || atual.youtube !== s.youtube) return null;
   const durAudio = Number(vs?.duracao) || Number(atual.sincronia?.duracao) || 0;
@@ -1564,6 +1656,19 @@ const REVISOES = [
   // baixadas (o som está no aparelho), o app ouve a gravação e, com a resposta clara, põe a cifra no tom dela. O tom
   // escolhido à mão fica
   { rev: 16, tomGravacao: true, quais: (s) => Boolean(s.baixado) && temCifra(s.content || '') && !s.tomManual && !s.tomGravacao },
+  // v529: a cifra trazida do Cifra Club podia ser de outra música com o mesmo título (a primeira achada). As salvas são
+  // conferidas pela letra sincronizada e, nas baixadas, pelo som; a de outra música é trocada pela certa. A cifra
+  // escrita ou mudada pela pessoa fica
+  { rev: 17, conferirCifra: true, quais: (s) => !s.cifraEditada && temCifra(s.content || '') && /cifraclub\.com\.br/.test(s.source || '') },
+  // v530: o vídeo que é só a capa da música parada (o "Art Track", como em Blast Off do Bruno Mars) contava como clipe:
+  // a música mostrava o ícone de vídeo, a capa animada e o "Mudar para vídeo" com a capa parada. Agora o clipe oficial
+  // entra no lugar dele; sem clipe oficial, a música fica só música. Nas baixadas, o clipe oficial achado é baixado
+  // (arquivos) e, na que ficou só música, o vídeo parado sai do aparelho quando o som já está baixado
+  { rev: 18, conferirClipe: true, arquivos: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && s.semClipe === undefined && !ehArquivo(s.youtube) },
+  // v530: a conferência do áudio oficial da v525 recusava o certo quando o nome do vídeo traz os outros artistas antes
+  // do traço ("Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open"), e pode ter tirado o áudio dessas músicas.
+  // As que ficaram sem o áudio oficial o procuram de novo (e a letra sincronizada, que estava nele, é refeita)
+  { rev: 19, versoes: true, letra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && !versoesDe(s)?.audio },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1599,6 +1704,20 @@ function abreNoAparelho(blob) {
   });
 }
 // tira o arquivo (de todas as músicas que o usam) para ele ser baixado de novo
+// Os arquivos baixados de uma música que ela não usa mais (o vídeo parado da música que ficou só música): saem do
+// aparelho, sem marcar a música para baixar de novo. O arquivo que outra música baixada usa fica
+async function tirarArquivosQueSobram(id) {
+  const s = db.song(id);
+  if (!s?.baixado?.arquivos) return;
+  const usados = new Set(arquivosParaBaixar(s).map((a) => a.yt));
+  const sobram = Object.keys(s.baixado.arquivos).filter((yt) => !usados.has(yt));
+  if (!sobram.length) return;
+  const arquivos = { ...s.baixado.arquivos };
+  for (const yt of sobram) delete arquivos[yt];
+  db.updateSong(id, { baixado: { ...s.baixado, arquivos, tamanho: Object.values(arquivos).reduce((a, f) => a + (f.tamanho || 0), 0) } });
+  for (const yt of sobram) if (!db.songs().some((x) => x.id !== id && x.baixado?.arquivos?.[yt])) await apagarAudio(chaveBaixada(yt)).catch(() => {});
+}
+
 async function esquecerArquivo(yt) {
   for (const x of db.songs()) {
     if (!x.baixado?.arquivos?.[yt]) continue;
@@ -1686,6 +1805,16 @@ async function revisarMusica(id, pendentes, chaves) {
         }
       }
     }
+  }
+  // o vídeo que é só a capa parada: o clipe oficial no lugar dele, ou a música só música
+  if (quer('conferirClipe') && s) {
+    if (!(await noMaximo(conferirClipeSalva(id), 60000, true))) completa = false;
+    s = db.song(id);
+  }
+  // a cifra de outra música, trocada pela certa (a escrita ou mudada pela pessoa fica)
+  if (quer('conferirCifra') && s) {
+    if (!(await conferirCifraSalva(id))) completa = false;
+    s = db.song(id);
   }
   // a cifra no tom da gravação (a do tom escolhido à mão fica)
   if (quer('tomGravacao') && s && !s.tomManual) {
@@ -2730,7 +2859,7 @@ const player = (() => {
     // cima ao pausar; sem o download, fica a capa da música, parada, como no Spotify sem Canvas)
     // (com o clipe baixado, passam trechos do próprio arquivo; sem o download, os quadros que o YouTube publica do
     // clipe, passando com zoom lento: a capa animada funciona nas duas)
-    const q = capa && !atual?.semVideo && doYt && db.prefs().videoFundo !== false ? doYt : '';
+    const q = capa && !atual?.semVideo && !atual?.soMusica && doYt && db.prefs().videoFundo !== false ? doYt : '';
     const barra = capaNaBarra();
     el.classList.toggle('capa-na-barra', barra);
     mini.style.backgroundImage = (capa || barra) && url ? `url("${url}")` : ''; // (com os quadros no fundo, o CSS a esconde)
@@ -4209,7 +4338,7 @@ const semLinhasDeAcordes = (sinc) => {
     aleatorio: () => aleatorio,
     definirAleatorio(v) { aleatorio = Boolean(v); db.setPref('aleatorio', aleatorio); filaOrdemChave = ''; historico = []; tocadas = new Set(); desenharModos(); },
     // pausado: abre a música sem começar a tocar (a página dela aberta por um link, voltando do editor…)
-    tocar(item, { pausado = false } = {}) {
+    tocar(item, { pausado = false, inicio = 0 } = {}) {
       if (!item?.youtube) return;
       if (atual?.semVideo) largarSemVideo({ fechar: false });
       // a mesma música (na mesma versão ou na outra: o áudio ou o clipe): continua de onde está
@@ -4225,6 +4354,8 @@ const semLinhasDeAcordes = (sinc) => {
       atual = item;
       tempo = 0;
       duracao = 0;
+      // (a última música, voltando ao abrir o app: no ponto em que tinha parado)
+      if (inicio > 0) { tempo = inicio; pendente = inicio; pendenteEm = performance.now(); }
       estado = pausado ? 'pausado' : 'tocando';
       montar({ autoplay: !pausado });
       desenhar();
@@ -4296,7 +4427,7 @@ const semLinhasDeAcordes = (sinc) => {
       }
       if (!(atual.songId === song.id || desta(vs.video))) return;
       const audioAntes = atual.audio;
-      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: false };
+      atual = { ...atual, video: vs.video, audio: vs.audio, pares: vs.pares, soMusica: Boolean(song?.semClipe) }; // (a música sem clipe de verdade continua só música)
       // (outra versão só música no lugar da que tocava: a mesma gravação, no mesmo ponto)
       if (audioAntes && audioAntes !== vs.audio && atual.youtube === audioAntes) trocarVersao(vs.audio, api.tempoAgora);
       else if (comCapa && atual.youtube === vs.video && atual.youtube !== vs.audio) trocarVersao(vs.audio, tempoNoAudio(vs.pares, api.tempoAgora));
@@ -5478,7 +5609,7 @@ const semLinhasDeAcordes = (sinc) => {
         db.updateSong(ja.id, { ...(preview.versoes ? { versoes: preview.versoes, versoesConferidas: true } : {}), ...(preview.sincronia ? { sincronia: preview.sincronia } : {}) });
       }
       if (ja?.soNoRepertorio) db.updateSong(ja.id, { soNoRepertorio: undefined }); // (só do repertório: agora é da biblioteca)
-      const salva = ja || db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || 0, ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.fotoArtista ? { fotoArtista: preview.fotoArtista } : {}) });
+      const salva = ja || db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || 0, ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.fotoArtista ? { fotoArtista: preview.fotoArtista } : {}), ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}) });
       api.atualizar({ songId: salva.id, href: `#/musica/${salva.id}` });
       toast(ja ? 'Já estava na biblioteca' : 'Salva na biblioteca');
       // na página da música (escondida atrás do Tocando agora), só o endereço muda: ir para ele redesenhava a página
@@ -5982,7 +6113,8 @@ function indicadores(s) {
   const baixada = s.baixado ? `<span class="ind-i ind-baixada" title="Baixada" aria-label="Baixada">${icon('baixada', 15)}</span>`
     : baixando.has(s.id) ? `<span class="ind-i ind-baixando" title="Baixando" aria-label="Baixando">${icon('baixar', 15)}</span>` : '';
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
-  const video = Boolean(s.youtube);
+  // (sem clipe de verdade — o vídeo é só a capa —, a música não tem o ícone de vídeo)
+  const video = Boolean(s.youtube) && !s.semClipe;
   const e = seloExplicita(s.title, s.artist);
   // o microfone com as estrelinhas (o do karaokê): o karaokê desta música já está pronto no aparelho
   const kar = temKaraokePronto(s) ? `<span class="ind-i ind-karaoke" title="Karaokê pronto" aria-label="Karaokê pronto">${MICROFONE_KARAOKE}</span>` : '';
@@ -6122,7 +6254,8 @@ async function salvarDaInternet(tipo, item) {
   if (preview && preview.source && fonteItem && preview.source === fonteItem && linhasDeLetra(preview.content) >= 2) {
     const salvaJa = db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || capoDaCifra(preview.content),
       ...(item.fotoArtista || preview.fotoArtista ? { fotoArtista: item.fotoArtista || preview.fotoArtista } : {}),
-      ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}) });
+      ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}),
+      ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}) });
     if (player.atual?.songId === 'previa') player.atualizar({ songId: salvaJa.id, href: `#/musica/${salvaJa.id}` });
     return salvaJa.id;
   }
@@ -6957,16 +7090,77 @@ function mesmaMusica(lista, titulo, artista, artistaIncerto = false) {
     && artistasDe(r.titulo, r.artista).some((a) => quem.some((b) => parecidoNome(a, b) && mesmoArtistaNome(a, b)))) || null;
 }
 
-// procura a cifra da música no Cifra Club: pelo título com o artista, com cada participante e só pelo título
-async function acharNoCifraClub(titulo, artista = '', artistaIncerto = false) {
+// A cifra certa da música no Cifra Club (lib/cifras.js): as achadas com o título dela — primeiro a do artista dela,
+// depois as do mesmo título de outros artistas — são trazidas uma por vez e conferidas pela letra (a do Letras ou a do
+// LRCLIB, ou a que a música já tem). A primeira cuja letra é a da música vale; nenhuma sendo, nenhuma (antes vinha a
+// primeira achada, que às vezes era de outra música). Sem a letra da música para comparar, só a do artista dela
+// letra: o texto da letra, ou uma promessa dele (espera até 6 s); cifraUrl: a escolhida na busca, que vem primeiro
+// A cifra salva conferida de novo (a revisão das músicas salvas): pela letra sincronizada (a do LRCLIB, que é a da
+// gravação), e, nas baixadas, pelo som. A cifra de outra música é trocada pela certa, se for achada; a escrita ou mudada
+// pela pessoa fica. false: sem internet, para tentar de novo depois
+async function conferirCifraSalva(id) {
+  let s = db.song(id);
+  if (!s || s.cifraEditada || !temCifra(s.content || '') || !ehCifraClub(s.source || '')) return true;
+  if (!navigator.onLine) return false;
+  const linhas = s.sincronia?.fonte === 'lrclib' && Array.isArray(s.sincronia.linhas) ? s.sincronia.linhas.join('\n') : '';
+  const p = linhas ? parecencaDaLetra(s.content, linhas) : null;
+  if (p !== null && p < 0.3) {
+    const c = await cifraCertaNoCifraClub(s.title, s.artist, { letra: linhas }).catch(() => null);
+    s = db.song(id);
+    if (s && c && c.url !== s.source && temCifra(c.chordpro) && !s.cifraEditada) {
+      let content = c.chordpro;
+      const meta = renderSong(s.content).meta;
+      for (const k of ['youtube', 'x_canvas', 'x_parte', 'composer', 'cover']) if (meta[k]) content = definirMeta(content, k, meta[k]);
+      db.updateSong(id, { content, source: c.url, capo: capoDaCifra(content) || 0, ...(s.tomManual ? {} : { transpose: 0, tomGravacao: undefined }) });
+      s = db.song(id);
+    }
+  }
+  // (nas baixadas, o som: os acordes conferidos com a gravação de novo, agora também trocando a cifra que não casa)
+  if (s?.baixado && !s.tomManual) {
+    if (s.tomGravacao && !(s.tomGravacao.casamento < 0.4)) return true;
+    db.updateSong(id, { tomGravacao: undefined });
+    await noMaximo(ajustarTomDaGravacao(db.song(id)), 90000, false).catch(() => {});
+  }
+  return true;
+}
+
+// (procura pelo título com o artista, com cada participante e só pelo título)
+async function cifraCertaNoCifraClub(titulo, artista = '', { artistaIncerto = false, letra = '', cifraUrl = '' } = {}) {
   const t = tituloLimpo(titulo);
   const consultas = [...new Set([`${t} ${artista}`.trim(), ...artistasDe(titulo, '').map((a) => `${t} ${a}`), t])];
+  const achadas = new Map();
+  let doArtista = null;
   for (const q of consultas) {
-    const achada = mesmaMusica(await buscarCifraClub(q).catch(() => []), titulo, artista, artistaIncerto);
-    if (achada) return achada;
+    const lista = await buscarCifraClub(q).catch(() => []);
+    lista.forEach((r) => { if (!achadas.has(r.url)) achadas.set(r.url, r); });
+    doArtista ||= mesmaMusica(lista, titulo, artista, artistaIncerto);
+    if (doArtista) break;
   }
-  return null;
+  const igual = (r) => normalizar(tituloLimpo(r.titulo)) === normalizar(t);
+  const outras = [...achadas.values()].filter((r) => r.url !== doArtista?.url && r.url !== cifraUrl && igual(r));
+  const candidatas = [...(cifraUrl ? [{ url: cifraUrl }] : []), ...(doArtista && doArtista.url !== cifraUrl ? [doArtista] : []), ...outras].slice(0, 4);
+  if (!candidatas.length) return null;
+  let textoDaLetra = null;
+  const letraDaMusica = async () => {
+    if (textoDaLetra === null) {
+      const l = typeof letra === 'string' ? letra : await noMaximo(Promise.resolve(letra), 6000, null);
+      textoDaLetra = typeof l === 'string' ? l : l?.letra || '';
+    }
+    return textoDaLetra;
+  };
+  const trazidas = [];
+  for (const [i, c] of candidatas.entries()) {
+    // (sem a letra para conferir, as de outros artistas não entram: podiam ser de outra música)
+    if (i > 0 && !(await letraDaMusica()) && c !== doArtista) break;
+    const pg = await getCifraClub(c.url).catch(() => getCifraClub(c.url)).catch(() => null);
+    if (!pg) continue;
+    trazidas.push({ ...pg, url: c.url });
+    const p = parecencaDaLetra(pg.chordpro, await letraDaMusica());
+    if (p === null || p >= 0.5) break;
+  }
+  return escolherCifra(trazidas, await letraDaMusica());
 }
+
 
 // "Padre Marcelo Rossi - Deus Está Aqui (Noites Traiçoeiras) ft. Belo" -> artista e título
 // ("Ninguém Te Ama Como Eu | Frei Gilson": com a barra, o título vem antes)
@@ -7066,6 +7260,7 @@ function prepararDaBusca(dados) {
     const youtube = youtubeId(m.youtube) || vs?.[0]?.id || '';
     if (!youtube) return;
     void duracaoDaMusica({ youtube }).catch(() => 0);
+    void videoParado(youtube); // (o vídeo é clipe ou só a capa: já sabido ao abrir)
     // (as mesmas buscas do áudio oficial que a música faz ao abrir: ficam guardadas e ela não espera de novo)
     if (titulo) void procurarAudio({ title: titulo, artist: artista, youtube }, 0).catch(() => null);
   })().catch(() => {});
@@ -7073,12 +7268,10 @@ function prepararDaBusca(dados) {
 
 async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, video = null, artistaIncerto = false }) {
   const termo = `${tituloLimpo(titulo)} ${artista}`.trim();
+  // a cifra certa: conferida pela letra da música (a que vem do Letras/LRCLIB, logo abaixo)
   const pCifra = (async () => {
-    const url = cifra || (await acharNoCifraClub(titulo, artista, artistaIncerto))?.url;
-    if (!url) return null;
-    // o site às vezes demora: tenta de novo antes de desistir da cifra
-    const c = await getCifraClub(url).catch(() => getCifraClub(url));
-    return { ...c, url };
+    await null; // (a letra, logo abaixo, já está sendo procurada quando a cifra precisar dela)
+    return cifraCertaNoCifraClub(titulo, artista, { artistaIncerto, cifraUrl: cifra, letra: pLetra });
   })().catch(() => null);
   // o vídeo é procurado junto com a cifra (pelo título e o artista da busca); só com o link da cifra, sem o nome,
   // espera a cifra para procurar pelo nome que vem nela
@@ -7256,6 +7449,20 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
     youtube: youtubeId(m.youtube) || '',
     cover: m.cover || '',
   });
+
+  // o vídeo que é só a capa parada (ou só o áudio, ou o de um canal que não é oficial) não é clipe: no lugar dele, o clipe
+  // oficial; sem clipe oficial, a música abre só como música (o vídeo continua sendo o som dela). Venha o vídeo da
+  // busca ou da página da cifra. Com limite de tempo: passando, abre como está
+  if (novo.youtube && !String(source || '').startsWith('cnbb:')) {
+    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 3000, true))) {
+      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 5000, null);
+      if (clipe) {
+        novo.content = definirMeta(novo.content, 'youtube', `https://www.youtube.com/watch?v=${clipe.id}`);
+        novo.youtube = clipe.id;
+        novo.semClipe = false;
+      } else novo.semClipe = true;
+    } else novo.semClipe = false;
+  }
 
   const jaNaPrevia = location.hash === '#/musica/previa';
   preview = novo;
@@ -8493,7 +8700,8 @@ const indicadoresWeb = (r) => {
   const tem = (ic, t) => `<span class="ind-i" title="${t}" aria-label="${t}">${icon(ic, 11)}</span>`;
   // (já na biblioteca e sem clipe de verdade, o vídeo achado é outra gravação: não conta)
   const salva = r.cifra && db.songBySource(r.cifra);
-  const video = Boolean(r.video);
+  // (o vídeo que é só o áudio ou a capa parada não conta: não é clipe)
+  const video = Boolean(r.video) && !pareceSoAudio(r.video) && (!r.video.canal || canalOficial(r.video.canal, r.artista)) && paradosGuardados()[r.video.id] !== true && !salva?.semClipe;
   const sinais = (r.cifra ? tem('chord', 'Tem cifra') : '') + (r.cifra || r.letra ? tem('text', 'Tem letra') : '') + (video ? tem('youtube', 'Tem vídeo') : '');
   return sinais ? `<span class="ind">${sinais}</span>` : '';
 };
@@ -8779,6 +8987,8 @@ function viewSearch() {
           aplicar(meu, 'mu-res', () => {
             achados.musica = lista;
             $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+            // (o vídeo que é só a capa parada, sem dizer no nome: o ícone de vídeo sai assim que as imagens dele são vistas)
+            lista.forEach((r, i) => { if (r.video?.id && $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)) void videoParado(r.video.id).then((p) => { if (p) $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)?.remove(); }); });
             // as primeiras já vão sendo preparadas (sem a economia de dados ligada): abrem na hora
             if (!db.prefs().economiaDados) lista.slice(0, 3).forEach((r) => prepararDaBusca(r));
           });
@@ -10552,7 +10762,7 @@ function escolherArquivoMusicXML() {
 async function viewCompor(id, de = '') {
   if (id === 'previa') {
     if (!preview) return viewNotFound();
-    const salva = db.songBySource(preview.source) || db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || 0, ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}) });
+    const salva = db.songBySource(preview.source) || db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || 0, ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}) });
     toast('Música salva na biblioteca para guardar a partitura');
     history.replaceState(null, '', `#/musica/${salva.id}/compor${de ? '/' + de : ''}`);
     id = salva.id;
@@ -12294,7 +12504,7 @@ function viewSong(id, ctx = {}) {
   corDaMusicaNaTela(song);
   const prefs = db.prefs();
   let { transpose = 0, capo = 0 } = song;
-  const canvas = Boolean(song.youtube && prefs.videoFundo !== false);
+  const canvas = Boolean(song.youtube && !song.semClipe && prefs.videoFundo !== false);
   const tipoQuadros = renderSong(song.content).meta.x_canvas;
   // música sem nenhum acorde: só existe a letra. O botão # liga/desliga a cifra (sem ele, só a letra).
   const semCifra = !temCifra(song.content);
@@ -12474,11 +12684,9 @@ function viewSong(id, ctx = {}) {
     const hashAntes = location.hash;
     let novo = null;
     try {
-      const achada = await acharNoCifraClub(song.title, song.artist);
-      if (achada) {
-        const c = await getCifraClub(achada.url).catch(() => getCifraClub(achada.url));
-        if (temCifra(c.chordpro)) novo = { content: c.chordpro, source: achada.url };
-      }
+      // (conferida pela letra que a música já tem)
+      const c = await cifraCertaNoCifraClub(song.title, song.artist, { letra: letraDe(song.content) });
+      if (c && temCifra(c.chordpro)) novo = { content: c.chordpro, source: c.url };
     } catch { return; } // sem conexão: tenta de novo na próxima vez
     const dono = isPreview ? preview : db.song(song.id);
     const semQuadros = (t) => definirMeta(t, 'x_canvas', ''); // os quadros do vídeo podem ter sido gravados nesse meio-tempo
@@ -13056,6 +13264,26 @@ function cromaDaGravacao(id) {
   }
   return cromasDaGravacao.get(id);
 }
+// Entre as outras cifras da mesma música no Cifra Club (o mesmo título; a letra parecida com a dela, para não ser outra
+// música), a que mais casa com o som da gravação — se casar bem (0,55) e bem melhor que a de agora (+0,15)
+async function cifraQueCasaComAGravacao(song, croma, casamentoAgora) {
+  const t = tituloLimpo(song.title || '');
+  if (!t) return null;
+  const letra = letraDe(song.content);
+  const achadas = new Map();
+  for (const q of [`${t} ${song.artist || ''}`.trim(), t]) for (const r of await buscarCifraClub(q).catch(() => [])) if (!achadas.has(r.url)) achadas.set(r.url, r);
+  const candidatas = [...achadas.values()].filter((r) => r.url !== song.source && normalizar(tituloLimpo(r.titulo)) === normalizar(t)).slice(0, 4);
+  let melhor = null;
+  for (const c of candidatas) {
+    const pg = await getCifraClub(c.url).catch(() => null);
+    if (!pg || !temCifra(pg.chordpro)) continue;
+    const p = parecencaDaLetra(pg.chordpro, letra);
+    if (p !== null && p < 0.4) continue;
+    const r = tomQueCasa(acordesDaCifra(pg.chordpro), croma);
+    if (r && (!melhor || r.casamento > melhor.r.casamento)) melhor = { ...pg, url: c.url, r };
+  }
+  return melhor && melhor.r.casamento >= 0.55 && melhor.r.casamento >= casamentoAgora + 0.15 ? melhor : null;
+}
 const acordesDaCifra = (content) => [...String(content || '').matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim()).filter((a) => isChord(a));
 const ajustandoTom = new Set();
 async function ajustarTomDaGravacao(song) {
@@ -13068,10 +13296,30 @@ async function ajustarTomDaGravacao(song) {
   try {
     const croma = await cromaDaGravacao(id);
     if (!croma) return false;
-    const r = tomQueCasa(acordesDaCifra(song.content), croma);
+    let r = tomQueCasa(acordesDaCifra(song.content), croma);
     if (!r) return false;
-    const atual = song.id === 'previa' ? preview : db.song(song.id);
+    let atual = song.id === 'previa' ? preview : db.song(song.id);
     if (!atual || atual.tomManual || atual.content !== song.content) return false;
+    // os acordes não casam com a gravação em nenhum tom: a cifra é de outro arranjo (ou erra a harmonia). Procura,
+    // entre as outras cifras da mesma música, uma que case bem com o som; a escrita ou mudada pela pessoa fica
+    let trocou = false;
+    if (r.casamento < 0.4 && !atual.cifraEditada && navigator.onLine) {
+      const outra = await cifraQueCasaComAGravacao(atual, croma, r.casamento).catch(() => null);
+      atual = song.id === 'previa' ? preview : db.song(song.id);
+      if (outra && atual && !atual.tomManual && atual.content === song.content) {
+        let content = outra.chordpro;
+        const meta = renderSong(atual.content).meta;
+        for (const k of ['youtube', 'x_canvas', 'x_parte', 'composer', 'cover']) if (meta[k]) content = definirMeta(content, k, meta[k]);
+        const capo = capoDaCifra(content) || 0;
+        Object.assign(atual, { content, source: outra.url, capo, transpose: 0 });
+        if (atual !== preview && db.song(atual.id)) db.updateSong(atual.id, { content, source: outra.url, capo, transpose: 0 });
+        song = atual;
+        r = outra.r;
+        trocou = true;
+        toast('Troquei a cifra por uma que casa com a gravação');
+        window.dispatchEvent(new CustomEvent('songbook:cifra-trocada', { detail: { id: atual.id } }));
+      }
+    }
     const tomGravacao = { video: id, semitons: r.semitons, casamento: r.casamento };
     const mudar = r.ajustar && !(atual.transpose || 0);
     const novo = { tomGravacao, ...(mudar ? { transpose: r.semitons, tomAuto: true } : {}) };
@@ -13081,7 +13329,7 @@ async function ajustarTomDaGravacao(song) {
       const base = tomEscritoDaCifra(atual);
       toast(base ? `Cifra no tom da gravação: ${base} → ${transposeKey(base, r.semitons)}` : 'Cifra ajustada ao tom da gravação');
     }
-    return mudar;
+    return mudar || trocou;
   } finally { ajustandoTom.delete(`${song.id}|${id}`); }
 }
 
@@ -13575,7 +13823,9 @@ function viewEditor(id, setId) {
   $('#save').onclick = () => {
     if (!campo('title').value.trim()) { toast('Dê um título à música'); campo('title').focus(); return; }
     const parte = campo('parte').value;
-    const saved = db.saveSong({ ...song, content: montar() });
+    // (a cifra escrita ou mudada pela pessoa: o app nunca troca ela por outra achada na internet)
+    const conteudo = montar();
+    const saved = db.saveSong({ ...song, content: conteudo, ...(isNew || conteudo !== song.content ? { cifraEditada: true } : {}) });
     apagarRascunho();
     mudou = false;
     // a parte nova vale também nos repertórios onde a música estava sem parte ou com a parte antiga
@@ -18912,11 +19162,59 @@ desenharFotoDoPerfil();
 ligarTelaDeEntrada();
 iniciarConta();
 let rotaInicial = true; // a 1ª tela ao abrir/recarregar o app
+// Abrindo o app de novo (fechado, ou o celular reabrindo ele onde estava), ele começa no Início, e não na tela em que a
+// pessoa estava ao sair. Recarregando (a atualização do app, o puxar para baixo) fica na mesma tela; e um link que abre o
+// app numa música ou num compartilhamento abre nele (é outra tela que não a guardada ao sair)
+const CHAVE_ULTIMA_TELA = 'songbook.ultimaTela';
+try {
+  const novaSessao = !sessionStorage.getItem('songbook.sessao');
+  sessionStorage.setItem('songbook.sessao', '1');
+  const aqui = location.hash || '#/';
+  if (novaSessao && aqui !== '#/' && aqui === localStorage.getItem(CHAVE_ULTIMA_TELA)) history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+} catch { /* sem armazenamento: abre onde o endereço diz */ }
 route();
 // o app carregou inteiro: a rede de segurança do index.html não precisa agir
 window.__songbookOk = true;
 try { sessionStorage.removeItem('recuperacao'); } catch { /* sem sessionStorage */ }
 rotaInicial = false;
+
+// a tela em que a pessoa estava ao sair (para, abrindo de novo, começar no Início) e, voltando ao app depois de um tempo
+// fora (mais de 2 minutos sem música tocando, ou meia hora), o Início também — menos no meio de uma edição
+let saiuEm = 0;
+const guardarTelaAoSair = () => { try { localStorage.setItem(CHAVE_ULTIMA_TELA, location.hash || '#/'); } catch { /* sem espaço */ } };
+addEventListener('pagehide', guardarTelaAoSair);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { saiuEm = Date.now(); guardarTelaAoSair(); return; }
+  const fora = saiuEm ? Date.now() - saiuEm : 0;
+  saiuEm = 0;
+  const editando = /^#\/(editar|musica\/[^/]+\/(compor|partitura))/.test(location.hash);
+  if (!editando && (location.hash || '#/') !== '#/' && (fora > 30 * 60e3 || (fora > 2 * 60e3 && player.estado !== 'tocando'))) location.hash = '#/';
+});
+
+// ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a
+// fila e o ponto em que parou ficam guardados; abrindo o app, ela volta pausada nesse ponto, pronta para continuar
+const CHAVE_ULTIMO_PLAYER = 'songbook.ultimoPlayer';
+const guardarUltimoPlayer = () => {
+  const a = player.atual;
+  if (!a?.youtube || a.semVideo) return;
+  try { localStorage.setItem(CHAVE_ULTIMO_PLAYER, JSON.stringify({ item: a, tempo: Math.floor(player.tempoAgora || 0), em: Date.now() })); } catch { /* sem espaço */ }
+};
+player.ouvir(guardarUltimoPlayer);
+setInterval(() => { if (player.estado === 'tocando') guardarUltimoPlayer(); }, 5000);
+addEventListener('pagehide', guardarUltimoPlayer);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarUltimoPlayer(); });
+setTimeout(() => {
+  if (player.atual) return;
+  let salvo = null;
+  try { salvo = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_PLAYER) || 'null'); } catch { salvo = null; }
+  const item = salvo?.item;
+  if (!item?.youtube) return;
+  // (a música que não está mais na biblioteca, ou a temporária da busca, volta só como o vídeo, sem a página dela)
+  if (item.songId && !db.song(item.songId)) { item.songId = ''; item.href = ''; item.setId = ''; item.index = -1; }
+  else if (item.songId) Object.assign(item, { ...itemDoPlayer(db.song(item.songId), item.setId ? db.set(item.setId) : null, item.index ?? -1), youtube: item.youtube });
+  if (item.setId && !db.set(item.setId)) { item.setId = ''; item.index = -1; }
+  player.tocar(item, { pausado: true, inicio: Math.max(0, Number(salvo.tempo) || 0) });
+}, 900);
 
 // Service worker: sempre procura a versão nova; quando ela assume, recarrega a página uma vez.
 // ---------------------------------------------------------------- instalar como app

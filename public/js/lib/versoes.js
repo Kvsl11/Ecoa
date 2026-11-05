@@ -48,11 +48,17 @@ export function doMesmoArtista(v, artista) {
 export function mesmoTitulo(v, titulo, artista = '') {
   const t = palavrasDe(String(titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s*(?:\(|\[)?\b(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ''));
   if (!t.length) return false;
-  const nome = palavrasDe(String(v?.titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ').replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' '));
-  if (!` ${nome.join(' ')} `.includes(` ${t.join(' ')} `)) return false;
   const doTitulo = new Set(t);
   const doArtista = new Set(nomesDoArtista(artista).flat());
-  return nome.every((p) => doTitulo.has(p) || doArtista.has(p) || PALAVRAS_DO_NOME.has(p) || /^(19|20)\d\d$/.test(p));
+  const sobra = (ps) => ps.filter((p) => !doTitulo.has(p) && !doArtista.has(p) && !PALAVRAS_DO_NOME.has(p) && !/^(19|20)\d\d$/.test(p));
+  const semParenteses = String(v?.titulo || '').replace(/[([{][^)\]}]*[)\]}]/g, ' ');
+  const nome = palavrasDe(semParenteses.replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' '));
+  if (!` ${nome.join(' ')} `.includes(` ${t.join(' ')} `)) return false;
+  if (!sobra(nome).length) return true;
+  // "Bruno Mars, Anderson .Paak, Silk Sonic - Leave the Door Open": dos lados do traço (ou da barra), um é o dos
+  // artistas (todos, com quem participa) e o outro é o título; basta o do título ser exato
+  const lados = semParenteses.split(/\s[-–—|]\s/).map((x) => palavrasDe(x.replace(/\s(?:feat\.?|ft\.?|featuring|part\.?)\s.*$/i, ' ')));
+  return lados.length > 1 && lados.some((l) => ` ${l.join(' ')} `.includes(` ${t.join(' ')} `) && !sobra(l).length);
 }
 
 // Entre os vídeos achados no YouTube ({ id, titulo, canal, segundos }), o áudio oficial da gravação: o mesmo título,
@@ -287,7 +293,8 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (!doMesmoArtista(v, artista) || !mesmoTitulo(v, titulo, artista)) continue;
     const doArtista = a && (canal === a || canal.startsWith(`${a} `) || canal === `${a.replace(/ /g, '')}vevo` || canal.replace(/ /g, '') === `${a.replace(/ /g, '')}vevo`);
     const temNome = CLIPE.test(nome);
-    if (!doArtista && !temNome) continue;
+    // (só de canal oficial: o do artista, o VEVO ou a gravadora com "official video" no nome; não o de um fã)
+    if (!doArtista && !(temNome && canalOficial(v.canal, artista))) continue;
     let n = 0;
     if (doArtista) n += 10;
     if (temNome) n += 4;
@@ -296,4 +303,35 @@ export function escolherClipe(videos, { titulo = '', artista = '', evitar = '' }
     if (n > nota) { nota = n; melhor = v; }
   }
   return melhor;
+}
+
+// O canal é oficial: o do próprio artista (ou de um dos artistas juntos), o VEVO dele ou o de uma gravadora — não o de
+// um fã, de letras ou de covers, mesmo que o vídeo se diga "Music Video"
+const GRAVADORA = /\b(vevo|records|recordings|som livre|sony music|universal music|warner music|warner records|atlantic|emi|island|columbia|interscope|republic|rca|def jam|capitol|epic|kondzilla|gr6|onerpm|deckdisc|mk music|graca music|cancao nova|paulinas|paulus|central gospel|todah|musile|sentimental|virgin)\b/;
+export function canalOficial(canal, artista = '') {
+  const c = normal(canal).replace(/\s+topic$/, '');
+  if (!c) return false;
+  if (GRAVADORA.test(c) || /vevo$/.test(c.replace(/ /g, ''))) return true;
+  return Boolean(artista) && doMesmoArtista({ canal: c }, artista);
+}
+
+// O vídeo é só a capa parada (o "Art Track", a capa do disco o vídeo inteiro)? O YouTube publica três quadros de cada
+// vídeo, de 25%, 50% e 75% dele (1.jpg, 2.jpg e 3.jpg): num clipe eles mudam; num vídeo que é só a capa, são iguais.
+// quadros: os pixels RGBA dos três (do mesmo tamanho). Parado quando a diferença média entre eles é bem pequena
+export function quadrosParados(quadros, limiar = 6) {
+  const qs = (quadros || []).filter((q) => q?.length);
+  if (qs.length < 2 || qs.some((q) => q.length !== qs[0].length)) return null;
+  let maior = 0;
+  for (let a = 0; a < qs.length; a++) {
+    for (let b = a + 1; b < qs.length; b++) {
+      let soma = 0;
+      let n = 0;
+      for (let i = 0; i < qs[a].length; i += 4) {
+        soma += Math.abs(qs[a][i] - qs[b][i]) + Math.abs(qs[a][i + 1] - qs[b][i + 1]) + Math.abs(qs[a][i + 2] - qs[b][i + 2]);
+        n += 3;
+      }
+      maior = Math.max(maior, soma / n);
+    }
+  }
+  return maior < limiar;
 }
