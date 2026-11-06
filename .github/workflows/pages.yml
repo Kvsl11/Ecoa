@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy_retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -182,11 +182,27 @@ jobs:
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: public
-      # A fila é serializada por concurrency acima. Não cancelar deployments manualmente:
-      # isso pode interromper uma publicação válida. Espera até 20 minutos para o GitHub Pages concluir.
+      # O deploy-pages limita o timeout a 10 minutos (600000 ms); valores maiores são ignorados.
+      # Se o Pages ficar preso em syncing_files e cancelar por timeout, tenta uma única vez novamente
+      # com o mesmo artefato, sem cancelar deployments de outras execuções.
       - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          timeout: 600000
+          error_count: 30
+
+      - id: deploy_retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-          timeout: 1200000
+          timeout: 600000
           error_count: 30
+
+      - name: Falha nas tentativas de publicação
+        if: steps.deploy.outcome == 'failure' && steps.deploy_retry.outcome == 'failure'
+        run: |
+          echo "::error::O GitHub Pages falhou nas duas tentativas de sincronização do artefato."
+          exit 1
