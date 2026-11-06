@@ -9637,7 +9637,7 @@ function artistaDoDeezer(nome, { titulo = '' } = {}) {
     }).then((a) => { if (!a) deezerConfirmados.delete(k); return a; }).catch(() => { deezerConfirmados.delete(k); return null; }));
   }
   const confirmado = deezerConfirmados.get(k);
-  return confirmado ? confirmado.then((a) => a || porNome()) : porNome();
+  return confirmado ? confirmado.then((a) => a || (titulo ? null : porNome())) : porNome();
 }
 // os fãs, os álbuns e a foto grande do artista no Deezer, para a tela "Sobre o artista" (como os ouvintes mensais do
 // Spotify), com o nome e o código dele (para o diagnóstico: saber qual artista foi achado)
