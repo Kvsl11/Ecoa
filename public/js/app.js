@@ -390,6 +390,15 @@ function irParaMusica(id) {
 // são as do próprio Android (o WebView não tem a notificação do navegador), e não há o "Instalar o app"
 const noApk = () => document.documentElement.classList.contains('app-android');
 const pluginEcoa = () => { const C = window.Capacitor; return (C?.isNativePlatform?.() && C.Plugins?.Ecoa) || null; };
+// No APK, usa o versionName e o versionCode reais do Android, nunca a versão do site.
+function mostrarVersaoApk(el, prefixo = 'Ecoa · APK') {
+  if (!noApk() || !el) return;
+  const nativo = pluginEcoa();
+  if (!nativo?.versao) return;
+  nativo.versao().then((info) => {
+    if (el.isConnected) el.textContent = `${prefixo} ${info?.nome || info?.codigo || ''}`.trim();
+  }).catch(() => {});
+}
 
 // Mensagens comuns não aparecem sobre a tela. Somente eventos de download usam
 // notificações do Android/sistema, sem criar avisos internos no aplicativo.
@@ -16568,13 +16577,7 @@ function viewTopicosAjustes() {
     await sairDaConta();
     viewTopicosAjustes();
   });
-  // No APK, mostra a versão real instalada no Android (versionName), não a versão do site.
-  if (noApk()) {
-    const elVersao = view.querySelector('.aj-versao');
-    pluginEcoa()?.versao?.().then((info) => {
-      if (elVersao?.isConnected) elVersao.textContent = `Ecoa · APK ${info?.nome || info?.codigo || ''}`.trim();
-    }).catch(() => {});
-  }
+  mostrarVersaoApk(view.querySelector('.aj-versao'));
   // o microfone só se sabe esperando a consulta do navegador
   estadoDoMicrofone().then((m) => {
     const sm = $('.aj-topico[href="#/permissoes"] small', view);
@@ -17044,9 +17047,10 @@ function abrirGavetaDoPerfil() {
         ${baixarAppAndroid() ? `<a class="pg-item" href="${LINK_APK}" download data-baixar-apk>${icon('download', 22)}<span class="grow">Baixar o app para Android<small class="pg-sub">Com o widget da tela inicial</small></span></a>` : ''}
       </div>
       ${infoDaGaveta(u)}
-      <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
+      <p class="pg-versao">${noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`}</p>
     </nav>`;
   document.body.append(g);
+  mostrarVersaoApk($('.pg-versao', g));
   // o play do "Tocou por último" vira pausar enquanto ela toca (o fundo se mexe sempre, tocando ou não)
   const marcarTocando = () => {
     const c = $('.pg-ultima', g);
