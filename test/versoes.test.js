@@ -289,6 +289,7 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   assert.match(app, /artistaDoDeezer\(nome, titulo \? \{ titulo \} : \{\}\)/, 'a foto precisa ser confirmada pela faixa e pelo artista');
+  assert.match(app, /confirmado\.then\(\(a\) => a \|\| \(titulo \? null : porNome\(\)\)\)/, 'sem correspondência da faixa, não aceita um homônimo só pelo nome');
   assert.match(app, /noMaximo\(fotoDeezer\(nome, titulo\), 1800, ''\)/, 'a foto da faixa confirmada tem prioridade sobre fontes genéricas');
   assert.match(app, /enriquecerLinhasMusicais\(\$\('#mu-res'\), lista, \{ busca: true \}\)/, 'as fotos são carregadas depois que os resultados já aparecem');
   assert.match(app, /limitar\(buscarCifraClub\(termo\).*4500\)/, 'a busca não espera indefinidamente por uma fonte lenta');
