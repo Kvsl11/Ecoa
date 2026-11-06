@@ -5301,7 +5301,6 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
   box-shadow: 0 6px 16px rgb(0 0 0 / 0.35); transition: transform 0.15s; }
 .pg-play:not(.pausar) svg { margin-left: -1px; } /* o desenho do play já vem puxado para a direita no ícone: assim fica no centro (visual) da bola */
 .pg-play:active { transform: scale(0.92); }
-.pg-versao { margin: 20px 16px 0; color: var(--subtle); font-size: 11px; text-align: center; letter-spacing: 0.02em; }
 
 /* ---- tela de entrada: o app só abre com a conta Google. O fundo é um mural de quadros de clipes, em fileiras inclinadas
    que passam devagar; por cima, o véu escuro na cor do app e o convite para entrar */
