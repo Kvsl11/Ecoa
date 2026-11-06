@@ -9263,62 +9263,28 @@ const fotosArtistas = new Map();
 // Wikipédia)
 function fotoDoArtista(nome, slug = '', titulo = '') {
   const k = normalizar(nome);
-  const cacheKey = titulo ? `${k}|${normalizar(titulo)}` : k;
+  // Uma única resolução e uma única foto por artista, igual à versão web.
+  // O título não cria uma foto por música: todas as faixas compartilham a mesma escolha.
   if (!k) return Promise.resolve('');
-  if (!noApk()) {
-    // A Web conserva a estratégia anterior; a disputa simultânea é específica do APK.
-    if (slug && !fotosArtistas.has(cacheKey)) fotosArtistas.set(cacheKey, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
-      .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
-      .then((f) => f || fotoDeezer(nome, titulo))));
-    if (!fotosArtistas.has(cacheKey)) {
+  if (!fotosArtistas.has(k)) {
+    if (slug) {
+      const resolucao = fotoDoCanalDeVerdade(nome)
+        .then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => ''))
+        .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
+        .then((f) => f || fotoDeezer(nome, titulo))
+        .then((f) => f || fotoWikipedia(nome));
+      fotosArtistas.set(k, resolucao);
+    } else {
       const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-      fotosArtistas.set(cacheKey, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome, titulo)).then((f) => f || fotoWikipedia(nome)));
+      const resolucao = fotoDoCanalDeVerdade(nome)
+        .then((f) => f || cifraClub())
+        .then((f) => f || fotoDeezer(nome, titulo))
+        .then((f) => f || fotoWikipedia(nome));
+      fotosArtistas.set(k, resolucao);
     }
-    return comUltimoValor('foto', nome, fotosArtistas.get(cacheKey));
   }
-  if (!fotosArtistas.has(cacheKey)) {
-    // No APK, não encadear YouTube → Cifra Club → Deezer → Wikipédia: uma fonte lenta deixava todas as outras esperando.
-    // Cada fonte trabalha em paralelo; só uma foto real e válida pode vencer (resultado vazio não encerra a disputa).
-    const cifra = async () => {
-      const lista = await buscarArtistasCifraClub(nome);
-      const a = slug ? (lista.find((x) => x.slug === slug) || artistaCerto(lista, nome)) : artistaCerto(lista, nome);
-      if (a?.capa && fotoReal(a.capa)) return a.capa;
-      const alvo = slug || a?.slug;
-      if (!alvo) return '';
-      const pagina = await carregarArtista(alvo, a?.nome || nome).principal;
-      return pagina?.foto || '';
-    };
-    const resolver = async () => {
-      // As fontes de reserva começam imediatamente, em paralelo. A confirmação exata pelo título ainda tem
-      // prioridade por um intervalo curto; se o Deezer estiver lento, não segura o restante da busca.
-      const fontes = [
-        cifra(),
-        fotoDoCanalDeVerdade(nome),
-        ...(slug ? [carregarArtista(slug, nome).principal.then((x) => x?.foto || '')] : []),
-        fotoWikipedia(nome),
-        fotoDeezer(nome),
-      ];
-      const reserva = Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
-        const url = fotoReal(f);
-        if (!url) throw new Error('Esta fonte não trouxe uma foto válida');
-        return url;
-      }))).catch(() => '');
-      if (titulo) {
-        const confirmada = await noMaximo(fotoDeezer(nome, titulo), 900, '').catch(() => '');
-        if (fotoReal(confirmada)) return fotoReal(confirmada);
-      }
-      return reserva;
-    };
-    let tentativa;
-    tentativa = resolver().catch(() => '').then((foto) => {
-      // Não guardar falha vazia em memória: se o serviço estiver fora do ar, a próxima entrada tenta de novo.
-      if (!foto && fotosArtistas.get(cacheKey) === tentativa) fotosArtistas.delete(cacheKey);
-      return foto;
-    });
-    fotosArtistas.set(cacheKey, tentativa);
-  }
-  return comUltimoValor('foto', nome, fotosArtistas.get(cacheKey));
+  return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
 // A foto e a capa que já se conhece na hora (a última trazida da internet, guardada no aparelho), sem esperar nada
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';

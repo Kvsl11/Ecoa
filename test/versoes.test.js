@@ -288,9 +288,11 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: url \}\)/, 'a foto corrigida que chega depois também é persistida');
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
-  assert.match(app, /artistaDoDeezer\(nome, titulo \? \{ titulo \} : \{\}\)/, 'a foto precisa ser confirmada pela faixa e pelo artista');
-  assert.match(app, /confirmado\.then\(\(a\) => a \|\| \(titulo \? null : porNome\(\)\)\)/, 'sem correspondência da faixa, não aceita um homônimo só pelo nome');
-  assert.match(app, /noMaximo\(fotoDeezer\(nome, titulo\), 900, ''\)/, 'a foto da faixa confirmada tem prioridade sem bloquear por muito tempo');
+  const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
+  assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
+  assert.match(resolverFoto, /const resolucao = fotoDoCanalDeVerdade\(nome\)/, 'a foto começa pela mesma fonte confiável da versão web');
+  assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'as fontes seguem uma sequência fixa da versão web, sem disputa paralela');
+  assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não disputa fontes nem cria fotos diferentes por faixa');
   assert.match(app, /nativo\?\.buscarPagina/, 'as consultas JSONP usam a conexão nativa no APK');
   assert.match(app, /output=jsonp&callback=ecoaJsonp/, 'o Android recebe e interpreta a resposta JSONP diretamente');
   assert.match(app, /lerJsonpDaPagina\(r\.texto\)/, 'a resposta do Deezer é convertida em JSON antes de chegar à interface');
