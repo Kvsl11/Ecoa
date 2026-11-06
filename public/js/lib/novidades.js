@@ -14,6 +14,7 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No app de Android, saíram o "Instalar o app" (em Sobre) e a tela Permissões dos Ajustes: as permissões são as do Android (Configurações → Apps → Ecoa). No navegador, tudo continua como estava.' },
       { tipo: 'novo', texto: 'Levar os downloads para o app de Android sem baixar de novo: no navegador, Ajustes → Downloads e economia de dados → Exportar os downloads (um arquivo com o áudio, o vídeo e o karaokê baixados); no app, Importar os downloads e escolher esse arquivo. Vale também entre dois aparelhos.' },
       { tipo: 'novo', texto: 'O app de Android se atualiza sozinho: ao abrir, ele avisa quando chega uma versão nova, e em Ajustes → Sobre → Atualização do app dá para verificar e atualizar. Ele baixa e o Android pergunta se pode instalar (na primeira vez, pede para permitir que o Ecoa instale a atualização). Este APK novo ainda precisa ser instalado pelo navegador; os próximos, não.' },
+      { tipo: 'correcao', texto: 'Trocar de música podia fazer a nova começar no ponto em que a de antes tinha parado (pausada em 2:10, a outra começava em 2:10), na música e no vídeo, no navegador e no app de Android. Agora a outra música sempre começa do início; só a última música, voltando ao abrir o app, continua de onde parou (agora também a baixada).' },
     ],
   },
   {
