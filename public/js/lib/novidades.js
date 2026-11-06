@@ -8,6 +8,7 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'Nos ⋯ da letra (no Tocando agora) e nos ⋮ da música: Copiar a letra (só a letra, com o nome da música e o artista em cima) e Copiar a letra com cifra (os acordes em cima da sílaba, no tom e no capotraste que estão na tela, com o nome das partes). É só colar no WhatsApp, num documento ou onde quiser. No navegador e no app de Android.' },
       { tipo: 'correcao', texto: 'Algumas capas (de álbuns que vêm com uma borda fina clara) apareciam com as pontas brancas cortadas nos cantos arredondados: nas listas, na gaveta do perfil, na barrinha, no Tocando agora, no aviso do Android e na tela de bloqueio. Agora a borda fica de fora (no aviso e na tela de bloqueio, com a atualização do app).' },
+      { tipo: 'melhoria', texto: 'O menu de baixo do celular e o degradê atrás da barrinha ficaram um pouco mais escuros (ainda deixando ver de leve o que está por trás).' },
     ],
   },
   {
