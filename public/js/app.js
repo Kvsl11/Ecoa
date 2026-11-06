@@ -14230,7 +14230,8 @@ async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', 
     $('.tons', dlg).onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) done(Number(b.dataset.t)); };
     $('.tons-meio', dlg).onclick = (e) => { const b = e.target.closest('[data-meio]'); if (b) done(((atual + Number(b.dataset.meio)) % 12 + 18) % 12 - 6); };
     $('[data-no]', dlg).onclick = () => done(null);
-  });
+  // (no tablet, em pé e deitado, sobe do rodapé como folha, como no celular, em vez de flutuar no meio da tela)
+  }, { folha: ehTablet() });
 }
 
 // ------------------------------------------------------------- editor
