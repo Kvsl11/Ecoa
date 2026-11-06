@@ -548,7 +548,7 @@ label.setting { cursor: pointer; }
 .cal-rodape { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 @media (max-width: 699px) {
   .cal-fundo { background: rgb(0 0 0 / 0.6); animation: menu-fundo 0.2s ease; }
-  .cal { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; padding: 14px 12px; border-radius: 18px; animation: menu-subir 0.22s ease; }
+  .cal { left: 0; right: 0; bottom: 0; width: auto; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: menu-subir 0.22s ease; }
   .cal-dias button { height: 46px; font-size: 16px; }
   .cal-rodape .btn { flex: 1; height: 44px; font-size: 15px; }
 }
@@ -1961,8 +1961,8 @@ label.check input[type="checkbox"]:focus-visible { outline: 2px solid var(--text
 .menu-mais-titulo { display: none; }
 /* celular: folha que sobe do rodapé, por cima do menu de baixo e do player, com o fundo escurecido */
 .menu-mais-fundo { position: fixed; inset: 0; z-index: 70; background: rgb(0 0 0 / 0.6); animation: menu-fundo 0.2s ease; }
-.menu-mais.folha { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 71; min-width: 0;
-  max-height: calc(100dvh - 80px); overflow-y: auto; padding: 8px; border-radius: 18px; animation: menu-subir 0.22s ease; }
+.menu-mais.folha { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 71; min-width: 0;
+  max-height: calc(100dvh - 80px); overflow-y: auto; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: menu-subir 0.22s ease; }
 .menu-mais.folha .menu-mais-titulo { display: grid; gap: 2px; padding: 8px 14px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); min-width: 0; }
 .menu-mais.folha .menu-mais-titulo b, .menu-mais.folha .menu-mais-titulo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-mais.folha .menu-mais-titulo b { font-size: 16px; }
@@ -2059,7 +2059,8 @@ dialog.lista-fila .fila-item:focus-visible { outline: 2px solid var(--accent); o
 .lista-txt small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lista-ok { color: var(--accent-ink); flex: none; }
 @media (max-width: 699px) {
-  dialog.lista-dlg { margin: auto 8px calc(8px + env(safe-area-inset-bottom)); width: calc(100% - 16px); max-width: none; max-height: 75dvh; border-radius: 18px; }
+  /* (colada no rodapé e de ponta a ponta, como as outras folhas: antes flutuava com 8 px de folga embaixo e dos lados) */
+  dialog.lista-dlg { margin: auto 0 0; width: 100%; max-width: none; max-height: 75dvh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   dialog.lista-dlg[open] { animation: menu-subir 0.22s ease; }
   .lista-op { padding: 12px; }
 }
@@ -3447,7 +3448,8 @@ html.tablet body.painel-recolhido #player .pl-lado { display: none; }
 /* com o vídeo tocando (como no celular e no Spotify): o vídeo colado na borda esquerda do cartão, da altura toda dele,
    sem margem em volta; o nome e os botões ao lado */
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) { padding-top: 0; padding-bottom: 0; padding-left: 0; }
-html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { height: 100%; align-self: stretch; border-radius: 15px 0 0 15px; }
+/* (a altura toda menos o fio do andamento, que fica no pé do cartão: o vídeo não passa por cima dele) */
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { height: auto; margin-bottom: 4px; align-self: stretch; border-radius: 15px 0 0 15px; }
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-info { padding-left: 4px; }
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) ~ #pl-tela:not(.no-palco):not(.na-telinha) { border-radius: 15px 0 0 15px; }
 /* na página da música o menu de baixo some (volta ao sair pela seta do topo) */
@@ -4466,7 +4468,8 @@ html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido):n
 
 /* ============================================================ janelas de configurar (PDF, PowerPoint…) como folha
    Sobem do rodapé, como os ⋮ (a alça em cima: arrastar para cima a deixa quase da tela toda, para baixo fecha), no
-   celular, no tablet e no computador, em vez de flutuar no meio da tela. (O calendário continua flutuando.) */
+   celular, no tablet e no computador, em vez de flutuar no meio da tela. No celular, todas encostam no rodapé e vão de
+   uma ponta à outra (as listas de escolha, os ⋮, o menu de mais opções e o calendário também) */
 dialog.folha { margin: auto auto 0; width: min(600px, 100%); max-width: none; max-height: min(90dvh, 860px); border-radius: 18px 18px 0 0;
   padding-bottom: env(safe-area-inset-bottom); transition: transform 0.22s ease, height 0.22s ease, max-height 0.22s ease; }
 dialog.folha[open] { animation: menu-subir 0.22s ease; }
@@ -5594,6 +5597,8 @@ dialog.folha .diag-secoes { max-height: none; }
 .diag-item.erro b { color: var(--danger); }
 .diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .diag-feito[hidden] { display: none; }
+.diag-feito p { margin: 8px 0 0; font-size: 13.5px; }
+.diag-feito .diag-resta { margin-top: 10px; }
 .diag-feito > b { display: flex; gap: 8px; align-items: center; }
 .diag-feito > b svg { color: var(--accent-ink); }
 [data-consertar] { display: inline-flex; align-items: center; gap: 8px; }
@@ -5765,8 +5770,9 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
 /* celular, a barrinha de baixo com o vídeo tocando (como no Spotify): o vídeo colado na borda esquerda, da altura da
    barrinha, sem margem; o nome, o fone e os botões ao lado */
 @media (max-width: 899px) {
+  /* (o vídeo para logo acima da linha do andamento, no pé da barrinha: antes ia até o fundo e cobria o começo dela) */
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video {
-    width: 112px; aspect-ratio: 16 / 9; margin: 0; border-radius: 8px 0 0 8px; align-self: stretch; }
+    width: 112px; aspect-ratio: 16 / 9; margin: 0 0 2px; border-radius: 8px 0 0 8px; align-self: stretch; }
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-info { padding-left: 14px; }
 }
 /* a barra de botões de baixo das folhas vai de ponta a ponta (o max-width de .dlg > * deixava ela 44 px mais curta,

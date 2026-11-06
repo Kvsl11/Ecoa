@@ -2162,6 +2162,12 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
   if (midiaDe(s) && navigator.onLine && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
     passo('Procurando a letra…');
     await noMaximo(sincronizarMusica(s), 45000, 'demorou');
+    // (sem a letra na internet: o servidor da IA sincroniza pela voz do vídeo; leva um ou dois minutos)
+    const s1 = db.song(id);
+    if (s1 && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
+      passo('Sincronizando a letra pelo áudio…');
+      await noMaximo(sincronizarPeloServidor(s1), 300000, false);
+    }
   }
   passo('Conferindo o artista…');
   const art = await consertarArtistaDaMusica(id).catch(() => null);
@@ -5704,7 +5710,7 @@ const semLinhasDeAcordes = (sinc) => {
     item('Estado', `${estado} · ${seg(api.tempoAgora)} de ${seg(duracao)} · anúncio ${sim(anuncio)} · do aparelho ${local ? (local.video ? 'sim (vídeo)' : 'sim (áudio)') : 'não'}`);
     secao('Letra');
     item('Na tela', `${$('.pl-letra', el).hidden ? 'escondida' : 'aparecendo'} · ${linhasDaLetra.length} linhas · sincronizada no player: ${sim(tempos)}`);
-    if (sc) item('Guardada', `fonte ${sc.fonte || '?'} · do vídeo ${sc.video || '?'} · ${sc.tempos?.length || 0} tempos · duração ${seg(sc.duracao)}${sc.provisoria ? ' · provisória' : ''}${sc.aproximada ? ' · aproximada' : ''}${sc.desloc ? ` · deslocada ${sc.desloc}s` : ''}`, sc.fonte === 'lrclib' ? (sc.provisoria ? 'aviso' : 'ok') : 'ok');
+    if (sc) item('Guardada', `fonte ${sc.gerada === 'servidor' ? 'servidor da IA (pelo áudio)' : sc.fonte || '?'} · do vídeo ${sc.video || '?'} · ${sc.tempos?.length || 0} tempos · duração ${seg(sc.duracao)}${sc.provisoria ? ' · provisória' : ''}${sc.aproximada ? ' · aproximada' : ''}${sc.desloc ? ` · deslocada ${sc.desloc}s` : ''}`, sc.fonte === 'lrclib' ? (sc.provisoria ? 'aviso' : 'ok') : 'ok');
     else item('Guardada', 'nenhuma', song && midia ? 'aviso' : '', song && midia ? 'a música está sem a letra sincronizada' : '');
     if (song && sc?.fonte === 'lrclib') {
       const ok = sincOkDe(song);
@@ -5737,7 +5743,10 @@ const semLinhasDeAcordes = (sinc) => {
       }
       item(String(info?.tipo || '').startsWith('video') ? 'Vídeo' : 'Áudio', `${yt} · ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`, st, st === 'erro' ? `um arquivo baixado ${abre === 'NÃO abre' ? 'está estragado' : 'sumiu do aparelho'}` : '');
     }
-    if (song) {
+    // (a música que não está na biblioteca não passa pelas revisões: o aviso de "não passou pelas correções" não vale
+    // para ela; o que vale é salvar)
+    if (song && !db.song(song.id)) item('Biblioteca', 'não salva: o conserto e as revisões são só das músicas salvas', 'aviso', 'a música não está na sua biblioteca: salve para o app poder consertar');
+    if (song && db.song(song.id)) {
       // (a que não foi baixada não tem o que faltar)
       const falta = Boolean(song.baixado || song.rebaixar) && precisaBaixar(song);
       item('Revisão', `falta baixar: ${sim(falta)} · revisão ${song.revisao || 0} de ${REVISAO_MUSICAS}`, falta || (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'aviso' : 'ok',
@@ -5808,7 +5817,6 @@ const semLinhasDeAcordes = (sinc) => {
     return `${resumo}<div class="diag-secoes">${secoes}</div>`;
   };
   const abrirDiagnostico = async () => {
-    const song0 = musicaTocando();
     const cabeca = `<div class="diag-cab"><h3>Diagnóstico da música</h3><small>${esc(atual?.titulo || '')}${atual?.artista ? ` · ${esc(atual.artista)}` : ''}</small></div>`;
     let d = null;
     await openDialog(`${cabeca}
@@ -5826,20 +5834,41 @@ const semLinhasDeAcordes = (sinc) => {
         if (!dlg.open) return;
         corpo.innerHTML = d ? htmlDiagnostico(d) : '<p class="muted">Não deu para conferir a música.</p>';
         bCopiar.disabled = !d;
-        bConsertar.disabled = !song0 || !d;
+        // (a música fora da biblioteca: o botão salva, e o app conserta depois, sozinho)
+        const salva = Boolean(atual?.songId && db.song(atual.songId));
+        bConsertar.disabled = !d;
+        if (!bConsertar.querySelector('.spin')) bConsertar.innerHTML = salva ? `${icon('refresh', 16)} Consertar agora` : `${icon('download', 16)} Salvar na biblioteca`;
         bConsertar.classList.toggle('primary', Boolean(d && (d.problemas.length || d.avisos.length)));
         bConsertar.classList.toggle('ghost', !(d && (d.problemas.length || d.avisos.length)));
       };
       void mostrar();
       $('[data-ok]', dlg).onclick = () => done(true);
-      bCopiar.onclick = async () => { try { await navigator.clipboard.writeText(d?.texto || ''); toast('Diagnóstico copiado: é só colar na conversa'); } catch { toast('Não consegui copiar: tire um print'); } };
+      // (a resposta no próprio botão: o toast ficava escondido atrás da janela)
+      bCopiar.onclick = async () => {
+        let ok = true;
+        try { await navigator.clipboard.writeText(d?.texto || ''); } catch { ok = false; }
+        bCopiar.innerHTML = ok ? `${icon('check', 16)} Copiado` : `${icon('info', 16)} Não copiou: tire um print`;
+        setTimeout(() => { if (dlg.open) bCopiar.innerHTML = `${icon('copy', 16)} Copiar`; }, 2500);
+      };
+      // (os recados aparecem dentro da janela: o toast fica escondido atrás dela, e o toque parecia não fazer nada)
+      const feito = $('.diag-feito', dlg);
+      const recado = (html) => { feito.innerHTML = html; feito.hidden = false; feito.scrollIntoView({ block: 'nearest' }); };
       bConsertar.onclick = async () => {
         const song = atual?.songId && db.song(atual.songId);
-        if (!song) { toast('Salve a música na biblioteca para consertar'); return; }
-        if (!navigator.onLine) { toast('Sem internet: o conserto precisa dela'); return; }
+        if (!song) {
+          // salvar: o mesmo que o "Salvar na biblioteca" dos ⋮ (fecha o diagnóstico; a música salva é revisada sozinha)
+          done(true);
+          const alvo = document.createElement('button');
+          alvo.dataset.pl = 'salva';
+          alvo.hidden = true;
+          el.append(alvo);
+          alvo.click();
+          alvo.remove();
+          return;
+        }
+        if (!navigator.onLine) { recado(`<b>${icon('info', 16)} Sem internet</b><p class="muted">O conserto precisa da internet: tente de novo quando ela voltar.</p>`); return; }
         bConsertar.disabled = true;
         bCopiar.disabled = true;
-        const feito = $('.diag-feito', dlg);
         feito.hidden = true;
         const passo = (t) => { if (dlg.open) bConsertar.innerHTML = `<span class="spin"></span> ${esc(t)}`; };
         const mudou = await consertarMusica(song.id, { passo }).catch(() => null);
@@ -5850,10 +5879,12 @@ const semLinhasDeAcordes = (sinc) => {
         passo('Conferindo de novo…');
         await mostrar();
         if (!dlg.open) return;
-        feito.innerHTML = `<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}`;
-        feito.hidden = false;
+        // (o que continua faltando depois do conserto fica dito, com o porquê: o conserto não tem como achar o que não
+        // existe, como a letra sincronizada que o LRCLIB não tem)
+        const resta = d ? [...d.problemas, ...d.avisos] : [];
+        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (nem o LRCLIB nem a NetEase têm esta música, e o servidor da IA não conseguiu sincronizar pelo áudio: confira se ele está ligado)` : r);
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
-        feito.scrollIntoView({ block: 'nearest' });
+        recado(`<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}${resta.length ? `<p class="muted diag-resta">Continua faltando (o app não tem como consertar):</p><ul>${resta.map((r) => `<li>${esc(porque(r))}</li>`).join('')}</ul>` : ''}`);
       };
     // (no tablet, em pé e deitado, também sobe do rodapé, como os ⋮, em vez de flutuar no meio da tela)
     }, { folha: telaDeCelular() || ehTablet() });
@@ -17607,7 +17638,9 @@ async function sincronizarMusica(song, { noVideo = '', audioPromise = null } = {
     // 1. o LRCLIB, já (com a duração do áudio oficial, se ele já é conhecido, só para desempatar)
     const durAudioSabida = vs?.audio && !ehArquivo(vs.audio) ? Number(vs.duracao) || 0 : 0;
     const lrc = await letraSincronizadaJa(song.title, artista, durAudioSabida);
-    if (!lrc?.linhas?.length || !lrc?.tempos?.length) return 'nada';
+    // (nem o LRCLIB nem a NetEase têm a letra que acompanha — muitas músicas católicas e brasileiras, que o Spotify tem
+    // pelo Musixmatch, fechado —: o servidor da IA encaixa a letra da cifra na voz do vídeo, em segundo plano)
+    if (!lrc?.linhas?.length || !lrc?.tempos?.length) { void sincronizarPeloServidor(song); return 'nada'; }
     if (!agora()) return 'nada'; // (a pessoa já abriu outra música)
     const durLrc = Number(lrc.duracao) || 0;
     const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}), ...(lrc.duvida ? { duvida: true } : {}) });
@@ -18031,6 +18064,50 @@ async function acertarEdicao(song, sinc) {
   if (certa === antes || !agora?.sincronia || agora.sincronia.video !== sinc.video || agora.sincronia.fonte !== 'lrclib' || Number(agora.sincronia.duracao) !== durLrc) return false;
   guardarSincronia(agora, naGravacaoDe(certa, sinc.video));
   return true;
+}
+// A letra sincronizada feita pelo servidor da IA, para a música que o LRCLIB e a NetEase não têm: a letra da cifra, na
+// ordem em que se canta (o refrão repetido entra de novo), encaixada na voz do vídeo da letra (o áudio oficial, ou o
+// clipe) pelo alinhamento forçado. Fica guardada como a automática ('lrclib', com gerada: 'servidor', para se saber de
+// onde veio); a sincronizada à mão nunca é trocada. Uma tentativa por música e vídeo na
+// sessão (sem o servidor ligado, tenta de novo na próxima vez). true: a música ficou com a letra que acompanha
+const alinhandoNoServidor = new Map();
+const alinhadasNaSessao = new Set();
+function sincronizarPeloServidor(song) {
+  const id = song?.id;
+  const s0 = id && id !== 'previa' ? db.song(id) : null;
+  const video = s0 && videoDaLetra(s0);
+  if (!s0 || !video || ehArquivo(video)) return Promise.resolve(false);
+  const temLetra = (s) => s?.sincronia?.fonte === 'lrclib' && s.sincronia.video === videoDaLetra(s) && s.sincronia.tempos?.length > 0 && !s.sincronia.provisoria;
+  if (temLetra(s0)) return Promise.resolve(true);
+  if (s0.sincronia && s0.sincronia.fonte !== 'lrclib') return Promise.resolve(false); // (a feita à mão)
+  const chave = `${id}|${video}`;
+  if (alinhandoNoServidor.has(chave)) return alinhandoNoServidor.get(chave);
+  if (alinhadasNaSessao.has(chave)) return Promise.resolve(false);
+  const linhas = linhasCantadas(s0.content || '').map((l) => linhaSemCifra(l).replace(/\s+/g, ' ').trim()).filter((l) => l && !soAcordes(l)).slice(0, 400);
+  if (linhas.length < 4) return Promise.resolve(false);
+  const p = (async () => {
+    await carregarServidor().catch(() => {});
+    const cfg = servidorIA();
+    if (!cfg.url || !navigator.onLine) return false;
+    let r;
+    try {
+      r = await chamarComEtapas(cfg, '/letra', { json: { url: `https://youtu.be/${video}`, linhas } }, () => {});
+    } catch (e) {
+      // (o servidor sem o Whisper, ou o vídeo que ele não baixa: não adianta tentar de novo nesta sessão)
+      if (e?.status === 501 || e?.status === 422 || e?.status === 400) alinhadasNaSessao.add(chave);
+      return false;
+    }
+    alinhadasNaSessao.add(chave);
+    // (só vale com boa parte da letra achada na voz: com pouco, é outra gravação ou o vídeo não é cantado)
+    if (!(r?.linhas?.length === linhas.length) || (Number(r.achadas) || 0) < Math.max(3, Math.ceil(linhas.length * 0.4))) return false;
+    const agora = db.song(id);
+    if (!agora || videoDaLetra(agora) !== video || temLetra(agora) || (agora.sincronia && agora.sincronia.fonte !== 'lrclib')) return temLetra(agora);
+    const tempos = r.linhas.map((t) => ({ inicio: Math.round((Number(t?.inicio) || 0) * 100) / 100, fim: Math.round((Number(t?.fim) || 0) * 100) / 100 }));
+    guardarSincronia(agora, { video, linhas, tempos, fonte: 'lrclib', gerada: 'servidor', ...(Number(r.duracao) > 0 ? { duracao: Math.round(Number(r.duracao)) } : {}) });
+    return true;
+  })().finally(() => alinhandoNoServidor.delete(chave));
+  alinhandoNoServidor.set(chave, p);
+  return p;
 }
 // Confere a letra em dúvida no áudio que toca: o servidor da IA ouve o vídeo (a voz separada, com o Whisper ou o
 // alinhamento forçado) e devolve a letra do LRCLIB deslocada para onde ela é cantada nele (o "referencia" do /letra).

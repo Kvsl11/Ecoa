@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 556, data: '2026-11-06', titulo: 'A letra que acompanha também sem o LRCLIB, e as janelas no rodapé',
+    itens: [
+      { tipo: 'correcao', texto: 'Na barrinha de baixo (no celular e no tablet), o vídeo cobria o começo da linha do andamento da música. Agora ele para logo acima dela, e a linha aparece inteira.' },
+      { tipo: 'novo', texto: 'As músicas que o LRCLIB e a NetEase não têm (muitas músicas católicas e brasileiras, que o Spotify tem por um serviço fechado) também ganham a letra que acompanha: o servidor da IA encaixa a letra da cifra na voz do vídeo, em segundo plano, e ela aparece sozinha quando fica pronta (leva um ou dois minutos, com o servidor ligado). O "Consertar agora" do Diagnóstico também faz isso.' },
+      { tipo: 'correcao', texto: 'No Diagnóstico, tocar em "Consertar agora" numa música que não está na biblioteca parecia não fazer nada (o aviso ficava escondido atrás da janela). Agora o Diagnóstico diz que a música não está salva e o botão vira "Salvar na biblioteca"; salva, ela passa pelas correções sozinha. Depois do conserto, a janela também diz o que continua faltando e por quê (por exemplo, a letra sincronizada que o LRCLIB não tem), e o Copiar responde no próprio botão.' },
+      { tipo: 'melhoria', texto: 'No celular, todas as janelas que sobem de baixo encostam no rodapé e vão de uma ponta à outra da tela, sem a folga embaixo e dos lados: as listas de opções (como os ⋮ do Tocando agora), o menu de mais opções e o calendário, como as outras folhas.' },
+    ],
+  },
+  {
     versao: 555, data: '2026-11-06', titulo: 'O Diagnóstico arrumado',
     itens: [
       { tipo: 'correcao', texto: 'O Diagnóstico da música: o fim da lista ficava escondido atrás dos botões e não dava para ver. Agora o título e os botões ficam parados e só o meio rola, até a última parte. O sinal laranja dos avisos aparecia esticado numa barra (e o item com um fundo), e os botões de baixo ficaram organizados: Consertar agora em cima e, embaixo, Copiar e Fechar lado a lado, do mesmo tamanho.' },
@@ -61,15 +70,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'As músicas que estavam na fila para baixar (e a que estava baixando) eram esquecidas ao fechar o app. Agora a fila fica guardada e continua sozinha logo que o app abre de novo.' },
       { tipo: 'melhoria', texto: 'O servidor é achado bem mais rápido: todos os endereços são testados ao mesmo tempo, em vez de um por um (com o Codespace desligado, eram quase um minuto de espera a cada abertura).' },
       { tipo: 'melhoria', texto: 'Os downloads ficaram mais rápidos: o servidor prepara o som e o clipe ao mesmo tempo, o clipe oficial é procurado enquanto o servidor é conferido, e o servidor baixa do YouTube em pedaços (o YouTube segurava a velocidade). Se o servidor cai no meio, o app passa para outro na hora.' },
-    ],
-  },
-  {
-    versao: 546, data: '2026-11-05', titulo: 'O nome girando sem parar e os vídeos do artista',
-    itens: [
-      { tipo: 'melhoria', texto: 'O nome da música que não cabe gira num laço contínuo, como no Spotify: quando ele termina, o começo já vem logo atrás, depois de um espaço, sem voltar de uma vez para o início.' },
-      { tipo: 'correcao', texto: 'Com o vídeo na barrinha de baixo, a primeira letra do nome aparecia meio apagada. Agora ela aparece inteira; só a ponta da direita some aos poucos.' },
-      { tipo: 'melhoria', texto: 'Com o vídeo tocando, a barrinha de baixo fica como a do Spotify: em cima o nome da música (girando quando não cabe) e embaixo o artista, sem a linha do fone (o ícone do fone continua à direita). Só com o áudio, continua o nome e o artista em cima e o fone embaixo.' },
-      { tipo: 'melhoria', texto: 'Os vídeos relacionados do Tocando agora abrem já no modo vídeo, com o nome da música e o artista certos: no K-pop o vídeo sai no canal da empresa (HYBE LABELS, SMTOWN), mas o artista é o do título ("Seven (feat. Latto)", do Jung Kook), e não a empresa. Só entram os vídeos de música do artista (sem propagandas, entrevistas e vídeos de fãs) e cada música uma vez só.' },
     ],
   },
 ];
