@@ -5737,7 +5737,10 @@ const semLinhasDeAcordes = (sinc) => {
       }
       item(String(info?.tipo || '').startsWith('video') ? 'Vídeo' : 'Áudio', `${yt} · ${info?.tipo || '?'} · ${fmtBytes(info?.tamanho || 0)} · ${abre}`, st, st === 'erro' ? `um arquivo baixado ${abre === 'NÃO abre' ? 'está estragado' : 'sumiu do aparelho'}` : '');
     }
-    if (song) {
+    // (a música que não está na biblioteca não passa pelas revisões: o aviso de "não passou pelas correções" não vale
+    // para ela; o que vale é salvar)
+    if (song && !db.song(song.id)) item('Biblioteca', 'não salva: o conserto e as revisões são só das músicas salvas', 'aviso', 'a música não está na sua biblioteca: salve para o app poder consertar');
+    if (song && db.song(song.id)) {
       // (a que não foi baixada não tem o que faltar)
       const falta = Boolean(song.baixado || song.rebaixar) && precisaBaixar(song);
       item('Revisão', `falta baixar: ${sim(falta)} · revisão ${song.revisao || 0} de ${REVISAO_MUSICAS}`, falta || (Number(song.revisao) || 0) < REVISAO_MUSICAS ? 'aviso' : 'ok',
@@ -5808,7 +5811,6 @@ const semLinhasDeAcordes = (sinc) => {
     return `${resumo}<div class="diag-secoes">${secoes}</div>`;
   };
   const abrirDiagnostico = async () => {
-    const song0 = musicaTocando();
     const cabeca = `<div class="diag-cab"><h3>Diagnóstico da música</h3><small>${esc(atual?.titulo || '')}${atual?.artista ? ` · ${esc(atual.artista)}` : ''}</small></div>`;
     let d = null;
     await openDialog(`${cabeca}
@@ -5826,20 +5828,41 @@ const semLinhasDeAcordes = (sinc) => {
         if (!dlg.open) return;
         corpo.innerHTML = d ? htmlDiagnostico(d) : '<p class="muted">Não deu para conferir a música.</p>';
         bCopiar.disabled = !d;
-        bConsertar.disabled = !song0 || !d;
+        // (a música fora da biblioteca: o botão salva, e o app conserta depois, sozinho)
+        const salva = Boolean(atual?.songId && db.song(atual.songId));
+        bConsertar.disabled = !d;
+        if (!bConsertar.querySelector('.spin')) bConsertar.innerHTML = salva ? `${icon('refresh', 16)} Consertar agora` : `${icon('download', 16)} Salvar na biblioteca`;
         bConsertar.classList.toggle('primary', Boolean(d && (d.problemas.length || d.avisos.length)));
         bConsertar.classList.toggle('ghost', !(d && (d.problemas.length || d.avisos.length)));
       };
       void mostrar();
       $('[data-ok]', dlg).onclick = () => done(true);
-      bCopiar.onclick = async () => { try { await navigator.clipboard.writeText(d?.texto || ''); toast('Diagnóstico copiado: é só colar na conversa'); } catch { toast('Não consegui copiar: tire um print'); } };
+      // (a resposta no próprio botão: o toast ficava escondido atrás da janela)
+      bCopiar.onclick = async () => {
+        let ok = true;
+        try { await navigator.clipboard.writeText(d?.texto || ''); } catch { ok = false; }
+        bCopiar.innerHTML = ok ? `${icon('check', 16)} Copiado` : `${icon('info', 16)} Não copiou: tire um print`;
+        setTimeout(() => { if (dlg.open) bCopiar.innerHTML = `${icon('copy', 16)} Copiar`; }, 2500);
+      };
+      // (os recados aparecem dentro da janela: o toast fica escondido atrás dela, e o toque parecia não fazer nada)
+      const feito = $('.diag-feito', dlg);
+      const recado = (html) => { feito.innerHTML = html; feito.hidden = false; feito.scrollIntoView({ block: 'nearest' }); };
       bConsertar.onclick = async () => {
         const song = atual?.songId && db.song(atual.songId);
-        if (!song) { toast('Salve a música na biblioteca para consertar'); return; }
-        if (!navigator.onLine) { toast('Sem internet: o conserto precisa dela'); return; }
+        if (!song) {
+          // salvar: o mesmo que o "Salvar na biblioteca" dos ⋮ (fecha o diagnóstico; a música salva é revisada sozinha)
+          done(true);
+          const alvo = document.createElement('button');
+          alvo.dataset.pl = 'salva';
+          alvo.hidden = true;
+          el.append(alvo);
+          alvo.click();
+          alvo.remove();
+          return;
+        }
+        if (!navigator.onLine) { recado(`<b>${icon('info', 16)} Sem internet</b><p class="muted">O conserto precisa da internet: tente de novo quando ela voltar.</p>`); return; }
         bConsertar.disabled = true;
         bCopiar.disabled = true;
-        const feito = $('.diag-feito', dlg);
         feito.hidden = true;
         const passo = (t) => { if (dlg.open) bConsertar.innerHTML = `<span class="spin"></span> ${esc(t)}`; };
         const mudou = await consertarMusica(song.id, { passo }).catch(() => null);
@@ -5850,10 +5873,12 @@ const semLinhasDeAcordes = (sinc) => {
         passo('Conferindo de novo…');
         await mostrar();
         if (!dlg.open) return;
-        feito.innerHTML = `<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}`;
-        feito.hidden = false;
+        // (o que continua faltando depois do conserto fica dito, com o porquê: o conserto não tem como achar o que não
+        // existe, como a letra sincronizada que o LRCLIB não tem)
+        const resta = d ? [...d.problemas, ...d.avisos] : [];
+        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (o LRCLIB, de onde vem a letra que acompanha, não tem esta música)` : r);
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
-        feito.scrollIntoView({ block: 'nearest' });
+        recado(`<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}${resta.length ? `<p class="muted diag-resta">Continua faltando (o app não tem como consertar):</p><ul>${resta.map((r) => `<li>${esc(porque(r))}</li>`).join('')}</ul>` : ''}`);
       };
     // (no tablet, em pé e deitado, também sobe do rodapé, como os ⋮, em vez de flutuar no meio da tela)
     }, { folha: telaDeCelular() || ehTablet() });

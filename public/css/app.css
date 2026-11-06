@@ -5596,6 +5596,8 @@ dialog.folha .diag-secoes { max-height: none; }
 .diag-item.erro b { color: var(--danger); }
 .diag-feito { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .diag-feito[hidden] { display: none; }
+.diag-feito p { margin: 8px 0 0; font-size: 13.5px; }
+.diag-feito .diag-resta { margin-top: 10px; }
 .diag-feito > b { display: flex; gap: 8px; align-items: center; }
 .diag-feito > b svg { color: var(--accent-ink); }
 [data-consertar] { display: inline-flex; align-items: center; gap: 8px; }
