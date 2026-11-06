@@ -288,6 +288,9 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: foto \}\)/);
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
+  assert.match(app, /Promise\.any\(fontes\.map/,'as fontes de foto devem ser consultadas em paralelo');
+  assert.match(app, /fotosArtistas\.delete\(k\)/,'falhas vazias não podem ficar memorizadas durante a sessão');
+  assert.match(app, /const exibida = box\.dataset\.mostrando/,'fotos já exibidas também precisam ser atualizadas');
 });
 
 
