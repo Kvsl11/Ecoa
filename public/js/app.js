@@ -6243,6 +6243,15 @@ const semLinhasDeAcordes = (sinc) => {
       // o vídeo toca já no modo vídeo (o clipe na tela, e não a capa), com o nome da música e o artista certos; aberto
       // como música, vem com a cifra e a letra dessa música desse artista
       const v = dadosCreditos.videos[b.dataset.i];
+      // a música que já está no aparelho (salva, e talvez baixada) toca a de lá, com a cifra, a letra sincronizada e os
+      // arquivos dela, em vez de uma música nova só do YouTube: pelo vídeo (o clipe ou o áudio dela) ou pelo nome e artista
+      const salva = musicaDoVideoRelacionado(v);
+      if (salva) {
+        const vs = versoesDe(salva);
+        if (vs && v.id === vs.audio && vs.audio !== vs.video) api.paraModoMusica(); else api.paraModoVideo();
+        api.tocar(itemDoPlayer(salva));
+        return;
+      }
       const video = { ...v, titulo: v.tituloDoVideo };
       api.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash) });
       api.paraModoVideo();
@@ -9476,6 +9485,14 @@ async function fotoWikipedia(nome) {
 function musicaSalva({ titulo = '', artista = '', cifra = '', letra = '' } = {}) {
   return (cifra && db.songBySource(cifra)) || (letra && db.songBySource(letra))
     || db.songs().find((s) => normalizar(s.title) === normalizar(tituloLimpo(titulo)) && (!artista || mesmoNome(s.artist, artista))) || null;
+}
+// o vídeo relacionado (do Tocando agora) que já é uma música do aparelho: o vídeo dela (o clipe ou o áudio oficial)
+// ou, sem ele, o mesmo nome e artista — só as que têm o que tocar
+function musicaDoVideoRelacionado(v) {
+  const comMidia = db.songs().filter(midiaDe);
+  return (v?.id && comMidia.find((s) => s.youtube === v.id || s.versoes?.video === v.id || s.versoes?.audio === v.id))
+    || (v?.titulo && comMidia.find((s) => normalizar(s.title) === normalizar(tituloLimpo(v.titulo)) && (!v.artista || mesmoNome(s.artist, v.artista))))
+    || null;
 }
 const botaoSalvar = (item, cls = '') => {
   const salva = musicaSalva(item) && !musicaSalva(item).soNoRepertorio;

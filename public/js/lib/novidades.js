@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 548, data: '2026-11-06', titulo: 'Os vídeos relacionados tocam a música que você já tem',
+    itens: [
+      { tipo: 'correcao', texto: 'Nos vídeos relacionados do Tocando agora, tocar numa música que você já salvou (e baixou) abria uma cópia nova, só do YouTube, sem o download, a cifra e a letra sincronizada dela. Agora o app reconhece a música da sua biblioteca, pelo vídeo ou pelo nome e artista, e toca a sua (do aparelho, quando está baixada).' },
+    ],
+  },
+  {
     versao: 547, data: '2026-11-06', titulo: 'Os downloads lembram o servidor e ficam mais rápidos',
     itens: [
       { tipo: 'correcao', texto: 'Ao sair do app ou recarregar a página, o app esquecia o servidor que estava baixando e dizia para ligar o servidor: nada baixava. Agora ele lembra o último servidor que atendeu e já abre com ele, e só troca se ele não responder.' },
@@ -76,13 +82,6 @@ export const NOVIDADES = [
     versao: 539, data: '2026-11-05', titulo: 'A seta de download piscando direito',
     itens: [
       { tipo: 'correcao', texto: 'Nas listas, a seta das músicas baixando piscava de um jeito estranho (ora piscava, ora não): ela era redesenhada a cada avanço do download e a piscada recomeçava do zero. Agora ela só muda quando o estado muda (baixando, incompleta, baixada), e a piscada fica contínua.' },
-    ],
-  },
-  {
-    versao: 538, data: '2026-11-05', titulo: 'Um download por vez, com uma notificação só',
-    itens: [
-      { tipo: 'melhoria', texto: 'O app baixa uma música por vez (o som e depois o vídeo dela), também ao baixar uma playlist inteira.' },
-      { tipo: 'melhoria', texto: 'As notificações do download viraram uma só, que vai sendo atualizada ("Baixando 45% · música 2 de 4"), no lugar de uma para cada música abrindo todas de uma vez. No fim, o resumo: quantas foram baixadas.' },
     ],
   },
 ];
