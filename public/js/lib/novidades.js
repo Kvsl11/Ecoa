@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 573, data: '2026-11-06', titulo: 'O play no meio do círculo',
+    itens: [
+      { tipo: 'correcao', texto: 'O triângulo do play parecia torto, puxado para a direita dentro do círculo (no Tocando agora, na barrinha, nas listas e no widget do Android). Agora ele fica no meio, só com o pequeno ajuste para a direita que faz ele parecer centralizado (como no Spotify). No widget, com a atualização do app.' },
+    ],
+  },
+  {
     versao: 572, data: '2026-11-06', titulo: 'A versão certa no app de Android',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, Ajustes → Sobre mostrava a versão do site no cartão do Ecoa. Agora mostra a versão do app instalado. E a versão saiu da gaveta do perfil (ela fica em Ajustes → Sobre).' },
@@ -69,19 +75,6 @@ export const NOVIDADES = [
     versao: 564, data: '2026-11-06', titulo: 'A outra música começa do início',
     itens: [
       { tipo: 'correcao', texto: 'Trocar de música podia fazer a nova começar no ponto em que a de antes tinha parado (pausada em 2:10, a outra começava em 2:10), na música e no vídeo, no navegador e no app de Android. Agora a outra música sempre começa do início; só a última música, voltando ao abrir o app, continua de onde parou (agora também a baixada).' },
-    ],
-  },
-  {
-    versao: 563, data: '2026-11-06', titulo: 'O app de Android: baixa do site, sem a foto por cima e com o player do Android',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, a foto do perfil ficava por cima dos títulos e dos botões do topo (o app ia por baixo da barra de status do celular). Agora ele começa abaixo dela, como no navegador.' },
-      { tipo: 'melhoria', texto: 'No app de Android, o aviso de "tocando" virou o player do próprio Android: com a capa, a barra do tempo (dá para arrastar), os botões, a tela de bloqueio e os botões do fone (precisa instalar o APK novo).' },
-      { tipo: 'correcao', texto: 'O "Baixar o app para Android" ficava parado em "Baixando…" e o arquivo não aparecia nos downloads (o link levava ao GitHub, que redireciona para outro endereço). Agora o Ecoa.apk baixa direto do próprio site do Ecoa.' },
-      { tipo: 'melhoria', texto: 'No app de Android, Ajustes → Downloads e economia de dados mostra o espaço de verdade do celular: o total, o livre, o que os outros apps e o sistema ocupam e tudo o que o Ecoa guarda (precisa instalar o APK novo). Os downloads do app ficam no próprio app, separados dos do navegador: a música baixada no navegador precisa ser baixada de novo no app.' },
-      { tipo: 'correcao', texto: 'No app de Android, as notificações dos downloads não apareciam. Agora são as do próprio Android (com a capa; tocar abre a música), e o Android pergunta pelas notificações ao abrir o app e pelo microfone na primeira vez que ele é usado (precisa instalar o APK novo).' },
-      { tipo: 'melhoria', texto: 'No app de Android, saíram o "Instalar o app" (em Sobre) e a tela Permissões dos Ajustes: as permissões são as do Android (Configurações → Apps → Ecoa). No navegador, tudo continua como estava.' },
-      { tipo: 'novo', texto: 'Levar os downloads para o app de Android sem baixar de novo: no navegador, Ajustes → Downloads e economia de dados → Exportar os downloads (um arquivo com o áudio, o vídeo e o karaokê baixados); no app, Importar os downloads e escolher esse arquivo. Vale também entre dois aparelhos.' },
-      { tipo: 'novo', texto: 'O app de Android se atualiza sozinho: ao abrir, ele avisa quando chega uma versão nova, e em Ajustes → Sobre → Atualização do app dá para verificar e atualizar. Ele baixa e o Android pergunta se pode instalar (na primeira vez, pede para permitir que o Ecoa instale a atualização). Este APK novo ainda precisa ser instalado pelo navegador; os próximos, não.' },
     ],
   },
 ];
