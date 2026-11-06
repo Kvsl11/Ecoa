@@ -6045,6 +6045,14 @@ const semLinhasDeAcordes = (sinc) => {
         feito.hidden = true;
         const passo = (t) => { if (dlg.open) bConsertar.innerHTML = `<span class="spin"></span> ${esc(t)}`; };
         const mudou = await consertarMusica(song.id, { passo }).catch(() => null);
+        // O diagnóstico também completa downloads parciais: se a revisão identificou
+        // que falta o videoclipe, coloca somente os arquivos ausentes na fila.
+        const corrigida = db.song(song.id);
+        if (corrigida?.baixado && precisaBaixar(corrigida) && !corrigida.baixarPausado && !baixando.has(song.id)
+          && db.prefs().baixarVideo !== false && navigator.onLine) {
+          passo('Colocando o videoclipe que falta na fila…');
+          void baixarMusica(corrigida, { perguntou: true });
+        }
         letraDe = '';
         extraDe = '';
         desenhar();
