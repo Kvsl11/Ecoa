@@ -5,6 +5,14 @@ import { escolherAudio, mesmaSincronia, paresDasSincronias, paresPelaDuracao, te
 
 const v = (id, titulo, canal, segundos) => ({ id, titulo, canal, segundos });
 
+test('os menus de três pontos não oferecem alternar entre música e vídeo', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const menuPlayer = app.slice(app.indexOf('const opcoes = [', app.indexOf('async function menuPlayer')), app.indexOf('].filter(Boolean);', app.indexOf('async function menuPlayer')));
+  const menuMusica = app.slice(app.indexOf('async function menuDaMusica'), app.indexOf('async function menuDaPlaylist'));
+  assert.doesNotMatch(menuPlayer, /rotulo: modoCapa\(\) \? 'Mudar para vídeo' : 'Mudar para música'/);
+  assert.doesNotMatch(menuMusica, /rotulo: player\.modoMusica \? 'Mudar para vídeo' : 'Mudar para música'/);
+});
+
 test('acha o áudio oficial da gravação (e não o clipe, o ao vivo ou outra duração)', () => {
   const achados = [
     v('clipe000001', 'Sabrina Carpenter - Espresso (Official Video)', 'Sabrina Carpenter', 194),
