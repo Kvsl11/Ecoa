@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 571, data: '2026-11-06', titulo: 'Copiar a letra e a cifra',
+    itens: [
+      { tipo: 'novo', texto: 'Nos ⋯ da letra (no Tocando agora) e nos ⋮ da música: Copiar a letra (só a letra, com o nome da música e o artista em cima) e Copiar a letra com cifra (os acordes em cima da sílaba, no tom e no capotraste que estão na tela, com o nome das partes). É só colar no WhatsApp, num documento ou onde quiser. No navegador e no app de Android.' },
+      { tipo: 'correcao', texto: 'Algumas capas (de álbuns que vêm com uma borda fina clara) apareciam com as pontas brancas cortadas nos cantos arredondados: nas listas, na gaveta do perfil, na barrinha, no Tocando agora, no aviso do Android e na tela de bloqueio. Agora a borda fica de fora (no aviso e na tela de bloqueio, com a atualização do app).' },
+    ],
+  },
+  {
     versao: 570, data: '2026-11-06', titulo: 'A barrinha colada no menu, como no Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'No celular (no navegador e no app de Android), a barrinha da música agora fica colada no menu de baixo, sem a faixa entre os dois, e o menu ficou mais transparente: o que está na tela aparece por trás dele, escurecendo até o pé, como no Spotify. Os ícones e os nomes do menu ficaram um pouco maiores.' },
@@ -74,12 +81,6 @@ export const NOVIDADES = [
     versao: 562, data: '2026-11-06', titulo: 'O Ecoa para Android, com widget',
     itens: [
       { tipo: 'novo', texto: 'O Ecoa ganhou um app de Android (APK): na gaveta do perfil, "Baixar o app para Android" (aparece no Android, pelo navegador). Ele é o mesmo Ecoa, com a sua conta Google, e traz o que o navegador não deixa: o widget da tela inicial (a capa, o nome e o artista da última música, com voltar, tocar/pausar e pular), o aviso de "tocando" nas notificações com os mesmos botões, que mantém a música tocando com o app minimizado, e os downloads guardados no próprio app.' },
-    ],
-  },
-  {
-    versao: 561, data: '2026-11-06', titulo: 'O modo música só com o áudio oficial',
-    itens: [
-      { tipo: 'correcao', texto: 'O modo música podia tocar um vídeo que um fã subiu no próprio canal, com o nome do artista só no título, e não a gravação do canal oficial (em "Odres Novos", tocava o vídeo de outro canal, e não o do Ministério Gerados pela Imaculada). Agora o áudio do modo música vem só de uma fonte oficial: a faixa do YouTube Music, o canal do próprio artista, o mesmo canal do vídeo que você abriu ou o da gravadora. Sem achar, o modo música toca o próprio vídeo oficial. As músicas salvas são conferidas sozinhas, e o áudio que não for oficial sai.' },
     ],
   },
 ];

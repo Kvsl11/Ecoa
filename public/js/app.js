@@ -1,5 +1,5 @@
 import { db, uid, youtubeId } from './store.js';
-import { esc, renderSong, soltarAcordes } from './render.js';
+import { esc, renderSong, soltarAcordes, textoParaCopiar } from './render.js';
 import { definirMeta, semInvisiveis, soAcordes, paraEditor, doEditor, completarCifra, temCifra, chordsOverLyricsToChordPro, chordProToChordsOverLyrics, toChordPro, transposeChordPro, transposeKey, transposeChord, looksLikeChordPro, isChordOnlyLine, letraDe, aplicarLetra, isChord, linhasDaLetra, linhasCantadas, partesCantadas, capoDaCifra, capoDaObservacao, organizarPartes, parteEmIngles } from './chordpro.js';
 import { icon, iconeMenu, logo, logoLumen } from './icons.js';
 import { diagramaSvg } from './acordes.js';
@@ -453,6 +453,33 @@ const capaDaNotificacao = (song) =>
     : song?.youtube
       ? `https://i.ytimg.com/vi/${song.youtube}/hqdefault.jpg`
       : '';
+// copia um texto (a letra, a cifra): pela área de transferência do navegador e, onde ela não deixa (fora do https, ou
+// sem o foco), pelo jeito antigo, com um campo de texto escondido
+async function copiarTexto(texto) {
+  try { await navigator.clipboard.writeText(texto); return true; } catch { /* segue para o jeito antigo */ }
+  const t = document.createElement('textarea');
+  t.value = texto;
+  t.setAttribute('readonly', '');
+  t.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.append(t);
+  t.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  t.remove();
+  return ok;
+}
+// "Copiar a letra" e "Copiar a letra com cifra" (nos ⋯ da letra no player e nos ⋮ da música): a letra sem os acordes,
+// ou a cifra com os acordes em cima, no tom e no capotraste da tela. Sem a cifra, a letra sincronizada (do LRCLIB)
+async function copiarLetra(song, { comCifra = false, transpose = 0, capo = 0, titulo = '', artista = '' } = {}) {
+  const nome = titulo || song?.title || '';
+  const quem = artista || song?.artist || '';
+  let texto = song?.content ? textoParaCopiar(song.content, { comCifra, transpose, capo, key: song.key || '', titulo: nome, artista: quem }) : '';
+  if (!texto && !comCifra && Array.isArray(song?.sincronia?.linhas) && song.sincronia.linhas.length) {
+    texto = [[nome, quem].filter(Boolean).join(' – '), song.sincronia.linhas.map((l) => (typeof l === 'string' ? l : l?.texto || '')).join('\n')].filter(Boolean).join('\n\n');
+  }
+  if (!texto) { toast('Esta música ainda não tem a letra'); return; }
+  toast((await copiarTexto(texto)) ? (comCifra ? 'Cifra copiada: é só colar onde quiser' : 'Letra copiada: é só colar onde quiser') : 'Não consegui copiar');
+}
 // compartilhar pelo sistema (WhatsApp, e-mail…); sem isso, copia o texto
 async function compartilhar(dados) {
   if (navigator.share) {
@@ -5801,6 +5828,9 @@ const semLinhasDeAcordes = (sinc) => {
       (salva || (preview && (atual.songId === 'previa' || atual.href === '#/musica/previa'))) && { valor: 'trocar', rotulo: atual.semVideo ? 'Escolher um vídeo' : (modoCapa() ? 'Trocar música' : 'Trocar o vídeo'), ic: atual.semVideo ? 'youtube' : 'refresh' },
       !naLetra && !atual.semVideo && !atual.soMusica && !(ehArquivo(atual.youtube) && !atual.video) && { valor: 'troca', rotulo: modoCapa() ? 'Mudar para vídeo' : 'Mudar para música', ic: modoCapa() ? 'videoclipe' : 'music' },
       (atual.artista || ehCifraClub(song?.source || '')) && { valor: 'album', rotulo: 'Ver álbum', ic: 'disc' },
+      // copiar a letra (e, com acordes, a cifra no tom da tela)
+      (song?.content || song?.sincronia?.linhas?.length) && { valor: 'copiar-letra', rotulo: 'Copiar a letra', ic: 'copy' },
+      song?.content && temCifra(song.content) && { valor: 'copiar-cifra', rotulo: 'Copiar a letra com cifra', ic: 'chord' },
       { valor: 'compartilhar', rotulo: 'Compartilhar', ic: 'share' },
       ytAgora() && { valor: 'youtube', rotulo: 'Abrir no YouTube', ic: 'youtube' },
       { valor: 'diagnostico', rotulo: 'Diagnóstico da música', ic: 'info' },
@@ -5811,6 +5841,10 @@ const semLinhasDeAcordes = (sinc) => {
     const v = await escolherNaLista({ menu: true, titulo: atual.titulo || 'Tocando agora', cabeca: `${capaMenu}<span class="lista-txt"><b>${esc(atual.titulo || 'Tocando agora')}</b><small>${esc(atual.artista || 'Tocando agora')}</small></span>`, opcoes });
     if (!v || !atual) return;
     if (v === 'diagnostico') { void abrirDiagnostico(); return; }
+    if (v === 'copiar-letra' || v === 'copiar-cifra') {
+      void copiarLetra(song, { comCifra: v === 'copiar-cifra', transpose: song?.transpose || 0, capo: song?.capo || 0, titulo: atual?.titulo, artista: atual?.artista });
+      return;
+    }
     if (v === 'youtube') { window.open(`https://www.youtube.com/watch?v=${ytAgora()}&t=${Math.floor(api.tempoAgora)}s`, '_blank', 'noopener'); return; }
     // o álbum abre como página, já com o "Procurando o álbum…": o Tocando agora na tela toda fecha com a troca (no
     // tablet, o painel continua ao lado)
@@ -13706,6 +13740,8 @@ function viewSong(id, ctx = {}) {
           ${isPreview ? `<button role="menuitem" id="btn-edit-prev">${icon('edit', 18)}<span>Editar cifra</span></button>`
             : `<a role="menuitem" href="#/editar/${song.id}">${icon('edit', 18)}<span>Editar cifra</span></a>`}
           <button role="menuitem" id="btn-pdf">${icon('file', 18)}<span>Exportar PDF</span></button>
+          ${song.content || song.sincronia?.linhas?.length ? `<button role="menuitem" id="btn-copiar-letra">${icon('copy', 18)}<span>Copiar a letra</span></button>` : ''}
+          ${temCifra(song.content) ? `<button role="menuitem" id="btn-copiar-cifra">${icon('chord', 18)}<span>Copiar a letra com cifra</span></button>` : ''}
           ${song.artist || ehCifraClub(song.source || '') ? `<button role="menuitem" id="btn-album">${icon('disc', 18)}<span>Ver álbum</span></button>` : ''}
           <button role="menuitem" id="btn-trocar-video">${icon(player.modoMusica || song.youtube ? 'refresh' : 'youtube', 18)}<span>${player.modoMusica ? 'Trocar música' : (song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo')}</span></button>
           ${isPreview ? '' : `<button role="menuitem" id="btn-audio-meu">${icon('upload', 18)}<span>${song.audioProprio ? 'Trocar o seu áudio' : 'Usar um áudio seu'}</span></button>`}
@@ -13944,6 +13980,10 @@ function viewSong(id, ctx = {}) {
   document.addEventListener('keydown', escMenu);
   aoSair(() => { document.removeEventListener('click', foraDoMenu); document.removeEventListener('keydown', escMenu); abrirMais(false); });
   $('#btn-pdf').onclick = () => exportarMusicaPdf({ ...song, transpose, capo });
+  const btCopiarLetra = $('#btn-copiar-letra');
+  if (btCopiarLetra) btCopiarLetra.onclick = () => void copiarLetra(song, { transpose, capo });
+  const btCopiarCifra = $('#btn-copiar-cifra');
+  if (btCopiarCifra) btCopiarCifra.onclick = () => void copiarLetra(song, { comCifra: true, transpose, capo });
   $('#palco-ctrl').addEventListener('click', (e) => {
     const b = e.target.closest('[data-palco]');
     if (!b) return;

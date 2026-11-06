@@ -317,7 +317,7 @@ a.chip.sm { cursor: pointer; }
 
 /* capas */
 .cover { position: relative; overflow: hidden; background: var(--surface-2); flex: none; container-type: inline-size; }
-.cover img { width: 100%; height: 100%; object-fit: cover; }
+.cover img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.05); }
 .cover.gen { display: grid; place-items: center; color: rgb(255 255 255 / 0.92); background: linear-gradient(135deg, hsl(var(--h) 55% 46%), hsl(calc(var(--h) + 40) 60% 22%)); }
 .cover.gen .ic { width: 42%; height: 42%; }
 .cover.mosaic { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
@@ -1105,7 +1105,7 @@ body.performance .convite-instalar { display: none; }
   .tile .cover { transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s; }
   .tile:hover .cover { transform: translateY(-4px) scale(1.03); box-shadow: 0 18px 36px rgb(0 0 0 / 0.55); }
   .cover img { transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
-  .tile:hover .cover img, .track:hover .cover img, .quick a:hover .cover img, .ref-card:hover .cover img { transform: scale(1.08); }
+  .tile:hover .cover img, .track:hover .cover img, .quick a:hover .cover img, .ref-card:hover .cover img { transform: scale(1.12); }
   .quick a { transition: background 0.2s, transform 0.2s; }
   .quick a:hover { transform: translateY(-2px); }
   .track .cover { transition: transform 0.25s; }
@@ -5850,3 +5850,12 @@ html.app-android, html.app-android body, html.app-android .shell { background: v
   html:not(.tablet) .nav a { font-size: 11.5px; gap: 5px; }
   html:not(.tablet) .nav a svg { width: 26px; height: 26px; }
 }
+
+/* ============ capas com uma borda fina clara na própria imagem (muitas do Deezer, do iTunes e do Cifra Club): com o
+   canto arredondado, a borda aparecia como pontas brancas cortadas. A capa fica um pouco maior que a moldura (5%) e a
+   borda sai para fora: nas listas (.cover img, acima), na capinha do Tocando agora, na capa da barrinha e na capa grande.
+   O ::before repete o fundo da própria moldura (a capa), maior, por baixo do que está dentro dela */
+html.pp #player .pl-capinha { position: relative; overflow: hidden; }
+html.pp #player .pl-capinha, #player.modo-capa .pl-video, #player.capa-na-barra .pl-video { isolation: isolate; } /* (a .pl-video já tem position e overflow) */
+html.pp #player .pl-capinha::before, #player.modo-capa .pl-video::before, #player.capa-na-barra .pl-video::before {
+  content: ""; position: absolute; inset: -3%; z-index: -1; background: inherit; border-radius: 0; box-shadow: none; animation: none; pointer-events: none; }
