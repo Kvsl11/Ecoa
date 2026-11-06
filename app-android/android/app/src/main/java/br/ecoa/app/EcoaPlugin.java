@@ -43,6 +43,7 @@ import java.util.concurrent.Executors;
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
 //  - saidaDeSom() → { fone, tipo, saidas: [{ nome, tipo }], aparelho, modelo, fabricante }: por onde o som sai (o fone
 //    ou a caixa com o nome dele) e o nome deste celular; evento "saida" (o mesmo) ao conectar ou desconectar um fone
+//  - abrirBluetooth(): abre as configurações de Bluetooth do Android
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class EcoaPlugin extends Plugin {
@@ -87,6 +88,19 @@ public class EcoaPlugin extends Plugin {
                 if (am != null) am.unregisterAudioDeviceCallback(ouvinteDeSaida);
             } catch (Exception e) { /* já saiu */ }
             ouvinteDeSaida = null;
+        }
+    }
+
+    // abre as configurações de Bluetooth do Android (o botão "Bluetooth" da folha Conectar, como no Spotify)
+    @PluginMethod
+    public void abrirBluetooth(PluginCall call) {
+        try {
+            android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+            if (getActivity() != null) getActivity().startActivity(i);
+            else { i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i); }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
         }
     }
 

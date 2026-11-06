@@ -4,6 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 569, data: '2026-11-06', titulo: 'O Conectar igual ao do Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'A folha Conectar ficou como a do Spotify: em cima, o fone que está tocando, com a qualidade, "Este celular" e a música; embaixo, este celular, com o nome dele (no app de Android), e no pé os botões Transmitir na TV e Bluetooth, pequenos.' },
+      { tipo: 'melhoria', texto: 'No app de Android, saiu o "Mudar o nome deste fone": o app já usa o nome que o Android dá a ele (o mesmo das configurações do Bluetooth). E o botão Bluetooth abre direto as configurações de Bluetooth do celular (precisa da atualização do app).' },
+      { tipo: 'melhoria', texto: 'O fone que está tocando aparece um pouco maior embaixo do nome da música, na barrinha de cima do Tocando agora e na de baixo.' },
+    ],
+  },
+  {
     versao: 568, data: '2026-11-06', titulo: 'O APK diz em qual fone está tocando, e todas as janelas sobem do rodapé',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, quando um fone era conectado (Bluetooth, com fio ou USB), o app não percebia e não mostrava o nome dele. Agora é o próprio Android que informa por onde o som sai e o nome do fone ou da caixa (o mesmo das configurações do Bluetooth, como "JBL Tour Pro 3"), sem pedir o microfone. O app também avisa assim que o fone conecta ou desconecta (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
@@ -72,12 +80,6 @@ export const NOVIDADES = [
     versao: 560, data: '2026-11-06', titulo: 'A letra e a cifra do artista certo',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo de uma música no canal do próprio artista (como "Odres Novos", no canal do Ministério Gerados pela Imaculada) podia vir com a letra e a cifra de outra música de mesmo nome, de outro artista. Agora só vale a do artista do canal; sem achar, a música fica sem a letra, em vez de vir com a de outra. O mesmo vale para o conserto das músicas salvas sem a letra, que também mantém o vídeo que estava tocando.' },
-    ],
-  },
-  {
-    versao: 559, data: '2026-11-06', titulo: 'As Estatísticas são da sua conta Google',
-    itens: [
-      { tipo: 'melhoria', texto: 'As Estatísticas e os Recentes passam a ser da sua conta Google, e não de cada aparelho: o que você ouve no celular, no tablet e no computador entra junto, somado. Cada aparelho manda o que ouviu para a sua conta (com o que já tinha guardado), e nenhum apaga o do outro. Na sessão privada, continua sem contar nada.' },
     ],
   },
 ];
