@@ -20578,17 +20578,26 @@ function viewOffline() {
     for (const s of db.songs().filter((x) => x.audioProprio)) meus += (await lerAudio(s.id).catch(() => null))?.size || 0;
     // estimate() mede o uso real desta origem (IndexedDB, CacheStorage e localStorage) informado pelo navegador.
     // Se a API não existir, mostramos ao menos o tamanho dos arquivos locais que conseguimos medir.
+    // No app de Android, o próprio Android diz o espaço do celular (o total, o livre e a pasta inteira do Ecoa)
+    const cel = ecoaNativo?.armazenamento ? await ecoaNativo.armazenamento().catch(() => null) : null;
+    const temCelular = cel && cel.total > 0;
     const temMedidaReal = Number.isFinite(est.usage);
-    const usado = temMedidaReal ? est.usage : dl + meus;
+    const usado = temCelular ? Math.max(cel.app, dl + meus) : temMedidaReal ? est.usage : dl + meus;
     const cache = Math.max(0, usado - dl - meus);
-    const total = usado || 1;
+    const outros = temCelular ? Math.max(0, cel.total - cel.livre - usado) : 0;
+    const livre = temCelular ? cel.livre : 0;
+    const total = temCelular ? cel.total : usado || 1;
     const barra = $('#of-barra');
     if (!barra) return;
-    [['.of-dl', dl], ['.of-meus', meus], ['.of-cache', cache]].forEach(([c, n]) => { barra.querySelector(c).style.width = `${Math.max(n ? 0.6 : 0, (n / total) * 100)}%`; });
-    $('#of-legenda').innerHTML = [['of-dl', 'Downloads', dl], ['of-meus', 'Áudios seus', meus], ['of-cache', 'Outros dados e cache do app', cache]]
-      .map(([c, n, v]) => `<li><i class="${c}"></i><span>${n}</span><b>${fmtBytes(v)}</b></li>`).join('')
+    if (temCelular && !barra.querySelector('.of-outros')) barra.insertAdjacentHTML('beforeend', '<i class="of-outros"></i>');
+    [['.of-dl', dl], ['.of-meus', meus], ['.of-cache', cache], ['.of-outros', outros]].forEach(([c, n]) => { const el = barra.querySelector(c); if (el) el.style.width = `${Math.max(n ? 0.6 : 0, (n / total) * 100)}%`; });
+    const itens = [['of-dl', 'Downloads', dl], ['of-meus', 'Áudios seus', meus], ['of-cache', 'Outros dados e cache do app', cache]];
+    if (temCelular) itens.push(['of-outros', 'Outros apps e o sistema', outros], ['of-livre', 'Livre', livre]);
+    $('#of-legenda').innerHTML = itens.map(([c, n, v]) => `<li><i class="${c}"></i><span>${n}</span><b>${fmtBytes(v)}</b></li>`).join('')
       + `<li class="of-total"><span>Total ocupado pelo Ecoa</span><b>${fmtBytes(usado)}</b></li>`
-      + `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Ecoa. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA.</span></li>`;
+      + (temCelular
+        ? `<li class="of-total"><span>Espaço do celular</span><b>${fmtBytes(cel.livre)} livres de ${fmtBytes(cel.total)}</b></li>`
+        : `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Ecoa. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA: no app de Android ele aparece aqui.</span></li>`);
   };
   desenhar();
   // a cada avanço de um download só os números mudam (antes a tela inteira era desenhada de novo a cada 1%, com o

@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.CancellationSignal;
+import android.os.Environment;
+import android.os.StatFs;
 
 import androidx.credentials.Credential;
 import androidx.credentials.CredentialManager;
@@ -29,11 +31,13 @@ import com.getcapacitor.annotation.PermissionCallback;
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
+import java.io.File;
 import java.util.concurrent.Executors;
 
 // O que o site faz no Android pelo "window.Capacitor.Plugins.Ecoa":
 //  - musica({ titulo, artista, capa, tocando }): a música do player, para o widget e o aviso de "tocando"
 //  - entrarComGoogle(): o login do Google pelo próprio Android (o do site não abre dentro de um app) → { idToken }
+//  - armazenamento(): o espaço do celular → { total, livre, app } em bytes (app: tudo o que o Ecoa guarda, downloads inclusos)
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -64,6 +68,41 @@ public class EcoaPlugin extends Plugin {
         // (guardada até o site ouvir: com o app abrindo, o ouvinte ainda não existe)
         p.notifyListeners("acao", dados, true);
         return true;
+    }
+
+    @PluginMethod
+    public void armazenamento(PluginCall call) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
+                JSObject r = new JSObject();
+                r.put("total", fs.getTotalBytes());
+                r.put("livre", fs.getAvailableBytes());
+                // a pasta do app inteira: o WebView (os downloads no IndexedDB, o cache), os arquivos e as preferências
+                Context ctx = getContext();
+                long app = tamanho(ctx.getDataDir());
+                File ext = ctx.getExternalCacheDir();
+                if (ext != null) app += tamanho(ext.getParentFile());
+                r.put("app", app);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
+    }
+
+    private static long tamanho(File f) {
+        if (f == null || !f.exists()) return 0;
+        if (f.isFile()) return f.length();
+        long t = 0;
+        File[] filhos = f.listFiles();
+        if (filhos != null) for (File c : filhos) {
+            try {
+                if (!c.getCanonicalPath().startsWith(f.getCanonicalPath())) continue; // não segue os atalhos para fora
+            } catch (Exception e) { continue; }
+            t += tamanho(c);
+        }
+        return t;
     }
 
     @PluginMethod
