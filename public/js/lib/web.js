@@ -18,8 +18,18 @@ const UA = NO_NAVEGADOR ? {} : { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) 
 export const CIFRACLUB = 'https://www.cifraclub.com.br';
 const CAPAS = 'https://akamai.sscdn.co/letras/250x250/fotos/';
 
+// No app de Android (o APK), a parte nativa busca qualquer página direto, sem a trava de CORS do navegador: as páginas
+// (o Cifra Club, o YouTube, a Wikipédia, a NetEase…) são lidas direto, e os serviços públicos que abrem a página por
+// nós ficam só de reserva (eles falham e limitam muito, e as informações do artista e da música vinham faltando).
+// fn(url, { headers, timeout }) → Response. No navegador, nada disso existe
+let buscaNativa = null;
+export function usarBuscaNativa(fn) { buscaNativa = typeof fn === 'function' ? fn : null; }
+// (dá para ler a página direto: fora do navegador, ou no APK)
+const direto = () => !NO_NAVEGADOR || Boolean(buscaNativa);
+
 // fetch com tempo limite (proxies públicos às vezes ficam pendurados)
 async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } = {}) {
+  if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) return buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
   try {
@@ -189,7 +199,7 @@ const cabecalhosDoProxy = (modelo) => (/r\.jina\.ai/.test(modelo) ? { 'X-Return-
 
 // Lê uma página que não libera CORS: direto (no Node) e pelos proxies, na ordem; ler(html) interpreta
 async function lerPagina(url, ler, { proxies = [], fetchImpl, nome = 'o site' } = {}) {
-  const tentativas = [...(NO_NAVEGADOR ? [] : [[url, {}]]), ...proxies.filter(Boolean).map((p) => [viaProxy(p, url), cabecalhosDoProxy(p)])];
+  const tentativas = [...(direto() ? [[url, {}]] : []), ...proxies.filter(Boolean).map((p) => [viaProxy(p, url), cabecalhosDoProxy(p)])];
   let erro = new Error(`Sem acesso a ${nome}`);
   for (const [alvo, headers] of tentativas) {
     try {
@@ -590,7 +600,7 @@ let lrclibForaAte = 0;
 const NETEASE = 'https://music.163.com/api';
 const PROXIES_JSON = ['https://api.allorigins.win/raw?url={url}', 'https://api.codetabs.com/v1/proxy/?quest={url}', 'https://r.jina.ai/{raw}'];
 async function jsonSemCors(url, { fetchImpl, proxies = PROXIES_JSON } = {}) {
-  const tentativas = [...(NO_NAVEGADOR ? [] : [[url, {}]]), ...proxies.map((p) => [viaProxy(p, url), /r\.jina\.ai/.test(p) ? { 'X-Return-Format': 'text' } : {}])];
+  const tentativas = [...(direto() ? [[url, {}]] : []), ...proxies.map((p) => [viaProxy(p, url), /r\.jina\.ai/.test(p) ? { 'X-Return-Format': 'text' } : {}])];
   // (todos ao mesmo tempo, vale o primeiro que responder: um de cada vez, um fora do ar fazia esperar 15 s)
   return Promise.any(tentativas.map(async ([alvo, headers]) => {
     const res = await buscar(alvo, { fetchImpl, timeout: 10000, headers });

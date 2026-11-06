@@ -8,6 +8,8 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o aviso de "tocando" (e o widget) às vezes mostrava a capa da música anterior, principalmente sem internet. Agora a capa de antes sai na hora, e as capas das músicas baixadas ficam guardadas no celular para aparecerem certas offline. Vem com a atualização do app.' },
       { tipo: 'novo', texto: 'Como no Spotify: sem internet, aparece "Você está offline" embaixo do menu; quando a conexão volta, "Conectado novamente"; e, com a rede fraca, "Conexão lenta".' },
+      { tipo: 'melhoria', texto: 'No app de Android, as informações da música e do artista (a foto e o canal do artista, as cifras, as letras) são buscadas direto pelo próprio celular, sem os serviços intermediários que falhavam: o "Sobre o artista" e os créditos vêm mais completos. Vem com a atualização do app.' },
+      { tipo: 'correcao', texto: 'No app de Android, o "Consertar agora" do diagnóstico ficava minutos girando, esperando um servidor que o app não usa mais. Agora ele termina logo e também conserta o que é do celular: atualiza o baixador quando falta baixar alguma parte e refaz o karaokê que sumiu do aparelho. O diagnóstico ganhou a parte "App de Android", que mostra se o baixador, a busca direta, o Lúmen e o karaokê do celular estão funcionando.' },
       { tipo: 'melhoria', texto: 'Na barrinha da música, arrastar o nome para o lado troca de música como no Spotify: o nome acompanha o dedo e a próxima entra pelo outro lado. Uma passada rápida, mesmo curta, já troca.' },
     ],
   },

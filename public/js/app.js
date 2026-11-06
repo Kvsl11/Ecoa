@@ -40,7 +40,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -2388,7 +2388,8 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     await noMaximo(sincronizarMusica(s), 45000, 'demorou');
     // (sem a letra na internet: o servidor da IA sincroniza pela voz do vídeo; leva um ou dois minutos)
     const s1 = db.song(id);
-    if (s1 && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
+    // (só com um servidor conectado: no APK ele não é procurado, e antes o botão ficava até 5 minutos girando à toa)
+    if (s1 && servidorIA().url && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
       passo('Sincronizando a letra pelo áudio…');
       await noMaximo(sincronizarPeloServidor(s1), 300000, false);
     }
@@ -2415,6 +2416,24 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     const audio = versoesDe(d)?.audio || '';
     if (audio !== antes.audio) mudou.push(audio ? 'O áudio oficial (o modo música) foi achado' : 'O áudio oficial errado saiu');
     if (Object.keys(d.baixado?.arquivos || {}).join() !== antes.arquivos || (d.rebaixar && !antes.rebaixar)) mudou.push('O download foi conferido e o que faltava voltou para baixar');
+  }
+  // ---- o que é do app de Android (o APK): o baixador do celular e o karaokê feito nele
+  const nativo = baixadorDoAparelho();
+  if (nativo && d) {
+    // o baixador (o yt-dlp do celular): preparado e, com download faltando, atualizado na hora (o YouTube muda sempre e
+    // o yt-dlp velho para de baixar); sem problema, só a atualização do dia
+    const faltaBaixar = Boolean(d.baixado || d.rebaixar) && precisaBaixar(d);
+    passo(faltaBaixar ? 'Atualizando o baixador do celular…' : 'Conferindo o baixador do celular…');
+    const b = await noMaximo(nativo.baixadorLocal({ atualizar: true, forcar: faltaBaixar }), 90000, null).catch(() => null);
+    if (b?.atualizacao === 'atualizado') mudou.push(`O baixador do celular (yt-dlp) foi atualizado${b.versao ? ` para a versão ${b.versao}` : ''}`);
+    else if (b && !b.pronto) mudou.push(`O baixador do celular não ficou pronto (${b.erro || 'erro desconhecido'}): reinstale o app se continuar`);
+    // o karaokê que sumiu do aparelho: sai da música e é feito de novo no celular
+    const fk = fonteDoKaraoke(d);
+    if (fk && karaokeDe(fk) && !chaves.has(chaveKaraoke(fk))) {
+      esquecerKaraoke(fk);
+      mudou.push('O karaokê tinha sumido do aparelho: ele vai ser feito de novo');
+      if (karaokeNoAparelho()) void prepararKaraoke(db.song(id)).catch(() => {});
+    }
   }
   return mudou;
 }
@@ -6087,6 +6106,21 @@ const semLinhasDeAcordes = (sinc) => {
       const deOnde = /dzcdn\.net/.test(fs) ? 'Deezer' : /(ggpht|googleusercontent)\.com/.test(fs) ? 'YouTube' : /wikimedia\.org/.test(fs) ? 'Wikipédia' : /sscdn\.co|cifraclub/.test(fs) ? 'Cifra Club' : fs ? 'outro site' : 'nenhuma';
       item('Foto da música', deOnde);
     }
+    // o que o app de Android faz no próprio celular (sem servidor)
+    if (noApk()) {
+      secao('App de Android');
+      const nat = baixadorDoAparelho();
+      if (nat) {
+        const b = await noMaximo(nat.baixadorLocal({}), 20000, null).catch(() => null);
+        item('Baixador do celular', b ? (b.pronto ? `pronto · yt-dlp ${b.versao || '?'}` : `não ficou pronto: ${b.erro || '?'}`) : 'não respondeu', b?.pronto ? 'ok' : 'erro', b?.pronto ? '' : 'o baixador do celular não está pronto (os downloads não funcionam)');
+      } else item('Baixador do celular', 'este app ainda não tem: atualize o app', 'aviso', 'o app está numa versão antiga, sem os downloads no celular');
+      const busca = Boolean((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina'));
+      item('Busca direta das páginas', busca ? 'ligada (sem os serviços intermediários)' : 'não (versão antiga do app)', busca ? 'ok' : 'aviso');
+      const lumen = await lumenNoAparelho().catch(() => null);
+      item('Lúmen no celular', lumen ? 'com a chave do Gemini' : 'sem a chave do Gemini (responde pela busca simples)', lumen ? 'ok' : 'aviso', lumen ? '' : 'o Lúmen do app está sem a chave do Gemini (configure o segredo GEMINI_API_KEY_APK no GitHub)');
+      const k = karaokeNoAparelho() ? await noMaximo(karaokeNoAparelho().karaokeDisponivel(), 5000, null).catch(() => null) : null;
+      item('Karaokê no celular', k ? `sim · modelo ${k.modelo ? 'baixado' : 'ainda não baixado (baixa na primeira vez, 30 MB)'}` : 'não (versão antiga do app)', k ? 'ok' : 'aviso');
+    }
     secao('Karaokê');
     const fk = song ? fonteDoKaraoke(song) : '';
     const kar = karaokeDe(fk);
@@ -6191,7 +6225,7 @@ const semLinhasDeAcordes = (sinc) => {
         // (o que continua faltando depois do conserto fica dito, com o porquê: o conserto não tem como achar o que não
         // existe, como a letra sincronizada que o LRCLIB não tem)
         const resta = d ? [...d.problemas, ...d.avisos] : [];
-        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (nem o LRCLIB nem a NetEase têm esta música, e o servidor da IA não conseguiu sincronizar pelo áudio: confira se ele está ligado)` : r);
+        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (nem o LRCLIB nem a NetEase têm esta música${servidorIA().url ? ', e o servidor da IA não conseguiu sincronizar pelo áudio' : ''})` : r);
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
         recado(`<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}${resta.length ? `<p class="muted diag-resta">Continua faltando (o app não tem como consertar):</p><ul>${resta.map((r) => `<li>${esc(porque(r))}</li>`).join('')}</ul>` : ''}`);
       };
@@ -20871,6 +20905,16 @@ const ecoaNativo = (() => {
 })();
 if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
+  // (as páginas da internet lidas pela parte nativa, direto: sem a trava de CORS e sem depender dos serviços públicos
+  // que abrem a página por nós — as informações do artista e da música vinham faltando no app)
+  if ((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina')) {
+    usarBuscaNativa(async (url, { headers = {}, timeout = 12000 } = {}) => {
+      const r = await ecoaNativo.buscarPagina({ url, cabecalhos: headers, tempo: timeout });
+      if (!r?.status) throw new TypeError(r?.texto || 'Failed to fetch');
+      const status = r.status >= 200 && r.status <= 599 ? r.status : 502;
+      return new Response([101, 204, 205, 304].includes(status) ? null : (r.texto ?? ''), { status, headers: r.tipo ? { 'content-type': r.tipo } : {} });
+    });
+  }
   let ultimo = '';
   let ultimoTempo = 0;
   let ultimoEm = 0;
