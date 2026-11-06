@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 567, data: '2026-11-06', titulo: 'O topo do app de Android no lugar',
+    itens: [
+      { tipo: 'correcao', texto: 'No app de Android, agora de ponta a ponta, a foto do perfil e os botões do topo ficavam por cima dos filtros, dos títulos e dos Ajustes: o topo descia a altura da barra de status, e o começo das páginas não. Agora as páginas também descem, e o fundo de cada uma vai até atrás do relógio e da bateria.' },
+      { tipo: 'melhoria', texto: 'No app de Android, os ícones do relógio e da bateria ficam escuros no tema claro e claros no escuro (precisa da atualização do app).' },
+    ],
+  },
+  {
     versao: 566, data: '2026-11-06', titulo: 'O APK mostra a própria versão e aproveita a tela inteira',
     itens: [
       { tipo: 'melhoria', texto: 'No menu do perfil do APK, a versão agora é a do aplicativo Android instalado (APK), e não a versão do site. No navegador, a versão do site continua aparecendo normalmente.' },
@@ -70,13 +77,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O vídeo com o título no jeito "Odres Novos // Luau da Imaculada II" (comum nos vídeos de música católica) abria como uma música com esse nome inteiro, e a busca não achava a letra nem a cifra. Agora o nome da música é o da esquerda e o artista é o canal. As músicas que já tinham sido salvas assim, sem a letra e a cifra, arrumam o nome e procuram de novo sozinhas (o "Consertar agora" do Diagnóstico também).' },
     ],
   },
-  {
-    versao: 557, data: '2026-11-06', titulo: 'A música baixada continua com o app minimizado',
-    itens: [
-      { tipo: 'correcao', texto: 'A música baixada parava ao minimizar o app ou apagar a tela quando tocava o clipe baixado (no modo vídeo, ou no modo música de uma música sem o áudio oficial): o celular pausa os vídeos em segundo plano. Agora, ao minimizar, o mesmo arquivo passa a tocar só como som, do mesmo ponto, e volta a ser vídeo quando o app abre de novo. A próxima música da fila, baixada, também continua.' },
-    ],
-  },
-
 ];
 
 // A primeira versão de cada mês. O número mostrado ("2026.10.31-383") é a data da versão e quantas versões o mês já

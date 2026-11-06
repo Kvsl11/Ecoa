@@ -876,6 +876,8 @@ function applyTheme() {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = tema === 'light' ? '#ffffff' : '#121212';
+  // no app de Android (de ponta a ponta), os ícones do relógio e da bateria escuros no tema claro e claros no escuro
+  try { void window.Capacitor?.Plugins?.Ecoa?.barras?.({ escuros: tema === 'light' })?.catch?.(() => {}); } catch { /* app antigo */ }
 }
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { if (db.prefs().theme === 'auto') applyTheme(); });
 
