@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 581, data: '2026-11-06', titulo: 'Os dados do artista na hora e a notificação de download que não some',
+    itens: [
+      { tipo: 'melhoria', texto: 'A foto do artista, os fãs, a apresentação ("Sobre o artista") e as fotos dos créditos aparecem na hora ao abrir a música: o app mostra o que já tem guardado e atualiza pela internet em segundo plano, sem aviso (antes esperava a internet toda vez e demorava muito). As músicas baixadas guardam também as fotos dos créditos, e os dados delas são atualizados sozinhos uma vez por dia.' },
+      { tipo: 'melhoria', texto: 'No app de Android, a notificação do download fica presa enquanto há música baixando ou esperando na fila (não sai mais sem querer ao arrastar), com a barra do andamento; o download continua mesmo com o app minimizado. Quando a fila acaba, ela vira uma notificação comum. Vem com a atualização do app.' },
+      { tipo: 'correcao', texto: 'No app de Android, o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" não aparecia: a página do app nem sempre fica sabendo quando a internet cai. Agora quem avisa é o próprio Android, que também mede a velocidade da rede para o "Conexão lenta". Vem com a atualização do app.' },
+      { tipo: 'correcao', texto: 'No app de Android, voltar ao app depois de minimizado às vezes deixava a tela cinza, sem sair dela: o Android tinha fechado a parte que desenha a página, para liberar memória. Agora o app refaz a tela sozinho quando isso acontece (ou quando a página não responde), e essa parte fica com prioridade, para o Android só fechá-la em último caso. Vem com a atualização do app.' },
+      { tipo: 'correcao', texto: 'No app de Android, ao atualizar o app (em Ajustes → Sobre ou no aviso de versão nova), a porcentagem do download pulava e voltava (10, 20 e pouco, 5…): cada toque em Atualizar começava outro download, e os dois se misturavam. Agora é um download só, que os dois lugares acompanham, e a barra só anda para a frente. Vem com a atualização do app.' },
+    ],
+  },
+  {
     versao: 580, data: '2026-11-06', titulo: 'O karaokê do celular com muito mais qualidade',
     itens: [
       { tipo: 'melhoria', texto: 'No app de Android, o karaokê feito no celular passou para um modelo bem melhor: a voz não fica mais chiando no fundo e os instrumentos não somem junto com ela. Leva mais tempo (cerca do dobro, conforme o celular) e, na primeira vez, o app baixa o modelo novo (59 MB). Os karaokês já feitos no celular são refeitos sozinhos, um por vez. Dica: com "Baixar também o karaokê" ligado (Ajustes → Downloads), ele fica pronto junto com o download, antes de você precisar.' },
@@ -66,14 +76,6 @@ export const NOVIDADES = [
     versao: 572, data: '2026-11-06', titulo: 'A versão certa no app de Android',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, Ajustes → Sobre mostrava a versão do site no cartão do Ecoa. Agora mostra a versão do app instalado. E a versão saiu da gaveta do perfil (ela fica em Ajustes → Sobre).' },
-    ],
-  },
-  {
-    versao: 571, data: '2026-11-06', titulo: 'Copiar a letra e a cifra',
-    itens: [
-      { tipo: 'novo', texto: 'Nos ⋯ da letra (no Tocando agora) e nos ⋮ da música: Copiar a letra (só a letra, com o nome da música e o artista em cima) e Copiar a letra com cifra (os acordes em cima da sílaba, no tom e no capotraste que estão na tela, com o nome das partes). É só colar no WhatsApp, num documento ou onde quiser. No navegador e no app de Android.' },
-      { tipo: 'correcao', texto: 'Algumas capas (de álbuns que vêm com uma borda fina clara) apareciam com as pontas brancas cortadas nos cantos arredondados: nas listas, na gaveta do perfil, na barrinha, no Tocando agora, no aviso do Android e na tela de bloqueio. Agora a borda fica de fora (no aviso e na tela de bloqueio, com a atualização do app).' },
-      { tipo: 'melhoria', texto: 'O menu de baixo do celular e o degradê atrás da barrinha ficaram um pouco mais escuros (ainda deixando ver de leve o que está por trás).' },
     ],
   },
 ];

@@ -34,6 +34,8 @@
         <receiver android:name=".AcoesReceiver" android:exported="false" />
         <!-- o aviso de "tocando": mantém o app vivo em segundo plano enquanto a música toca -->
         <service android:name=".TocandoService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
+        <!-- o download em andamento: a notificação presa e o download que continua com o app minimizado -->
+        <service android:name=".BaixandoService" android:exported="false" android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -49,8 +51,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- o microfone (o Lumen ao vivo, o ditado, o karaokê): o Android pergunta na primeira vez que o site usa -->

@@ -32,6 +32,12 @@ final class Avisos {
     }
 
     static void mostrar(Context ctx, String titulo, String texto, String tag, String href, boolean silenciosa, String imagem) {
+        mostrar(ctx, titulo, texto, tag, href, silenciosa, imagem, false, -1);
+    }
+
+    // fixa: a notificação do download em andamento (não sai ao arrastar: fica no BaixandoService); pct: a barra (0–100),
+    // ou -1 sem barra
+    static void mostrar(Context ctx, String titulo, String texto, String tag, String href, boolean silenciosa, String imagem, boolean fixa, int pct) {
         Context app = ctx.getApplicationContext();
         fila.execute(() -> {
             try {
@@ -50,13 +56,21 @@ final class Avisos {
                         .setBigContentTitle(titulo == null || titulo.isEmpty() ? "Ecoa" : titulo)
                         .bigText(texto == null || texto.isEmpty() ? "Acompanhe o andamento do download no Ecoa." : texto))
                     .setContentIntent(toque)
-                    .setAutoCancel(true)
+                    .setAutoCancel(!fixa)
+                    .setOngoing(fixa)
                     .setOnlyAlertOnce(silenciosa)
                     .setSilent(silenciosa)
                     .setPriority(NotificationCompat.PRIORITY_LOW);
-                Bitmap capa = baixar(imagem);
+                if (pct >= 0 && pct <= 100) b.setProgress(100, pct, false);
+                else if (fixa) b.setProgress(0, 0, true);
+                Bitmap capa = capaGuardada(imagem);
                 if (capa != null) b.setLargeIcon(capa);
-                if (ligados(app)) NotificationManagerCompat.from(app).notify(tag == null ? null : tag, id, b.build());
+                if (!ligados(app)) return;
+                // (presa: a notificação é a do serviço; solta: o serviço sai e a notificação comum toma o lugar, com o
+                // mesmo número, e dá para apagar)
+                if (fixa && BaixandoService.mostrar(app, id, b.build())) return;
+                if (!fixa) BaixandoService.parar(false);
+                NotificationManagerCompat.from(app).notify(id, b.build());
             } catch (SecurityException ignorada) {
                 // (o aviso foi bloqueado no Android)
             }
@@ -70,6 +84,24 @@ final class Avisos {
         NotificationChannel c = new NotificationChannel(CANAL, "Downloads", NotificationManager.IMPORTANCE_LOW);
         c.setDescription("O andamento e o fim dos downloads das músicas");
         nm.createNotificationChannel(c);
+    }
+
+    // a capa da notificação: baixada uma vez por endereço (a notificação do andamento é refeita a cada 1%, e antes cada
+    // uma baixava a capa de novo)
+    private static String capaUrl;
+    private static Bitmap capaBmp;
+    private static Bitmap capaGuardada(String url) {
+        if (url == null || url.isEmpty()) return null;
+        if (url.equals(capaUrl)) return capaBmp;
+        Bitmap b = baixar(url);
+        capaUrl = url;
+        capaBmp = b;
+        return b;
+    }
+
+    // a notificação presa do download sai (a pessoa pausou tudo): o serviço para e ela some
+    static void soltar() {
+        fila.execute(() -> BaixandoService.parar(false));
     }
 
     private static Bitmap baixar(String url) {
