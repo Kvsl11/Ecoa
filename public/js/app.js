@@ -21187,8 +21187,13 @@ navigator.storage?.persist?.().catch(() => {});
     document.documentElement.classList.toggle('aviso-rede', Boolean(tipo));
     if (tipo) { el.className = tipo; el.textContent = TEXTO_DA_CONEXAO[tipo]; }
   };
+  // (no APK, a conexão vista pelo próprio Android: o WebView nem sempre avisa a página quando a internet cai ou volta,
+  // e o aviso não aparecia no app)
+  let doAndroid = null;
   const conferir = () => {
-    const novo = estadoDaConexao({ online: navigator.onLine, rede: navigator.connection || null });
+    const novo = doAndroid
+      ? (!doAndroid.online ? 'offline' : doAndroid.lenta ? 'lenta' : estadoDaConexao({ online: true, rede: navigator.connection || null }))
+      : estadoDaConexao({ online: navigator.onLine, rede: navigator.connection || null });
     if (novo === estado) return;
     const antes = estado;
     estado = novo;
@@ -21199,6 +21204,12 @@ navigator.storage?.persist?.().catch(() => {});
   window.addEventListener('offline', conferir);
   navigator.connection?.addEventListener?.('change', conferir);
   conferir();
+  const C = window.Capacitor;
+  if (C?.isNativePlatform?.() && (C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'rede')) {
+    const usar = (r) => { if (r && typeof r.online === 'boolean') { doAndroid = r; conferir(); } };
+    void C.Plugins.Ecoa.rede().then(usar).catch(() => {});
+    void C.Plugins.Ecoa.addListener('rede', usar);
+  }
 }
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

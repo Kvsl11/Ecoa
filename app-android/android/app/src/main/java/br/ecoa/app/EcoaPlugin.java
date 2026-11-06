@@ -60,6 +60,7 @@ import java.util.concurrent.Executors;
 //    de CORS do navegador; Paginas.java). status 0: nem chegou ao site
 //  - avisar({ …, fixa, pct }): fixa = a notificação do download em andamento, que não sai ao arrastar (BaixandoService);
 //    pct = a barra; soltarAviso(): ela sai (pausou tudo)
+//  - rede() → { online, kbps, lenta }: a conexão vista pelo Android; evento "rede" (o mesmo) a cada mudança
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -69,6 +70,11 @@ public class EcoaPlugin extends Plugin {
     static final String PREFS = "ecoa_widget";
 
     private static EcoaPlugin ativo;
+    // (o callback da rede, guardado para sair junto com o plugin)
+    private static final class ConnectivityManager_ {
+        final android.net.ConnectivityManager.NetworkCallback cb;
+        ConnectivityManager_(android.net.ConnectivityManager.NetworkCallback cb) { this.cb = cb; }
+    }
     private static String pendente; // a ação que chegou antes de o site ficar pronto
 
     // conectou ou desconectou um fone, uma caixa ou um cabo: avisa o site (evento "saida")
@@ -76,9 +82,24 @@ public class EcoaPlugin extends Plugin {
     private final android.os.Handler principal = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable lerSaida = () -> { if (getBridge() != null) notifyListeners("saida", SaidaDeSom.ler(getContext())); };
 
+    // a conexão vista pelo Android (Rede.java): evento "rede" ({ online, kbps, lenta }) a cada mudança
+    private ConnectivityManager_ ouvinteDeRede;
+    private String ultimaRede = "";
+
+    @PluginMethod
+    public void rede(PluginCall call) {
+        call.resolve(Rede.estado(getContext()));
+    }
+
     @Override
     public void load() {
         ativo = this;
+        ouvinteDeRede = new ConnectivityManager_(Rede.ouvir(getContext(), (estado) -> {
+            String k = estado.toString();
+            if (k.equals(ultimaRede)) return;
+            ultimaRede = k;
+            principal.post(() -> { if (getBridge() != null) notifyListeners("rede", estado); });
+        }));
         // (os downloads que ficaram pela metade da última vez saem; o yt-dlp é preparado em segundo plano, para o
         // primeiro download não esperar o Android extrair o Python)
         Context ctxBaixador = getContext();
@@ -105,6 +126,7 @@ public class EcoaPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         if (ativo == this) ativo = null;
+        if (ouvinteDeRede != null) { Rede.parar(getContext(), ouvinteDeRede.cb); ouvinteDeRede = null; }
         principal.removeCallbacks(lerSaida);
         if (ouvinteDeSaida != null) {
             try {
