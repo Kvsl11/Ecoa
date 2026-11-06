@@ -5812,10 +5812,12 @@ const semLinhasDeAcordes = (sinc) => {
     const cabeca = `<div class="diag-cab"><h3>Diagnóstico da música</h3><small>${esc(atual?.titulo || '')}${atual?.artista ? ` · ${esc(atual.artista)}` : ''}</small></div>`;
     let d = null;
     await openDialog(`${cabeca}
-      <div class="diag-corpo">${esqueleto('texto', 'Conferindo…', 6)}</div>
-      <div class="diag-feito" hidden></div>
-      <div class="acts diag-acts"><button class="btn primary" data-consertar disabled>${icon('refresh', 16)} Consertar agora</button><button class="btn ghost" data-copiar disabled>${icon('copy', 16)} Copiar</button><button class="btn ghost" data-ok>Fechar</button></div>`,
+      <div class="diag-rolar"><div class="diag-corpo">${esqueleto('texto', 'Conferindo…', 6)}</div>
+      <div class="diag-feito" hidden></div></div>
+      <div class="acts diag-acts"><button class="btn primary" data-consertar disabled>${icon('refresh', 16)} Consertar agora</button><button class="btn ghost" data-copiar disabled>${icon('copy', 16)} Copiar</button><button class="btn ghost" data-ok>${icon('x', 16)} Fechar</button></div>`,
     (dlg, done) => {
+      // (o título e os botões ficam parados; só o meio rola, e a última parte aparece inteira acima dos botões)
+      dlg.classList.add('diag-dlg');
       const corpo = $('.diag-corpo', dlg);
       const bConsertar = $('[data-consertar]', dlg);
       const bCopiar = $('[data-copiar]', dlg);
