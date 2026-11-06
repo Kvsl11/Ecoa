@@ -1196,9 +1196,12 @@ export async function canalDoArtista(nome, { fetchImpl, instancias = PIPED } = {
   const q = String(nome || '').trim();
   if (!q) return null;
   const uma = async (base) => {
-    const res = await buscar(`${base}/search?filter=channels&q=${encodeURIComponent(q)}`, { fetchImpl, timeout: 8000 });
+    const res = await buscar(`${base}/search?filter=channels&q=${encodeURIComponent(q)}`, { fetchImpl, timeout: 6500 });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return canalDosResultados(await res.json(), q);
+    const canal = canalDosResultados(await res.json(), q);
+    // Uma instância que responde sem encontrar o canal não pode vencer a disputa e bloquear as outras.
+    if (!canal?.foto) throw new Error('Canal válido não encontrado nesta instância');
+    return canal;
   };
   return Promise.any(instancias.map(uma)).catch(() => null);
 }
