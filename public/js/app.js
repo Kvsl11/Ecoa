@@ -16857,7 +16857,7 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Sobre', `
-    <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
+    <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s" id="sobre-versao">${noApk() ? 'Versão do app' : `Versão ${APP_VERSAO}`}</div></div></div></div>
     <div class="settings-group">
       ${noApk() ? `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Atualização do app</div><div class="s" id="apk-at-s">Verificando…</div></div><button class="btn small" id="apk-at" data-acao="verificar">Verificar</button></div>` : ''}
       ${jaInstalado() ? '' : `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Instalar o app</div><div class="s">Ícone na tela inicial e funciona sem internet</div></div><button class="btn small primary" id="instalar">Instalar</button></div>`}
@@ -17086,6 +17086,8 @@ async function atualizarApk(bt) {
 }
 // a linha "Atualização do app" (Ajustes → Sobre, só no APK)
 async function mostrarAtualizacaoApk() {
+  // (no APK, o cartão do Ecoa em Sobre mostra a versão do app instalado, e não a do site)
+  mostrarVersaoApk($('#sobre-versao'), 'Versão');
   const sub = $('#apk-at-s');
   const bt = $('#apk-at');
   if (!sub || !bt) return;
@@ -17122,10 +17124,9 @@ function abrirGavetaDoPerfil() {
         ${baixarAppAndroid() ? `<a class="pg-item" href="${LINK_APK}" download data-baixar-apk>${icon('download', 22)}<span class="grow">Baixar o app para Android<small class="pg-sub">Com o widget da tela inicial</small></span></a>` : ''}
       </div>
       ${infoDaGaveta(u)}
-      <p class="pg-versao">${noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`}</p>
     </nav>`;
+  // (a versão não aparece na gaveta: ela fica em Ajustes → Sobre)
   document.body.append(g);
-  mostrarVersaoApk($('.pg-versao', g));
   // o play do "Tocou por último" vira pausar enquanto ela toca (o fundo se mexe sempre, tocando ou não)
   const marcarTocando = () => {
     const c = $('.pg-ultima', g);
