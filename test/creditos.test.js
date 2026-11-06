@@ -53,6 +53,10 @@ test('o nome da música e o artista certos nos vídeos do artista (o canal da em
   assert.equal(n('Charlie Puth - Left and Right (feat. Jung Kook of BTS) [Official Video]', 'Charlie Puth').titulo, 'Left and Right (feat. Jung Kook of BTS)');
   assert.equal(n('Dreamers | Jung Kook', 'Jung Kook').titulo, 'Dreamers');
   assert.equal(n('Bruno Mars - Die With A Smile (Official Music Video)', 'Bruno Mars').titulo, 'Die With A Smile');
+  // (o apóstrofo dentro da palavra não é aspa, e o enfeite com "4K" sai inteiro, sem sobrar parêntese)
+  assert.equal(n("Michael Jackson - Don't Stop 'Til You Get Enough (Official Video)", 'Michael Jackson').titulo, "Don't Stop 'Til You Get Enough");
+  assert.equal(n('Michael Jackson - Thriller (Official 4K Video)', 'Michael Jackson').titulo, 'Thriller');
+  assert.equal(n("Michael Jackson - They Don't Care About Us (Brazil Version) (Official Video)", 'Michael Jackson').titulo, "They Don't Care About Us (Brazil Version)");
   // (o que não é música fica de fora)
   assert.equal(n('GRAFF, Jung Kook: I Wear GRAFF', 'Jung Kook').musica, false);
   assert.equal(n('Jung Kook interview on the new album', 'Jung Kook').musica, false);
