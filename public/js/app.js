@@ -5853,7 +5853,8 @@ const semLinhasDeAcordes = (sinc) => {
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
         feito.scrollIntoView({ block: 'nearest' });
       };
-    }, { folha: telaDeCelular() });
+    // (no tablet, em pé e deitado, também sobe do rodapé, como os ⋮, em vez de flutuar no meio da tela)
+    }, { folha: telaDeCelular() || ehTablet() });
   };
   // o "Tocando agora" na tela toda (tablet): o botão do canto de cima troca entre expandir e voltar ao painel
   // No celular e no computador a tela toda é o próprio "Tocando agora": o player muda de jeito (html.pp) só enquanto
@@ -8446,14 +8447,24 @@ function videosDoArtista(nome, fora = []) {
 // os artistas parecidos com o artista (do Deezer): [{ nome, foto, fas }]
 const parecidosBuscados = new Map();
 function parecidosNoDeezer(id) {
-  if (!parecidosBuscados.has(id)) parecidosBuscados.set(id, jsonp(`https://api.deezer.com/artist/${id}/related?limit=20`).then((r) => (r?.data || []).map((a) => ({ nome: a.name, foto: a.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '', fas: a.nb_fan || 0 }))).catch(() => { parecidosBuscados.delete(id); return []; }));
+  // (a lista vazia, o Deezer sem responder, não fica guardada: na próxima vez, procura de novo)
+  if (!parecidosBuscados.has(id)) parecidosBuscados.set(id, jsonp(`https://api.deezer.com/artist/${id}/related?limit=20`).then((r) => (r?.data || []).map((a) => ({ nome: a.name, foto: a.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '', fas: a.nb_fan || 0 }))).catch(() => [])
+    .then((l) => { if (!l.length) parecidosBuscados.delete(id); return l; }));
   return parecidosBuscados.get(id);
 }
 // as músicas parecidas (a "rádio" do artista no Deezer: músicas dele e de artistas parecidos): [{ titulo, artista, capa }]
 const parecidasBuscadas = new Map();
 function musicasParecidasNoDeezer(id) {
-  if (!parecidasBuscadas.has(id)) parecidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/radio?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => { parecidasBuscadas.delete(id); return []; }));
+  if (!parecidasBuscadas.has(id)) parecidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/radio?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => [])
+    .then((l) => { if (!l.length) parecidasBuscadas.delete(id); return l; }));
   return parecidasBuscadas.get(id);
+}
+// as mais ouvidas do artista no Deezer: [{ titulo, artista, capa }]
+const maisOuvidasBuscadas = new Map();
+function maisOuvidasNoDeezer(id) {
+  if (!maisOuvidasBuscadas.has(id)) maisOuvidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/top?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => [])
+    .then((l) => { if (!l.length) maisOuvidasBuscadas.delete(id); return l; }));
+  return maisOuvidasBuscadas.get(id);
 }
 // as versões da música por outros artistas (os "Covers"): a mesma música (o mesmo título) no Deezer, de outro artista,
 // as mais ouvidas primeiro; até 8
@@ -8473,8 +8484,14 @@ const abrirMusicaPeloNome = (m) => abrirMusica({ titulo: m.titulo, artista: m.ar
 async function abrirParecidos(nome, titulo = '') {
   toast('Procurando artistas parecidos…');
   const a = await artistaDoDeezer(nome, { titulo }).catch(() => null);
-  const l = a?.id ? await parecidosNoDeezer(a.id) : [];
-  if (!l.length) { toast(navigator.onLine ? 'Não achei artistas parecidos' : 'Sem internet'); return; }
+  let l = a?.id ? await parecidosNoDeezer(a.id) : [];
+  // (sem a lista do Deezer: os artistas da rádio dele, que toca as músicas dele e as de artistas parecidos)
+  if (!l.length && a?.id) {
+    const vistos = new Set([nomeJunto(nome)]);
+    l = (await musicasParecidasNoDeezer(a.id)).map((m) => m.artista).filter((n) => n && !vistos.has(nomeJunto(n)) && vistos.add(nomeJunto(n))).map((n) => ({ nome: n, foto: '', fas: 0 }));
+  }
+  // (e, sem nada mesmo, o cartão não fica sem resposta: abre as músicas do artista)
+  if (!l.length) { if (!navigator.onLine) { toast('Sem internet'); return; } toast(`Não achei artistas parecidos agora: abrindo as músicas de ${nome}`); irParaArtista(nome); return; }
   const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidos com ${esc(nome)}</h3>`, opcoes: l.map((x, i) => ({ valor: i, rotulo: x.nome, sub: x.fas ? `${x.fas.toLocaleString('pt-BR')} fãs no Deezer` : 'Artista',
     capa: `<span class="lista-capa redonda"${x.foto ? ` style="background-image:url('${esc(x.foto)}')"` : ''}>${x.foto ? '' : semFotoArtista(18)}</span>` })) });
   if (v !== undefined && l[v]) irParaArtista(l[v].nome);
@@ -8484,8 +8501,11 @@ async function abrirMusicasParecidas(nome, titulo = '') {
   toast('Procurando músicas parecidas…');
   const a = await artistaDoDeezer(nome, { titulo }).catch(() => null);
   const t = normalizar(tituloLimpo(titulo));
-  const l = (a?.id ? await musicasParecidasNoDeezer(a.id) : []).filter((m) => normalizar(tituloLimpo(m.titulo)) !== t);
-  if (!l.length) { toast(navigator.onLine ? 'Não achei músicas parecidas' : 'Sem internet'); return; }
+  const outra = (m) => normalizar(tituloLimpo(m.titulo)) !== t;
+  let l = (a?.id ? await musicasParecidasNoDeezer(a.id) : []).filter(outra);
+  // (sem a rádio do Deezer: as mais ouvidas do artista)
+  if (!l.length && a?.id) l = (await maisOuvidasNoDeezer(a.id)).filter(outra);
+  if (!l.length) { if (!navigator.onLine) { toast('Sem internet'); return; } toast(`Não achei músicas parecidas agora: abrindo as músicas de ${nome}`); irParaArtista(nome); return; }
   const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidas com ${esc(titulo || nome)}</h3>`, opcoes: l.map((m, i) => ({ valor: i, rotulo: m.titulo, sub: m.artista,
     capa: `<span class="lista-capa"${m.capa ? ` style="background-image:url('${esc(m.capa)}')"` : ''}>${m.capa ? '' : icon('music', 18)}</span>` })) });
   if (v !== undefined && l[v]) void abrirMusicaPeloNome(l[v]);
@@ -8783,7 +8803,19 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
 }
 // o Deezer não libera a leitura direta (CORS), mas responde em JSONP: um <script> com a resposta
 let jsonpN = 0;
-function jsonp(url, tempo = 8000) {
+// (o Deezer responde { error } em vez dos dados quando recebe pedidos demais de uma vez, o que acontece ao abrir o
+// Tocando agora: o pedido é refeito um pouco depois, até 3 vezes; outro erro, ou o limite que não passa, vira null,
+// e não uma lista vazia, para não ficar guardado como se não houvesse nada)
+async function jsonp(url, tempo = 8000) {
+  const doDeezer = /^https:\/\/api\.deezer\.com\//.test(url);
+  for (let vez = 0; ; vez++) {
+    const r = await jsonpUmaVez(url, tempo);
+    if (!doDeezer || !r?.error) return r;
+    if (r.error.code !== 4 || vez >= 3) return null;
+    await new Promise((ok) => setTimeout(ok, 1200 * (vez + 1)));
+  }
+}
+function jsonpUmaVez(url, tempo) {
   return new Promise((ok) => {
     const cb = `__jsonp${++jsonpN}`;
     const tag = document.createElement('script');
