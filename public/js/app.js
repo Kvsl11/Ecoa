@@ -9264,23 +9264,24 @@ const fotosArtistas = new Map();
 function fotoDoArtista(nome, slug = '', titulo = '') {
   const k = normalizar(nome);
   // Uma única resolução e uma única foto por artista, igual à versão web.
-  // O título serve apenas para confirmar o artista no Deezer quando necessário; não cria uma foto diferente
-  // por música, evitando que o mesmo artista alterne entre imagens conforme cada faixa responde.
+  // O título não cria uma foto por música: todas as faixas compartilham a mesma escolha.
   if (!k) return Promise.resolve('');
   if (!fotosArtistas.has(k)) {
     if (slug) {
-      fotosArtistas.set(k, fotoDoCanalDeVerdade(nome)
-        .then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
-          .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
+      const resolucao = fotoDoCanalDeVerdade(nome)
+        .then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => ''))
+        .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
         .then((f) => f || fotoDeezer(nome, titulo))
-        .then((f) => f || fotoWikipedia(nome)));
+        .then((f) => f || fotoWikipedia(nome));
+      fotosArtistas.set(k, resolucao);
     } else {
       const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-      fotosArtistas.set(k, fotoDoCanalDeVerdade(nome)
+      const resolucao = fotoDoCanalDeVerdade(nome)
         .then((f) => f || cifraClub())
         .then((f) => f || fotoDeezer(nome, titulo))
-        .then((f) => f || fotoWikipedia(nome)));
+        .then((f) => f || fotoWikipedia(nome));
+      fotosArtistas.set(k, resolucao);
     }
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
