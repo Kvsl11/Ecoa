@@ -11,7 +11,13 @@ import android.os.Bundle;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import android.os.Handler;
+import android.os.Looper;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebView;
+
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.WebViewListener;
 
 // A tela do Ecoa: o site (https://kvsl11.github.io/Songbook/) num WebView, com o plugin "Ecoa" para o que só o
 // Android faz: o widget da tela inicial, o aviso de "tocando" com os botões, o login do Google pelo próprio Android
@@ -40,6 +46,69 @@ public class MainActivity extends BridgeActivity {
         // O texto do mesmo tamanho do site no Chrome: o WebView aumenta o texto pelo "Tamanho da fonte" do Android, e no
         // app tudo ficava maior, com textos quebrados, sobrepostos e telas espremidas (o site é feito para o tamanho normal)
         if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
+        protegerDaTelaCinza();
+    }
+
+    // ---- a tela cinza ao voltar ao app
+    // Minimizado, o Android pode matar o processo que desenha a página (para liberar memória). Sem tratar isso, ao voltar
+    // ficava a tela cinza para sempre: agora a tela é refeita sozinha. E o processo da página fica com prioridade alta,
+    // para o Android só matar em último caso
+    private final Handler principal = new Handler(Looper.getMainLooper());
+    private boolean refazendo = false;
+
+    private void protegerDaTelaCinza() {
+        if (getBridge() == null) return;
+        WebView w = getBridge().getWebView();
+        if (w != null && Build.VERSION.SDK_INT >= 26) {
+            try { w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false); } catch (Exception e) { /* segue com a padrão */ }
+        }
+        getBridge().addWebViewListener(new WebViewListener() {
+            @Override
+            public boolean onRenderProcessGone(WebView webView, RenderProcessGoneDetail detail) {
+                refazerATela();
+                return true; // (tratado: sem isto, o Android fecha o app)
+            }
+        });
+    }
+
+    private void refazerATela() {
+        if (refazendo) return;
+        refazendo = true;
+        principal.post(() -> {
+            try { recreate(); } catch (Exception e) { finish(); startActivity(new Intent(this, MainActivity.class)); }
+        });
+    }
+
+    // Ao voltar: a página responde? Se em 10 s não responder (travou) ou voltar sem nada desenhado, a tela é refeita
+    private int conferencia = 0;
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        final int esta = ++conferencia;
+        final boolean[] respondeu = { false };
+        principal.postDelayed(() -> {
+            WebView w = getBridge() == null ? null : getBridge().getWebView();
+            if (w == null || esta != conferencia) return;
+            try {
+                w.evaluateJavascript("(function(){return document.body ? document.body.children.length : 0})()", (r) -> {
+                    respondeu[0] = true;
+                    // (a página sem nada: carrega de novo)
+                    if ("0".equals(r) || "null".equals(r)) { try { w.reload(); } catch (Exception e) { refazerATela(); } }
+                });
+            } catch (Exception e) {
+                refazerATela();
+                return;
+            }
+            principal.postDelayed(() -> { if (esta == conferencia && !respondeu[0] && !isFinishing()) refazerATela(); }, 10000);
+        }, 1200);
+    }
+
+    @Override
+    public void onPause() {
+        conferencia++; // (saiu antes da conferência: ela não vale)
+        super.onPause();
     }
 
     // As notificações (os downloads e o player) com a pergunta do próprio Android, uma vez, ao abrir o app pela primeira
