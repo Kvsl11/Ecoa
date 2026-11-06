@@ -80,7 +80,7 @@ test('servidor: não repete entrega quando o identificador expirou (404)', async
 test('servidor: a descoberta de conexão não fica presa ao primeiro resultado', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   assert.match(app, /let servidorVerificadoEm = 0/);
-  assert.match(app, /Date\.now\(\) - servidorVerificadoEm < 15000/);
+  assert.match(app, /Date\.now\(\) - servidorVerificadoEm < \(SERVIDOR_IA\.url \? 60000 : 15000\)/);
   assert.match(app, /carregamentoServidor = null/);
   assert.match(app, /cache: 'no-store'/);
 });
