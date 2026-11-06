@@ -3962,7 +3962,12 @@ const semLinhasDeAcordes = (sinc) => {
     m.preload = 'auto';
     m.addEventListener('timeupdate', () => { if (!doSom()) return; tempo = m.currentTime; marcaTempo = performance.now(); desenhar(); });
     m.addEventListener('durationchange', () => { if (doSom() && m.duration > 0 && Number.isFinite(m.duration)) { duracao = m.duration; desenhar(); } });
-    m.addEventListener('play', () => { if (doSom()) { estado = 'tocando'; desenhar(); avisar(); } });
+    m.addEventListener('play', () => {
+      if (!doSom()) return;
+      estado = 'tocando'; desenhar(); avisar();
+      // (a próxima música, sendo um vídeo do aparelho, começou com o app em segundo plano: vai para o som também)
+      if (m === somVideo && document.visibilityState === 'hidden') setTimeout(() => passarParaOSom(), 50);
+    });
     m.addEventListener('pause', () => { if (doSom() && !m.ended) { estado = 'pausado'; desenhar(); avisar(); } });
     m.addEventListener('ended', () => { if (!doSom()) return; estado = 'pausado'; if (!fimDaMusica()) { desenhar(); avisar(); } });
     m.addEventListener('error', () => { if (doSom()) toast('Não consegui tocar o arquivo desta música'); });
@@ -4015,6 +4020,41 @@ const semLinhasDeAcordes = (sinc) => {
   }, 0));
   const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local' })))
     : (somAudio ||= criarSom(new Audio())));
+  // Em segundo plano (o app minimizado, a tela apagada), o celular pausa o vídeo, mesmo o baixado, mas deixa o som
+  // tocar: tocando o vídeo do aparelho (o clipe baixado, também no modo música de uma música sem o áudio oficial), o
+  // mesmo arquivo passa para o elemento de som, no mesmo ponto, e volta para o vídeo quando o app aparece de novo
+  let somNoLugarDoVideo = null; // { chave }: o som está tocando o arquivo do vídeo
+  const passarParaOSom = () => {
+    if (!local?.video || local.karaoke || !somVideo || som !== somVideo || somVideo.paused || !somVideo.src) return;
+    const a = (somAudio ||= criarSom(new Audio()));
+    const t = somVideo.currentTime;
+    const chave = local.chave;
+    // (o arquivo que o som tinha aberto antes fica solto: o endereço dele é liberado)
+    if (a.src && a.src !== somVideo.src) URL.revokeObjectURL(a.src);
+    a.src = somVideo.src;
+    a.dataset.de = chave;
+    a.volume = somVideo.volume;
+    local = { ...local, video: false };
+    som = a;
+    somNoLugarDoVideo = { chave };
+    const comecar = () => { a.currentTime = t; a.play().then(() => somVideo.pause()).catch(() => {}); };
+    if (a.readyState >= 1) comecar(); else a.addEventListener('loadedmetadata', comecar, { once: true });
+  };
+  const voltarParaOVideo = () => {
+    const ia = somNoLugarDoVideo;
+    somNoLugarDoVideo = null;
+    if (!ia || !local || local.chave !== ia.chave || som !== somAudio || !somVideo || somVideo.dataset.de !== ia.chave) return;
+    const a = somAudio;
+    const tocando = !a.paused;
+    local = { ...local, video: true };
+    som = somVideo;
+    somVideo.currentTime = a.currentTime;
+    a.dataset.de = '';
+    // (o som solta o arquivo sem liberar o endereço, que é o do vídeo)
+    const soltar = () => { a.pause(); a.removeAttribute('src'); a.load(); };
+    if (tocando) somVideo.play().then(soltar).catch(soltar); else soltar();
+  };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') passarParaOSom(); else voltarParaOVideo(); });
   // o arquivo no elemento (uma vez só: trocar de versão de novo não abre outra vez); false se ele não está no aparelho
   const abrindo = new Map();
   const carregarLocal = (m, chave) => {
@@ -4023,7 +4063,8 @@ const semLinhasDeAcordes = (sinc) => {
       abrindo.set(m, lerAudio(chave).catch(() => null).then((arquivo) => {
         abrindo.delete(m);
         if (!arquivo) return false;
-        if (m.src) URL.revokeObjectURL(m.src);
+        // (o endereço que o som pegou emprestado do vídeo, em segundo plano, é do vídeo: só ele libera)
+        if (m.src && !(m !== somVideo && somVideo && m.src === somVideo.src)) URL.revokeObjectURL(m.src);
         m.dataset.de = chave;
         m.src = URL.createObjectURL(arquivo);
         return true;
