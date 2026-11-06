@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 570, data: '2026-11-06', titulo: 'A barrinha colada no menu, como no Spotify',
+    itens: [
+      { tipo: 'melhoria', texto: 'No celular (no navegador e no app de Android), a barrinha da música agora fica colada no menu de baixo, sem a faixa entre os dois, e o menu ficou mais transparente: o que está na tela aparece por trás dele, escurecendo até o pé, como no Spotify. Os ícones e os nomes do menu ficaram um pouco maiores.' },
+    ],
+  },
+  {
     versao: 569, data: '2026-11-06', titulo: 'O Conectar igual ao do Spotify',
     itens: [
       { tipo: 'melhoria', texto: 'A folha Conectar ficou como a do Spotify: em cima, o fone que está tocando, com a qualidade, "Este celular" e a música; embaixo, este celular, com o nome dele (no app de Android), e no pé os botões Transmitir na TV e Bluetooth, pequenos.' },
@@ -74,12 +80,6 @@ export const NOVIDADES = [
     versao: 561, data: '2026-11-06', titulo: 'O modo música só com o áudio oficial',
     itens: [
       { tipo: 'correcao', texto: 'O modo música podia tocar um vídeo que um fã subiu no próprio canal, com o nome do artista só no título, e não a gravação do canal oficial (em "Odres Novos", tocava o vídeo de outro canal, e não o do Ministério Gerados pela Imaculada). Agora o áudio do modo música vem só de uma fonte oficial: a faixa do YouTube Music, o canal do próprio artista, o mesmo canal do vídeo que você abriu ou o da gravadora. Sem achar, o modo música toca o próprio vídeo oficial. As músicas salvas são conferidas sozinhas, e o áudio que não for oficial sai.' },
-    ],
-  },
-  {
-    versao: 560, data: '2026-11-06', titulo: 'A letra e a cifra do artista certo',
-    itens: [
-      { tipo: 'correcao', texto: 'O vídeo de uma música no canal do próprio artista (como "Odres Novos", no canal do Ministério Gerados pela Imaculada) podia vir com a letra e a cifra de outra música de mesmo nome, de outro artista. Agora só vale a do artista do canal; sem achar, a música fica sem a letra, em vez de vir com a de outra. O mesmo vale para o conserto das músicas salvas sem a letra, que também mantém o vídeo que estava tocando.' },
     ],
   },
 ];
