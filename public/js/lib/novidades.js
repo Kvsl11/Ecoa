@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 560, data: '2026-11-06', titulo: 'A letra e a cifra do artista certo',
+    itens: [
+      { tipo: 'correcao', texto: 'O vídeo de uma música no canal do próprio artista (como "Odres Novos", no canal do Ministério Gerados pela Imaculada) podia vir com a letra e a cifra de outra música de mesmo nome, de outro artista. Agora só vale a do artista do canal; sem achar, a música fica sem a letra, em vez de vir com a de outra. O mesmo vale para o conserto das músicas salvas sem a letra, que também mantém o vídeo que estava tocando.' },
+    ],
+  },
+  {
     versao: 559, data: '2026-11-06', titulo: 'As Estatísticas são da sua conta Google',
     itens: [
       { tipo: 'melhoria', texto: 'As Estatísticas e os Recentes passam a ser da sua conta Google, e não de cada aparelho: o que você ouve no celular, no tablet e no computador entra junto, somado. Cada aparelho manda o que ouviu para a sua conta (com o que já tinha guardado), e nenhum apaga o do outro. Na sessão privada, continua sem contar nada.' },
@@ -61,12 +67,6 @@ export const NOVIDADES = [
     versao: 551, data: '2026-11-06', titulo: 'Os artistas parecidos levam à página deles',
     itens: [
       { tipo: 'correcao', texto: 'No Explorar do Tocando agora, tocar num artista dos "Parecidos com…" não abria a página dele (as músicas e os álbuns): o app abria e logo voltava. O mesmo acontecia com as pessoas dos créditos ("Mostrar tudo" e "Por trás da música"). Agora a página do artista abre no lugar do Tocando agora.' },
-    ],
-  },
-  {
-    versao: 550, data: '2026-11-06', titulo: 'O nome certo nos vídeos relacionados',
-    itens: [
-      { tipo: 'correcao', texto: 'Alguns vídeos relacionados apareciam com o nome cortado: "Don\'t Stop \'Til You Get Enough", do Michael Jackson, virava "t Stop" (o apóstrofo era lido como aspas), e "Thriller (Official 4K Video)" virava "Thriller Video)". Agora o nome sai inteiro e sem os restos do "Official Video".' },
     ],
   },
 ];

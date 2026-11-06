@@ -1980,12 +1980,16 @@ async function revisarMusica(id, pendentes, chaves) {
     if (!navigator.onLine) completa = false;
     else {
       const nomes = nomesSeparadosDoTitulo(tituloCruDoVideo(s.title || ''), s.artist || '') || { titulo: s.title || '', artista: s.artist || '' };
-      const r = await noMaximo(trazerMusicaJa({ titulo: nomes.titulo, artista: nomes.artista, artistaIncerto: true, ...(s.youtube ? { video: { id: s.youtube, url: `https://www.youtube.com/watch?v=${s.youtube}` } } : {}) }), 60000, null).catch(() => null);
+      // (só a cifra ou a letra do mesmo artista: com o artista "incerto", vinha a música de mesmo título de outro)
+      const incerto = !nomes.artista || canalDeGravadora(nomes.artista);
+      const r = await noMaximo(trazerMusicaJa({ titulo: nomes.titulo, artista: nomes.artista, artistaIncerto: incerto, ...(s.youtube ? { video: { id: s.youtube, url: `https://www.youtube.com/watch?v=${s.youtube}` } } : {}) }), 60000, null).catch(() => null);
       s = db.song(id);
       if (!s) return true;
-      if (r?.source && SEM_CIFRA.test(s.content || '')) {
-        const m = renderSong(r.content).meta;
-        db.updateSong(id, { content: r.content, source: r.source, title: m.title || nomes.titulo, artist: m.artist || nomes.artista || s.artist });
+      const m = r?.source ? renderSong(r.content).meta : null;
+      const doArtista = m && (incerto || !m.artist || mesmoArtistaNome(m.artist, nomes.artista) || artistaNoTexto(m.artist, nomes.artista));
+      if (r?.source && doArtista && SEM_CIFRA.test(s.content || '')) {
+        // (o vídeo da música continua o mesmo: o que estava tocando, e não o da página da cifra)
+        db.updateSong(id, { content: r.content, source: r.source, title: m.title || nomes.titulo, artist: m.artist || nomes.artista || s.artist, ...(s.youtube ? { youtube: s.youtube } : {}) });
       } else if (nomes.titulo && nomes.titulo !== s.title && SEM_CIFRA.test(s.content || '')) {
         db.updateSong(id, { title: nomes.titulo, artist: nomes.artista || s.artist, content: definirMeta(s.content, 'title', nomes.titulo) });
       }
@@ -7869,13 +7873,19 @@ async function musicaDoVideo(v, conhecido = {}) {
   const esquerda = / [-–—] /.test(cru) ? normalizar(cru.split(/ [-–—] /)[0]) : '';
   const artistaNoTitulo = esquerda && !cabe.some((r) => tit(r) === esquerda) ? esquerda : '';
   const artistaSabido = artistaConhecido || artistaNoTitulo;
-  const r = maior(doArtista) || (artistaSabido ? null : maior(cabe));
+  // (o canal do próprio artista — "Ministério Gerados pela Imaculada" — também diz de quem é a música: a de mesmo título
+  // de outro artista não serve. Antes, "Odres Novos" vinha com a cifra e a letra da "Odres Novos" de outro ministério)
+  const canalDoArtista = Boolean(v.canal) && !canalDeGravadora(v.canal);
+  const r = maior(doArtista) || (artistaSabido || canalDoArtista ? null : maior(cabe));
   if (r) return { titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra || null, video: v };
   if (artistaConhecido) return { titulo: conhecido.titulo || nomesDoVideo(v).titulo, artista: artistaConhecido, video: v };
-  // o artista escrito no título do vídeo é certo: a cifra e a letra têm de ser dele
-  if (artistaNoTitulo) return { ...nomesDoVideo(v), video: v };
+  // o artista escrito no título do vídeo (ou o canal dele) é certo: a cifra e a letra têm de ser dele
+  if (artistaNoTitulo || canalDoArtista) return { ...nomesDoVideo(v), video: v };
   return { ...nomesDoVideo(v), video: v, artistaIncerto: true };
 }
+// o canal que não é do artista (a gravadora, o selo, o canal automático do YouTube, um canal de vários artistas): o
+// nome dele não diz de quem é a música
+const canalDeGravadora = (c) => /\b(records?|recordings|music|musica|música|label|labels|vevo|topic|entertainment|entretenimento|produ[cç](ões|oes|ão|ao)|gravadora|sony|warner|universal|som livre|emi|hybe|smtown|jyp|yg|tv|radio|rádio|lyrics?|letras?|karaok[eê]|cifras?)\b|\s-\s/i.test(String(c || ''));
 
 // Traz tudo de uma vez: a cifra do Cifra Club (que já tem a letra); sem cifra, a letra do Letras; e o
 // vídeo do YouTube. Devolve { content, source, video } (video é a busca, que pode ainda estar andando).
