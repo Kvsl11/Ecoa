@@ -4,9 +4,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 573, data: '2026-11-06', titulo: 'O play no meio do círculo',
+    versao: 573, data: '2026-11-06', titulo: 'O play no meio do círculo e o aviso de versão nova do app',
     itens: [
       { tipo: 'correcao', texto: 'O triângulo do play parecia torto, puxado para a direita dentro do círculo (no Tocando agora, na barrinha, nas listas e no widget do Android). Agora ele fica no meio, só com o pequeno ajuste para a direita que faz ele parecer centralizado (como no Spotify). No widget, com a atualização do app.' },
+      { tipo: 'melhoria', texto: 'O aviso de versão nova do app de Android ficou mais claro: o ícone do Ecoa, a versão de agora e a nova (1.27 → 1.29), o que vem com ela e, ao tocar em Atualizar, a barra do download ali mesmo, até abrir o instalador do Android.' },
     ],
   },
   {

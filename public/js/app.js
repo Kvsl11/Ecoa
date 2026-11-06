@@ -17062,7 +17062,7 @@ async function conferirAtualizacaoApk() {
   ]);
   return { instalada, publicada, nova: Boolean(publicada?.codigo && (!instalada?.codigo || Number(publicada.codigo) > Number(instalada.codigo))) };
 }
-async function atualizarApk(bt) {
+async function atualizarApk(bt, aoAndar) {
   const nativo = pluginEcoa();
   if (!nativo?.versao) {
     await ask({ title: 'Atualize pelo navegador desta vez', text: 'Este app ainda não sabe se atualizar sozinho. Abra o Ecoa no Chrome, toque na sua foto → "Baixar o app para Android" e instale por cima. Depois disso, as próximas atualizações saem daqui mesmo.', ok: 'Entendi', cancel: false });
@@ -17070,11 +17070,12 @@ async function atualizarApk(bt) {
   }
   const texto = bt?.textContent;
   if (bt) { bt.disabled = true; bt.textContent = 'Baixando…'; }
-  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (bt && pct >= 0) bt.textContent = `${pct}%`; })?.catch?.(() => null);
+  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (pct >= 0) { if (bt) bt.textContent = `${pct}%`; aoAndar?.(pct); } })?.catch?.(() => null);
   try {
     await nativo.atualizar({ url: new URL(LINK_APK, document.baseURI).href });
     // (a tela de instalar do Android abriu; se a pessoa cancelar, o botão volta)
     if (bt) { bt.textContent = 'Instalando…'; setTimeout(() => { if (bt.isConnected) bt.textContent = texto; }, 8000); }
+    return true;
   } catch (e) {
     if (e?.code === 'permitir') await ask({ title: 'Permita a atualização', text: 'O Android abriu a tela para permitir que o Ecoa instale a atualização. Ligue "Permitir desta fonte", volte e toque em Atualizar de novo.', ok: 'Entendi', cancel: false });
     else await ask({ title: 'Não deu para atualizar', text: `${e?.message || e}. Confira a internet e tente de novo.`, ok: 'Entendi', cancel: false });
@@ -17083,6 +17084,37 @@ async function atualizarApk(bt) {
     ouvinte?.remove?.();
     if (bt) bt.disabled = false;
   }
+}
+// O aviso de versão nova do APK (ao abrir o app): uma folha com o ícone, "1.27 → 1.29", o que muda com ela (as
+// novidades que dependem da atualização do app) e, ao tocar em Atualizar, o andamento do download ali mesmo
+async function oferecerAtualizacaoApk(r) {
+  // (o nome curto de cada versão que mexeu no app de Android: "O play no meio do círculo", "Copiar a letra e a cifra"…)
+  const doApp = NOVIDADES.filter((n) => n.itens.some((it) => /atualiza[çc][ãa]o do app|app de Android|APK/i.test(it.texto))).slice(0, 4).map((n) => n.titulo);
+  await openDialog(`
+    <div class="apk-at">
+      <div class="apk-at-cab"><span class="apk-at-ic">${logo(52)}</span><span class="grow"><h3>Nova versão do app</h3>
+        <span class="apk-at-versoes"><i>${esc(r.instalada?.nome || 'antiga')}</i>${icon('next', 14)}<b>${esc(r.publicada.nome)}</b></span></span></div>
+      ${doApp.length ? `<div class="apk-at-novo"><small>O que vem com ela</small><ul>${doApp.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      <div class="apk-at-andamento" hidden><div class="apk-at-barra"><i></i></div><small>Baixando…</small></div>
+      <p class="apk-at-nota">${icon('check', 14)} Suas músicas, playlists e downloads continuam. O Android pergunta antes de instalar.</p>
+    </div>
+    <div class="acts"><button class="btn ghost" data-no>Agora não</button><button class="btn primary" data-ok>${icon('download', 16)} Atualizar</button></div>`,
+  (dlg, done) => {
+    $('[data-no]', dlg).onclick = () => done(null);
+    setTimeout(() => $('[data-ok]', dlg)?.focus({ preventScroll: true }), 0);
+    const ok = $('[data-ok]', dlg);
+    ok.onclick = async () => {
+      const and = $('.apk-at-andamento', dlg);
+      const barra = $('.apk-at-barra i', dlg);
+      const rot = $('.apk-at-andamento small', dlg);
+      and.hidden = false;
+      ok.disabled = true;
+      ok.textContent = 'Baixando…';
+      const foi = await atualizarApk(null, (pct) => { barra.style.width = `${pct}%`; rot.textContent = pct >= 100 ? 'Abrindo o instalador…' : `Baixando… ${pct}%`; });
+      if (foi) { barra.style.width = '100%'; rot.textContent = 'Abrindo o instalador do Android…'; setTimeout(() => done(true), 1500); }
+      else { and.hidden = true; ok.disabled = false; ok.innerHTML = `${icon('download', 16)} Tentar de novo`; }
+    };
+  });
 }
 // a linha "Atualização do app" (Ajustes → Sobre, só no APK)
 async function mostrarAtualizacaoApk() {
@@ -20600,7 +20632,7 @@ if (ecoaNativo) {
     const r = await conferirAtualizacaoApk().catch(() => null);
     if (!r?.nova || !r.instalada?.codigo || db.prefs().apkAvisado === r.publicada.codigo) return;
     db.setPref('apkAvisado', r.publicada.codigo);
-    if (await ask({ title: 'Atualização do app', text: `A versão ${r.publicada.nome} do app de Android chegou (a sua é a ${r.instalada.nome}). Ela baixa e o Android pergunta se pode instalar. Dá para atualizar depois em Ajustes → Sobre.`, ok: 'Atualizar' })) await atualizarApk();
+    void oferecerAtualizacaoApk(r);
   }, 8000);
 }
 

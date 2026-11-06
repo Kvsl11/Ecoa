@@ -5858,3 +5858,22 @@ html.pp #player .pl-capinha { position: relative; overflow: hidden; }
 html.pp #player .pl-capinha, #player.modo-capa .pl-video, #player.capa-na-barra .pl-video { isolation: isolate; } /* (a .pl-video já tem position e overflow) */
 html.pp #player .pl-capinha::before, #player.modo-capa .pl-video::before, #player.capa-na-barra .pl-video::before {
   content: ""; position: absolute; inset: -3%; z-index: -1; background: inherit; border-radius: 0; box-shadow: none; animation: none; pointer-events: none; }
+
+/* ============ a folha de versão nova do app de Android */
+.apk-at { display: grid; gap: 16px; }
+.apk-at-cab { display: flex; align-items: center; gap: 14px; }
+.apk-at-ic { flex: none; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 16px; background: var(--surface-2); }
+.apk-at-cab h3 { margin: 0 0 4px; font-size: 20px; }
+.apk-at-versoes { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.apk-at-versoes i { font-style: normal; text-decoration: line-through; opacity: 0.8; }
+.apk-at-versoes b { padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; }
+.apk-at-novo { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.apk-at-novo small { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.apk-at-novo ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.4; }
+.apk-at-andamento { display: grid; gap: 6px; }
+.apk-at-andamento[hidden] { display: none; }
+.apk-at-barra { height: 6px; border-radius: 3px; background: var(--surface-3, #333); overflow: hidden; }
+.apk-at-barra i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+.apk-at-andamento small { font-size: 13px; color: var(--muted); }
+.apk-at-nota { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+.apk-at-nota svg { flex: none; margin-top: 2px; color: var(--accent-ink); }
