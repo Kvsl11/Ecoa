@@ -1643,8 +1643,18 @@ function prepararKaraoke(song) {
     avisarKaraoke();
   };
   estado.promessa = (async () => {
+    // (no APK: o karaokê é feito no próprio celular, sem servidor; o servidor, se houver, fica de reserva)
+    const noCelular = karaokeNoAparelho();
+    let erroNoCelular = null;
+    if (noCelular) {
+      try {
+        const feito = await karaokeNoCelular(noCelular, song, fonte, passo);
+        return guardarKaraokeFeito(fonte, feito.blob, feito.info);
+      } catch (e) { erroNoCelular = e; }
+      passo(0, 'Preparando');
+    }
     await carregarServidor().catch(() => {});
-    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
+    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw erroNoCelular || new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
     // o envio (ou o download do áudio pelo servidor) até 10%, a separação até 90% e a vinda do arquivo até 99%
     const aoEtapa = (etapa, p) => {
       if (etapa === 'enviando') passo(10 * (p ?? 0), 'Enviando o áudio');
@@ -1732,17 +1742,70 @@ function prepararKaraoke(song) {
       }
       blob = new Blob(blocos, { type: r.tipo || 'audio/mp4' });
     } else blob = await resp.blob();
-    await guardarAudio(chaveKaraoke(fonte), blob);
-    const info = { tipo: r.tipo || blob.type || 'audio/mp4', tamanho: blob.size, em: Date.now(), versao: r.versao || 1, ...(r.duracao ? { duracao: r.duracao } : {}) };
-    // na música salva (e nas outras da biblioteca com a mesma gravação); a da busca, só enquanto o app está aberto
-    const donas = db.songs().filter((s) => fonteDoKaraoke(s) === fonte);
-    if (donas.length) donas.forEach((s) => db.updateSong(s.id, { karaoke: { ...(s.karaoke || {}), [fonte]: info } }));
-    else karaokesAvulsos.set(fonte, info);
-    return info;
+    return guardarKaraokeFeito(fonte, blob, { tipo: r.tipo || blob.type || 'audio/mp4', versao: r.versao || 1, ...(r.duracao ? { duracao: r.duracao } : {}) });
   })().finally(() => { preparandoKaraoke.delete(fonte); avisarKaraoke(); });
   preparandoKaraoke.set(fonte, estado);
   avisarKaraoke();
   return estado.promessa;
+}
+// o karaokê pronto guardado no aparelho, na música salva (e nas outras da biblioteca com a mesma gravação); o da
+// música da busca, só enquanto o app está aberto
+async function guardarKaraokeFeito(fonte, blob, dados) {
+  await guardarAudio(chaveKaraoke(fonte), blob);
+  const info = { tipo: dados.tipo || blob.type || 'audio/mp4', tamanho: blob.size, em: Date.now(), ...dados };
+  const donas = db.songs().filter((s) => fonteDoKaraoke(s) === fonte);
+  if (donas.length) donas.forEach((s) => db.updateSong(s.id, { karaoke: { ...(s.karaoke || {}), [fonte]: info } }));
+  else karaokesAvulsos.set(fonte, info);
+  return info;
+}
+// O karaokê feito no próprio celular (o APK: Karaoke.java, o UVR no ONNX Runtime). O áudio que já está no aparelho
+// vai ele mesmo; sem ele, o celular baixa a música do YouTube. A primeira vez baixa o modelo (30 MB). O UVR tira a voz
+// inteira: o back vocal sai junto com o cantor (o do servidor separa só o cantor, com modelos grandes demais para o
+// celular). No navegador o plugin não existe
+function karaokeNoAparelho() {
+  const C = window.Capacitor;
+  if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
+  return (C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'karaokeLocal') ? C.Plugins.Ecoa : null;
+}
+const emBase64 = (blob) => new Promise((ok, falha) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',')[1] || '');
+  r.onerror = () => falha(r.error);
+  r.readAsDataURL(blob);
+});
+async function karaokeNoCelular(nativo, song, fonte, passo) {
+  let arquivo = null;
+  let nome = 'audio.m4a';
+  if (ehArquivo(fonte)) {
+    arquivo = await lerAudio(fonte.slice(ARQ.length)).catch(() => null);
+    if (!arquivo) throw new Error('O áudio desta música não está neste aparelho');
+    nome = song.audioProprio?.nome || 'audio';
+  } else {
+    // (o áudio baixado; sem ele, o clipe baixado também serve: o ffmpeg tira o som dele)
+    const b = baixadoDe(fonte);
+    if (b && (b.tamanho || 0) < 55e6) {
+      arquivo = await lerAudio(chaveBaixada(fonte)).catch(() => null);
+      nome = String(b.tipo || '').startsWith('video') ? 'clipe.mp4' : String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
+    }
+    if (!arquivo && !/^[\w-]{11}$/.test(fonte)) throw new Error('O áudio desta música não está neste aparelho');
+  }
+  const processo = `karaoke-${Date.now().toString(36)}`;
+  const ETAPAS = { modelo: [0, 8, 'Baixando o modelo do karaokê (só na primeira vez)'], baixando: [0, 8, 'Baixando a música'],
+    lendo: [8, 10, 'Abrindo a música'], separando: [10, 95, 'Separando a voz da banda no celular'], gravando: [95, 98, 'Quase pronto'] };
+  const ouvinte = await nativo.addListener('karaoke', (ev) => {
+    const e = ev?.processo === processo && ETAPAS[ev.etapa];
+    if (e) passo(e[0] + (e[1] - e[0]) * (Number(ev.pct) || 0), e[2]);
+  });
+  let r;
+  try {
+    passo(1, arquivo ? 'Abrindo a música' : 'Baixando a música');
+    r = await nativo.karaokeLocal({ processo, nome, ...(arquivo ? { dados: await emBase64(arquivo) } : { video: fonte }) });
+  } finally { void Promise.resolve(ouvinte?.remove?.()).catch(() => {}); }
+  passo(98, 'Quase pronto');
+  let blob;
+  try { blob = await lerBaixadoNoAparelho({ caminho: r.caminho, tipo: 'audio/mp4' }); } finally { void nativo.apagarLocal({ caminho: r.caminho }).catch(() => {}); }
+  if (!blob || blob.size < 10000) throw new Error('o karaokê saiu vazio');
+  return { blob, info: { tipo: 'audio/mp4', versao: KARAOKE_VERSAO, celular: true, ...(r.duracao ? { duracao: r.duracao } : {}) } };
 }
 // o karaokê desta gravação sai das músicas (o arquivo sumiu do aparelho, ou vai ser apagado)
 function esquecerKaraoke(fonte, songs = db.songs().filter((s) => s.karaoke?.[fonte])) {

@@ -50,6 +50,10 @@ import java.util.concurrent.Executors;
 //    a cada 1%. O arquivo fica em caminho até o site guardar e chamar apagarLocal({ caminho })
 //  - cancelarLocal({ processo }): para o download no meio (a pessoa pausou)
 //  - baixadorLocal({ atualizar }) → { pronto, versao, erro }: prepara o yt-dlp e, uma vez por dia, atualiza
+//  - karaokeLocal({ dados (base64) | video, nome, processo }) → { caminho, tipo, tamanho, duracao }: o karaokê feito no
+//    próprio celular (Karaoke.java: o UVR no ONNX Runtime); evento "karaoke" ({ processo, etapa, pct }). O arquivo fica em
+//    caminho até o site guardar e chamar apagarLocal({ caminho })
+//  - karaokeDisponivel() → { tem, modelo }: se o celular faz karaokê (e se o modelo de 30 MB já foi baixado)
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -353,6 +357,68 @@ public class EcoaPlugin extends Plugin {
             }
         } catch (Exception e) { /* já saiu */ }
         call.resolve();
+    }
+
+    // ---- o karaokê no próprio celular (Karaoke.java): um por vez (a separação usa os núcleos do processador)
+    private static final java.util.concurrent.ExecutorService separando = Executors.newSingleThreadExecutor();
+
+    @PluginMethod
+    public void karaokeDisponivel(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("tem", true);
+        r.put("modelo", Karaoke.temModelo(getContext()));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void karaokeLocal(PluginCall call) {
+        Context ctx = getContext();
+        String dados = call.getString("dados", null);
+        String video = call.getString("video", "");
+        String nome = call.getString("nome", "audio");
+        String processo = call.getString("processo", "karaoke-" + System.currentTimeMillis());
+        separando.execute(() -> {
+            java.io.File pasta = Baixador.pastaDe(ctx, processo);
+            java.io.File trabalho = new java.io.File(pasta, "trabalho");
+            Karaoke.Andamento andamento = (etapa, p) -> {
+                JSObject ev = new JSObject();
+                ev.put("processo", processo);
+                ev.put("etapa", etapa);
+                ev.put("pct", p);
+                if (getBridge() != null) notifyListeners("karaoke", ev);
+            };
+            try {
+                pasta.mkdirs();
+                java.io.File entrada;
+                if (dados != null && !dados.isEmpty()) {
+                    String ext = nome.toLowerCase(java.util.Locale.ROOT).replaceAll("^.*\\.", "");
+                    entrada = new java.io.File(pasta, "entrada." + (ext.matches("[a-z0-9]{2,5}") ? ext : "m4a"));
+                    try (java.io.OutputStream o = new java.io.FileOutputStream(entrada)) {
+                        o.write(android.util.Base64.decode(dados, android.util.Base64.DEFAULT));
+                    }
+                } else {
+                    // (sem o áudio no aparelho: o próprio celular baixa a música do YouTube)
+                    java.io.File pastaAudio = new java.io.File(pasta, "audio");
+                    entrada = Baixador.baixar(ctx, video, false, "alta", pastaAudio, processo + "-audio",
+                        (p) -> andamento.em("baixando", p)).arquivo;
+                }
+                java.io.File saida = new java.io.File(pasta, "karaoke.m4a");
+                Karaoke.Resultado res = Karaoke.fazer(ctx, entrada, saida, trabalho, andamento);
+                //noinspection ResultOfMethodCallIgnored
+                entrada.delete();
+                Baixador.limpar(trabalho);
+                JSObject r = new JSObject();
+                r.put("caminho", saida.getAbsolutePath());
+                r.put("tipo", "audio/mp4");
+                r.put("tamanho", res.tamanho);
+                r.put("duracao", res.duracao);
+                call.resolve(r);
+            } catch (Throwable e) {
+                Baixador.limpar(pasta);
+                String msg = e instanceof OutOfMemoryError ? "o celular ficou sem memória para separar a voz desta música" : String.valueOf(e.getMessage());
+                call.reject(msg, "erro");
+            }
+        });
     }
 
     // ---- o Lúmen no próprio celular (Gemini.java): a chave não sai do APK para a página
