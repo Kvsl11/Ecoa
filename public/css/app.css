@@ -5139,13 +5139,14 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-prog { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.25); }
 .pv-prog b { display: block; width: 0; height: 100%; border-radius: 1px; background: #fff; }
 /* no tablet (em pé e deitado), a prévia ocupa a tela toda, como no celular (a coluna estreita no meio ficava
-   perdida na tela grande): o clipe preenche a tela, e o artista e o cartão ficam embaixo, maiores, sem esticar */
+   perdida na tela grande): o clipe preenche a tela, e o artista e o cartão ficam embaixo, maiores, de uma ponta à
+   outra da tela (em pé e deitado) */
 html.tablet dialog.pl-previa { inset: 0; width: 100%; height: 100%; transform: none; border-radius: 0; }
 html.tablet dialog.pl-previa::backdrop { background: #000; }
 html.tablet .pv-cab { padding: calc(14px + env(safe-area-inset-top)) 16px 28px; }
 html.tablet .pv-cab b { font-size: 18px; }
 html.tablet .pv-sombra { background: linear-gradient(transparent 50%, rgb(0 0 0 / 0.8)); }
-html.tablet .pv-info { right: auto; width: min(640px, 100%); padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
+html.tablet .pv-info { padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
 html.tablet .pv-artista { gap: 12px; }
 html.tablet .pv-meta { margin-bottom: 14px; row-gap: 8px; }
 html.tablet .pv-meta .icon-btn { width: 44px; height: 44px; }
