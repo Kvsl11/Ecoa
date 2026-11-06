@@ -16927,6 +16927,10 @@ function infoDaGaveta(u) {
         ${botaoPlayDaUltima(ultima)}</a>` : ''}`;
 }
 
+// o app de Android (o APK que o robô do GitHub monta: .github/workflows/android.yml): o botão de baixar aparece só no
+// Android, pelo navegador (no próprio app ele não tem por que aparecer)
+const LINK_APK = 'https://github.com/Kvsl11/Songbook/releases/download/android/Ecoa.apk';
+const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
 function abrirGavetaDoPerfil() {
   if (document.querySelector('.perfil-gaveta')) return;
   const u = usuarioConta();
@@ -16944,6 +16948,7 @@ function abrirGavetaDoPerfil() {
         ${item('historico', 'Recentes', '#/recentes')}
         ${item('megafone', 'Novidades', '#/novidades')}
         ${item('settings', 'Ajustes e privacidade', '#/ajustes')}
+        ${baixarAppAndroid() ? `<a class="pg-item" href="${LINK_APK}" download data-baixar-apk>${icon('download', 22)}<span class="grow">Baixar o app para Android<small class="pg-sub">Com o widget da tela inicial</small></span></a>` : ''}
       </div>
       ${infoDaGaveta(u)}
       <p class="pg-versao">Ecoa · versão ${APP_VERSAO}</p>
@@ -20364,6 +20369,42 @@ document.addEventListener('visibilitychange', () => {
   const editando = /^#\/(editar|musica\/[^/]+\/(compor|partitura))/.test(location.hash);
   if (!editando && (location.hash || '#/') !== '#/' && (fora > 30 * 60e3 || (fora > 2 * 60e3 && player.estado !== 'tocando'))) location.hash = '#/';
 });
+
+// ---- o app de Android (o APK, em app-android/): o widget da tela inicial e o aviso de "tocando" mostram a música do
+// player, e os botões deles (voltar, tocar/pausar, pular) chegam aqui. No navegador não há o plugin e nada disso roda
+const ecoaNativo = (() => {
+  const C = window.Capacitor;
+  return C?.isNativePlatform?.() && C.Plugins?.Ecoa ? C.Plugins.Ecoa : null;
+})();
+if (ecoaNativo) {
+  document.documentElement.classList.add('app-android');
+  let ultimo = '';
+  const mandar = () => {
+    const a = player.atual;
+    if (!a?.titulo) { if (ultimo) { ultimo = ''; void ecoaNativo.parou().catch(() => {}); } return; }
+    const yt = a.video || a.youtube;
+    const capa = /^https?:/.test(a.capa || '') ? a.capa : yt && !ehArquivo(yt) ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : '';
+    const dados = { titulo: a.titulo || '', artista: a.artista || '', capa, tocando: player.estado === 'tocando' };
+    const chave = JSON.stringify(dados);
+    if (chave === ultimo) return;
+    ultimo = chave;
+    void ecoaNativo.musica(dados).catch(() => {});
+  };
+  player.ouvir(mandar);
+  ecoaNativo.addListener('acao', ({ acao } = {}) => {
+    // (com o app abrindo pelo widget, a última música ainda pode estar voltando: espera um pouco por ela)
+    const fazer = (vez = 0) => {
+      if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
+      if (acao === 'alternar') player.alternar();
+      else if (acao === 'proxima') player.pular(1);
+      else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
+      mandar();
+    };
+    fazer();
+  });
+  // (pronto para receber a ação que abriu o app, se foi um botão do widget)
+  void ecoaNativo.pronto().catch(() => {});
+}
 
 // ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a
 // fila e o ponto em que parou ficam guardados; abrindo o app, ela volta pausada nesse ponto, pronta para continuar

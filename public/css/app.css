@@ -5210,6 +5210,7 @@ li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-a
 .pg-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 16px; border: 0; background: none; color: var(--text);
   font: inherit; font-size: 16px; text-align: left; text-decoration: none; cursor: pointer; }
 .pg-item svg { color: var(--muted); flex: none; }
+.pg-item .pg-sub { display: block; margin-top: 1px; color: var(--muted); font-size: 12.5px; font-weight: 400; } /* ("Com o widget da tela inicial", embaixo do Baixar o app) */
 .pg-item:hover, .pg-item:focus-visible { background: var(--surface-2); }
 .pg-lista .pg-item { gap: 16px; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: 500; transition: background 0.15s; }
 .pg-lista .pg-item svg { color: var(--text); }

@@ -1,0 +1,119 @@
+# O app de Android do Ecoa (o APK): o mesmo site (kvsl11.github.io/Songbook) dentro de um app, com o widget da tela
+# inicial, o aviso de "tocando" com os botões e o login do Google pelo próprio Android. Publicado em
+# Releases → android (o arquivo Ecoa.apk), que o botão "Baixar o app para Android" do site baixa.
+# O site muda sozinho dentro do app (ele abre o site publicado): o APK só é montado de novo quando a parte de Android
+# muda (app-android/). Fora do ramo principal, só monta (não publica).
+#
+# A chave que assina o APK tem de ser sempre a mesma (senão o novo não instala por cima do anterior). Ela fica no
+# repositório trancada (app-android/chave/ecoa.p12.enc), e só abre com a senha do segredo ECOA_CHAVE_SENHA. Na primeira
+# vez, sem a chave, o robô cria uma e guarda trancada. Veja app-android/LEIA-ME.md
+name: App de Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app-android/**'
+      - '.github/workflows/android.yml'
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PRINCIPAL: ${{ github.ref_name == 'ccr-59dd75f2-oirnca' || github.ref_name == 'main' || github.ref_name == 'master' }}
+      ECOA_CHAVE_SENHA: ${{ secrets.ECOA_CHAVE_SENHA }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Preparar o projeto (o Capacitor copia a configuração para o Android)
+        working-directory: app-android
+        run: |
+          npm ci
+          npx cap sync android
+
+      - name: A chave que assina o APK
+        id: chave
+        run: |
+          set -e
+          ENC=app-android/chave/ecoa.p12.enc
+          if [ -z "$ECOA_CHAVE_SENHA" ]; then
+            echo "::error::Falta o segredo ECOA_CHAVE_SENHA (Settings → Secrets and variables → Actions). Veja app-android/LEIA-ME.md"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/chave"
+          P12="$RUNNER_TEMP/chave/ecoa.p12"
+          if [ -f "$ENC" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$ENC" -out "$P12" -pass env:ECOA_CHAVE_SENHA \
+              || { echo "::error::A senha do segredo ECOA_CHAVE_SENHA não abre a chave guardada (ela mudou?)"; exit 1; }
+          else
+            # (a primeira vez: cria a chave, válida por 30 anos, e guarda trancada no repositório)
+            keytool -genkeypair -v -storetype PKCS12 -keystore "$P12" -alias ecoa -keyalg RSA -keysize 4096 -validity 11000 \
+              -storepass "$ECOA_CHAVE_SENHA" -keypass "$ECOA_CHAVE_SENHA" -dname "CN=Ecoa, O=Ecoa, C=BR"
+            mkdir -p app-android/chave
+            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$P12" -out "$ENC" -pass env:ECOA_CHAVE_SENHA
+            if [ "$PRINCIPAL" = "true" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add "$ENC"
+              git commit -m "App de Android: a chave que assina o APK (trancada com a senha do segredo ECOA_CHAVE_SENHA)"
+              git push
+            fi
+          fi
+          echo "arquivo=$P12" >> "$GITHUB_OUTPUT"
+          # (as impressões digitais da chave: a SHA-1 vai no Firebase, para o login do Google pelo Android)
+          keytool -list -v -keystore "$P12" -storepass "$ECOA_CHAVE_SENHA" -alias ecoa | grep -E "SHA1:|SHA256:" > "$RUNNER_TEMP/digitais.txt"
+          {
+            echo "### Impressões digitais da chave do APK"
+            echo "Cole a **SHA-1** no Firebase (Configurações do projeto → Seus apps → app Android \`br.ecoa.app\` → Adicionar impressão digital):"
+            echo '```'
+            cat "$RUNNER_TEMP/digitais.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Montar o APK
+        working-directory: app-android/android
+        env:
+          ECOA_CHAVE_ARQUIVO: ${{ steps.chave.outputs.arquivo }}
+          ECOA_VERSAO_CODIGO: ${{ github.run_number }}
+          ECOA_VERSAO_NOME: 1.${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Ecoa.apk"
+          ls -la "$RUNNER_TEMP/Ecoa.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ecoa-apk
+          path: ${{ runner.temp }}/Ecoa.apk
+          retention-days: 14
+
+      - name: Publicar (Releases → android)
+        if: env.PRINCIPAL == 'true'
+        run: |
+          cat > "$RUNNER_TEMP/notas.md" <<'NOTAS'
+          O Ecoa para Android: baixe o **Ecoa.apk** abaixo e abra no celular (o Android pede para permitir "instalar apps desconhecidos" na primeira vez).
+
+          - O mesmo app do site, com a sua conta Google.
+          - O widget da tela inicial: segure o dedo na tela inicial → Widgets → Ecoa.
+          - O aviso de "tocando" com os botões, que mantém a música tocando com o app minimizado.
+
+          As novidades do app chegam sozinhas (ele abre o site publicado); este arquivo só muda quando a parte de Android muda.
+          NOTAS
+          gh release delete android --cleanup-tag --yes 2>/dev/null || true
+          gh release create android "$RUNNER_TEMP/Ecoa.apk" --title "Ecoa para Android" --notes-file "$RUNNER_TEMP/notas.md" --target "$GITHUB_SHA" --latest=false

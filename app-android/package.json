@@ -1,0 +1,15 @@
+{
+  "name": "ecoa-android",
+  "private": true,
+  "description": "O Ecoa como app de Android (APK): o mesmo site, com o widget da tela inicial e o login do Google pelo próprio Android",
+  "scripts": {
+    "sincronizar": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}
