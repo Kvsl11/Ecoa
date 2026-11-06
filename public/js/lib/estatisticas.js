@@ -1,5 +1,5 @@
 // O que a pessoa ouviu, dia a dia: a base das Estatísticas (minutos ouvidos, artistas e músicas mais ouvidos) e dos
-// Recentes (agrupados por dia). Fica só neste aparelho. Funções puras: o app guarda o registro e chama estas contas.
+// Recentes (agrupados por dia). Cada aparelho guarda o seu, e as telas mostram os da conta somados (juntarRegistros). Funções puras: o app guarda o registro e chama estas contas.
 //
 // registro: { 'AAAA-MM-DD': { [chave]: { tipo: 'musica' | 'repertorio', id, t, a, c, s, m, u } } }
 //   chave: 'm:<id da música>' ou 'r:<id do repertório>' (as músicas tocadas pelo repertório ficam juntas nele)
@@ -21,6 +21,35 @@ export function registrar(registro, dia, item, segundos = 0, agora = Date.now())
   linha.s += segundos;
   linha.u = agora;
   return registro;
+}
+
+// o registro de vários aparelhos da mesma conta Google, somado num só (as Estatísticas e os Recentes são da conta, não
+// do aparelho): os segundos de cada música, no mesmo dia, somam; o nome, o artista e a capa ficam os da vez mais
+// recente em que ela tocou. Não mexe nos registros recebidos
+export function juntarRegistros(...registros) {
+  const junto = {};
+  for (const reg of registros) {
+    if (!reg || typeof reg !== 'object') continue;
+    for (const [dia, linhas] of Object.entries(reg)) {
+      if (!linhas || typeof linhas !== 'object') continue;
+      const doDia = (junto[dia] ||= {});
+      for (const [chave, l] of Object.entries(linhas)) {
+        if (!l || typeof l !== 'object') continue;
+        const ja = doDia[chave];
+        if (!ja) { doDia[chave] = { ...l, m: Object.fromEntries(Object.entries(l.m || {}).map(([k, m]) => [k, { ...m }])) }; continue; }
+        const maisNova = (Number(l.u) || 0) > (Number(ja.u) || 0);
+        ja.s = (Number(ja.s) || 0) + (Number(l.s) || 0);
+        if (maisNova) { ja.t = l.t || ja.t; ja.a = l.a ?? ja.a; ja.c = l.c || ja.c; ja.u = l.u; }
+        for (const [k, m] of Object.entries(l.m || {})) {
+          const jm = (ja.m ||= {})[k];
+          if (!jm) { ja.m[k] = { ...m }; continue; }
+          jm.s = (Number(jm.s) || 0) + (Number(m.s) || 0);
+          if (maisNova) { jm.t = m.t || jm.t; jm.a = m.a ?? jm.a; jm.c = m.c || jm.c; }
+        }
+      }
+    }
+  }
+  return junto;
 }
 
 // tira os dias mais antigos

@@ -97,6 +97,7 @@ function tirarSoltas() {
   const usadas = new Set(state.sets.flatMap((st) => st.items.map((it) => it.songId)));
   state.songs = state.songs.filter((s) => !s.soNoRepertorio || usadas.has(s.id));
 }
+let extrasDaNuvem = null; // { locais(): { item: JSON }, eh(item): boolean, aplicar(item, JSON | null) }
 export const db = {
   songs: () => [...state.songs].sort((a, b) => a.title.localeCompare(b.title, 'pt-BR')),
   song: (id) => state.songs.find((s) => s.id === id),
@@ -175,12 +176,15 @@ export const db = {
     return n;
   },
   // ---- conta Google (conta.js): a biblioteca como vai para a nuvem e o que chega dela
-  paraNuvem: () => ({ songs: state.songs, sets: state.sets, recent: state.recent || [] }),
+  // (extras: outros itens que o app guarda fora da biblioteca, como o que cada aparelho ouviu: definirExtrasDaNuvem)
+  paraNuvem: () => ({ songs: state.songs, sets: state.sets, recent: state.recent || [], extras: extrasDaNuvem?.locais() || null }),
+  definirExtrasDaNuvem(p) { extrasDaNuvem = p; },
   // mudancas: Map item ("m_<id>", "r_<id>", "recentes") -> JSON, ou null quando o item foi apagado em outro aparelho
   daNuvem(mudancas) {
     for (const [k, json] of mudancas) {
       const obj = json ? JSON.parse(json) : null;
       if (k === 'recentes') { state.recent = Array.isArray(obj) ? obj : []; continue; }
+      if (extrasDaNuvem?.eh(k)) { extrasDaNuvem.aplicar(k, json); continue; }
       const lista = k.startsWith('m_') ? 'songs' : k.startsWith('r_') ? 'sets' : null;
       if (!lista) continue;
       const id = k.slice(2);

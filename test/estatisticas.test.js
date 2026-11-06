@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { registrar, podar, semanaDe, rotuloDoPeriodo, resumoDoPeriodo, segundosPorDia, mesesFechados, recentesPorDia, rotuloDoDia, minutos } from '../public/js/lib/estatisticas.js';
+import { juntarRegistros, registrar, podar, semanaDe, rotuloDoPeriodo, resumoDoPeriodo, segundosPorDia, mesesFechados, recentesPorDia, rotuloDoDia, minutos } from '../public/js/lib/estatisticas.js';
 
 const musica = (id, titulo, artista, extra = {}) => ({ songId: id, titulo, artista, capa: `${id}.jpg`, ...extra });
 
@@ -73,4 +73,20 @@ test('tira os dias muito antigos', () => {
   const r = { '2024-01-01': {}, '2026-11-01': {} };
   podar(r, '2026-11-05', 30);
   assert.deepEqual(Object.keys(r), ['2026-11-01']);
+});
+
+test('as estatísticas da conta: o registro de cada aparelho somado num só', () => {
+  const a = {};
+  const b = {};
+  registrar(a, '2026-11-06', { songId: 's1', titulo: 'Odres Novos', artista: 'Gerados' }, 60, 1000);
+  registrar(b, '2026-11-06', { songId: 's1', titulo: 'Odres Novos (nova)', artista: 'Gerados' }, 30, 2000);
+  registrar(b, '2026-11-05', { songId: 's2', titulo: 'Outra', artista: 'X' }, 10, 500);
+  const j = juntarRegistros(a, b);
+  assert.equal(j['2026-11-06']['m:s1'].s, 90);
+  assert.equal(j['2026-11-06']['m:s1'].m.s1.s, 90);
+  assert.equal(j['2026-11-06']['m:s1'].t, 'Odres Novos (nova)'); // (o nome da vez mais recente)
+  assert.equal(j['2026-11-05']['m:s2'].s, 10);
+  // (os registros recebidos não mudam)
+  assert.equal(a['2026-11-06']['m:s1'].s, 60);
+  assert.equal(b['2026-11-06']['m:s1'].s, 30);
 });

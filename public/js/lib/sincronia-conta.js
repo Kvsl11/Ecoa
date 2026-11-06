@@ -27,11 +27,13 @@ export function hash(str) {
 }
 
 // os itens da biblioteca deste aparelho, como vão para a nuvem
-export function itensLocais({ songs = [], sets = [], recent = [] }) {
+// extras: outros itens já em texto ({ item: JSON }), como o que cada aparelho ouviu ("o_<aparelho>")
+export function itensLocais({ songs = [], sets = [], recent = [], extras = null }) {
   const m = new Map();
   for (const s of songs) m.set('m_' + s.id, JSON.stringify(semLocais(s)));
   for (const s of sets) m.set('r_' + s.id, JSON.stringify(s));
   m.set('recentes', JSON.stringify(recent || []));
+  for (const [k, v] of Object.entries(extras || {})) if (typeof v === 'string') m.set(k, v);
   return m;
 }
 

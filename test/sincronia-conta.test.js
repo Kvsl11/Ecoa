@@ -71,3 +71,14 @@ test('nada mudou: nada sobe', () => {
   const p = planejar(locais, new Map(), base(locais));
   assert.equal(p.subir.size, 0);
 });
+
+test('os itens extras (o que cada aparelho ouviu) vão para a nuvem como estão', () => {
+  const m = itensLocais({ songs: [], sets: [], recent: [], extras: { o_a: '{"x":1}', o_b: '{"y":2}' } });
+  assert.equal(m.get('o_a'), '{"x":1}');
+  assert.equal(m.get('o_b'), '{"y":2}');
+  // (o item de outro aparelho que chegou da nuvem continua nos locais: não é apagado lá na próxima sincronia)
+  const base = { o_b: hash('{"y":2}') };
+  const plano = planejar(m, new Map(), base);
+  assert.equal(plano.subir.has('o_b'), false);
+  assert.equal(plano.subir.get('o_a'), '{"x":1}');
+});
