@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 561, data: '2026-11-06', titulo: 'O modo música só com o áudio oficial',
+    itens: [
+      { tipo: 'correcao', texto: 'O modo música podia tocar um vídeo que um fã subiu no próprio canal, com o nome do artista só no título, e não a gravação do canal oficial (em "Odres Novos", tocava o vídeo de outro canal, e não o do Ministério Gerados pela Imaculada). Agora o áudio do modo música vem só de uma fonte oficial: a faixa do YouTube Music, o canal do próprio artista, o mesmo canal do vídeo que você abriu ou o da gravadora. Sem achar, o modo música toca o próprio vídeo oficial. As músicas salvas são conferidas sozinhas, e o áudio que não for oficial sai.' },
+    ],
+  },
+  {
     versao: 560, data: '2026-11-06', titulo: 'A letra e a cifra do artista certo',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo de uma música no canal do próprio artista (como "Odres Novos", no canal do Ministério Gerados pela Imaculada) podia vir com a letra e a cifra de outra música de mesmo nome, de outro artista. Agora só vale a do artista do canal; sem achar, a música fica sem a letra, em vez de vir com a de outra. O mesmo vale para o conserto das músicas salvas sem a letra, que também mantém o vídeo que estava tocando.' },
@@ -61,12 +67,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), a janela "Escolher o tom" sobe do rodapé, como no celular, em vez de abrir no meio da tela por cima da cifra. Arraste a alça para baixo para fechar.' },
       { tipo: 'melhoria', texto: 'Nas prévias, no tablet (em pé ou deitado), o artista, as hashtags e o cartão da música vão de uma ponta à outra da tela, embaixo, em vez de ficarem numa coluna estreita à esquerda.' },
-    ],
-  },
-  {
-    versao: 551, data: '2026-11-06', titulo: 'Os artistas parecidos levam à página deles',
-    itens: [
-      { tipo: 'correcao', texto: 'No Explorar do Tocando agora, tocar num artista dos "Parecidos com…" não abria a página dele (as músicas e os álbuns): o app abria e logo voltava. O mesmo acontecia com as pessoas dos créditos ("Mostrar tudo" e "Por trás da música"). Agora a página do artista abre no lugar do Tocando agora.' },
     ],
   },
 ];

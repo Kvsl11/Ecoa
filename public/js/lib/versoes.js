@@ -43,6 +43,18 @@ export function doMesmoArtista(v, artista) {
   const ondeJunto = juntas(`${v?.canal || ''} ${v?.titulo || ''}`);
   return nomes.some((n) => n.every((p) => onde.has(p)) || (n.join('').length >= 5 && ondeJunto.includes(n.join(''))));
 }
+// O vídeo vem de uma fonte oficial da música: a faixa do YouTube Music, o canal do próprio artista (o nome dele no
+// canal, "Artista - Topic", o VEVO dele), o mesmo canal do clipe da música (o canal oficial que a pessoa está vendo) ou
+// o canal de uma gravadora. O vídeo que alguém subiu no próprio canal com o nome do artista só no título — o "Odres
+// Novos - Gerados Pela Imaculada" de um fã — não é: podia ser outra gravação, cortada, com outro som. Sem o artista,
+// não há como conferir, e vale
+export function fonteOficial(v, artista = '', canalDoClipe = '') {
+  if (!nomesDoArtista(artista).length) return true;
+  if (v?.tipo === 'music') return true;
+  if (!normal(v?.canal)) return false;
+  if (canalDoClipe && normal(v.canal) === normal(canalDoClipe)) return true;
+  return canalOficial(v.canal, artista);
+}
 // o título do vídeo é o da música: tirando o que vai entre parênteses, os participantes, o nome do artista e as palavras
 // de sempre ("Official Audio", "Lyric Video", "Topic"), sobra só o título — nenhuma palavra a mais
 export function mesmoTitulo(v, titulo, artista = '') {
@@ -64,7 +76,8 @@ export function mesmoTitulo(v, titulo, artista = '') {
 // Entre os vídeos achados no YouTube ({ id, titulo, canal, segundos }), o áudio oficial da gravação: o mesmo título,
 // a duração aproximada da gravação do LRCLIB e, de preferência, do canal do artista
 // YouTube Music são o áudio puro). null se nenhum servir
-export function escolherAudio(videos, { titulo = '', artista = '', duracao = 0, evitar = '' } = {}) {
+// canal: o canal do clipe da música (o oficial que a pessoa abriu): o áudio desse mesmo canal vale como oficial
+export function escolherAudio(videos, { titulo = '', artista = '', duracao = 0, evitar = '', canal: canalDoClipe = '' } = {}) {
   const t = normal(titulo).replace(/\b(feat|ft)\b.*$/, '').trim();
   const a = normal(artista);
   if (!t) return null;
@@ -88,6 +101,8 @@ export function escolherAudio(videos, { titulo = '', artista = '', duracao = 0, 
     if (!` ${nome} `.includes(` ${t} `) || CLIPE.test(nome) || (OUTRA_GRAVACAO.test(nome) && !OUTRA_GRAVACAO.test(t))) continue;
     // (a mesma música: do artista certo e com o título exato, sem outra música ou pot-pourri em volta)
     if (!doMesmoArtista(v, artista) || !mesmoTitulo(v, titulo, artista)) continue;
+    // (e de uma fonte oficial: não o vídeo que alguém subiu no próprio canal)
+    if (!fonteOficial(v, artista, canalDoClipe)) continue;
     // (a instrumental tem a mesma duração da gravação: só o nome diz que ela não tem a voz)
     if (SEM_VOZ.test(nome) && !SEM_VOZ.test(t)) continue;
     const canal = normal(v.canal);

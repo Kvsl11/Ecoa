@@ -23,7 +23,7 @@ import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaCo
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
-import { canalOficial, doMesmoArtista, escolherAudio, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
+import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
@@ -1896,6 +1896,10 @@ const REVISOES = [
   // a busca não achava a cifra nem a letra: a música era salva vazia. As salvas sem a cifra e a letra tiram o nome de
   // novo e procuram de novo (a letra sincronizada vem depois, com a letra)
   { rev: 23, semCifra: true, letra: true, quais: (s) => /Não achei a letra nem a cifra/.test(s.content || '') },
+  // v561: o "áudio oficial" (o modo música) podia ser o vídeo que um fã subiu no próprio canal, com o nome do artista
+  // só no título (outra gravação: em "Odres Novos", o modo música tocava outra coisa que não o vídeo do canal oficial).
+  // Agora vale só uma fonte oficial; o áudio das salvas é conferido, e o que não for oficial sai (procura de novo)
+  { rev: 24, conferirAudio: true, versoes: true, letra: true, arquivos: true, quais: (s) => { const vs = versoesDe(s); return Boolean(vs?.audio) && !ehArquivo(vs.audio) && vs.audio !== vs.video && !s.audioProprio; } },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2051,8 +2055,10 @@ async function revisarMusica(id, pendentes, chaves) {
       if (!navigator.onLine) completa = false;
       else {
         const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${vs.audio}`).catch(() => null);
+        // (e de uma fonte oficial: o canal do artista, o do clipe, o da gravadora; não o vídeo que um fã subiu)
+        const canalClipe = info ? await canalDoClipe(vs.video || s.youtube) : '';
         if (!info) completa = false;
-        else if (!doMesmoArtista(info, s.artist) || !mesmoTitulo(info, s.title, s.artist)) {
+        else if (!doMesmoArtista(info, s.artist) || !mesmoTitulo(info, s.title, s.artist) || !fonteOficial(info, s.artist, canalClipe)) {
           db.updateSong(id, { versoes: undefined });
           s = db.song(id);
           player.versoes(s);
@@ -17977,10 +17983,19 @@ async function procurarAudio(song, duracao) {
     vistos.add(v.id);
     return true;
   });
-  const achado = escolherAudio(candidatos, { titulo, artista: song.artist || '', duracao, evitar: song.youtube });
+  // (o canal do clipe é o oficial que a pessoa abriu: o áudio dele vale; o de um fã, com o nome do artista só no título, não)
+  const canal = await canalDoClipe(song.youtube);
+  const achado = escolherAudio(candidatos, { titulo, artista: song.artist || '', duracao, evitar: song.youtube, canal });
   if (achado) { buscaDeAudioFalhou.delete(song.id); return achado; }
   if (!respondeu) buscaDeAudioFalhou.add(song.id);
   return null;
+}
+// o canal do vídeo da música (pelo oEmbed do YouTube), guardado na sessão; '' se não deu para saber
+const canaisDosClipes = new Map();
+function canalDoClipe(id) {
+  if (!id || ehArquivo(id)) return Promise.resolve('');
+  if (!canaisDosClipes.has(id)) canaisDosClipes.set(id, youtubeOEmbed(`https://www.youtube.com/watch?v=${id}`).then((i) => i?.canal || '').catch(() => { canaisDosClipes.delete(id); return ''; }));
+  return canaisDosClipes.get(id);
 }
 // Descobre a gravação de áudio assim que a música é aberta. Não depende de LRCLIB, de letra sincronizada,
 // nem de o usuário apertar Play. Se a busca não achar nada, uma próxima abertura pode tentar novamente.
