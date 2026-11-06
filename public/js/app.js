@@ -13209,7 +13209,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       // e a tela diz por quê. Se o servidor caiu no meio, mostra o erro e o "tente de novo"
       if (arquivo && e.conexao) { lerNoAparelho(arquivo, 'O servidor do seu computador não respondeu (desligado, ou o endereço mudou: leia o QR code de novo), então a partitura está sendo feita aqui no próprio aparelho.'); return; }
       telaFontes(erroExplicado(e));
-      if (e.status === 403) passo.querySelector('.ia-aviso')?.insertAdjacentHTML('beforeend', `<a class="btn small primary" href="#/youtube">${icon('youtube', 15)} Conectar o YouTube</a>`);
+      if (e.status === 403 && !noApk()) passo.querySelector('.ia-aviso')?.insertAdjacentHTML('beforeend', `<a class="btn small primary" href="#/youtube">${icon('youtube', 15)} Conectar o YouTube</a>`);
     }
   }
   // no aparelho, abrir o áudio e carregar a IA (a primeira vez baixa o modelo, uns 20 MB) não pode ficar parado para
@@ -16790,7 +16790,7 @@ const TOPICOS_AJUSTES = [
   { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
-  { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
+  { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: noApk() ? 'Apagar tudo' : 'Servidor da IA · Conta do YouTube · Apagar tudo' },
   { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Atualização do app · Novidades' : 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
@@ -16857,8 +16857,8 @@ function viewSettings(topico) {
 
     ${secao('Avançado', `
     <div class="settings-group">
-      <a class="setting" href="#/servidor"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Servidor da IA</div><div class="s" id="servidor-ia-resumo">Verificando…</div></div><span class="sv-ponto" id="servidor-ia-ponto"></span>${icon('next', 18)}</a>
-      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>
+      ${noApk() ? '' : `<a class="setting" href="#/servidor"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Servidor da IA</div><div class="s" id="servidor-ia-resumo">Verificando…</div></div><span class="sv-ponto" id="servidor-ia-ponto"></span>${icon('next', 18)}</a>
+      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>`}
     </div>
     <div class="settings-group">
       <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Músicas, repertórios e ajustes deste aparelho</div></div><button class="btn small danger" id="clr">Apagar</button></div>
@@ -17681,17 +17681,17 @@ function viewServidorIA() {
     <section class="cy-card cy-status" id="sv-status" data-estado="verificando">
       <span class="cy-ponto"></span><div class="cy-status-txt"><b id="sv-estado-t">Procurando o servidor…</b><small id="sv-estado-d"></small><small class="sv-vivo" id="sv-quando"></small></div>
       <button class="btn small" id="sv-verificar" type="button" aria-label="Verificar de novo">${icon('refresh', 16)}</button></section>
-    <section class="cy-card sv-ligar" id="sv-ligar" hidden>
+    ${noApk() ? '' : `<section class="cy-card sv-ligar" id="sv-ligar" hidden>
       <p>O Codespace dorme quando ninguém usa. Ligue e volte aqui: em uns 2 minutos o app acha o servidor sozinho.</p>
-      <a class="btn primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('external', 16)} Ligar no GitHub</a></section>
+      <a class="btn primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('external', 16)} Ligar no GitHub</a></section>`}
     <section class="sv-lista">
-      ${linha('youtube', 'youtube', 'YouTube')}
+      ${noApk() ? '' : linha('youtube', 'youtube', 'YouTube')}
       ${linha('lumen', 'lumen', 'Lumen com IA')}
       ${linha('voz', 'mic', 'Voz separada da banda')}
       ${linha('batidas', 'gauge', 'Tempos e compasso')}
     </section>
-    <p class="muted cy-nota">${icon('info', 14)} O endereço do servidor chega sozinho pelo site, em todos os aparelhos, e a conexão do YouTube volta sozinha se o servidor mudar.</p>
-    <details class="cy-como sv-manual"${p.servidorPc ? ' open' : ''}><summary>${icon('computador', 16)}<b>Usar outro servidor</b><span class="muted">No seu computador</span>${icon('down', 18)}</summary>
+    <p class="muted cy-nota">${icon('info', 14)} ${noApk() ? 'Os serviços são localizados e acionados automaticamente pelo app.' : 'O endereço do servidor chega sozinho pelo site, em todos os aparelhos, e a conexão do YouTube volta sozinha se o servidor mudar.'}</p>
+    ${noApk() ? '' : `<details class="cy-como sv-manual"${p.servidorPc ? ' open' : ''}><summary>${icon('computador', 16)}<b>Usar outro servidor</b><span class="muted">No seu computador</span>${icon('down', 18)}</summary>`}
       <div class="sv-manual-corpo">
         <p class="muted">Só para o servidor rodando no seu computador: leia o QR code da página dele ou cole o endereço.</p>
         <form class="aj-servidor" id="servidor-pc-form"><input type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" class="input" id="servidor-pc-url" placeholder="Cole o link do QR code ou o endereço" value="${esc(p.servidorPc || '')}" aria-label="Endereço do servidor"><button class="btn small primary">Salvar</button>${p.servidorPc ? '<button type="button" class="btn small" id="servidor-pc-tirar">Tirar</button>' : ''}</form>
@@ -20492,7 +20492,7 @@ function route() {
     case 'setor': return viewSetor(b, c);
     case 'acervo': return viewAcervo(b || '');
     case 'duvidas': return viewDuvidas();
-    case 'youtube': return viewConectarYoutube();
+    case 'youtube': return noApk() ? viewServidorIA() : viewConectarYoutube();
     case 'servidor': return viewServidorIA();
     default: return viewNotFound();
   }
