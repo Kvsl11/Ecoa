@@ -112,7 +112,7 @@ test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravaç
   const inicio = app.indexOf('function arquivosParaBaixar(song)');
   const fim = app.indexOf('// Se o áudio já baixou', inicio);
   const rotina = app.slice(inicio, fim);
-  assert.match(rotina, /if \(song\.youtube && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
+  assert.match(rotina, /const videoId = vs\?\.video \|\| song\.youtube/);\n  assert.match(rotina, /const temClipeIdentificado = Boolean\(vs\?\.video && vs\?\.audio && vs\.video !== vs\.audio\)/);\n  assert.match(rotina, /if \(videoId && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
   const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id')));
   assert.doesNotMatch(baixar, /delete arquivos\[vsAqui\.video\]|apagarAudio\(chaveBaixada\(vsAqui\.video\)\)/);
   assert.match(baixar, /Download parcial/);
@@ -141,7 +141,7 @@ test('players de apoio do YouTube sem a conta (não contam como outro dispositiv
 test('download: o áudio que é o próprio vídeo da música baixa uma vez só, como vídeo (o áudio não apaga o clipe)', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const rotina = app.slice(app.indexOf('function arquivosParaBaixar(song)'), app.indexOf('// Se o áudio já baixou'));
-  assert.match(rotina, /audio && !\(audio === song\.youtube && comVideo\)/);
+  assert.match(rotina, /audio && !\(audio === videoId && comVideo\)/);
 });
 
 test('download: a entrega do servidor não trava (tempo sem dados, nova tentativa de onde parou) e o arquivo é conferido', async () => {
