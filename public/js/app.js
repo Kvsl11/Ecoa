@@ -8891,14 +8891,37 @@ function enriquecerTilesArtistas(container) {
   container.querySelectorAll('[data-artista-foto]').forEach((box) => {
     const nome = box.dataset.nome || '';
     const slug = box.dataset.slug || '';
-    // (já com uma foto na tela: não troca na frente da pessoa; a nova, se for outra, fica guardada para a próxima vez)
-    if (!nome || box.dataset.mostrando) return;
+    if (!nome) return;
+    // Uma foto antiga não pode impedir a atualização; e uma imagem quebrada deve voltar ao desenho padrão.
+    const atual = box.querySelector('img');
+    if (atual && !atual.dataset.falhaTratada) {
+      atual.dataset.falhaTratada = '1';
+      const falhou = () => {
+        if (!box.isConnected || box.querySelector('img') !== atual) return;
+        delete box.dataset.mostrando;
+        box.replaceChildren();
+        box.insertAdjacentHTML('afterbegin', icon('mic', 40));
+      };
+      atual.addEventListener('error', falhou, { once: true });
+      if (atual.complete && !atual.naturalWidth) falhou();
+    }
+    const exibida = box.dataset.mostrando || atual?.getAttribute('src') || '';
     fotoDoArtista(nome, slug).then((url) => {
-      if (!url || !box.isConnected || box.dataset.mostrando) return;
-      // (só entra depois de carregada: sem o quadro vazio antes da foto)
+      if (!url || !box.isConnected) return;
+      if (url === exibida && atual?.naturalWidth) return;
+      // A nova foto só substitui a atual depois de carregar, sem piscar nem deixar um endereço quebrado na tela.
       const img = new Image();
       img.alt = nome;
-      img.onload = () => { if (!box.isConnected || box.dataset.mostrando) return; box.dataset.mostrando = url; box.replaceChildren(img); };
+      img.onload = () => {
+        if (!box.isConnected) return;
+        box.dataset.mostrando = url;
+        box.replaceChildren(img);
+      };
+      img.onerror = () => {
+        if (!box.isConnected || box.querySelector('img')) return;
+        delete box.dataset.mostrando;
+        box.insertAdjacentHTML('afterbegin', icon('mic', 40));
+      };
       img.src = url;
     }).catch(() => {});
   });
