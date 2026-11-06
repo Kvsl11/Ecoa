@@ -17057,6 +17057,10 @@ function infoDaGaveta(u) {
 // (do próprio site, e não do GitHub: o link do GitHub passa por um redirecionamento, e no celular o download do APK
 // ficava parado em "Baixando…" e não aparecia nos downloads. O robô do site copia o APK publicado para cá)
 const LINK_APK = 'Ecoa.apk';
+// No APK, os arquivos publicados ficam no GitHub Pages; document.baseURI aponta para o pacote local do Capacitor.
+// A Web continua usando o endereço relativo acima, sem mudar seu comportamento.
+const URL_APK_PUBLICADO = 'https://kvsl11.github.io/Songbook/Ecoa.apk';
+const URL_VERSAO_APK_PUBLICADA = 'https://kvsl11.github.io/Songbook/Ecoa-versao.json';
 const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
 // A atualização do próprio APK: o robô publica a versão do APK (Ecoa-versao.json, ao lado do Ecoa.apk no site) e o app
 // compara com a dele. Atualizar baixa o APK novo e abre a tela de instalar do Android (que sempre pergunta antes).
@@ -17066,7 +17070,7 @@ async function conferirAtualizacaoApk() {
   if (!nativo) return null;
   const [instalada, publicada] = await Promise.all([
     nativo.versao ? nativo.versao().catch(() => null) : null,
-    fetch(`${new URL('Ecoa-versao.json', document.baseURI).href}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(`${URL_VERSAO_APK_PUBLICADA}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   return { instalada, publicada, nova: Boolean(publicada?.codigo && (!instalada?.codigo || Number(publicada.codigo) > Number(instalada.codigo))) };
 }
@@ -17080,7 +17084,7 @@ async function atualizarApk(bt, aoAndar) {
   if (bt) { bt.disabled = true; bt.textContent = 'Baixando…'; }
   const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (pct >= 0) { if (bt) bt.textContent = `${pct}%`; aoAndar?.(pct); } })?.catch?.(() => null);
   try {
-    await nativo.atualizar({ url: new URL(LINK_APK, document.baseURI).href });
+    await nativo.atualizar({ url: URL_APK_PUBLICADO });
     // (a tela de instalar do Android abriu; se a pessoa cancelar, o botão volta)
     if (bt) { bt.textContent = 'Instalando…'; setTimeout(() => { if (bt.isConnected) bt.textContent = texto; }, 8000); }
     return true;
@@ -21007,7 +21011,7 @@ function viewNovidades(versao) {
       // a marca "Com a atualização do app")
       const doApp = n.itens.some((it) => /atualiza[çc][ãa]o do app/i.test(it.texto));
       return `<section class="nv-versao${String(n.versao) === String(versao) ? ' destaque' : ''}" id="nv-${n.versao}">
-      <div class="nv-cab">${noApk() ? (doApp ? `<span class="chip sm nv-app">${icon('download', 12)} Com a atualização do app</span>` : '') : `<span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span>`}<small>${esc(data(n.data))}</small></div>
+      <div class="nv-cab"><span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span>${noApk() && doApp ? `<span class="chip sm nv-app">${icon('download', 12)} Com a atualização do app</span>` : ''}<small>${esc(data(n.data))}</small></div>
       <h3>${esc(n.titulo)}</h3>
       <ul>${n.itens.map((it) => { const [nome, ic] = TIPO_NOVIDADE[it.tipo] || TIPO_NOVIDADE.melhoria; return `<li data-tipo="${it.tipo}"><span class="nv-ic">${icon(ic, 14)}</span><span><b>${nome}</b> ${esc(it.texto)}</span></li>`; }).join('')}</ul>
     </section>`;
