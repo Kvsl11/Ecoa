@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 553, data: '2026-11-06', titulo: 'As barrinhas do tablet mais bem acabadas',
+    itens: [
+      { tipo: 'melhoria', texto: 'No painel do lado do tablet, a barrinha de cima (o nome da música, o artista, o ✓ e o play, que aparece ao rolar) ficou um pouco mais alta, e o nome não encosta mais na borda esquerda.' },
+      { tipo: 'melhoria', texto: 'No tablet, com o player recolhido, o vídeo da barrinha de baixo fica colado na borda esquerda do cartão e com a altura toda dele, sem a margem em volta, como no celular e no Spotify.' },
+    ],
+  },
+  {
     versao: 552, data: '2026-11-06', titulo: 'No tablet: a barra das prévias inteira e os tons no rodapé',
     itens: [
       { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), a janela "Escolher o tom" sobe do rodapé, como no celular, em vez de abrir no meio da tela por cima da cifra. Arraste a alça para baixo para fechar.' },
@@ -64,18 +71,6 @@ export const NOVIDADES = [
     versao: 544, data: '2026-11-05', titulo: 'O ícone de ouvir em outro aparelho',
     itens: [
       { tipo: 'melhoria', texto: 'O ícone de ouvir em outro aparelho ficou mais parecido com o do Spotify: um tracinho embaixo do celular (no lugar do ponto) e um vão separando o celular da caixa de som.' },
-    ],
-  },
-  {
-    versao: 543, data: '2026-11-05', titulo: 'A barrinha de baixo como a do Spotify e o fone',
-    itens: [
-      { tipo: 'melhoria', texto: 'O nome da música que não cabe anda devagar para o lado, numa linha só, e volta ao começo: na barrinha de baixo, no Tocando agora e na barrinha de cima.' },
-      { tipo: 'melhoria', texto: 'Com um fone conectado, a barrinha de baixo fica como a do Spotify: o nome e o artista na mesma linha, o fone embaixo na cor do app e, à direita, o ícone do fone, o ✓ e o play. Sem fone, o ícone do fone não aparece.' },
-      { tipo: 'melhoria', texto: 'No Tocando agora, o ícone do fone embaixo dos controles ficou do tamanho do botão de compartilhar.' },
-      { tipo: 'novo', texto: 'Conectou o fone com o app aberto: aparece o aviso "Tocando em …" (e, ao desconectar, que o som voltou para o celular). Como o Android só diz "Bluetooth headset", dá para dar o nome do seu fone na folha Conectar, e ele aparece em todo lugar.' },
-      { tipo: 'melhoria', texto: 'Com o vídeo tocando, a barrinha de baixo mostra o vídeo colado na borda, da altura dela, como no Spotify.' },
-      { tipo: 'melhoria', texto: 'Ícones novos: o do fone e o de ouvir em outro aparelho (o celular atrás de uma caixa de som, como no Spotify).' },
-      { tipo: 'correcao', texto: 'O Diagnóstico da música ficava com a lista dos pares do áudio e do clipe enchendo a tela e os botões de baixo tortos. Agora a lista mostra só o começo e o fim (o "Copiar" leva ela inteira) e os botões vão de ponta a ponta.' },
     ],
   },
 ];

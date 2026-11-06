@@ -3330,7 +3330,8 @@ html.tablet body.painel-cheio #player .pl-extra { grid-template-columns: minmax(
    dela não ocupa espaço: altura zero e a margem desfaz o espaço entre os itens) */
 #player .pl-fixo { display: none; }
 html.tablet body:not(.painel-recolhido) #player:not(.letra-cheia) .pl-fixo { display: block; order: -1; position: sticky; top: 0; z-index: 6; height: 0; margin-bottom: -14px; align-self: stretch; width: auto; }
-html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: -16px; left: -18px; right: -18px; }
+/* (no painel do lado: um pouco mais alta e o nome afastado da borda; antes o L encostava no canto) */
+html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: -16px; left: -18px; right: -18px; padding: 10px 14px 10px 18px; }
 html.tablet body.painel-cheio #player:not(.letra-cheia) .pl-fixo { margin-bottom: -16px; }
 html.tablet body.painel-cheio #player .pl-fixo-barra { left: -28px; right: -28px; padding: 12px 28px; }
 /* no celular e no computador, a mesma barrinha no Tocando agora na tela toda (colada no topo da tela, por cima da
@@ -3443,6 +3444,12 @@ html.tablet body.painel-recolhido #player .pl-pulo { display: none; }
 html.tablet body.painel-recolhido #player { cursor: pointer; }
 html.tablet body.painel-recolhido #pl-tela:not(.no-palco) { pointer-events: none; } /* tocar na capinha do vídeo também abre o painel */
 html.tablet body.painel-recolhido #player .pl-lado { display: none; }
+/* com o vídeo tocando (como no celular e no Spotify): o vídeo colado na borda esquerda do cartão, da altura toda dele,
+   sem margem em volta; o nome e os botões ao lado */
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) { padding-top: 0; padding-bottom: 0; padding-left: 0; }
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { height: 100%; align-self: stretch; border-radius: 15px 0 0 15px; }
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-info { padding-left: 4px; }
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) ~ #pl-tela:not(.no-palco):not(.na-telinha) { border-radius: 15px 0 0 15px; }
 /* na página da música o menu de baixo some (volta ao sair pela seta do topo) */
 html.tablet body.na-musica .nav { display: none; }
 html.tablet body.na-musica { --rodape: env(safe-area-inset-bottom); }
