@@ -4,10 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 553, data: '2026-11-06', titulo: 'O Explorar sempre responde e o tablet mais bem acabado',
+    versao: 554, data: '2026-11-06', titulo: 'O Explorar sempre responde e o Diagnóstico no rodapé do tablet',
     itens: [
       { tipo: 'correcao', texto: 'No Explorar do Tocando agora, "Parecidos com…" e "Parecidas com…" às vezes não abriam nada (com o Justice, por exemplo): o Deezer recusava os pedidos feitos todos de uma vez ao abrir a tela, e o app guardava a resposta vazia como se não houvesse parecidos. Agora o pedido é refeito, e, se mesmo assim não vier nada, os cartões mostram outra sugestão (os artistas da rádio do artista, as músicas mais ouvidas dele) ou abrem as músicas do artista.' },
       { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), o Diagnóstico da música sobe do rodapé, como os ⋮, em vez de abrir no meio da tela.' },
+    ],
+  },
+  {
+    versao: 553, data: '2026-11-06', titulo: 'As barrinhas do tablet mais bem acabadas',
+    itens: [
       { tipo: 'melhoria', texto: 'No painel do lado do tablet, a barrinha de cima (o nome da música, o artista, o ✓ e o play, que aparece ao rolar) ficou um pouco mais alta, e o nome não encosta mais na borda esquerda.' },
       { tipo: 'melhoria', texto: 'No tablet, com o player recolhido, o vídeo da barrinha de baixo fica colado na borda esquerda do cartão e com a altura toda dele, sem a margem em volta, como no celular e no Spotify.' },
     ],
@@ -67,12 +72,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Na barrinha de baixo, o nome da música aparecia gigante (com o tamanho do título das playlists). Ele voltou ao tamanho normal e continua andando para o lado quando não cabe.' },
       { tipo: 'correcao', texto: 'Passar o dedo na barrinha de baixo para trocar de música, com a música já no meio, fazia ela voltar ao começo em vez de trocar. Agora, para a esquerda vai para a próxima e para a direita para a anterior, como no Spotify; no fim da fila, o app avisa.' },
       { tipo: 'melhoria', texto: 'Na barrinha de cima do Tocando agora, o fone aparece só uma vez, embaixo do nome (sem o ícone repetido ao lado do ✓), como no Spotify.' },
-    ],
-  },
-  {
-    versao: 544, data: '2026-11-05', titulo: 'O ícone de ouvir em outro aparelho',
-    itens: [
-      { tipo: 'melhoria', texto: 'O ícone de ouvir em outro aparelho ficou mais parecido com o do Spotify: um tracinho embaixo do celular (no lugar do ponto) e um vão separando o celular da caixa de som.' },
     ],
   },
 ];
