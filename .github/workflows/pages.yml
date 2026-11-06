@@ -170,13 +170,17 @@ jobs:
       # o app de Android (o Ecoa.apk publicado pelo robô "App de Android") vai junto com o site: o botão "Baixar o app
       # para Android" baixa do próprio site (o link do GitHub redireciona, e no celular o download ficava parado)
       - name: O APK do app de Android no site
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download android -p Ecoa.apk -D public --clobber && ls -la public/Ecoa.apk || echo "::notice::Ainda não há APK publicado"
-          # (a versão do APK publicado: o app instalado compara com a dele e oferece a atualização)
-          gh release download android -p Ecoa-versao.json -D public --clobber && cat public/Ecoa-versao.json || echo "::notice::O APK publicado ainda não tem o arquivo da versão"
+          set -euo pipefail
+          # Os dois arquivos são obrigatórios: publicar o Pages sem um deles deixa o app sem detectar a atualização.
+          gh release download android -p Ecoa.apk -D public --clobber
+          gh release download android -p Ecoa-versao.json -D public --clobber
+          test -s public/Ecoa.apk
+          test -s public/Ecoa-versao.json
+          node -e "const v=require('./public/Ecoa-versao.json'); if (!Number.isInteger(v.codigo) || !v.nome) process.exit(1); console.log('APK publicado:', v.nome, '(código', v.codigo + ')')"
+          ls -lh public/Ecoa.apk public/Ecoa-versao.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

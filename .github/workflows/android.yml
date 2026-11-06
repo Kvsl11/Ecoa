@@ -30,7 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      PRINCIPAL: ${{ github.ref_name == 'ccr-59dd75f2-oirnca' || github.ref_name == 'main' || github.ref_name == 'master' }}
+      # Publica somente quando a execução estiver na branch padrão configurada no próprio GitHub.
+      # Assim, builds de branches de trabalho nunca substituem a Release de produção.
+      PRINCIPAL: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       ECOA_CHAVE_SENHA: ${{ secrets.ECOA_CHAVE_SENHA }}
       GH_TOKEN: ${{ github.token }}
     steps:
