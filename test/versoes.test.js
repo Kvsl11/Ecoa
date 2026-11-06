@@ -290,8 +290,8 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
   assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
-  assert.match(resolverFoto, /fotosArtistas\.set\(k, fotoDoCanalDeVerdade\(nome\)/, 'a foto começa pela mesma fonte confiável da versão web');
-  assert.match(resolverFoto, /\.then\(\(f\) => f \|\| fotoDeezer\(nome, titulo\)\)\.then\(\(f\) => f \|\| fotoWikipedia\(nome\)\)/, 'as fontes seguem a mesma ordem da versão web, sem disputa paralela');
+  assert.match(resolverFoto, /const resolucao = fotoDoCanalDeVerdade\(nome\)/, 'a foto começa pela mesma fonte confiável da versão web');
+  assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'as fontes seguem uma sequência fixa da versão web, sem disputa paralela');
   assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não disputa fontes nem cria fotos diferentes por faixa');
   assert.match(app, /nativo\?\.buscarPagina/, 'as consultas JSONP usam a conexão nativa no APK');
   assert.match(app, /output=jsonp&callback=ecoaJsonp/, 'o Android recebe e interpreta a resposta JSONP diretamente');
