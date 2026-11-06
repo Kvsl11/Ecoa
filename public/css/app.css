@@ -5877,3 +5877,11 @@ html.pp #player .pl-capinha::before, #player.modo-capa .pl-video::before, #playe
 .apk-at-andamento small { font-size: 13px; color: var(--muted); }
 .apk-at-nota { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 13px; color: var(--muted); }
 .apk-at-nota svg { flex: none; margin-top: 2px; color: var(--accent-ink); }
+.nv-cab .nv-app { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft, rgb(0 180 220 / 0.15)); color: var(--accent-ink); }
+
+/* ============ no app de Android, nada de selecionar texto ao segurar o dedo (o "Copiar / Selecionar tudo" do
+   navegador): o app se comporta como app. Os campos de digitar (busca, nomes, o editor de cifra…) continuam com a
+   seleção, para copiar e colar */
+html.app-android, html.app-android body, html.app-android * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html.app-android :is(input, textarea, select, [contenteditable]:not([contenteditable="false"])),
+html.app-android :is(input, textarea, [contenteditable]:not([contenteditable="false"])) * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }

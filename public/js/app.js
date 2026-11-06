@@ -20993,12 +20993,18 @@ function viewNovidades(versao) {
   setHeader('Novidades', { back: '#/ajustes/sobre' });
   const data = (d) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
   view.innerHTML = `<h2 class="greet">Novidades do app</h2>
-    <p class="muted nv-intro">O que foi corrigido e melhorado em cada atualização. Você está na versão ${esc(APP_VERSAO)}.</p>
-    <div class="nv-lista">${NOVIDADES.map((n) => `<section class="nv-versao${String(n.versao) === String(versao) ? ' destaque' : ''}" id="nv-${n.versao}">
-      <div class="nv-cab"><span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span><small>${esc(data(n.data))}</small></div>
+    <p class="muted nv-intro">O que foi corrigido e melhorado em cada atualização. ${noApk() ? '<span class="nv-versao-app">Você está no app de Android.</span>' : `Você está na versão ${esc(APP_VERSAO)}.`}</p>
+    <div class="nv-lista">${NOVIDADES.map((n) => {
+      // (no app de Android, os números de versão do site não querem dizer nada: fica a data e, nas que mexem no app,
+      // a marca "Com a atualização do app")
+      const doApp = n.itens.some((it) => /atualiza[çc][ãa]o do app/i.test(it.texto));
+      return `<section class="nv-versao${String(n.versao) === String(versao) ? ' destaque' : ''}" id="nv-${n.versao}">
+      <div class="nv-cab">${noApk() ? (doApp ? `<span class="chip sm nv-app">${icon('download', 12)} Com a atualização do app</span>` : '') : `<span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span>`}<small>${esc(data(n.data))}</small></div>
       <h3>${esc(n.titulo)}</h3>
       <ul>${n.itens.map((it) => { const [nome, ic] = TIPO_NOVIDADE[it.tipo] || TIPO_NOVIDADE.melhoria; return `<li data-tipo="${it.tipo}"><span class="nv-ic">${icon(ic, 14)}</span><span><b>${nome}</b> ${esc(it.texto)}</span></li>`; }).join('')}</ul>
-    </section>`).join('')}</div>`;
+    </section>`;
+    }).join('')}</div>`;
+  mostrarVersaoApk($('.nv-versao-app', view), 'Você está no app de Android, versão');
   // a versão pedida (pela notificação) aparece na tela; a mais nova já está no alto, com o título: não rola (rolar
   // levava o título "Novidades do app" para baixo da barra do topo, cortado)
   if (versao && String(versao) !== String(NOVIDADES[0]?.versao)) requestAnimationFrame(() => $(`#nv-${CSS.escape(versao)}`)?.scrollIntoView({ block: 'start' }));

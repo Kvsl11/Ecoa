@@ -4,6 +4,18 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 575, data: '2026-11-06', titulo: 'O app de Android sem a seleção de texto',
+    itens: [
+      { tipo: 'melhoria', texto: 'No app de Android, segurar o dedo num texto (um nome, um botão, a letra) não seleciona mais nem abre o "Copiar / Selecionar tudo" do navegador, em nenhuma tela: o app se comporta como app. Nos campos de digitar (a busca, os nomes, o editor da cifra), copiar e colar continuam funcionando. Para copiar a letra, use Copiar a letra nos ⋯ da música.' },
+    ],
+  },
+  {
+    versao: 574, data: '2026-11-06', titulo: 'As Novidades certas no app de Android',
+    itens: [
+      { tipo: 'correcao', texto: 'No app de Android, a tela Novidades mostrava os números de versão do site. Agora ela mostra a versão do app instalado, a data de cada novidade e marca as que chegam com a atualização do app.' },
+    ],
+  },
+  {
     versao: 573, data: '2026-11-06', titulo: 'O play no meio do círculo e o aviso de versão nova do app',
     itens: [
       { tipo: 'correcao', texto: 'O triângulo do play parecia torto, puxado para a direita dentro do círculo (no Tocando agora, na barrinha, nas listas e no widget do Android). Agora ele fica no meio, só com o pequeno ajuste para a direita que faz ele parecer centralizado (como no Spotify). No widget, com a atualização do app.' },
@@ -59,23 +71,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'No menu do perfil do APK, a versão agora é a do aplicativo Android instalado (APK), e não a versão do site. No navegador, a versão do site continua aparecendo normalmente.' },
       { tipo: 'melhoria', texto: 'No Android, o app passa a aproveitar a tela inteira: as áreas atrás do relógio e da navegação do sistema acompanham o fundo do Ecoa, mantendo os ícones do celular visíveis.' },
-    ],
-  },
-  {
-    versao: 565, data: '2026-11-06', titulo: 'O app de Android do tamanho certo, com o espaço do celular de verdade',
-    itens: [
-      { tipo: 'correcao', texto: 'Ao importar os downloads no app de Android, o karaokê podia não aparecer: ele ficava só na cópia da música que veio no arquivo, e não na música da biblioteca do app (com outro id, ou que tomava o lugar da cópia ao juntar com a conta). Agora o karaokê e o download vão para a música daqui que toca a mesma gravação, e o aviso no fim diz quantos karaokês vieram. Quem já importou: importe o mesmo arquivo de novo.' },
-      { tipo: 'correcao', texto: 'Quando o navegador (ou o Android) não consegue separar os canais do áudio, o karaokê desligava sem dizer nada. Agora aparece o aviso.' },
-      { tipo: 'correcao', texto: 'No app de Android, tudo ficava maior que no site (textos, ícones), com textos quebrados ou sobrepostos e telas espremidas: o app aumentava o texto pelo "Tamanho da fonte" do Android. Agora ele fica do tamanho do site no Chrome (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
-      { tipo: 'correcao', texto: 'No app de Android, o armazenamento não batia com o do celular: o total era só uma parte da memória. Agora os números são os mesmos das Configurações do Android (o total, o livre e o que o Ecoa ocupa).' },
-      { tipo: 'correcao', texto: 'No player do Android (nas notificações e na tela de bloqueio), a barra ficava em 00:00 / 00:00 e não andava: a duração da música chega depois que ela começa, e o app só mandava no começo. Agora a duração e o ponto aparecem certos, e a barra anda.' },
-      { tipo: 'correcao', texto: 'No app de Android, a música baixada pausava ao minimizar o app ou apagar a tela. Agora ela continua tocando (precisa da atualização do app). A que toca pelo YouTube pausa fora da tela: essa é uma regra do YouTube.' },
-    ],
-  },
-  {
-    versao: 564, data: '2026-11-06', titulo: 'A outra música começa do início',
-    itens: [
-      { tipo: 'correcao', texto: 'Trocar de música podia fazer a nova começar no ponto em que a de antes tinha parado (pausada em 2:10, a outra começava em 2:10), na música e no vídeo, no navegador e no app de Android. Agora a outra música sempre começa do início; só a última música, voltando ao abrir o app, continua de onde parou (agora também a baixada).' },
     ],
   },
 ];
