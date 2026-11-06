@@ -6,9 +6,9 @@ Esta branch concentra a migração do APK. A versão Web publicada não deve per
 
 - O APK copia `public/` para `app-android/www/` por `scripts/preparar-web.mjs`; o Capacitor usa `webDir: "www"`. Portanto, a interface empacotada não precisa ser reconstruída a partir do zero.
 - O plugin `EcoaPlugin` já fornece integrações Android para widget/player, login Google, notificações, atualização do APK e consulta de armazenamento.
-- Downloads de mídia ainda chamam `POST /baixar` no servidor Python. A API usa `yt-dlp` para obter áudio/vídeo e entrega o arquivo em `GET /baixar/{id}`.
-- O karaokê chama `POST /karaoke`; a implementação Python usa modelos de separação de áudio (Demucs/RoFormer) e FFmpeg.
-- O Lúmen possui busca local no acervo em JavaScript, mas a resposta generativa usa `POST /duvida` e provedor externo.
+- Downloads de mídia ainda chamam `POST /baixar` no servidor Python. A API usa `yt-dlp` para obter áudio/vídeo e entrega o arquivo em `GET /baixar/{id}`. O app recebe os bytes como `Blob` e os guarda via `guardarAudio` em IndexedDB (`public/js/audios.js`); o fluxo de downloads está em `public/js/app.js` (`tentarBaixar`/`baixarAgora`).
+- O karaokê chama `POST /karaoke`; a implementação Python usa modelos de separação de áudio (Demucs/RoFormer) e FFmpeg. O roteamento pode usar um serviço separado de GPU/Modal.
+- O Lúmen possui busca local no acervo em JavaScript (`public/js/lib/duvidas.js`), mas a resposta generativa usa `POST /duvida` e provedor externo.
 - O módulo `public/js/lib/servidor-ia.js` contém as chamadas HTTP e o acompanhamento das tarefas remotas.
 
 ## Regras obrigatórias
@@ -55,4 +55,4 @@ Esta branch concentra a migração do APK. A versão Web publicada não deve per
 
 ## Próximo trabalho de código
 
-O primeiro trabalho de implementação é integrar o serviço Android de downloads ao fluxo real do app. Antes disso, é necessário localizar e mapear a rotina JS de download completa, pois o arquivo principal do app é grande e a API GitHub não retornou seu conteúdo integral na leitura inicial. Não criar uma ponte nativa desconectada do fluxo e chamá-la de funcional.
+O primeiro trabalho de implementação é integrar o serviço Android de downloads ao fluxo real do app. A rotina completa já foi localizada no blob de `public/js/app.js`: `tentarBaixar` chama `/baixar` e `baixarAgora` recebe o arquivo como Blob e grava via `guardarAudio` (IndexedDB). A implementação nativa deve preservar esse contrato de armazenamento/leitura ou migrar os consumidores juntos; não basta adicionar um método Java desconectado. O ponto crítico que ainda exige solução é a obtenção/resolução da mídia do YouTube: hoje isso é feito por `yt-dlp` no servidor. Uma transferência Android nativa sozinha não elimina essa dependência.
