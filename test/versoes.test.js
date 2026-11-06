@@ -285,7 +285,7 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoArtista: b\.dataset\.fotoArtista \|\| ''/);
   assert.match(app, /fotoArtista: item\.fotoArtista/);
   assert.match(app, /preview\.fotoArtista \? \{ fotoArtista: preview\.fotoArtista \}/);
-  assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: foto \}\)/);
+  assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: url \}\)/, 'a foto corrigida que chega depois também é persistida');
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   assert.match(app, /artistaDoDeezer\(nome, titulo \? \{ titulo \} : \{\}\)/, 'a foto precisa ser confirmada pela faixa e pelo artista');
