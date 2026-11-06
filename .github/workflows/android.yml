@@ -46,6 +46,7 @@ jobs:
         working-directory: app-android
         run: |
           npm ci
+          node scripts/preparar-web.mjs
           npx cap sync android
 
       - name: A chave que assina o APK
