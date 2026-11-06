@@ -27,6 +27,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
+import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -19240,16 +19241,62 @@ const carregarArquivosAcervo = () => fetch(new URL('data/acervo.json', document.
     const titulo = String(nome).replace(/\.[a-z0-9]{2,4}$/i, '');
     return { titulo, caminho: pasta.split('/').join(' / '), texto: `${pasta.split('/').slice(-2).join(' ')} ${titulo}`, id, formato, tipo: 'arquivo' };
   })).catch(() => []);
-async function indiceDasDuvidas() {
-  if (indiceDuvidas) return indiceDuvidas;
+async function trechosDasDuvidas() {
   const [cantos, cadernos, arquivos] = await Promise.all([carregarCantos(), carregarHinario(), carregarArquivosAcervo()]);
-  const trechos = [
+  return [
     ...arquivos,
     ...cantos.map((c) => ({ titulo: c.titulo, caminho: [...(c.caminho || []), c.arquivo].filter(Boolean).join(' / '), texto: textoSemCifra(c.chordpro), id: c.id, i: c.i, tipo: 'canto' })),
     ...cadernos.flatMap((cad) => cad.cantos.map((c, i) => ({ titulo: c.titulo, caminho: `Hinário Litúrgico / ${cad.celebracao || cad.nome}`, texto: `${c.parte || ''}\n${textoSemCifra(c.chordpro)}`, id: cad.id, i, tipo: 'hinario' }))),
   ];
-  indiceDuvidas = criarIndiceDuvidas(trechos);
+}
+async function indiceDasDuvidas() {
+  if (indiceDuvidas) return indiceDuvidas;
+  indiceDuvidas = criarIndiceDuvidas(await trechosDasDuvidas());
   return indiceDuvidas;
+}
+
+// ---- o Lúmen no próprio celular (o APK com a chave do Gemini): sem o servidor e sem o Codespace. A busca no acervo é
+// feita aqui (com o texto dos PDFs do acervo, que o site publica e o app guarda por uma semana) e o Gemini é chamado
+// pelo plugin do APK (a chave não passa pela página). No navegador, nada disso existe e o Lúmen segue como sempre
+let geminiNoApp = null;
+async function lumenNoAparelho() {
+  const C = window.Capacitor;
+  if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
+  if (!(C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'gemini')) return null;
+  if (geminiNoApp === null) geminiNoApp = await C.Plugins.Ecoa.geminiDisponivel().then((r) => Boolean(r?.tem)).catch(() => false);
+  return geminiNoApp ? C.Plugins.Ecoa : null;
+}
+const URL_TEXTOS_ACERVO = 'https://kvsl11.github.io/Songbook/data/textos-acervo.jsonl.gz';
+const CACHE_LUMEN = 'ecoa-lumen';
+// o texto dos PDFs do acervo (2 MB compactado): guardado no aparelho e baixado de novo depois de uma semana
+async function textosDoAcervo() {
+  let cache = null;
+  try { cache = await caches.open(CACHE_LUMEN); } catch { /* sem Cache Storage */ }
+  const guardada = await cache?.match(URL_TEXTOS_ACERVO).catch(() => null);
+  const idade = guardada ? Date.now() - Number(guardada.headers.get('x-ecoa-em') || 0) : Infinity;
+  let resp = guardada;
+  if ((!guardada || idade > 7 * 24 * 3600e3) && navigator.onLine) {
+    const nova = await fetch(URL_TEXTOS_ACERVO, { cache: 'no-store' }).catch(() => null);
+    if (nova?.ok) {
+      const corpo = await nova.arrayBuffer();
+      resp = new Response(corpo, { headers: { 'content-type': 'application/gzip', 'x-ecoa-em': String(Date.now()) } });
+      await cache?.put(URL_TEXTOS_ACERVO, resp.clone()).catch(() => {});
+    }
+  }
+  if (!resp || typeof DecompressionStream === 'undefined') return '';
+  return new Response(resp.body.pipeThrough(new DecompressionStream('gzip'))).text().catch(() => '');
+}
+let indiceLumen = null;
+async function indiceDoLumen() {
+  indiceLumen ||= (async () => criarIndiceDuvidas([...(await trechosDasDuvidas()), ...trechosDosPdfs(await textosDoAcervo())]))()
+    .catch((e) => { indiceLumen = null; throw e; });
+  return indiceLumen;
+}
+const estadoGemini = {};
+async function perguntarNoAparelho(nativo, { pergunta, historico, contexto = '', voz = false, anexos = [] }) {
+  const achados = await indiceDoLumen().then((ix) => ix.buscar(pergunta, 14)).catch(() => []);
+  const chamarGemini = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 150000 });
+  return responderNoAparelho({ pergunta, historico, contexto, voz, genero: generoLumen(), anexos, achados }, chamarGemini, estadoGemini);
 }
 // quantas palavras diferentes da pergunta aparecem no texto
 // quantas palavras (assuntos) a pergunta tem, sem as de conversa
@@ -19435,13 +19482,17 @@ function viewDuvidas() {
     };
     resp.etapa = `Lendo ${anexo.nome}…`;
     mostrarEtapa(resp);
-    await comPrazo(carregarServidor().catch(() => {}), 12000);
-    const cfgIA = servidorLumen();
-    if (cfgIA) {
+    // (no APK com o Gemini, no próprio celular; senão, pelo servidor)
+    const local = await lumenNoAparelho();
+    if (!local) await comPrazo(carregarServidor().catch(() => {}), 12000);
+    const cfgIA = local ? null : servidorLumen();
+    if (local || cfgIA) {
       try {
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos: [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }] }, tempo: 200e3 });
+        const anexos = [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }];
+        const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, voz, anexos })
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos }, tempo: 200e3 });
         if (ia?.resposta) return pronto({ ia });
       } catch (e) { if (e.status === 501) lumenSemIA = true; else resp.semIA = true; }
     }
@@ -19508,16 +19559,19 @@ function viewDuvidas() {
     }
     // o Lumen com IA (servidor), quando está disponível; se falhar, segue a busca gratuita logo abaixo. O endereço do
     // servidor é conferido aqui (antes, sem outra tela ter carregado o servidor, o Lumen ia direto para a busca simples)
-    await comPrazo(carregarServidor().catch(() => {}), 12000);
-    const cfgIA = servidorLumen();
-    if (cfgIA) {
+    // (no APK com a chave do Gemini, o Lumen pensa no próprio celular, sem servidor)
+    const local = await lumenNoAparelho();
+    if (!local) await comPrazo(carregarServidor().catch(() => {}), 12000);
+    const cfgIA = local ? null : servidorLumen();
+    if (local || cfgIA) {
       resp.etapa = 'Lumen está pensando…';
       mostrarEtapa(resp);
       try {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
+        const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, contexto: await contextoDoApp(q), voz })
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
         if (ia?.resposta) {
           const { texto: semAcoes, depois } = acoesDaIA(ia.resposta);
           ia.resposta = semAcoes;

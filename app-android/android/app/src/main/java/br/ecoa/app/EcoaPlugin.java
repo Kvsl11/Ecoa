@@ -50,6 +50,8 @@ import java.util.concurrent.Executors;
 //    a cada 1%. O arquivo fica em caminho até o site guardar e chamar apagarLocal({ caminho })
 //  - cancelarLocal({ processo }): para o download no meio (a pessoa pausou)
 //  - baixadorLocal({ atualizar }) → { pronto, versao, erro }: prepara o yt-dlp e, uma vez por dia, atualiza
+//  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
+//  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class EcoaPlugin extends Plugin {
     // o id do cliente web do login Google do projeto do Firebase (é público: vai no endereço de login do site)
@@ -351,6 +353,33 @@ public class EcoaPlugin extends Plugin {
             }
         } catch (Exception e) { /* já saiu */ }
         call.resolve();
+    }
+
+    // ---- o Lúmen no próprio celular (Gemini.java): a chave não sai do APK para a página
+    private static final java.util.concurrent.ExecutorService perguntando = Executors.newFixedThreadPool(2);
+
+    @PluginMethod
+    public void geminiDisponivel(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("tem", Gemini.temChave());
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void gemini(PluginCall call) {
+        String caminho = call.getString("caminho", "");
+        String corpo = call.getString("corpo", null);
+        int tempo = call.getInt("tempo", 150000);
+        if (!Gemini.temChave()) { call.reject("Este app foi montado sem a chave do Gemini", "sem-chave"); return; }
+        if (!Gemini.caminhoValido(caminho)) { call.reject("caminho inválido", "caminho"); return; }
+        Context ctx = getContext();
+        perguntando.execute(() -> {
+            Gemini.Resposta g = Gemini.chamar(ctx, caminho, corpo, Math.max(10000, Math.min(tempo, 300000)));
+            JSObject r = new JSObject();
+            r.put("status", g.status);
+            r.put("texto", g.texto);
+            call.resolve(r);
+        });
     }
 
     @PluginMethod

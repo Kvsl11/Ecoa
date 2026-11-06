@@ -3,6 +3,9 @@ apply plugin: 'com.android.application'
 android {
     namespace = "br.ecoa.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "br.ecoa.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -10,6 +13,9 @@ android {
         // (o número da versão do APK vem do robô do GitHub: sobe a cada APK novo, para instalar por cima do anterior)
         versionCode((System.getenv("ECOA_VERSAO_CODIGO") ?: "1") as int)
         versionName(System.getenv("ECOA_VERSAO_NOME") ?: "1.0")
+        // a chave do Gemini (o segredo GEMINI_API_KEY do GitHub, que o robô passa na montagem): o Lúmen chama a API
+        // direto do celular. Sem ela, o APK monta e o Lúmen usa o servidor ou a busca simples
+        buildConfigField "String", "GEMINI_CHAVE", "\"${(System.getenv("ECOA_GEMINI_CHAVE") ?: "").replaceAll('[^A-Za-z0-9_-]', '')}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // (o yt-dlp do APK vem com o Python, o ffmpeg e o QuickJS compilados para cada processador: só os dos celulares,
         // 64 e 32 bits. Os de computador — x86 — deixariam o APK com o dobro do tamanho)

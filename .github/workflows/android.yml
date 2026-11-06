@@ -109,6 +109,8 @@ jobs:
           ECOA_CHAVE_ARQUIVO: ${{ steps.chave.outputs.arquivo }}
           ECOA_VERSAO_CODIGO: ${{ github.run_number }}
           ECOA_VERSAO_NOME: 1.${{ github.run_number }}
+          # (o Lúmen chama o Gemini direto do celular: a chave vai no APK, travada ao app no Google Cloud — LEIA-ME.md)
+          ECOA_GEMINI_CHAVE: ${{ secrets.GEMINI_API_KEY_APK || secrets.GEMINI_API_KEY }}
         run: |
           chmod +x gradlew
           if [ -f "$RUNNER_TEMP/chave/senha-descartavel" ]; then export ECOA_CHAVE_SENHA="$(cat "$RUNNER_TEMP/chave/senha-descartavel")"; fi
