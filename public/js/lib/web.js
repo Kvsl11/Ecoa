@@ -199,16 +199,34 @@ const cabecalhosDoProxy = (modelo) => (/r\.jina\.ai/.test(modelo) ? { 'X-Return-
 
 // Lê uma página que não libera CORS: direto (no Node) e pelos proxies, na ordem; ler(html) interpreta
 async function lerPagina(url, ler, { proxies = [], fetchImpl, nome = 'o site' } = {}) {
-  const tentativas = [...(direto() ? [[url, {}]] : []), ...proxies.filter(Boolean).map((p) => [viaProxy(p, url), cabecalhosDoProxy(p)])];
+  const nativa = Boolean(buscaNativa && fetchImpl === fetch);
+  const alternativas = proxies.filter(Boolean).map((p) => [viaProxy(p, url), cabecalhosDoProxy(p)]);
+  const consultar = async (alvo, headers, timeout) => {
+    const res = await buscar(alvo, { fetchImpl, timeout, headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return ler(await res.text());
+  };
+
+  // No Android, uma página direta que não responde não deve prender a tela por 25 s em cada proxy.
+  // Tenta primeiro o endereço original por até 10 s; se ele falhar, disputa as reservas em paralelo.
+  // Na Web, mantém exatamente a sequência e os tempos anteriores.
+  if (nativa) {
+    try { return await consultar(url, {}, 10000); } catch (diretoErro) {
+      if (!alternativas.length) throw diretoErro;
+      try {
+        return await Promise.any(alternativas.map(([alvo, headers]) => consultar(alvo, headers, 10000)));
+      } catch (e) {
+        const erros = e?.errors || [];
+        throw erros[erros.length - 1] || diretoErro;
+      }
+    }
+  }
+
+  const tentativas = [...(direto() ? [[url, {}]] : []), ...alternativas];
   let erro = new Error(`Sem acesso a ${nome}`);
   for (const [alvo, headers] of tentativas) {
-    try {
-      const res = await buscar(alvo, { fetchImpl, timeout: 25000, headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return ler(await res.text());
-    } catch (e) {
-      erro = e;
-    }
+    try { return await consultar(alvo, headers, 25000); }
+    catch (e) { erro = e; }
   }
   throw erro;
 }
