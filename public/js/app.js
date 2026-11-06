@@ -13207,7 +13207,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       console.error(e);
       // não conseguiu nem falar com o computador (desligado, endereço mudou): o arquivo ainda dá para ler no aparelho,
       // e a tela diz por quê. Se o servidor caiu no meio, mostra o erro e o "tente de novo"
-      if (arquivo && e.conexao) { lerNoAparelho(arquivo, 'O servidor do seu computador não respondeu (desligado, ou o endereço mudou: leia o QR code de novo), então a partitura está sendo feita aqui no próprio aparelho.'); return; }
+      if (arquivo && e.conexao) { lerNoAparelho(arquivo, noApk() ? 'O serviço remoto não respondeu; a partitura será feita aqui no aparelho.' : 'O servidor do seu computador não respondeu (desligado, ou o endereço mudou: leia o QR code de novo), então a partitura está sendo feita aqui no próprio aparelho.'); return; }
       telaFontes(erroExplicado(e));
       if (e.status === 403 && !noApk()) passo.querySelector('.ia-aviso')?.insertAdjacentHTML('beforeend', `<a class="btn small primary" href="#/youtube">${icon('youtube', 15)} Conectar o YouTube</a>`);
     }
@@ -13215,7 +13215,9 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // no aparelho, abrir o áudio e carregar a IA (a primeira vez baixa o modelo, uns 20 MB) não pode ficar parado para
   // sempre: sem nenhuma etapa nova nesse tempo, desiste e diz o que fazer (antes ficava em "Abrindo o áudio")
   const PARADO_MAX = 3 * 60e3;
-  const SEM_RESPOSTA = 'O aparelho não conseguiu abrir este áudio ou carregar a IA (parou em “Abrindo o áudio”). Tente com a internet melhor, com um arquivo menor em MP3, ou ligue o servidor no seu computador (Ajustes → Servidor no computador).';
+  const SEM_RESPOSTA = noApk()
+    ? 'O aparelho não conseguiu abrir este áudio ou carregar a IA. Tente com um arquivo MP3 menor ou novamente com uma conexão melhor.'
+    : 'O aparelho não conseguiu abrir este áudio ou carregar a IA (parou em “Abrindo o áudio”). Tente com a internet melhor, com um arquivo menor em MP3, ou ligue o servidor no seu computador (Ajustes → Servidor no computador).';
   async function lerNoAparelho(arquivo, motivo = '') {
     telaEtapas(ETAPAS_APARELHO);
     if (motivo) passo.querySelector('.ia-etapas').insertAdjacentHTML('afterbegin', `<div class="ia-aviso">${icon('info', 16)}<span>${esc(motivo)}</span></div>`);
@@ -17691,12 +17693,15 @@ function viewServidorIA() {
       ${linha('batidas', 'gauge', 'Tempos e compasso')}
     </section>
     <p class="muted cy-nota">${icon('info', 14)} ${noApk() ? 'Os serviços são localizados e acionados automaticamente pelo app.' : 'O endereço do servidor chega sozinho pelo site, em todos os aparelhos, e a conexão do YouTube volta sozinha se o servidor mudar.'}</p>
-    ${noApk() ? '' : `<details class="cy-como sv-manual"${p.servidorPc ? ' open' : ''}><summary>${icon('computador', 16)}<b>Usar outro servidor</b><span class="muted">No seu computador</span>${icon('down', 18)}</summary>`}
+    ${noApk() ? '<section id="sv-ligar" hidden></section>' : `<section class="cy-card sv-ligar" id="sv-ligar" hidden>
+      <p>O Codespace dorme quando ninguém usa. Ligue e volte aqui: em uns 2 minutos o app acha o servidor sozinho.</p>
+      <a class="btn primary" href="https://github.com/codespaces" target="_blank" rel="noopener">${icon('external', 16)} Ligar no GitHub</a></section>`}
+    ${noApk() ? '' : `<details class="cy-como sv-manual"${p.servidorPc ? ' open' : ''}><summary>${icon('computador', 16)}<b>Usar outro servidor</b><span class="muted">No seu computador</span>${icon('down', 18)}</summary>
       <div class="sv-manual-corpo">
         <p class="muted">Só para o servidor rodando no seu computador: leia o QR code da página dele ou cole o endereço.</p>
         <form class="aj-servidor" id="servidor-pc-form"><input type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" class="input" id="servidor-pc-url" placeholder="Cole o link do QR code ou o endereço" value="${esc(p.servidorPc || '')}" aria-label="Endereço do servidor"><button class="btn small primary">Salvar</button>${p.servidorPc ? '<button type="button" class="btn small" id="servidor-pc-tirar">Tirar</button>' : ''}</form>
         <small class="muted" id="servidor-pc-estado"></small>
-      </div></details>
+      </div></details>`}
   </div>`;
   const item = (id, estado, t) => {
     const el = $(`#sv-${id}`);
@@ -17736,7 +17741,9 @@ function viewServidorIA() {
       $('#sv-estado-t').textContent = conhecido ? 'Desligado' : 'Nenhum servidor ainda';
       // (e o Modal, a reserva, quando ele também não responde: desativado por falta de crédito, ou fora do ar)
       const semReserva = reservaFora ? ' · o Modal (reserva) não respondeu: sem crédito ou fora do ar' : '';
-      $('#sv-estado-d').textContent = (conhecido ? `Codespace ${hostCurto(conhecido)} não respondeu` : 'Ligue o Codespace: ele publica o endereço sozinho') + semReserva;
+      $('#sv-estado-d').textContent = noApk()
+        ? 'O serviço está iniciando ou temporariamente indisponível. O app tentará novamente automaticamente.'
+        : (conhecido ? `Codespace ${hostCurto(conhecido)} não respondeu` : 'Ligue o Codespace: ele publica o endereço sozinho') + semReserva;
       $('#sv-ligar').hidden = false;
       const off = 'Precisa do servidor ligado';
       item('youtube', 'off', off); item('lumen', 'off', off); item('voz', 'off', 'No aparelho, a partitura sai sem separar a voz'); item('batidas', 'off', off);
