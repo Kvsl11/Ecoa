@@ -112,7 +112,9 @@ test('download em Áudio e vídeo preserva o clipe mesmo quando é outra gravaç
   const inicio = app.indexOf('function arquivosParaBaixar(song)');
   const fim = app.indexOf('// Se o áudio já baixou', inicio);
   const rotina = app.slice(inicio, fim);
-  assert.match(rotina, /const videoId = vs\?\.video \|\| song\.youtube/);\n  assert.match(rotina, /const temClipeIdentificado = Boolean\(vs\?\.video && vs\?\.audio && vs\.video !== vs\.audio\)/);\n  assert.match(rotina, /if \(videoId && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
+  assert.match(rotina, /const videoId = vs\?\.video \|\| song\.youtube/);
+  assert.match(rotina, /const temClipeIdentificado = Boolean\(vs\?\.video && vs\?\.audio && vs\.video !== vs\.audio\)/);
+  assert.match(rotina, /if \(videoId && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
   const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id')));
   assert.doesNotMatch(baixar, /delete arquivos\[vsAqui\.video\]|apagarAudio\(chaveBaixada\(vsAqui\.video\)\)/);
   assert.match(baixar, /Download parcial/);
