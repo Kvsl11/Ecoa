@@ -9290,11 +9290,8 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
       return pagina?.foto || '';
     };
     const resolver = async () => {
-      // Prioridade: foto do artista confirmado pela faixa desta música. Só depois entram fontes de reserva.
-      if (titulo) {
-        const confirmada = await noMaximo(fotoDeezer(nome, titulo), 1800, '').catch(() => '');
-        if (fotoReal(confirmada)) return fotoReal(confirmada);
-      }
+      // As fontes de reserva começam imediatamente, em paralelo. A confirmação exata pelo título ainda tem
+      // prioridade por um intervalo curto; se o Deezer estiver lento, não segura o restante da busca.
       const fontes = [
         cifra(),
         fotoDoCanalDeVerdade(nome),
@@ -9302,11 +9299,16 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
         fotoWikipedia(nome),
         fotoDeezer(nome),
       ];
-      return Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
+      const reserva = Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
         const url = fotoReal(f);
         if (!url) throw new Error('Esta fonte não trouxe uma foto válida');
         return url;
-      })));
+      }))).catch(() => '');
+      if (titulo) {
+        const confirmada = await noMaximo(fotoDeezer(nome, titulo), 900, '').catch(() => '');
+        if (fotoReal(confirmada)) return fotoReal(confirmada);
+      }
+      return reserva;
     };
     let tentativa;
     tentativa = resolver().catch(() => '').then((foto) => {
@@ -9431,11 +9433,39 @@ async function jsonp(url, tempo = 8000) {
   for (let vez = 0; ; vez++) {
     const r = await jsonpUmaVez(url, tempo);
     if (!doDeezer || !r?.error) return r;
-    if (r.error.code !== 4 || vez >= 3) return null;
-    await new Promise((ok) => setTimeout(ok, 1200 * (vez + 1)));
+    // No APK, não prolongar uma consulta limitada pelo Deezer com várias esperas: a próxima atualização
+    // poderá tentar de novo, e a tela não fica presa por mais de vários segundos.
+    if (r.error.code !== 4 || vez >= (noApk() ? 1 : 3)) return null;
+    await new Promise((ok) => setTimeout(ok, noApk() ? 500 : 1200 * (vez + 1)));
   }
 }
-function jsonpUmaVez(url, tempo) {
+function lerJsonpDaPagina(texto) {
+  const s = String(texto || '').trim();
+  const ini = s.indexOf('(');
+  const fim = s.lastIndexOf(')');
+  if (ini >= 0 && fim > ini) {
+    try { return JSON.parse(s.slice(ini + 1, fim)); } catch { /* tenta JSON puro */ }
+  }
+  try { return JSON.parse(s); } catch { return null; }
+}
+async function jsonpUmaVez(url, tempo) {
+  // No APK, o Deezer e o iTunes também passam pela conexão nativa do Android. Antes, só as páginas do
+  // Cifra Club/YouTube/Wikipédia usavam buscarPagina; o JSONP do Deezer dependia de scripts no WebView.
+  const nativo = noApk() ? pluginEcoa() : null;
+  if (nativo?.buscarPagina) {
+    try {
+      const endereco = `${url}${url.includes('?') ? '&' : '?'}output=jsonp&callback=ecoaJsonp`;
+      const r = await nativo.buscarPagina({
+        url: endereco,
+        cabecalhos: { Accept: 'application/javascript, application/json' },
+        tempo,
+      });
+      if (r?.status >= 200 && r.status < 300) {
+        const dados = lerJsonpDaPagina(r.texto);
+        if (dados !== null) return dados;
+      }
+    } catch { /* se a ponte nativa falhar, tenta o JSONP normal como reserva */ }
+  }
   return new Promise((ok) => {
     const cb = `__jsonp${++jsonpN}`;
     const tag = document.createElement('script');
