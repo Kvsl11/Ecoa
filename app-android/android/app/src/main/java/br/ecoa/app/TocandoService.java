@@ -70,7 +70,8 @@ public class TocandoService extends Service {
         SharedPreferences p = ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE);
         boolean tocando = p.getBoolean("tocando", false);
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CANAL)
-            .setSmallIcon(R.drawable.ic_nota)
+            .setSmallIcon(R.drawable.ic_ecoa) // (a logo do Ecoa ao lado da capa, e não uma nota)
+            .setColor(0xFF0891B2)
             .setContentTitle(p.getString("titulo", "Ecoa"))
             .setContentText(p.getString("artista", ""))
             .setLargeIcon(Capas.ler(ctx))

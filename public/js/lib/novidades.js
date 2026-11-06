@@ -8,6 +8,7 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, ao conectar um fone (Bluetooth, com fio ou USB) o app não percebia nem dizia o nome dele. Agora o próprio Android diz por onde o som sai, com o nome do fone ou da caixa (o mesmo das configurações do Bluetooth, como "JBL Tour Pro 3"), sem pedir o microfone, e avisa na hora em que ele conecta ou desconecta (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
       { tipo: 'melhoria', texto: 'No app de Android, a folha Conectar mostra o nome deste celular (o de Configurações → Sobre o telefone, ou o modelo) no lugar de "Este celular".' },
+      { tipo: 'melhoria', texto: 'No player do Android (nas notificações e na tela de bloqueio) e nos avisos dos downloads, o ícone pequeno ao lado da capa agora é a logo do Ecoa, e não uma nota musical (precisa da atualização do app).' },
     ],
   },
   {
