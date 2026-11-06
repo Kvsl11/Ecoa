@@ -5813,3 +5813,8 @@ dialog.diag-dlg.folha.folha-cheia > .dlg { height: auto; }
   html:not(.tablet):not(.pp) #player.com-fone:not(.capa-na-barra):not(.sem-video) .pl-txt small { display: block; }
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video) .pl-onde { display: none; }
 }
+
+
+/* APK Android: as barras do sistema são transparentes; o fundo do app continua por trás delas.
+   Os controles respeitam as áreas seguras definidas por viewport-fit=cover. */
+html.app-android, html.app-android body, html.app-android .shell { background: var(--bg); }
