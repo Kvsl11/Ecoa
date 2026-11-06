@@ -22,6 +22,7 @@ import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
+import { montarPacote, lerPacote, juntarDownloads } from './lib/transferir.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
@@ -6554,17 +6555,18 @@ function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls
   });
 }
 
-function ask({ title, text = '', value = null, ok = 'Confirmar', danger = false }) {
+function ask({ title, text = '', value = null, ok = 'Confirmar', danger = false, cancel = true }) {
   return openDialog(`
     <h3>${esc(title)}</h3>
     ${text ? `<p>${esc(text)}</p>` : ''}
     ${value !== null ? `<input class="input" value="${esc(value)}" autofocus>` : ''}
-    <div class="acts"><button class="btn ghost" data-no>Cancelar</button><button class="btn ${danger ? 'danger solid' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
+    <div class="acts">${cancel ? '<button class="btn ghost" data-no>Cancelar</button>' : ''}<button class="btn ${danger ? 'danger solid' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
   (dlg, done) => {
     const input = $('input', dlg);
     const confirm = () => done(input ? input.value.trim() || null : true);
     $('[data-ok]', dlg).onclick = confirm;
-    $('[data-no]', dlg).onclick = () => done(null);
+    const nao = $('[data-no]', dlg);
+    if (nao) nao.onclick = () => done(null);
     input?.addEventListener('keydown', (e) => e.key === 'Enter' && confirm());
     setTimeout(() => input?.select(), 30);
   });
@@ -20544,6 +20546,69 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 const fmtBytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round((n || 0) / 1e3)} KB`);
 // os caches que dá para limpar (as capas e os dados guardados enquanto se usa o app); o pacote do app e os downloads ficam
 const ehCacheLimpavel = (k) => k === 'songbook-imagens' || k === 'songbook-extras' || /-api$/.test(k);
+// Levar os downloads (o navegador e o app de Android guardam cada um no seu canto: o outro não enxerga): um arquivo com
+// as músicas baixadas e os arquivos delas (lib/transferir.js), que o outro lado importa
+async function exportarDownloads(bt) {
+  const chaves = [...(await chavesDosAudios().catch(() => new Set()))];
+  if (!chaves.length) { await ask({ title: 'Nada para exportar', text: 'Não há áudio, vídeo nem karaokê baixado neste aparelho.', ok: 'Entendi', cancel: false }); return; }
+  const texto = bt.textContent;
+  bt.disabled = true;
+  bt.textContent = 'Juntando…';
+  try {
+    const arquivos = [];
+    for (const chave of chaves) {
+      const blob = await lerAudio(chave).catch(() => null);
+      if (blob instanceof Blob && blob.size) arquivos.push({ chave, blob });
+    }
+    const musicas = db.songs().filter((x) => x.baixado || x.karaoke || x.audioProprio);
+    const pacote = montarPacote({ musicas, arquivos });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(pacote);
+    a.download = `ecoa-downloads-${hojeISO()}.ecoa`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10 * 60e3); // (o arquivo grande demora para o navegador gravar)
+    await ask({ title: 'Downloads exportados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Downloads e economia de dados → Importar os downloads e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
+  } catch (e) {
+    await ask({ title: 'Não deu para exportar', text: String(e?.message || e), ok: 'Entendi', cancel: false });
+  } finally {
+    bt.disabled = false;
+    bt.textContent = texto;
+  }
+}
+async function importarDownloads(bt) {
+  const arquivo = await new Promise((ok) => {
+    const inp = Object.assign(document.createElement('input'), { type: 'file' });
+    inp.onchange = () => ok(inp.files?.[0] || null);
+    inp.click();
+  });
+  if (!arquivo) return;
+  const texto = bt.textContent;
+  bt.disabled = true;
+  try {
+    const { musicas, arquivos } = await lerPacote(arquivo);
+    let feitos = 0;
+    for (const { chave, blob } of arquivos) {
+      bt.textContent = `${Math.round((feitos / arquivos.length) * 100)}%`;
+      // (o pedaço do arquivo escolhido vira um arquivo de verdade no aparelho: o escolhido pode sumir depois)
+      await guardarAudio(chave, new Blob([await blob.arrayBuffer()], { type: blob.type }));
+      feitos++;
+    }
+    let novas = 0;
+    for (const m of musicas) {
+      if (!m?.id) continue;
+      const aqui = db.song(m.id);
+      if (aqui) db.updateSong(m.id, juntarDownloads(aqui, m));
+      else { db.saveSong(m); novas++; }
+    }
+    window.dispatchEvent(new CustomEvent('songbook:downloads'));
+    await ask({ title: 'Downloads importados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} baixada${musicas.length === 1 ? '' : 's'} aqui, sem baixar de novo${novas ? ` (${novas} entraram na biblioteca)` : ''}. O arquivo exportado já pode ser apagado da pasta Downloads.`, ok: 'Entendi', cancel: false });
+  } catch (e) {
+    await ask({ title: 'Não deu para importar', text: /QuotaExceeded|quota/i.test(String(e?.name || e?.message)) ? 'Falta espaço no aparelho para os downloads.' : String(e?.message || e), ok: 'Entendi', cancel: false });
+  } finally {
+    bt.disabled = false;
+    bt.textContent = texto;
+  }
+}
 function viewOffline() {
   setTab('');
   setTint('#1f3a2c');
@@ -20568,6 +20633,12 @@ function viewOffline() {
         <div class="setting"><span class="ico">${icon('library', 18)}</span><div class="grow"><div class="t">Baixar as músicas salvas</div><div class="s" id="of-todas-s">${baixando.size ? `Baixando: ${baixando.size} na fila` : `${baixadas.length} de ${salvas.length} baixadas`}${servidorIA().url ? '' : ' · o áudio e o vídeo vêm pelo servidor do seu computador (Ajustes → Avançado)'}</div></div>
           <button class="btn small primary" id="of-todas"${faltam.length ? '' : ' disabled'}>${icon('baixar', 15)} ${faltam.length ? `Baixar ${faltam.length}` : 'Todas baixadas'}</button></div>
         <a class="setting" href="#/biblioteca/baixadas"><span class="ico">${icon('baixada', 18)}</span><div class="grow"><div class="t">Músicas baixadas</div><div class="s">Tocam sem internet, com a letra, a cifra e a partitura</div></div>${icon('next', 18)}</a>
+      </div></section>
+      <section class="aj-sec"><h3 class="aj-titulo">Levar os downloads</h3><div class="settings-group">
+        <div class="setting"><span class="ico">${icon('upload', 18)}</span><div class="grow"><div class="t">Exportar os downloads</div><div class="s">${noApk() ? 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar a outro aparelho sem baixar de novo' : 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar ao app de Android (ou a outro aparelho) sem baixar de novo'}</div></div>
+          <button class="btn small" id="of-exportar">Exportar</button></div>
+        <div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Importar os downloads</div><div class="s">Escolha o arquivo "ecoa-downloads" exportado ${noApk() ? 'no navegador' : 'em outro aparelho'}: as músicas ficam baixadas aqui</div></div>
+          <button class="btn small" id="of-importar">Importar</button></div>
       </div></section>
       <section class="aj-sec"><h3 class="aj-titulo">Armazenamento</h3><div class="settings-group of-armazenamento">
         <div class="of-barra" id="of-barra"><i class="of-dl"></i><i class="of-meus"></i><i class="of-cache"></i></div>
@@ -20658,6 +20729,8 @@ function viewOffline() {
       for (const s of faltam) await baixarMusica(s, { perguntou: true });
       toast(`${faltam.length} música${faltam.length > 1 ? 's' : ''} na fila para baixar`);
     }
+    if (b.id === 'of-exportar') await exportarDownloads(b);
+    if (b.id === 'of-importar') { await importarDownloads(b); desenhar(); }
     if (b.id === 'of-remover' && await ask({ title: 'Remover todos os downloads?', text: 'As músicas continuam na biblioteca, mas só tocam com internet.', ok: 'Remover', danger: true })) {
       await removerTodosDownloads();
       toast('Downloads removidos');
