@@ -35,6 +35,17 @@
     setTimeout(window.__recuperarApp, 20000);
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <script>
+    // no app de Android (o APK), o site não vai por baixo da barra de status e da barra de gestos: com o
+    // "viewport-fit=cover", o Android desenhava o app atrás delas e o topo da página ficava por baixo da foto do perfil
+    // (só o topo descia a altura da barra). Sem ele, o app começa abaixo da barra, como no navegador e no app instalado
+    try {
+      if (/EcoaAndroid/.test(navigator.userAgent) || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1');
+        document.documentElement.classList.add('app-android');
+      }
+    } catch (e) {}
+  </script>
   <title>Ecoa</title>
   <meta name="description" content="Cifras, letras, referências no YouTube e a liturgia do dia para ministérios de música católica">
   <meta name="theme-color" content="#121212">

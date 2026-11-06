@@ -81,12 +81,17 @@ public class EcoaPlugin extends Plugin {
         String artista = call.getString("artista", "");
         String capa = call.getString("capa", "");
         boolean tocando = Boolean.TRUE.equals(call.getBoolean("tocando", false));
+        Double duracao = call.getDouble("duracao", 0.0);
+        Double tempo = call.getDouble("tempo", 0.0);
         SharedPreferences.Editor e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
-        e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando);
+        e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando)
+            .putFloat("duracao", duracao == null ? 0f : duracao.floatValue()).putFloat("tempo", tempo == null ? 0f : tempo.floatValue())
+            .putLong("quando", android.os.SystemClock.elapsedRealtime());
         boolean capaNova = !capa.equals(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("capa", ""));
         e.putString("capa", capa).apply();
-        if (capaNova) Capas.baixar(ctx, capa, () -> { EcoaWidget.atualizarTodos(ctx); TocandoService.atualizar(ctx); });
+        if (capaNova) Capas.baixar(ctx, capa, () -> { EcoaWidget.atualizarTodos(ctx); Sessao.atualizar(ctx); TocandoService.atualizar(ctx); });
         EcoaWidget.atualizarTodos(ctx);
+        Sessao.atualizar(ctx);
         // (o aviso de "tocando" mantém o app vivo em segundo plano enquanto toca)
         if (tocando) {
             if (Build.VERSION.SDK_INT >= 33 && getPermissionState("avisos") == PermissionState.PROMPT) {

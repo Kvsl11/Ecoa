@@ -20381,16 +20381,27 @@ const ecoaNativo = (() => {
 if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
   let ultimo = '';
+  let ultimoTempo = 0;
+  let ultimoEm = 0;
+  let ultimoTocando = false;
   const mandar = () => {
     const a = player.atual;
     if (!a?.titulo) { if (ultimo) { ultimo = ''; void ecoaNativo.parou().catch(() => {}); } return; }
     const yt = a.video || a.youtube;
     const capa = /^https?:/.test(a.capa || '') ? a.capa : yt && !ehArquivo(yt) ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : '';
     const dados = { titulo: a.titulo || '', artista: a.artista || '', capa, tocando: player.estado === 'tocando' };
-    const chave = JSON.stringify(dados);
-    if (chave === ultimo) return;
+    // (o ponto e a duração vão para a barra do tempo do player do Android, que anda sozinha enquanto toca: o ponto só
+    // é mandado de novo quando muda de verdade, como ao pular ou voltar, e não a cada segundo)
+    const duracao = Math.round(Number(player.duracao) || 0);
+    const tempo = Math.max(0, Number(player.tempoAgora) || 0);
+    const chave = JSON.stringify({ ...dados, duracao });
+    const esperado = ultimoEm ? ultimoTempo + (ultimoTocando ? (performance.now() - ultimoEm) / 1000 : 0) : -99;
+    if (chave === ultimo && Math.abs(esperado - tempo) < 3) return;
     ultimo = chave;
-    void ecoaNativo.musica(dados).catch(() => {});
+    ultimoTempo = tempo;
+    ultimoEm = performance.now();
+    ultimoTocando = dados.tocando;
+    void ecoaNativo.musica({ ...dados, duracao, tempo }).catch(() => {});
   };
   player.ouvir(mandar);
   ecoaNativo.addListener('acao', ({ acao } = {}) => {
@@ -20400,6 +20411,7 @@ if (ecoaNativo) {
       if (acao === 'alternar') player.alternar();
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
+      else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)
       mandar();
     };
     fazer();

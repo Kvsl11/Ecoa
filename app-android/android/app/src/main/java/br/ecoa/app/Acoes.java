@@ -11,6 +11,7 @@ public final class Acoes {
     public static final String ALTERNAR = "alternar";
     public static final String PROXIMA = "proxima";
     public static final String ABRIR = "abrir";
+    public static final String IR = "ir:"; // ir a um ponto da música (a barra do tempo do player do Android): "ir:83.5"
 
     private Acoes() {}
 
