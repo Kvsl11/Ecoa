@@ -8686,7 +8686,9 @@ function importarDaInternet({ titulo = '', artista = '', url = '', back = locati
 // Busca de músicas: junta os resultados do Cifra Club e do Letras numa lista só (a mesma música aparece
 // uma vez, com o link da cifra e o da letra)
 async function buscarMusicas(termo) {
-  const [cc, lt] = await Promise.all([buscarCifraClub(termo).catch(() => null), buscarLetras(termo).catch(() => null)]);
+  // Uma fonte instável não pode segurar a lista inteira: as duas continuam em paralelo, com prazo máximo.
+  const limitar = (p, ms) => Promise.race([p, new Promise((ok) => setTimeout(() => ok(null), ms))]);
+  const [cc, lt] = await Promise.all([limitar(buscarCifraClub(termo).catch(() => null), 4500), limitar(buscarLetras(termo).catch(() => null), 4500)]);
   if (!cc && !lt) throw new Error('As buscas não responderam agora');
   const lista = [];
   const chave = (r) => normalizar(tituloLimpo(r.titulo)) + '|' + normalizar(r.artista || '');
@@ -8751,8 +8753,8 @@ function juntarVideos(musicas, videos) {
 // cifra, letra e vídeo de um resultado da busca, já juntos
 const buscarTudo = (termo, nMusicas = 8, nVideos = 6) => {
   const pVideos = buscarYoutube(termo).catch(() => []);
-  return buscarMusicas(termo).catch(async (e) => { if ((await pVideos).length) return []; throw e; })
-    .then(async (ms) => juntarVideos(ms.slice(0, nMusicas), (await pVideos).slice(0, nVideos)));
+  return buscarMusicas(termo).catch(async (e) => { if ((await noMaximo(pVideos, 2200, [])).length) return []; throw e; })
+    .then(async (ms) => juntarVideos(ms.slice(0, nMusicas), (await noMaximo(pVideos, 2200, [])).slice(0, nVideos)));
 };
 // artista (Cifra Club): foto redonda; abre a página dele com as músicas mais tocadas
 // (a foto já é a definitiva: a preparada antes de desenhar (prepararFotosArtistas) ou a última guardada. A do Cifra Club
@@ -8864,9 +8866,9 @@ const AUTORES_CATOLICOS = ['Cindy Ferrarezi', 'Ziza Fernandes', 'Adriana Arydes'
 const confiavelNaLiturgia = (n) => Boolean(String(n || '').trim()) && (TITULO_RELIGIOSO.test(String(n).trim())
   || [...ARTISTAS_CATOLICOS, ...AUTORES_CATOLICOS].some((a) => normalizar(a) === normalizar(n) || normalizar(a) === normalizar(nomeReligioso(n))));
 // a foto de uma pessoa da música: na música da missa, só de quem é confiável (veja acima); '' para ficar o desenho
-function fotoDaPessoa(nome, { liturgia = false, slug = '' } = {}) {
-  if (!liturgia) return fotoDoArtista(nome, slug);
-  return confiavelNaLiturgia(nome) ? fotoDoArtista(nomeReligioso(nome), slug) : Promise.resolve('');
+function fotoDaPessoa(nome, { liturgia = false, slug = '', titulo = '' } = {}) {
+  if (!liturgia) return fotoDoArtista(nome, slug, titulo);
+  return confiavelNaLiturgia(nome) ? fotoDoArtista(nomeReligioso(nome), slug, titulo) : Promise.resolve('');
 }
 // A foto de quem só compôs ou produziu (não canta na música): só a de um lugar que é com certeza dele — o canal
 // verificado do YouTube ou a página de músico na Wikipédia. O Deezer e a busca por nome traziam um xará (o "Henry
@@ -9259,22 +9261,23 @@ const fotosArtistas = new Map();
 // (primeiro a do canal do artista no YouTube, a mais atual, só quando o canal é com certeza dele: verificado ou o
 // "Tópico" do YouTube; depois o Cifra Club; se não tiver, o Deezer, que tem a foto de quase todo artista; por fim a
 // Wikipédia)
-function fotoDoArtista(nome, slug = '') {
+function fotoDoArtista(nome, slug = '', titulo = '') {
   const k = normalizar(nome);
+  const cacheKey = titulo ? `${k}|${normalizar(titulo)}` : k;
   if (!k) return Promise.resolve('');
   if (!noApk()) {
     // A Web conserva a estratégia anterior; a disputa simultânea é específica do APK.
-    if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
+    if (slug && !fotosArtistas.has(cacheKey)) fotosArtistas.set(cacheKey, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
       .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
-      .then((f) => f || fotoDeezer(nome))));
-    if (!fotosArtistas.has(k)) {
+      .then((f) => f || fotoDeezer(nome, titulo))));
+    if (!fotosArtistas.has(cacheKey)) {
       const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-      fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
+      fotosArtistas.set(cacheKey, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome, titulo)).then((f) => f || fotoWikipedia(nome)));
     }
-    return comUltimoValor('foto', nome, fotosArtistas.get(k));
+    return comUltimoValor('foto', nome, fotosArtistas.get(cacheKey));
   }
-  if (!fotosArtistas.has(k)) {
+  if (!fotosArtistas.has(cacheKey)) {
     // No APK, não encadear YouTube → Cifra Club → Deezer → Wikipédia: uma fonte lenta deixava todas as outras esperando.
     // Cada fonte trabalha em paralelo; só uma foto real e válida pode vencer (resultado vazio não encerra a disputa).
     const cifra = async () => {
@@ -9286,26 +9289,34 @@ function fotoDoArtista(nome, slug = '') {
       const pagina = await carregarArtista(alvo, a?.nome || nome).principal;
       return pagina?.foto || '';
     };
-    const fontes = [
-      fotoDoCanalDeVerdade(nome),
-      cifra(),
-      fotoDeezer(nome),
-      fotoWikipedia(nome),
-      ...(slug ? [carregarArtista(slug, nome).principal.then((x) => x?.foto || '')] : []),
-    ];
+    const resolver = async () => {
+      // Prioridade: foto do artista confirmado pela faixa desta música. Só depois entram fontes de reserva.
+      if (titulo) {
+        const confirmada = await noMaximo(fotoDeezer(nome, titulo), 1800, '').catch(() => '');
+        if (fotoReal(confirmada)) return fotoReal(confirmada);
+      }
+      const fontes = [
+        cifra(),
+        fotoDoCanalDeVerdade(nome),
+        ...(slug ? [carregarArtista(slug, nome).principal.then((x) => x?.foto || '')] : []),
+        fotoWikipedia(nome),
+        fotoDeezer(nome),
+      ];
+      return Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
+        const url = fotoReal(f);
+        if (!url) throw new Error('Esta fonte não trouxe uma foto válida');
+        return url;
+      })));
+    };
     let tentativa;
-    tentativa = Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
-      const url = fotoReal(f);
-      if (!url) throw new Error('Esta fonte não trouxe uma foto válida');
-      return url;
-    }))).catch(() => '').then((foto) => {
+    tentativa = resolver().catch(() => '').then((foto) => {
       // Não guardar falha vazia em memória: se o serviço estiver fora do ar, a próxima entrada tenta de novo.
-      if (!foto && fotosArtistas.get(k) === tentativa) fotosArtistas.delete(k);
+      if (!foto && fotosArtistas.get(cacheKey) === tentativa) fotosArtistas.delete(cacheKey);
       return foto;
     });
-    fotosArtistas.set(k, tentativa);
+    fotosArtistas.set(cacheKey, tentativa);
   }
-  return comUltimoValor('foto', nome, fotosArtistas.get(k));
+  return comUltimoValor('foto', nome, fotosArtistas.get(cacheKey));
 }
 // A foto e a capa que já se conhece na hora (a última trazida da internet, guardada no aparelho), sem esperar nada
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';
@@ -9319,10 +9330,10 @@ function esquecerFotoDoArtista(nome) {
 const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch(() => reserva), new Promise((ok) => setTimeout(() => ok(reserva), ms))]);
 // A foto definitiva para desenhar de primeira: a atual da internet; se ela demorar, a última guardada (que já é a
 // atual da vez anterior). Sem nenhuma guardada, espera um pouco mais pela da internet
-function fotoRapida(nome, slug = '') {
+function fotoRapida(nome, slug = '', titulo = '') {
   if (!nome) return Promise.resolve('');
   const guardada = fotoConhecida(nome);
-  return noMaximo(fotoDoArtista(nome, slug).then((f) => f || guardada), guardada ? (noApk() ? 700 : 1500) : (noApk() ? 2200 : 4500), guardada);
+  return noMaximo(fotoDoArtista(nome, slug, titulo).then((f) => f || guardada), guardada ? (noApk() ? 700 : 1500) : (noApk() ? 2200 : 4500), guardada);
 }
 function capaRapida(titulo, artista) {
   const guardada = capaConhecida(titulo, artista);
@@ -9333,21 +9344,17 @@ function capaRapida(titulo, artista) {
 // capa oficial do single/álbum + foto real do artista. As imagens manuais salvas nunca são substituídas.
 // Nas buscas, prepara capa e foto antes de desenhar a lista. Assim a primeira imagem exibida já é a definitiva.
 async function prepararMidiaBusca(itens) {
-  await Promise.all(itens.map(async (item) => {
+  // A busca não espera rede de imagens: primeiro desenha as músicas com o que já está no aparelho.
+  // enriquecerLinhasMusicais busca as capas e fotos em segundo plano e atualiza cada linha quando chegam.
+  for (const item of itens) {
     const titulo = item.title || item.titulo || '';
     const artista = item.artist || item.artista || '';
-    if (!titulo || !artista) return;
-    const [capa, foto] = await Promise.all([
-      capaRapida(titulo, artista).catch(() => ''),
-      // (música da missa: só a foto de quem é com certeza do meio católico)
-      ehDaLiturgia(item) && !confiavelNaLiturgia(artista) ? '' : fotoRapida(ehDaLiturgia(item) ? nomeReligioso(artista) : artista, item.slug || '').catch(() => ''),
-    ]);
+    if (!titulo || !artista) continue;
+    const capa = capaConhecida(titulo, artista);
+    const foto = fotoConhecida(ehDaLiturgia(item) ? nomeReligioso(artista) : artista);
     if (capa) { item.capa = capa; item.cover = capa; }
-    if (foto) {
-      item.fotoArtista = foto;
-      if (item.id && db.song(item.id)?.fotoArtista !== foto) db.updateSong(item.id, { fotoArtista: foto });
-    }
-  }));
+    if (foto) item.fotoArtista = foto;
+  }
   return itens;
 }
 
@@ -9374,7 +9381,7 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     const avatar = linha.querySelector('[data-artista-mini]');
     // (a busca já desenha a foto definitiva: trocar de novo seria a piscada)
     if (avatar && !item.fotoArtista) {
-      fotoDaPessoa(artista, { liturgia: ehDaLiturgia(item), slug: item.slug || '' }).then((url) => {
+      fotoDaPessoa(artista, { liturgia: ehDaLiturgia(item), slug: item.slug || '', titulo }).then((url) => {
         if (!url || !avatar.isConnected) return;
         avatar.innerHTML = `<img src="${esc(url)}" alt="" loading="lazy">`;
         avatar.classList.add('com-foto');
@@ -9506,10 +9513,10 @@ function capaOficial(titulo, artista) {
   return comUltimoValor('capa', k, capasOficiais.get(k));
 }
 // (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
-async function fotoDeezer(nome) {
-  // (o mesmo artista do "Sobre o artista": o confirmado por uma música dele, quando já se sabe, ou o de nome igual com
-  // mais fãs)
-  const a = await artistaDoDeezer(nome);
+async function fotoDeezer(nome, titulo = '') {
+  // Quando a foto é pedida junto de uma música, confirma primeiro o artista pela faixa exata no Deezer.
+  // A busca só pelo nome é reserva: nomes iguais não podem escolher a foto de um xará.
+  const a = await artistaDoDeezer(nome, titulo ? { titulo } : {});
   // sem foto, o Deezer devolve uma imagem genérica (o endereço fica com "/artist//")
   const foto = a?.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '';
   return foto && !(await ehFotoVaziaDoDeezer(foto)) ? foto : '';
@@ -10319,6 +10326,7 @@ async function viewEstilo(k) {
     await prepararMidiaBusca(lista);
     if (location.hash !== aqui || !$('#est-mus')) return;
     $('#est-mus').innerHTML = lista.length ? `<ul class="tracks">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Não consegui carregar agora. Confira a conexão.</p>';
+    enriquecerLinhasMusicais($('#est-mus'), lista, { busca: true });
   } catch (e) {
     if ($('#est-mus')) $('#est-mus').innerHTML = `<div class="alert">${icon('info', 18)}<span>${esc(e.message)}</span></div>`;
   }
@@ -10501,6 +10509,7 @@ function viewSearch() {
           aplicar(meu, 'mu-res', () => {
             achados.musica = lista;
             $('#mu-res').innerHTML = lista.length ? `<ul class="tracks tracks-grade">${lista.map((r, i) => linhaMusicaWeb(r, i)).join('')}</ul>` : '<p class="muted">Nenhuma música encontrada.</p>';
+            enriquecerLinhasMusicais($('#mu-res'), lista, { busca: true });
             // (o vídeo que é só a capa parada, sem dizer no nome: o ícone de vídeo sai assim que as imagens dele são vistas)
             lista.forEach((r, i) => { if (r.video?.id && $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)) void videoParado(r.video.id).then((p) => { if (p) $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)?.remove(); }); });
             // as primeiras já vão sendo preparadas (sem a economia de dados ligada): abrem na hora
