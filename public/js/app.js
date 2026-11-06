@@ -602,11 +602,13 @@ function abrirCalendario(ancora, valor, aoEscolher) {
       const v = iso(ano, mes, d);
       cels += `<button type="button" data-dia="${v}" class="${v === hoje ? 'hoje' : ''}" aria-pressed="${v === valor}" aria-label="${esc(dataPorExtenso(v))}">${d}</button>`;
     }
+    const alca = cal.querySelector('.folha-cab'); // (a alça do celular fica, com o arrastar, ao trocar de mês)
     cal.innerHTML = `<div class="cal-topo"><button type="button" class="icon-btn" data-mes="-1" aria-label="Mês anterior">${icon('back', 20)}</button>
         <b>${MESES[mes][0].toUpperCase() + MESES[mes].slice(1)} de ${ano}</b><button type="button" class="icon-btn" data-mes="1" aria-label="Próximo mês">${icon('next', 20)}</button></div>
       <div class="cal-semana" aria-hidden="true">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((x) => `<span>${x}</span>`).join('')}</div>
       <div class="cal-dias">${cels}</div>
       <div class="cal-rodape"><button type="button" class="btn ghost small" data-fechar>Cancelar</button><button type="button" class="btn small" data-dia="${hoje}">Hoje</button></div>`;
+    if (alca) cal.prepend(alca);
   };
   const tecla = (e) => { if (e.key === 'Escape') fechar(); };
   function fechar() {
@@ -633,6 +635,11 @@ function abrirCalendario(ancora, valor, aoEscolher) {
   window.addEventListener('hashchange', fechar);
   desenhar();
   document.body.append(fundo, cal);
+  // no celular, a folha que sobe do rodapé, com a alça em cima (puxar para baixo fecha), como as outras
+  if (matchMedia('(max-width: 699px)').matches) {
+    cal.insertAdjacentHTML('afterbegin', '<div class="menu-cab folha-cab" aria-hidden="true"><span class="menu-alca"></span></div>');
+    arrastarFolha(cal, fechar);
+  }
   if (!matchMedia('(max-width: 699px)').matches) {
     const r = ancora.getBoundingClientRect();
     const larg = cal.offsetWidth;
@@ -5797,9 +5804,9 @@ const semLinhasDeAcordes = (sinc) => {
       { valor: 'diagnostico', rotulo: 'Diagnóstico da música', ic: 'info' },
       { valor: 'fechar', rotulo: 'Fechar o player', ic: 'x' },
     ].filter(Boolean);
-    // no tablet, a folha que sobe do rodapé, numa coluna só, com a capa e o nome em cima (como os ⋯ das listas)
+    // a folha que sobe do rodapé, numa coluna só, com a capa e o nome em cima (como os ⋯ das listas)
     const capaMenu = capa({ title: atual.titulo || '', cover: song?.cover || (ytDaCapa() ? `https://i.ytimg.com/vi/${ytDaCapa()}/mqdefault.jpg` : '') });
-    const v = await escolherNaLista({ menu: ehTablet(), titulo: atual.titulo || 'Tocando agora', cabeca: `${capaMenu}<span class="lista-txt"><b>${esc(atual.titulo || 'Tocando agora')}</b><small>${esc(atual.artista || 'Tocando agora')}</small></span>`, opcoes });
+    const v = await escolherNaLista({ menu: true, titulo: atual.titulo || 'Tocando agora', cabeca: `${capaMenu}<span class="lista-txt"><b>${esc(atual.titulo || 'Tocando agora')}</b><small>${esc(atual.artista || 'Tocando agora')}</small></span>`, opcoes });
     if (!v || !atual) return;
     if (v === 'diagnostico') { void abrirDiagnostico(); return; }
     if (v === 'youtube') { window.open(`https://www.youtube.com/watch?v=${ytAgora()}&t=${Math.floor(api.tempoAgora)}s`, '_blank', 'noopener'); return; }
@@ -6014,8 +6021,7 @@ const semLinhasDeAcordes = (sinc) => {
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
         recado(`<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}${resta.length ? `<p class="muted diag-resta">Continua faltando (o app não tem como consertar):</p><ul>${resta.map((r) => `<li>${esc(porque(r))}</li>`).join('')}</ul>` : ''}`);
       };
-    // (no tablet, em pé e deitado, também sobe do rodapé, como os ⋮, em vez de flutuar no meio da tela)
-    }, { folha: telaDeCelular() || ehTablet() });
+    }, { folha: true });
   };
   // o "Tocando agora" na tela toda (tablet): o botão do canto de cima troca entre expandir e voltar ao painel
   // No celular e no computador a tela toda é o próprio "Tocando agora": o player muda de jeito (html.pp) só enquanto
@@ -6512,9 +6518,9 @@ function desenharLateral() {
 
 // ------------------------------------------------------------------ diálogos
 
-// folha: true = a janela sobe do rodapé, como os ⋮ (a alça em cima: arrastar para cima cresce, para baixo fecha), em
-// qualquer tela; sem ela, a janela fica no meio (as perguntas de confirmar)
-function openDialog(html, setup, { folha = false } = {}) {
+// Todas as janelas sobem do rodapé, como os ⋮ (a alça em cima: arrastar para cima cresce, para baixo fecha), em qualquer
+// tela, no navegador e no app de Android, as perguntas de confirmar também. (folha: false deixa no meio: nada usa hoje)
+function openDialog(html, setup, { folha = true } = {}) {
   const dlg = document.createElement('dialog');
   if (folha) dlg.className = 'folha';
   dlg.innerHTML = folha ? `<div class="menu-cab folha-cab"><span class="menu-alca" aria-hidden="true"></span></div><div class="dlg">${html}</div>` : `<div class="dlg">${html}</div>`;
@@ -6536,7 +6542,8 @@ function openDialog(html, setup, { folha = false } = {}) {
 // opções numa coluna só, sem caixinha nos ícones
 // as folhas que sobem de baixo (com a alça em cima), como no Spotify: arrastando a alça (ou o topo) para cima, a folha
 // cresce até quase a tela toda; para baixo, volta ao tamanho normal ou, puxando bastante, fecha
-function arrastarFolha(dlg) {
+// (fechar: para as folhas que não são <dialog>, como o menu ⋯ da música e o calendário no celular)
+function arrastarFolha(dlg, fechar = () => dlg.close()) {
   const cab = dlg.querySelector('.menu-cab');
   if (!cab) return;
   let ini = null;
@@ -6564,14 +6571,14 @@ function arrastarFolha(dlg) {
     if (Math.abs(dy) < 8) return; // um toque, não um arraste
     const cheia = dlg.classList.contains('folha-cheia');
     if (dy < -50) dlg.classList.add('folha-cheia');
-    else if (dy > Math.max(90, h * 0.35) && !(cheia && dy < h * 0.5)) dlg.close();
+    else if (dy > Math.max(90, h * 0.35) && !(cheia && dy < h * 0.5)) fechar();
     else if (dy > 50 && cheia) dlg.classList.remove('folha-cheia');
   };
   cab.addEventListener('pointerup', soltar);
   cab.addEventListener('pointercancel', soltar);
 }
 
-function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls = '', folha = false }) {
+function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls = '', folha = true }) {
   const dlg = document.createElement('dialog');
   dlg.className = `${menu ? 'lista-dlg lista-menu' : 'lista-dlg'}${folha && !menu ? ' folha' : ''} ${cls}`.trim();
   dlg.innerHTML = `${menu ? `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span>${cabeca || `<h3>${esc(titulo || '')}</h3>`}</div>`
@@ -12564,7 +12571,7 @@ function editorPartitura(song, titulo) {
   // ⋯ do editor: só o que é arquivo (os ajustes têm o seu botão, ver a partitura é o voltar, apagar fica na partitura)
   async function maisOpcoes() {
     const v = await escolherNaLista({
-      menu: ehTablet(), // no tablet, a folha que sobe do rodapé
+      menu: true, // a folha que sobe do rodapé, com a alça (no celular, no tablet e no computador)
       cabeca: '<span class="lista-txt"><b>Arquivo da partitura</b><small>PDF e MusicXML</small></span>',
       titulo: 'Arquivo da partitura',
       opcoes: [
@@ -12780,8 +12787,8 @@ function viewPartituras() {
 function escolherMusica(titulo) {
   const songs = db.songs();
   const dlg = document.createElement('dialog');
-  dlg.className = 'lista-dlg';
-  dlg.innerHTML = `<div class="lista-cab"><h3>${esc(titulo)}</h3><button class="icon-btn" data-fechar aria-label="Fechar">${icon('x', 20)}</button></div>
+  dlg.className = 'lista-dlg folha';
+  dlg.innerHTML = `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span><h3>${esc(titulo)}</h3><button class="icon-btn" data-fechar aria-label="Fechar">${icon('x', 20)}</button></div>
     <div class="lista-busca"><label class="field">${icon('search', 18)}<input class="search" type="search" placeholder="Buscar na biblioteca" autocomplete="off"></label></div>
     <div class="lista-opcoes" role="listbox"></div>
     <p class="lista-rodape">Não está na biblioteca? <a href="#/buscar" data-fechar>Busque a música</a>, abra e use ⋯ → Criar partitura.</p>`;
@@ -12803,6 +12810,7 @@ function escolherMusica(titulo) {
       if (b) { escolhida = db.song(b.dataset.id); dlg.close(); }
     });
     dlg.addEventListener('close', () => { dlg.remove(); resolve(escolhida); });
+    arrastarFolha(dlg);
     dlg.showModal();
     if (innerWidth > 700) $('input', dlg).focus();
   });
@@ -13913,9 +13921,16 @@ function viewSong(id, ctx = {}) {
       fundoMenu.className = 'menu-mais-fundo';
       document.body.append(fundoMenu, menuMais);
       menuMais.classList.add('folha');
+      // (a alça em cima, como as outras folhas: puxar para baixo fecha)
+      if (!menuMais.querySelector('.folha-cab')) {
+        menuMais.insertAdjacentHTML('afterbegin', '<div class="menu-cab folha-cab" aria-hidden="true"><span class="menu-alca"></span></div>');
+        arrastarFolha(menuMais, () => abrirMais(false));
+      }
     } else if (!abre && menuMais.classList.contains('folha')) {
       fundoMenu?.remove(); fundoMenu = null;
-      menuMais.classList.remove('folha');
+      menuMais.querySelector('.folha-cab')?.remove();
+      menuMais.style.transform = menuMais.style.height = menuMais.style.maxHeight = '';
+      menuMais.classList.remove('folha', 'folha-cheia');
       casaMenu.append(menuMais);
     }
   };
@@ -14509,8 +14524,7 @@ async function dialogoTons(tomBase, transpose = 0, { titulo = 'Escolher o tom', 
     $('.tons', dlg).onclick = (e) => { const b = e.target.closest('[data-t]'); if (b) done(Number(b.dataset.t)); };
     $('.tons-meio', dlg).onclick = (e) => { const b = e.target.closest('[data-meio]'); if (b) done(((atual + Number(b.dataset.meio)) % 12 + 18) % 12 - 6); };
     $('[data-no]', dlg).onclick = () => done(null);
-  // (no tablet, em pé e deitado, sobe do rodapé como folha, como no celular, em vez de flutuar no meio da tela)
-  }, { folha: ehTablet() });
+  }, { folha: true });
 }
 
 // ------------------------------------------------------------- editor

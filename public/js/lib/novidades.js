@@ -4,11 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 568, data: '2026-11-06', titulo: 'O APK diz em qual fone está tocando',
+    versao: 568, data: '2026-11-06', titulo: 'O APK diz em qual fone está tocando, e todas as janelas sobem do rodapé',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, quando um fone era conectado (Bluetooth, com fio ou USB), o app não percebia e não mostrava o nome dele. Agora é o próprio Android que informa por onde o som sai e o nome do fone ou da caixa (o mesmo das configurações do Bluetooth, como "JBL Tour Pro 3"), sem pedir o microfone. O app também avisa assim que o fone conecta ou desconecta (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
       { tipo: 'melhoria', texto: 'No app de Android, a folha Conectar mostra o nome deste celular (o que aparece em Configurações → Sobre o telefone, ou o modelo) no lugar de "Este celular".' },
       { tipo: 'melhoria', texto: 'No player do Android (nas notificações e na tela de bloqueio) e nos avisos dos downloads, o ícone pequeno ao lado da capa agora é a logo do Ecoa, e não uma nota musical (precisa da atualização do app).' },
+      { tipo: 'melhoria', texto: 'Todas as janelas agora sobem do rodapé com a alcinha em cima, iguais no app de Android e no navegador: as perguntas de confirmar ("Novo repertório", apagar…), as de configurar (PDF, PowerPoint, tom, diagnóstico), as listas de escolha (o ⋯ do Tocando agora, o tom da partitura, escolher uma música) e, no celular, o menu ⋯ da música e o calendário. Puxando a alça para cima, a janela cresce; para baixo, fecha.' },
     ],
   },
   {
