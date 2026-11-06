@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 559, data: '2026-11-06', titulo: 'As Estatísticas são da sua conta Google',
+    itens: [
+      { tipo: 'melhoria', texto: 'As Estatísticas e os Recentes passam a ser da sua conta Google, e não de cada aparelho: o que você ouve no celular, no tablet e no computador entra junto, somado. Cada aparelho manda o que ouviu para a sua conta (com o que já tinha guardado), e nenhum apaga o do outro. Na sessão privada, continua sem contar nada.' },
+    ],
+  },
+  {
     versao: 558, data: '2026-11-06', titulo: 'Os vídeos com "//" no título trazem a letra e a cifra',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo com o título no jeito "Odres Novos // Luau da Imaculada II" (comum nos vídeos de música católica) abria como uma música com esse nome inteiro, e a busca não achava a letra nem a cifra. Agora o nome da música é o da esquerda e o artista é o canal. As músicas que já tinham sido salvas assim, sem a letra e a cifra, arrumam o nome e procuram de novo sozinhas (o "Consertar agora" do Diagnóstico também).' },
@@ -61,12 +67,6 @@ export const NOVIDADES = [
     versao: 550, data: '2026-11-06', titulo: 'O nome certo nos vídeos relacionados',
     itens: [
       { tipo: 'correcao', texto: 'Alguns vídeos relacionados apareciam com o nome cortado: "Don\'t Stop \'Til You Get Enough", do Michael Jackson, virava "t Stop" (o apóstrofo era lido como aspas), e "Thriller (Official 4K Video)" virava "Thriller Video)". Agora o nome sai inteiro e sem os restos do "Official Video".' },
-    ],
-  },
-  {
-    versao: 549, data: '2026-11-06', titulo: 'Os cartões do Explorar sempre com foto',
-    itens: [
-      { tipo: 'correcao', texto: 'No Explorar do Tocando agora, o cartão "Parecidos com…" às vezes aparecia vazio (quando o primeiro artista parecido não tinha foto ou ela não carregava). Agora o app tenta a foto dos outros artistas parecidos, depois a do próprio artista e, no fim, a capa da música. Os cartões "Músicas de…" e "Parecidas com…" também não ficam mais vazios.' },
     ],
   },
 ];

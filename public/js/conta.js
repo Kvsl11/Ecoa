@@ -133,7 +133,8 @@ const comPrazo =(p, ms) => Promise.race([p, new Promise((_, erro) => setTimeout(
 let rodando = false;
 let pendente = false;
 let relogio = 0;
-function agendar(ms = 4000) { clearTimeout(relogio); relogio = setTimeout(() => sincronizar(), ms); }
+let ouvidasPendentes = false; // o que se ouviu mudou desde a última sincronia
+function agendar(ms = 4000) { clearTimeout(relogio); relogio = setTimeout(() => { relogio = 0; sincronizar(); }, ms); }
 
 export async function sincronizar({ forcar = false } = {}) {
   const u = usuarioConta();
@@ -176,6 +177,7 @@ export async function sincronizar({ forcar = false } = {}) {
       await comPrazo(lote.commit(), 60e3);
     }
     estadoConta.ultima = Date.now();
+    ouvidasPendentes = false;
     gravarJSON(chaveBase(u.uid), { puxado, base: plano.base, ultima: estadoConta.ultima });
     estadoConta.erro = grandes.length ? `${grandes.length} ${grandes.length === 1 ? 'item ficou' : 'itens ficaram'} só neste aparelho (grande demais para a nuvem).` : '';
   } catch (e) {
@@ -191,10 +193,16 @@ export async function sincronizar({ forcar = false } = {}) {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('songbook:salvo', () => { if (usuarioConta()) agendar(); });
+  // o que se ouve (as Estatísticas, que são da conta): muda a cada poucos segundos tocando, então sobe no máximo a cada
+  // 10 minutos e ao sair do app
+  window.addEventListener('songbook:ouvidas', () => {
+    ouvidasPendentes = true;
+    if (usuarioConta() && !relogio && Date.now() - estadoConta.ultima > 10 * 60e3) agendar(4000);
+  });
   window.addEventListener('online', () => { if (usuarioConta()) agendar(1000); });
   document.addEventListener('visibilitychange', () => {
     if (!usuarioConta()) return;
     // voltou para o app: vê o que mudou nos outros aparelhos; saindo: sobe o que estava esperando
-    if (!document.hidden) { if (Date.now() - estadoConta.ultima > 30e3) sincronizar({ forcar: true }); } else if (relogio) { clearTimeout(relogio); relogio = 0; sincronizar(); }
+    if (!document.hidden) { if (Date.now() - estadoConta.ultima > 30e3) sincronizar({ forcar: true }); } else if (relogio || ouvidasPendentes) { clearTimeout(relogio); relogio = 0; sincronizar(); }
   });
 }

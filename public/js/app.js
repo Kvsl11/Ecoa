@@ -1,4 +1,4 @@
-import { db, youtubeId } from './store.js';
+import { db, uid, youtubeId } from './store.js';
 import { esc, renderSong, soltarAcordes } from './render.js';
 import { definirMeta, semInvisiveis, soAcordes, paraEditor, doEditor, completarCifra, temCifra, chordsOverLyricsToChordPro, chordProToChordsOverLyrics, toChordPro, transposeChordPro, transposeKey, transposeChord, looksLikeChordPro, isChordOnlyLine, letraDe, aplicarLetra, isChord, linhasDaLetra, linhasCantadas, partesCantadas, capoDaCifra, capoDaObservacao, organizarPartes, parteEmIngles } from './chordpro.js';
 import { icon, iconeMenu, logo, logoLumen } from './icons.js';
@@ -29,7 +29,7 @@ import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
-import { mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
+import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { ordenarCapas } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -11158,18 +11158,83 @@ player.ouvir(() => {
   db.touchRecent(id);
 });
 // o que tocou, dia a dia (as Estatísticas e os Recentes): a música entra quando começa a tocar e, enquanto toca,
-// soma os segundos ouvidos. Fica só neste aparelho. Na sessão privada (Ajustes), nada fica registrado
+// soma os segundos ouvidos. Na sessão privada (Ajustes), nada fica registrado.
+// As Estatísticas são da conta Google, não do aparelho: cada aparelho guarda o que ouviu (o registro dele) e, com a
+// conta, manda para a nuvem como um item só dele ("o_<aparelho>"); os dos outros aparelhos chegam pela sincronia e as
+// telas mostram tudo somado (juntarRegistros). Cada aparelho só escreve o próprio item: um nunca apaga o do outro
 const CHAVE_OUVIDAS = 'songbook.ouvidas';
+// os dos outros aparelhos, por conta (outra conta entrando neste aparelho não vê os da anterior): { 'o_<aparelho>': JSON }
+const chaveOuvidasOutros = () => `songbook.ouvidas.outros.${usuarioConta()?.uid || ''}`;
+const CHAVE_APARELHO = 'songbook.aparelho';
 let ouvidas = null;
 const registroOuvidas = () => {
   if (ouvidas) return ouvidas;
   try { ouvidas = JSON.parse(localStorage.getItem(CHAVE_OUVIDAS) || '{}') || {}; } catch { ouvidas = {}; }
   return ouvidas;
 };
+const aparelho = (() => {
+  let a = '';
+  try { a = localStorage.getItem(CHAVE_APARELHO) || ''; } catch { /* sem armazenamento */ }
+  if (!a) { a = uid(); try { localStorage.setItem(CHAVE_APARELHO, a); } catch { /* sem armazenamento */ } }
+  return a;
+})();
+const ITEM_OUVIDAS = `o_${aparelho}`;
+let ouvidasOutros = null;
+let ouvidasOutrosDe = '';
+const lerOuvidasOutros = () => {
+  if (!usuarioConta()) { if (ouvidasOutrosDe) { ouvidasOutrosDe = ''; ouvidasOutros = null; juntoCache = null; } return {}; }
+  const k = chaveOuvidasOutros();
+  if (ouvidasOutros && ouvidasOutrosDe === k) return ouvidasOutros;
+  try { ouvidasOutros = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { ouvidasOutros = {}; }
+  ouvidasOutrosDe = k;
+  juntoCache = null;
+  return ouvidasOutros;
+};
+// o registro de todos os aparelhos da conta, somado (refeito só quando algum muda)
+let juntoCache = null;
+const registroDaConta = () => {
+  const deOutros = lerOuvidasOutros(); // (antes do guardado: outra conta entrando refaz a soma)
+  if (juntoCache) return juntoCache;
+  const outros = Object.values(deOutros).map((j) => { try { return JSON.parse(j); } catch { return null; } });
+  juntoCache = outros.length ? juntarRegistros(registroOuvidas(), ...outros) : registroOuvidas();
+  return juntoCache;
+};
+// o registro deste aparelho como vai para a nuvem (os dias mais antigos saem até caber num item)
+let paraNuvemCache = null;
+const ouvidasParaNuvem = () => {
+  if (paraNuvemCache) return paraNuvemCache;
+  const reg = registroOuvidas();
+  const dias = Object.keys(reg).sort();
+  let json = JSON.stringify(reg);
+  while (json.length > 800_000 && dias.length > 7) {
+    const fora = new Set(dias.splice(0, Math.ceil(dias.length / 10)));
+    json = JSON.stringify(Object.fromEntries(Object.entries(reg).filter(([d]) => !fora.has(d))));
+  }
+  paraNuvemCache = json;
+  return json;
+};
+db.definirExtrasDaNuvem({
+  locais: () => ({ ...lerOuvidasOutros(), ...(Object.keys(registroOuvidas()).length ? { [ITEM_OUVIDAS]: ouvidasParaNuvem() } : {}) }),
+  eh: (k) => /^o_/.test(k),
+  aplicar: (k, json) => {
+    if (k === ITEM_OUVIDAS) return; // (o deste aparelho é escrito só aqui)
+    const outros = { ...lerOuvidasOutros() };
+    if (json) outros[k] = json; else delete outros[k];
+    ouvidasOutros = outros;
+    ouvidasOutrosDe = chaveOuvidasOutros();
+    juntoCache = null;
+    try { localStorage.setItem(ouvidasOutrosDe, JSON.stringify(outros)); } catch { /* cota cheia */ }
+  },
+});
 let gravarOuvidas = 0;
 const guardarOuvidas = () => {
+  juntoCache = null;
+  paraNuvemCache = null;
   clearTimeout(gravarOuvidas);
-  gravarOuvidas = setTimeout(() => { try { localStorage.setItem(CHAVE_OUVIDAS, JSON.stringify(podar(registroOuvidas(), hojeISO()))); } catch { /* cota cheia */ } }, 1500);
+  gravarOuvidas = setTimeout(() => {
+    try { localStorage.setItem(CHAVE_OUVIDAS, JSON.stringify(podar(registroOuvidas(), hojeISO()))); } catch { /* cota cheia */ }
+    window.dispatchEvent(new CustomEvent('songbook:ouvidas'));
+  }, 1500);
 };
 const itemOuvido = () => {
   const a = player.atual;
@@ -20025,7 +20090,7 @@ function viewEstatisticas(sub) {
   setTint('#2a2a2a');
   const hoje = hojeISO();
   const periodo = semanaDe(hoje);
-  const reg = registroOuvidas();
+  const reg = registroDaConta();
   const r = resumoDoPeriodo(reg, periodo);
   const rotulo = rotuloDoPeriodo(periodo);
   if (sub === 'minutos') return viewMinutosOuvidos(reg, periodo, r);
@@ -20057,7 +20122,7 @@ function viewEstatisticas(sub) {
       ${m.artista ? `<small>Mais ouvido: ${esc(m.artista.nome)}</small>` : ''}</div>`).join('')}</div>` : ''}
     ${db.prefs().sessaoPrivada ? `<p class="est-aviso">${icon('lock', 15)}<span>A sessão privada está ligada: o que você ouve agora não entra aqui. <a href="#/ajustes">Ajustes</a></span></p>` : ''}
   </div>`;
-  view.querySelector('[data-info]').onclick = () => toast('Conta o tempo em que as músicas tocaram neste aparelho, de domingo a sábado. Na sessão privada, nada é contado.');
+  view.querySelector('[data-info]').onclick = () => toast('Conta o tempo em que as músicas tocaram em todos os seus aparelhos com a mesma conta Google, de domingo a sábado. Na sessão privada, nada é contado.');
   view.querySelector('[data-compartilhar]').onclick = () => compartilharSemana(r, periodo);
 }
 function viewMinutosOuvidos(reg, periodo, r) {
@@ -20102,9 +20167,9 @@ function viewRecentes(filtro = '') {
   setHeader('Recentes', { back: '#/' });
   const hoje = hojeISO();
   const tipo = filtro === 'musicas' ? 'musica' : filtro === 'repertorios' ? 'repertorio' : '';
-  const dias = recentesPorDia(registroOuvidas(), { tipo });
+  const dias = recentesPorDia(registroDaConta(), { tipo });
   // o que tocou antes de o app registrar os dias (a lista antiga de tocadas): fica em "Antes"
-  const jaNosDias = new Set(Object.values(registroOuvidas()).flatMap((l) => Object.values(l).flatMap((x) => Object.keys(x.m || {}))));
+  const jaNosDias = new Set(Object.values(registroDaConta()).flatMap((l) => Object.values(l).flatMap((x) => Object.keys(x.m || {}))));
   const antes = tipo === 'repertorio' ? [] : db.recent().filter((s) => !jaNosDias.has(s.id));
   const linha = (it) => {
     const set = it.tipo === 'repertorio' ? db.set(it.id) : null;
