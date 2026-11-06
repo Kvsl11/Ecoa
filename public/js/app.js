@@ -3279,9 +3279,11 @@ const player = (() => {
       const img = new Image();
       img.onload = () => { f.classList.add('com-foto'); f.style.backgroundImage = `url("${url}")`; };
       img.src = url;
-      const t = $('.pl-extra .pl-tile-artista', el);
-      if (t) t.style.backgroundImage = `url("${url}")`;
     }).catch(() => {});
+    // o cartão "Músicas de…": a foto do artista ou, sem ela (ou sem carregar), a capa da música
+    if (comInfo) { const t = $('.pl-extra .pl-tile-artista', el); if (t) void fundoDoCartao(t, [() => fotoDoArtista(nomeBusca), capaCreditos], () => extraDe === chave); }
+    // e o "Parecidas com…": a capa da música ou, sem ela (ou sem carregar), a foto do artista
+    if (comInfo) { const t = $('.pl-extra .pl-tile-musica', el); if (t) void fundoDoCartao(t, [capaCreditos, () => fotoDoArtista(nomeBusca)], () => extraDe === chave); }
     // a breve apresentação do artista embaixo do nome (3 linhas; tocando, abre o texto inteiro)
     // (em 3 linhas, com o "ver mais" no fim, como no Spotify: abre a tela "Sobre o artista", com o texto inteiro)
     // (sem a da Wikipédia, a biografia da TheAudioDB; sem nenhuma, só o "ver mais", que abre as fotos e os números)
@@ -3315,9 +3317,13 @@ const player = (() => {
       sec.hidden = false;
     }).catch(() => {});
     // os atalhos "Parecidos com…": a foto do primeiro artista parecido (do Deezer)
-    if (comInfo) dzP.then(() => artistaDoDeezer(nomeBusca, { titulo })).then((a) => (a?.id ? parecidosNoDeezer(a.id) : [])).then((l) => {
+    // (a foto que não carrega, ou o parecido sem foto, passa para a próxima: a dos outros parecidos, a foto deles por
+    // outro caminho, a do próprio artista e, no fim, a capa da música; o cartão nunca fica vazio)
+    if (comInfo) dzP.then(() => artistaDoDeezer(nomeBusca, { titulo })).then((a) => (a?.id ? parecidosNoDeezer(a.id) : [])).catch(() => []).then((l) => {
       const t = $('.pl-extra .pl-tile-parecidos', el);
-      if (t && extraDe === chave && l[0]?.foto) t.style.backgroundImage = `url("${l[0].foto}")`;
+      if (!t || extraDe !== chave) return;
+      return fundoDoCartao(t, [...l.map((p) => p.foto).filter(Boolean).slice(0, 5), ...l.slice(0, 3).map((p) => () => fotoDoArtista(p.nome)),
+        () => fotoDoArtista(nomeBusca), capaCreditos], () => extraDe === chave);
     }).catch(() => {});
     // os créditos completos (quem compôs e produziu, o selo), da ficha da música na Wikipédia: as pessoas, o cartão e a
     // lista são desenhados de novo com elas
@@ -6243,6 +6249,15 @@ const semLinhasDeAcordes = (sinc) => {
       // o vídeo toca já no modo vídeo (o clipe na tela, e não a capa), com o nome da música e o artista certos; aberto
       // como música, vem com a cifra e a letra dessa música desse artista
       const v = dadosCreditos.videos[b.dataset.i];
+      // a música que já está no aparelho (salva, e talvez baixada) toca a de lá, com a cifra, a letra sincronizada e os
+      // arquivos dela, em vez de uma música nova só do YouTube: pelo vídeo (o clipe ou o áudio dela) ou pelo nome e artista
+      const salva = musicaDoVideoRelacionado(v);
+      if (salva) {
+        const vs = versoesDe(salva);
+        if (vs && v.id === vs.audio && vs.audio !== vs.video) api.paraModoMusica(); else api.paraModoVideo();
+        api.tocar(itemDoPlayer(salva));
+        return;
+      }
       const video = { ...v, titulo: v.tituloDoVideo };
       api.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash) });
       api.paraModoVideo();
@@ -9476,6 +9491,35 @@ async function fotoWikipedia(nome) {
 function musicaSalva({ titulo = '', artista = '', cifra = '', letra = '' } = {}) {
   return (cifra && db.songBySource(cifra)) || (letra && db.songBySource(letra))
     || db.songs().find((s) => normalizar(s.title) === normalizar(tituloLimpo(titulo)) && (!artista || mesmoNome(s.artist, artista))) || null;
+}
+// o fundo de um cartão de imagem: a primeira das fontes (o endereço, ou uma função que o busca) cuja imagem carrega de
+// verdade; as que falham (ou não têm foto) passam para a próxima. ainda() diz se o cartão ainda está na tela
+const imagemCarrega = (url) => new Promise((ok) => {
+  if (!url) { ok(false); return; }
+  const img = new Image();
+  const fim = (r) => { clearTimeout(t); ok(r && img.naturalWidth > 1); };
+  const t = setTimeout(() => fim(false), 8000);
+  img.onload = () => fim(true);
+  img.onerror = () => fim(false);
+  img.src = url;
+});
+async function fundoDoCartao(el, fontes, ainda = () => true) {
+  for (const f of fontes) {
+    const url = typeof f === 'function' ? await Promise.resolve().then(f).catch(() => '') : f;
+    if (!ainda()) return;
+    if (url && await imagemCarrega(url)) {
+      if (ainda()) el.style.backgroundImage = `url("${url}")`;
+      return;
+    }
+  }
+}
+// o vídeo relacionado (do Tocando agora) que já é uma música do aparelho: o vídeo dela (o clipe ou o áudio oficial)
+// ou, sem ele, o mesmo nome e artista — só as que têm o que tocar
+function musicaDoVideoRelacionado(v) {
+  const comMidia = db.songs().filter(midiaDe);
+  return (v?.id && comMidia.find((s) => s.youtube === v.id || s.versoes?.video === v.id || s.versoes?.audio === v.id))
+    || (v?.titulo && comMidia.find((s) => normalizar(s.title) === normalizar(tituloLimpo(v.titulo)) && (!v.artista || mesmoNome(s.artist, v.artista))))
+    || null;
 }
 const botaoSalvar = (item, cls = '') => {
   const salva = musicaSalva(item) && !musicaSalva(item).soNoRepertorio;

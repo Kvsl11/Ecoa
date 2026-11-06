@@ -4,6 +4,18 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 549, data: '2026-11-06', titulo: 'Os cartões do Explorar sempre com foto',
+    itens: [
+      { tipo: 'correcao', texto: 'No Explorar do Tocando agora, o cartão "Parecidos com…" às vezes aparecia vazio (quando o primeiro artista parecido não tinha foto ou ela não carregava). Agora o app tenta a foto dos outros artistas parecidos, depois a do próprio artista e, no fim, a capa da música. Os cartões "Músicas de…" e "Parecidas com…" também não ficam mais vazios.' },
+    ],
+  },
+  {
+    versao: 548, data: '2026-11-06', titulo: 'Os vídeos relacionados tocam a música que você já tem',
+    itens: [
+      { tipo: 'correcao', texto: 'Nos vídeos relacionados do Tocando agora, tocar numa música que você já salvou (e baixou) abria uma cópia nova, só do YouTube, sem o download, a cifra e a letra sincronizada dela. Agora o app reconhece a música da sua biblioteca, pelo vídeo ou pelo nome e artista, e toca a sua (do aparelho, quando está baixada).' },
+    ],
+  },
+  {
     versao: 547, data: '2026-11-06', titulo: 'Os downloads lembram o servidor e ficam mais rápidos',
     itens: [
       { tipo: 'correcao', texto: 'Ao sair do app ou recarregar a página, o app esquecia o servidor que estava baixando e dizia para ligar o servidor: nada baixava. Agora ele lembra o último servidor que atendeu e já abre com ele, e só troca se ele não responder.' },
@@ -70,19 +82,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O "Sobre o artista" podia mostrar outra pessoa com o mesmo nome: em Standing Next to You, o Jung Kook aparecia com a foto e os 7.899 fãs de um artista de música indiana. Agora vale o artista que canta a própria música e, entre os de nome igual (escrito junto ou separado, como "Jung Kook" e "Jungkook"), o mais conhecido. As músicas já salvas e baixadas são conferidas sozinhas.' },
       { tipo: 'melhoria', texto: 'O "Consertar agora" do Diagnóstico da música agora também conserta o artista (procura de novo os fãs, a foto e a apresentação) e, no fim, diz o que mudou.' },
       { tipo: 'melhoria', texto: 'A tela do Diagnóstico ficou mais fácil de ler: em cima, o resumo do que está errado; embaixo, cada parte com um sinal verde, amarelo ou vermelho. O "Copiar" continua levando o texto inteiro.' },
-    ],
-  },
-  {
-    versao: 539, data: '2026-11-05', titulo: 'A seta de download piscando direito',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas listas, a seta das músicas baixando piscava de um jeito estranho (ora piscava, ora não): ela era redesenhada a cada avanço do download e a piscada recomeçava do zero. Agora ela só muda quando o estado muda (baixando, incompleta, baixada), e a piscada fica contínua.' },
-    ],
-  },
-  {
-    versao: 538, data: '2026-11-05', titulo: 'Um download por vez, com uma notificação só',
-    itens: [
-      { tipo: 'melhoria', texto: 'O app baixa uma música por vez (o som e depois o vídeo dela), também ao baixar uma playlist inteira.' },
-      { tipo: 'melhoria', texto: 'As notificações do download viraram uma só, que vai sendo atualizada ("Baixando 45% · música 2 de 4"), no lugar de uma para cada música abrindo todas de uma vez. No fim, o resumo: quantas foram baixadas.' },
     ],
   },
 ];
