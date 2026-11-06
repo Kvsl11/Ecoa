@@ -8,8 +8,14 @@ O mesmo Ecoa do site, dentro de um app de Android, com o que o navegador não de
 - **Login do Google pelo próprio Android** (o login do site não abre dentro de um app).
 - **As músicas baixadas ficam no armazenamento do app**, e não no do navegador (limpar os dados do navegador não apaga).
 
-O app abre o site publicado (`https://kvsl11.github.io/Songbook/`), então as novidades do Ecoa chegam sozinhas, sem
-instalar de novo. O APK só muda quando esta pasta muda.
+O APK empacota uma cópia local da interface e dos arquivos estáticos de `public/`. Assim, a tela e os recursos que
+não precisam de rede podem abrir mesmo sem conexão. A versão Web continua sendo publicada separadamente em
+`https://kvsl11.github.io/Songbook/` e não é alterada por esta configuração.
+
+Os recursos que ainda dependem de serviços externos (por exemplo, processamento pesado de karaokê e respostas
+generativas do Lúmen) continuam usando esses serviços nesta primeira etapa. A migração offline deles será feita
+separadamente, com modelos locais compatíveis e testes em aparelhos reais. Para receber alterações da interface no
+APK, é necessário instalar uma nova versão do APK.
 
 ## Como o APK é montado
 
