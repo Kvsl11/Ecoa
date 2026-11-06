@@ -199,7 +199,7 @@ const cabecalhosDoProxy = (modelo) => (/r\.jina\.ai/.test(modelo) ? { 'X-Return-
 
 // Lê uma página que não libera CORS: direto (no Node) e pelos proxies, na ordem; ler(html) interpreta
 async function lerPagina(url, ler, { proxies = [], fetchImpl, nome = 'o site' } = {}) {
-  const nativa = Boolean(buscaNativa && fetchImpl === fetch);
+  const nativa = Boolean(buscaNativa && (!fetchImpl || fetchImpl === fetch));
   const alternativas = proxies.filter(Boolean).map((p) => [viaProxy(p, url), cabecalhosDoProxy(p)]);
   const consultar = async (alvo, headers, timeout) => {
     const res = await buscar(alvo, { fetchImpl, timeout, headers });
