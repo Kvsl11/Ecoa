@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 558, data: '2026-11-06', titulo: 'Os vídeos com "//" no título trazem a letra e a cifra',
+    itens: [
+      { tipo: 'correcao', texto: 'O vídeo com o título no jeito "Odres Novos // Luau da Imaculada II" (comum nos vídeos de música católica) abria como uma música com esse nome inteiro, e a busca não achava a letra nem a cifra. Agora o nome da música é o da esquerda e o artista é o canal. As músicas que já tinham sido salvas assim, sem a letra e a cifra, arrumam o nome e procuram de novo sozinhas (o "Consertar agora" do Diagnóstico também).' },
+    ],
+  },
+  {
     versao: 557, data: '2026-11-06', titulo: 'A música baixada continua com o app minimizado',
     itens: [
       { tipo: 'correcao', texto: 'A música baixada parava ao minimizar o app ou apagar a tela quando tocava o clipe baixado (no modo vídeo, ou no modo música de uma música sem o áudio oficial): o celular pausa os vídeos em segundo plano. Agora, ao minimizar, o mesmo arquivo passa a tocar só como som, do mesmo ponto, e volta a ser vídeo quando o app abre de novo. A próxima música da fila, baixada, também continua.' },
@@ -61,12 +67,6 @@ export const NOVIDADES = [
     versao: 549, data: '2026-11-06', titulo: 'Os cartões do Explorar sempre com foto',
     itens: [
       { tipo: 'correcao', texto: 'No Explorar do Tocando agora, o cartão "Parecidos com…" às vezes aparecia vazio (quando o primeiro artista parecido não tinha foto ou ela não carregava). Agora o app tenta a foto dos outros artistas parecidos, depois a do próprio artista e, no fim, a capa da música. Os cartões "Músicas de…" e "Parecidas com…" também não ficam mais vazios.' },
-    ],
-  },
-  {
-    versao: 548, data: '2026-11-06', titulo: 'Os vídeos relacionados tocam a música que você já tem',
-    itens: [
-      { tipo: 'correcao', texto: 'Nos vídeos relacionados do Tocando agora, tocar numa música que você já salvou (e baixou) abria uma cópia nova, só do YouTube, sem o download, a cifra e a letra sincronizada dela. Agora o app reconhece a música da sua biblioteca, pelo vídeo ou pelo nome e artista, e toca a sua (do aparelho, quando está baixada).' },
     ],
   },
 ];

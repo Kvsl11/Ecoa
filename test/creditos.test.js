@@ -56,6 +56,9 @@ test('o nome da música e o artista certos nos vídeos do artista (o canal da em
   // (o apóstrofo dentro da palavra não é aspa, e o enfeite com "4K" sai inteiro, sem sobrar parêntese)
   assert.equal(n("Michael Jackson - Don't Stop 'Til You Get Enough (Official Video)", 'Michael Jackson').titulo, "Don't Stop 'Til You Get Enough");
   assert.equal(n('Michael Jackson - Thriller (Official 4K Video)', 'Michael Jackson').titulo, 'Thriller');
+  // ("Música // Evento": a música é a da esquerda)
+  assert.equal(n('Odres Novos // Luau da Imaculada II', 'Gerados pela Imaculada').titulo, 'Odres Novos');
+  assert.equal(n('Gerados pela Imaculada // Odres Novos', 'Gerados pela Imaculada').titulo, 'Odres Novos');
   assert.equal(n("Michael Jackson - They Don't Care About Us (Brazil Version) (Official Video)", 'Michael Jackson').titulo, "They Don't Care About Us (Brazil Version)");
   // (o que não é música fica de fora)
   assert.equal(n('GRAFF, Jung Kook: I Wear GRAFF', 'Jung Kook').musica, false);
