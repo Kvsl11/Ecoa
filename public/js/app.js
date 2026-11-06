@@ -26,6 +26,7 @@ import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from 
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
+import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -242,6 +243,7 @@ function carregarServidor({ forcar = false } = {}) {
 // tem servidor para baixar? Confere de verdade (sem confiar só no que a tela sabe agora: logo depois de abrir o app a
 // descoberta ainda está andando)
 const temServidorParaBaixar = async () => {
+  if (baixadorDoAparelho()) return true;
   if (!servidorIA().url || Date.now() - servidorVerificadoEm > 60000) await carregarServidor().catch(() => {});
   return Boolean(servidorIA().url);
 };
@@ -1086,7 +1088,7 @@ async function baixarDaFila(pedido) {
     const clipe = noMaximo(garantirClipe(id).catch(() => null), 12000, null);
     // (sem servidor agora: procura de novo na hora, em vez de desistir pelo que ficou sabido da última vez)
     if (arquivosParaBaixar(atual).length && !(await temServidorParaBaixar())) await carregarServidor({ forcar: true }).catch(() => {});
-    if (arquivosParaBaixar(atual).length && !servidorIA().url) {
+    if (arquivosParaBaixar(atual).length && !servidorIA().url && !baixadorDoAparelho()) {
       semServidor = true; // (fica na fila guardada: baixa quando o servidor voltar, na próxima abertura)
       throw new Error('servidor de download não conectado. Confira Ajustes → Avançado no computador');
     }
@@ -1286,6 +1288,17 @@ const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', '
 // (o Codespace dormiu, reiniciou), procura outro na hora e continua nele, em vez de gastar as tentativas no que caiu
 async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar, sinal) {
   const q = qualidadeDoDownload(video);
+  // (no APK: no próprio celular primeiro; só se ele falhar, e houver servidor, vai pelo servidor)
+  if (baixadorDoAparelho()) {
+    try {
+      return { r: await baixarNoAparelho(baixadorDoAparelho(), yt, video, q, { abaixo: QUALIDADES_ABAIXO, aoProgresso, aoRecomecar, sinal }), cfg };
+    } catch (e) {
+      if (sinal?.aborted) throw new Error('Cancelado');
+      // (sem servidor já conectado, o erro é o do celular: o app não liga o Codespace para isso)
+      if (!cfg?.url) throw e;
+      aoRecomecar();
+    }
+  }
   const qualidades = video ? [q, q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
   let erro;
   for (let t = 0; t < qualidades.length; t++) {
@@ -1379,6 +1392,11 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       for (let volta = 0; volta < 2 && !blob; volta++) {
         ({ r, cfg } = await (volta === 0 && preparos.get(yt)
           || tentarBaixar(servidorIA().url ? servidorIA() : cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0), sinal)));
+        if (r?.caminho) {
+          // (baixado no próprio celular: só falta o site ler o arquivo)
+          try { blob = await lerBaixadoNoAparelho(r); } finally { void baixadorDoAparelho()?.apagarLocal({ caminho: r.caminho }).catch(() => {}); }
+          break;
+        }
         try {
           blob = await receberArquivo(cfg, r.arquivo, { tamanho: Number(r.tamanho) || 0, tipo: r.tipo, sinal, aoProgresso: (p) => atualizarProgresso(yt, 0.8 + 0.19 * p) });
         } catch (e) {
@@ -20639,6 +20657,8 @@ if (ecoaNativo) {
   });
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
+  // (o yt-dlp do celular, que faz os downloads: atualizado uma vez por dia, porque o YouTube muda sempre)
+  if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
   // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e avisa uma vez por versão
   setTimeout(async () => {
     const r = await conferirAtualizacaoApk().catch(() => null);

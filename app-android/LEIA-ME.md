@@ -12,6 +12,10 @@ O APK empacota uma cópia local da interface e dos arquivos estáticos de `publi
 não precisam de rede podem abrir mesmo sem conexão. A versão Web continua sendo publicada separadamente em
 `https://kvsl11.github.io/Songbook/` e não é alterada por esta configuração.
 
+**Os downloads de músicas e videoclipes são feitos no próprio celular**: o APK leva o yt-dlp (com o Python, o ffmpeg e
+o QuickJS) e não precisa do Codespace nem do servidor Python para baixar. O yt-dlp se atualiza sozinho uma vez por dia.
+O inventário do que já saiu do servidor e do que falta está em `MIGRACAO-NATIVA.md`.
+
 Os recursos que ainda dependem de serviços externos (por exemplo, processamento pesado de karaokê e respostas
 generativas do Lúmen) continuam usando esses serviços nesta primeira etapa. A migração offline deles será feita
 separadamente, com modelos locais compatíveis e testes em aparelhos reais. Para receber alterações da interface no

@@ -45,6 +45,11 @@ import java.util.concurrent.Executors;
 //    ou a caixa com o nome dele) e o nome deste celular; evento "saida" (o mesmo) ao conectar ou desconectar um fone
 //  - abrirBluetooth(): abre as configurações de Bluetooth do Android
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
+//  - baixarLocal({ video, comVideo, qualidade, processo }): baixa do YouTube no próprio celular (o yt-dlp do APK, sem
+//    o servidor) → { caminho, tipo, tamanho, altura, titulo, duracao, qualidade }; evento "baixando" ({ processo, pct })
+//    a cada 1%. O arquivo fica em caminho até o site guardar e chamar apagarLocal({ caminho })
+//  - cancelarLocal({ processo }): para o download no meio (a pessoa pausou)
+//  - baixadorLocal({ atualizar }) → { pronto, versao, erro }: prepara o yt-dlp e, uma vez por dia, atualiza
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class EcoaPlugin extends Plugin {
     // o id do cliente web do login Google do projeto do Firebase (é público: vai no endereço de login do site)
@@ -62,6 +67,13 @@ public class EcoaPlugin extends Plugin {
     @Override
     public void load() {
         ativo = this;
+        // (os downloads que ficaram pela metade da última vez saem; o yt-dlp é preparado em segundo plano, para o
+        // primeiro download não esperar o Android extrair o Python)
+        Context ctxBaixador = getContext();
+        preparando.execute(() -> {
+            Baixador.limparSobras(ctxBaixador);
+            try { Baixador.preparar(ctxBaixador); } catch (Exception e) { /* tenta de novo no primeiro download */ }
+        });
         try {
             android.media.AudioManager am = (android.media.AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
             ouvinteDeSaida = new android.media.AudioDeviceCallback() {
@@ -255,6 +267,90 @@ public class EcoaPlugin extends Plugin {
             t += tamanho(c);
         }
         return t;
+    }
+
+    // ---- os downloads do YouTube no próprio celular (Baixador: o yt-dlp do APK, sem o servidor Python) ----
+    // (dois ao mesmo tempo: o som e o clipe da mesma música, como no servidor)
+    private static final java.util.concurrent.ExecutorService baixando = Executors.newFixedThreadPool(2);
+    private static final java.util.concurrent.ExecutorService preparando = Executors.newSingleThreadExecutor();
+
+    @PluginMethod
+    public void baixadorLocal(PluginCall call) {
+        Context ctx = getContext();
+        boolean atualizar = Boolean.TRUE.equals(call.getBoolean("atualizar", false));
+        boolean forcar = Boolean.TRUE.equals(call.getBoolean("forcar", false));
+        preparando.execute(() -> {
+            JSObject r = new JSObject();
+            try {
+                Baixador.preparar(ctx);
+                if (atualizar || forcar) r.put("atualizacao", Baixador.atualizar(ctx, forcar));
+                r.put("pronto", true);
+                r.put("versao", Baixador.versao(ctx));
+            } catch (Exception e) {
+                r.put("pronto", false);
+                r.put("erro", String.valueOf(e.getMessage()));
+            }
+            call.resolve(r);
+        });
+    }
+
+    @PluginMethod
+    public void baixarLocal(PluginCall call) {
+        Context ctx = getContext();
+        String video = call.getString("video", "");
+        boolean comVideo = Boolean.TRUE.equals(call.getBoolean("comVideo", false));
+        String qualidade = Baixador.qualidade(call.getString("qualidade", "alta"));
+        String processo = call.getString("processo", video + (comVideo ? "-v" : "-a"));
+        baixando.execute(() -> {
+            java.io.File pasta = Baixador.pastaDe(ctx, processo);
+            try {
+                Baixador.Resultado res = Baixador.baixar(ctx, video, comVideo, qualidade, pasta, processo, (p) -> {
+                    JSObject ev = new JSObject();
+                    ev.put("processo", processo);
+                    ev.put("pct", p);
+                    if (getBridge() != null) notifyListeners("baixando", ev);
+                });
+                JSObject r = new JSObject();
+                r.put("caminho", res.arquivo.getAbsolutePath());
+                r.put("tipo", res.tipo);
+                r.put("tamanho", res.arquivo.length());
+                r.put("qualidade", qualidade);
+                if (res.altura != null) r.put("altura", res.altura);
+                if (res.titulo != null) r.put("titulo", res.titulo);
+                if (res.duracao != null) r.put("duracao", res.duracao);
+                call.resolve(r);
+            } catch (com.yausername.youtubedl_android.YoutubeDL.CanceledException e) {
+                call.reject("Cancelado", "cancelado");
+            } catch (Exception e) {
+                String msg = String.valueOf(e.getMessage());
+                call.reject(msg, Baixador.pedeLogin(msg) ? "login" : "erro");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void cancelarLocal(PluginCall call) {
+        String processo = call.getString("processo", "");
+        JSObject r = new JSObject();
+        r.put("cancelado", !processo.isEmpty() && Baixador.cancelar(processo));
+        call.resolve(r);
+    }
+
+    // o arquivo baixado já guardado pelo site: sai da pasta temporária (só dentro dela: nada fora é apagado)
+    @PluginMethod
+    public void apagarLocal(PluginCall call) {
+        String caminho = call.getString("caminho", "");
+        try {
+            java.io.File raiz = new java.io.File(getContext().getCacheDir(), "baixar").getCanonicalFile();
+            java.io.File f = new java.io.File(caminho).getCanonicalFile();
+            if (f.getPath().startsWith(raiz.getPath() + java.io.File.separator)) {
+                java.io.File pasta = f.getParentFile();
+                Baixador.limpar(pasta);
+                if (pasta != null && !pasta.equals(raiz)) //noinspection ResultOfMethodCallIgnored
+                    pasta.delete();
+            }
+        } catch (Exception e) { /* já saiu */ }
+        call.resolve();
     }
 
     @PluginMethod

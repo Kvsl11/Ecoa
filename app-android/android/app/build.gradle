@@ -11,6 +11,11 @@ android {
         versionCode((System.getenv("ECOA_VERSAO_CODIGO") ?: "1") as int)
         versionName(System.getenv("ECOA_VERSAO_NOME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // (o yt-dlp do APK vem com o Python, o ffmpeg e o QuickJS compilados para cada processador: só os dos celulares,
+        // 64 e 32 bits. Os de computador — x86 — deixariam o APK com o dobro do tamanho)
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -28,6 +33,13 @@ android {
                 keyAlias "ecoa"
                 keyPassword System.getenv("ECOA_CHAVE_SENHA")
             }
+        }
+    }
+    // o Python e o ffmpeg do yt-dlp são extraídos do APK na primeira vez (a biblioteca pede as bibliotecas nativas
+    // fora do APK compactado)
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
     buildTypes {
@@ -57,6 +69,9 @@ dependencies {
     implementation "com.google.android.libraries.identity.googleid:googleid:1.1.1"
     // o aviso de "tocando" com os botões, no jeito dos players de música
     implementation "androidx.media:media:1.7.0"
+    // os downloads do YouTube no próprio celular (sem o servidor Python): o yt-dlp com o Python, o QuickJS e o ffmpeg
+    implementation "io.github.junkfood02.youtubedl-android:library:0.18.1"
+    implementation "io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

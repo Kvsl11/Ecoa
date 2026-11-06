@@ -12,6 +12,23 @@ Evoluir somente o APK Android para reduzir a dependência do servidor. A versão
 - O módulo `public/js/lib/servidor-ia.js` conversa com a API remota para tarefas pesadas. O karaokê no servidor usa modelos de separação de áudio que não devem ser empacotados indiscriminadamente no APK.
 - Há lógica local reaproveitável em JavaScript, por exemplo pesquisa no acervo e recursos de ensaio; é necessário mapear dependências e acessos de rede antes de declarar cada recurso offline.
 
+## Inventário: o que cada script Python faz e onde fica no APK
+
+O APK conversa com o servidor Python (`servidor-ia/`, que roda no Codespace, no Modal ou no computador) por estas
+rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum caso.
+
+| Script / rota | O que faz | Dependências pesadas | No APK |
+| --- | --- | --- | --- |
+| `youtube.py` · `/baixar` | Baixa o áudio (M4A/Opus) e o videoclipe (MP4, imagem + som juntos) para tocar offline | yt-dlp, Deno, ffmpeg | **Migrado.** `Baixador.java` roda o mesmo yt-dlp no celular (biblioteca youtubedl-android: Python, ffmpeg e QuickJS dentro do APK), com os mesmos formatos e qualidades. Atualiza o yt-dlp sozinho uma vez por dia. O servidor só é usado se já estiver conectado e o celular falhar |
+| `versoes.py` · `/versoes`, `/croma` | Casa o áudio oficial com o videoclipe pelo som (croma + DTW) | librosa | **Já local.** `public/js/lib/casamento.js` faz a mesma conta; com os dois arquivos baixados no celular, o app usa ela (`casarNoAparelho`) |
+| `letra.py`, `alinhador.py` · `/letra` | Letra sincronizada ouvindo a voz (Whisper / MMS_FA) | Demucs, faster-whisper, torch | **Pendente.** A sincronia principal já vem da LRCLIB, direto do celular; o Whisper fica como reserva no servidor. Candidato: whisper.cpp (modelo tiny/base, baixado sob demanda) |
+| `karaoke.py` · `/karaoke` | Separa voz e banda em 4 canais | Demucs / audio-separator (GPU T4) | **Pendente.** Precisa de um modelo menor (ex.: Spleeter/Open-Unmix em ONNX ou TFLite), medido em aparelho real. Tocar e apagar o karaokê já salvo é local |
+| `transcricao.py` · `/transcrever`, `/youtube` | Áudio → partitura (Basic Pitch + CREPE + Beat This!) | onnxruntime, torch | **Parcial.** A partitura já é feita no aparelho com o Basic Pitch do navegador; o servidor só dá a versão mais fiel (voz separada) |
+| `duvidas.py`, `indexar_acervo.py` · `/duvida`, `/buscar-acervo`, `/ler-anexo` | Lúmen: busca no acervo (BM25) e resposta pela IA | API do Claude/Gemini | **Pendente.** Busca no acervo pode ir para o aparelho (índice em JSON); a IA generativa continua dependendo da API do Gemini, chamada direto do celular com a chave da própria pessoa (nunca uma chave dentro do APK) |
+| `falar.py` · `/falar` | Voz neural do Lúmen ao vivo | edge-tts | **Pendente.** Alternativa local: o TextToSpeech do Android |
+| `codespace.py`, `ligar_codespace.py`, `modal_app.py`, `pc.py`, `iniciar_pc.py`, `preparar_python.py`, `pacote-windows/` | Ligar e expor o servidor (Codespace, Modal, PC) | — | **Não se aplica.** Infraestrutura do servidor; o APK deixa de precisar dela à medida que as rotas acima migram |
+| `youtube.py` · `/youtube/conectar` | Guarda os cookies da conta do YouTube no servidor | — | **Não necessário para o download no celular**: o YouTube costuma bloquear servidores na nuvem, não celulares. Vídeos com restrição de idade ainda não baixam pelo celular |
+
 ## Regras para a migração
 
 1. Não alterar a versão Web nem publicar mudanças em `public/` para esta migração.
@@ -29,6 +46,9 @@ Evoluir somente o APK Android para reduzir a dependência do servidor. A versão
 - Manter a Web hospedada sem alterações.
 
 ### Fase 2 — Serviços Android reutilizáveis
+- **Feito:** downloads do YouTube (áudio e videoclipe) no próprio celular, pelo yt-dlp empacotado (`Baixador.java`,
+  métodos `baixarLocal`, `cancelarLocal`, `apagarLocal` e `baixadorLocal` do plugin). O APK passou a ter ~50 MB a mais por
+  causa do Python, do ffmpeg e do QuickJS (só para os processadores de celular, 64 e 32 bits).
 - Implementar armazenamento persistente e indexação local dos downloads.
 - Implementar fila de downloads Android com estados reais por arquivo (áudio e vídeo separados), retomada e validação antes de marcar como concluído.
 - Expor as operações ao JavaScript por métodos explícitos do plugin Capacitor.

@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 576, data: '2026-11-06', titulo: 'Os downloads no próprio celular, no app de Android',
+    itens: [
+      { tipo: 'novo', texto: 'No app de Android, as músicas e os videoclipes passam a ser baixados no próprio celular, sem o servidor: não precisa mais ligar o Codespace nem o servidor no computador para baixar. A mesma qualidade escolhida em Ajustes → Economia de dados e offline vale, e a porcentagem aparece como antes. Vem com a atualização do app (que fica um pouco maior). No navegador, nada muda.' },
+    ],
+  },
+  {
     versao: 575, data: '2026-11-06', titulo: 'O app de Android sem a seleção de texto',
     itens: [
       { tipo: 'melhoria', texto: 'No app de Android, segurar o dedo num texto (um nome, um botão, a letra) não seleciona mais nem abre o "Copiar / Selecionar tudo" do navegador, em nenhuma tela: o app se comporta como app. Nos campos de digitar (a busca, os nomes, o editor da cifra), copiar e colar continuam funcionando. Para copiar a letra, use Copiar a letra nos ⋯ da música.' },
@@ -64,13 +70,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, agora de ponta a ponta, a foto do perfil e os botões do topo ficavam por cima dos filtros, dos títulos e dos Ajustes: o topo descia a altura da barra de status, e o começo das páginas não. Agora as páginas também descem, e o fundo de cada uma vai até atrás do relógio e da bateria.' },
       { tipo: 'melhoria', texto: 'No app de Android, os ícones do relógio e da bateria ficam escuros no tema claro e claros no escuro (precisa da atualização do app).' },
-    ],
-  },
-  {
-    versao: 566, data: '2026-11-06', titulo: 'O APK mostra a própria versão e aproveita a tela inteira',
-    itens: [
-      { tipo: 'melhoria', texto: 'No menu do perfil do APK, a versão agora é a do aplicativo Android instalado (APK), e não a versão do site. No navegador, a versão do site continua aparecendo normalmente.' },
-      { tipo: 'melhoria', texto: 'No Android, o app passa a aproveitar a tela inteira: as áreas atrás do relógio e da navegação do sistema acompanham o fundo do Ecoa, mantendo os ícones do celular visíveis.' },
     ],
   },
 ];
