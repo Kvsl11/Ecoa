@@ -548,7 +548,7 @@ label.setting { cursor: pointer; }
 .cal-rodape { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 @media (max-width: 699px) {
   .cal-fundo { background: rgb(0 0 0 / 0.6); animation: menu-fundo 0.2s ease; }
-  .cal { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; padding: 14px 12px; border-radius: 18px; animation: menu-subir 0.22s ease; }
+  .cal { left: 0; right: 0; bottom: 0; width: auto; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: menu-subir 0.22s ease; }
   .cal-dias button { height: 46px; font-size: 16px; }
   .cal-rodape .btn { flex: 1; height: 44px; font-size: 15px; }
 }
@@ -1961,8 +1961,8 @@ label.check input[type="checkbox"]:focus-visible { outline: 2px solid var(--text
 .menu-mais-titulo { display: none; }
 /* celular: folha que sobe do rodapé, por cima do menu de baixo e do player, com o fundo escurecido */
 .menu-mais-fundo { position: fixed; inset: 0; z-index: 70; background: rgb(0 0 0 / 0.6); animation: menu-fundo 0.2s ease; }
-.menu-mais.folha { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 71; min-width: 0;
-  max-height: calc(100dvh - 80px); overflow-y: auto; padding: 8px; border-radius: 18px; animation: menu-subir 0.22s ease; }
+.menu-mais.folha { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 71; min-width: 0;
+  max-height: calc(100dvh - 80px); overflow-y: auto; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: menu-subir 0.22s ease; }
 .menu-mais.folha .menu-mais-titulo { display: grid; gap: 2px; padding: 8px 14px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); min-width: 0; }
 .menu-mais.folha .menu-mais-titulo b, .menu-mais.folha .menu-mais-titulo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-mais.folha .menu-mais-titulo b { font-size: 16px; }
@@ -2059,7 +2059,8 @@ dialog.lista-fila .fila-item:focus-visible { outline: 2px solid var(--accent); o
 .lista-txt small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lista-ok { color: var(--accent-ink); flex: none; }
 @media (max-width: 699px) {
-  dialog.lista-dlg { margin: auto 8px calc(8px + env(safe-area-inset-bottom)); width: calc(100% - 16px); max-width: none; max-height: 75dvh; border-radius: 18px; }
+  /* (colada no rodapé e de ponta a ponta, como as outras folhas: antes flutuava com 8 px de folga embaixo e dos lados) */
+  dialog.lista-dlg { margin: auto 0 0; width: 100%; max-width: none; max-height: 75dvh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   dialog.lista-dlg[open] { animation: menu-subir 0.22s ease; }
   .lista-op { padding: 12px; }
 }
@@ -4466,7 +4467,8 @@ html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido):n
 
 /* ============================================================ janelas de configurar (PDF, PowerPoint…) como folha
    Sobem do rodapé, como os ⋮ (a alça em cima: arrastar para cima a deixa quase da tela toda, para baixo fecha), no
-   celular, no tablet e no computador, em vez de flutuar no meio da tela. (O calendário continua flutuando.) */
+   celular, no tablet e no computador, em vez de flutuar no meio da tela. No celular, todas encostam no rodapé e vão de
+   uma ponta à outra (as listas de escolha, os ⋮, o menu de mais opções e o calendário também) */
 dialog.folha { margin: auto auto 0; width: min(600px, 100%); max-width: none; max-height: min(90dvh, 860px); border-radius: 18px 18px 0 0;
   padding-bottom: env(safe-area-inset-bottom); transition: transform 0.22s ease, height 0.22s ease, max-height 0.22s ease; }
 dialog.folha[open] { animation: menu-subir 0.22s ease; }
