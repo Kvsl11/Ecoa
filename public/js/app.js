@@ -9279,7 +9279,7 @@ function fotoDoArtista(nome, slug = '') {
       cifra(),
       fotoDeezer(nome),
       fotoWikipedia(nome),
-      ...(slug ? [carregarArtista(slug, nome).then((x) => x?.principal?.foto || '')] : []),
+      ...(slug ? [carregarArtista(slug, nome).principal.then((x) => x?.foto || '')] : []),
     ];
     let tentativa;
     tentativa = Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
