@@ -21,6 +21,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(EcoaPlugin.class);
         super.onCreate(savedInstanceState);
 
+        // Esta montagem publica um APK novo com a versão Android incrementada no GitHub Actions.
         // Edge-to-edge: o WebView ocupa também as áreas das barras do Android.
         // As barras transparentes deixam aparecer o fundo do app; os ícones permanecem claros.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
