@@ -8477,7 +8477,7 @@ async function abrirParecidos(nome, titulo = '') {
   if (!l.length) { toast(navigator.onLine ? 'Não achei artistas parecidos' : 'Sem internet'); return; }
   const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidos com ${esc(nome)}</h3>`, opcoes: l.map((x, i) => ({ valor: i, rotulo: x.nome, sub: x.fas ? `${x.fas.toLocaleString('pt-BR')} fãs no Deezer` : 'Artista',
     capa: `<span class="lista-capa redonda"${x.foto ? ` style="background-image:url('${esc(x.foto)}')"` : ''}>${x.foto ? '' : semFotoArtista(18)}</span>` })) });
-  if (v !== undefined && l[v]) { fecharTocandoAgoraParaIr(); irParaArtista(l[v].nome); }
+  if (v !== undefined && l[v]) irParaArtista(l[v].nome);
 }
 // "Parecidas com…": músicas do artista e de artistas parecidos, numa folha; tocando, a música abre
 async function abrirMusicasParecidas(nome, titulo = '') {
@@ -8490,8 +8490,9 @@ async function abrirMusicasParecidas(nome, titulo = '') {
     capa: `<span class="lista-capa"${m.capa ? ` style="background-image:url('${esc(m.capa)}')"` : ''}>${m.capa ? '' : icon('music', 18)}</span>` })) });
   if (v !== undefined && l[v]) void abrirMusicaPeloNome(l[v]);
 }
-// para ir a uma página a partir do Tocando agora na tela toda: ele fecha antes (no tablet, o painel continua ao lado)
-const fecharTocandoAgoraParaIr = () => { if (document.body.classList.contains('painel-cheio') && !ehTablet()) history.back(); };
+// (para ir a uma página a partir do Tocando agora na tela toda, irParaPagina já troca ele pela página no histórico.
+// Antes o Tocando agora era fechado com um "voltar" logo antes, e esse voltar desfazia a página aberta: tocar num artista
+// dos "Parecidos com…" ou dos créditos não levava à página dele)
 // "Mostrar tudo" dos créditos: a folha com todos, em grupos (Artista, Composição e letra, Produção e engenharia), os
 // detalhes (álbum, ano, tom) e as fontes (o selo, de onde veio a cifra, a ficha na Wikipédia)
 async function mostrarTodosOsCreditos(d) {
@@ -8518,8 +8519,9 @@ async function mostrarTodosOsCreditos(d) {
   dlg.addEventListener('click', (e) => {
     if (e.target === dlg) { dlg.close(); return; }
     const l = e.target.closest('[data-ct]');
-    if (l && d.pessoas[l.dataset.ct]) { const nome = d.pessoas[l.dataset.ct].nome; dlg.close(); fecharTocandoAgoraParaIr(); irParaArtista(nome); return; }
-    if (e.target.closest('a[href^="#/"]')) { dlg.close(); fecharTocandoAgoraParaIr(); }
+    if (l && d.pessoas[l.dataset.ct]) { const nome = d.pessoas[l.dataset.ct].nome; dlg.close(); irParaArtista(nome); return; }
+    const a = e.target.closest('a[href^="#/"]');
+    if (a) { e.preventDefault(); dlg.close(); irParaPagina(a.getAttribute('href')); }
   });
   dlg.addEventListener('close', () => dlg.remove());
   arrastarFolha(dlg);
@@ -8599,7 +8601,7 @@ function explorarCreditos(d) {
       return;
     }
     if (cr === 'play') { player.alternar(); setTimeout(() => { const b = $('[data-cr="play"]', dlg); if (b) b.innerHTML = icon(player.estado === 'tocando' ? 'pause' : 'play', 20); }, 250); return; }
-    if (cr === 'ir') { const p = pessoas[e.target.closest('[data-i]').dataset.i]; dlg.close(); aoIrParaArtista?.(); fecharTocandoAgoraParaIr(); irParaArtista(p.nome); return; }
+    if (cr === 'ir') { const p = pessoas[e.target.closest('[data-i]').dataset.i]; dlg.close(); aoIrParaArtista?.(); irParaArtista(p.nome); return; }
     const v = e.target.closest('[data-versao]');
     if (v && versoes[v.dataset.versao]) { dlg.close(); void abrirMusicaPeloNome(versoes[v.dataset.versao]); return; }
     const no = e.target.closest('[data-no]');
