@@ -9389,7 +9389,7 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
         const img = new Image();
         img.alt = '';
         img.loading = 'lazy';
-        img.onload = () => { if (avatar.isConnected) { avatar.replaceChildren(img); avatar.classList.add('com-foto'); item.fotoArtista = url; } };
+        img.onload = () => { if (avatar.isConnected) { avatar.replaceChildren(img); avatar.classList.add('com-foto'); item.fotoArtista = url; if (item.id && db.song(item.id)?.fotoArtista !== url) db.updateSong(item.id, { fotoArtista: url }); } };
         img.src = url;
       }).catch(() => {});
     }
