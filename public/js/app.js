@@ -3833,7 +3833,10 @@ const semLinhasDeAcordes = (sinc) => {
       // e a outra versão dela que esperava por baixo sai
       [som, somAudio, somVideo, somKaraoke].forEach((m) => { if (m && !m.paused) m.pause(); });
       reservaDe()?.remove();
-      tocarLocal(l, 0, autoplay);
+      // (do começo; a última música baixada, voltando ao abrir o app, no ponto em que tinha parado)
+      const t0 = pendente ?? 0;
+      pendente = null;
+      tocarLocal(l, t0, autoplay);
       mostrarBarra();
       if (!quadro) seguir();
       return;
@@ -4812,6 +4815,11 @@ const semLinhasDeAcordes = (sinc) => {
       atual = item;
       tempo = 0;
       duracao = 0;
+      // (outra música começa do começo: o ponto que a de antes esperava — a pausada em 2:10, a última música que voltou
+      // ao abrir o app, a troca entre o áudio e o clipe com ela pausada — ficava pendente, e a nova pulava para 2:10)
+      pendente = null;
+      pendenteEm = 0;
+      tentativasIda = 0;
       // (a última música, voltando ao abrir o app: no ponto em que tinha parado)
       if (inicio > 0) { tempo = inicio; pendente = inicio; pendenteEm = performance.now(); }
       estado = pausado ? 'pausado' : 'tocando';

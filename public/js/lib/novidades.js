@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 564, data: '2026-11-06', titulo: 'A outra música começa do início',
+    itens: [
+      { tipo: 'correcao', texto: 'Trocar de música podia fazer a nova começar no ponto em que a de antes tinha parado (pausada em 2:10, a outra começava em 2:10), na música e no vídeo, no navegador e no app de Android. Agora a outra música sempre começa do início; só a última música, voltando ao abrir o app, continua de onde parou (agora também a baixada).' },
+    ],
+  },
+  {
     versao: 563, data: '2026-11-06', titulo: 'O app de Android: baixa do site, sem a foto por cima e com o player do Android',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, a foto do perfil ficava por cima dos títulos e dos botões do topo (o app ia por baixo da barra de status do celular). Agora ele começa abaixo dela, como no navegador.' },
@@ -65,13 +71,6 @@ export const NOVIDADES = [
     versao: 555, data: '2026-11-06', titulo: 'O Diagnóstico arrumado',
     itens: [
       { tipo: 'correcao', texto: 'O Diagnóstico da música: o fim da lista ficava escondido atrás dos botões e não dava para ver. Agora o título e os botões ficam parados e só o meio rola, até a última parte. O sinal laranja dos avisos aparecia esticado numa barra (e o item com um fundo), e os botões de baixo ficaram organizados: Consertar agora em cima e, embaixo, Copiar e Fechar lado a lado, do mesmo tamanho.' },
-    ],
-  },
-  {
-    versao: 554, data: '2026-11-06', titulo: 'O Explorar sempre responde e o Diagnóstico no rodapé do tablet',
-    itens: [
-      { tipo: 'correcao', texto: 'No Explorar do Tocando agora, "Parecidos com…" e "Parecidas com…" às vezes não abriam nada (com o Justice, por exemplo): o Deezer recusava os pedidos feitos todos de uma vez ao abrir a tela, e o app guardava a resposta vazia como se não houvesse parecidos. Agora o pedido é refeito, e, se mesmo assim não vier nada, os cartões mostram outra sugestão (os artistas da rádio do artista, as músicas mais ouvidas dele) ou abrem as músicas do artista.' },
-      { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), o Diagnóstico da música sobe do rodapé, como os ⋮, em vez de abrir no meio da tela.' },
     ],
   },
 ];
