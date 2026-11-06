@@ -213,3 +213,13 @@ test('download: uma notificação só para a fila toda (não uma por música ao 
   assert.match(app, /const TAG_DOWNLOAD = 'baixar';/);
   assert.match(app, /titulo: 'Downloads concluídos'/);
 });
+
+test('download: o "Baixar" dos ⋮ tira a pausa de antes e avisa na tela se não der certo', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /if \(v === 'baixar'\) baixarMusica\(db\.song\(song\.id\), \{ avisar: true \}\)/);
+  const baixar = app.slice(app.indexOf('function usarArquivosJaBaixados('), app.indexOf('const DOWNLOADS_JUNTOS'));
+  assert.match(baixar, /if \(s && avisar\) \{[\s\S]*?if \(s\.baixarPausado\) db\.updateSong\(s\.id, \{ baixarPausado: undefined \}\)/);
+  // (os arquivos já baixados por outra música com o mesmo vídeo: a música passa a usar eles)
+  assert.match(baixar, /if \(s\.baixado \|\| precisaBaixar\(s\) \|\| qualidade\) return false;/);
+  assert.match(app, /if \(baixarComAviso\.has\(id\)\) void ask\(\{ title: 'Não deu para baixar'/);
+});

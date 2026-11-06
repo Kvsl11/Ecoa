@@ -9,6 +9,7 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. O que ainda precisa de servidor no app (o karaokê pelo servidor e as respostas do Lúmen) usa o servidor no computador ou o de reserva.' },
       { tipo: 'novo', texto: 'No app de Android, o karaokê é feito no próprio celular, sem o servidor: a voz é separada da banda ali mesmo (de 1 a 2 minutos por música, conforme o celular; na primeira vez o app baixa o modelo, de 30 MB). Depois fica guardado e toca na hora, até sem internet. Nesse karaokê, o back vocal sai junto com o cantor.' },
       { tipo: 'novo', texto: 'No app de Android, o Lúmen responde direto do celular, sem o servidor: procura no acervo (inclusive no texto dos PDFs, guardado no aparelho) e pergunta ao Gemini, com a busca na web. Fotos, PDFs, áudios e vídeos enviados na conversa também vão direto para ele.' },
+      { tipo: 'correcao', texto: 'O Baixar dos ⋮ de uma música às vezes não fazia nada: a música que já tinha tido o download pausado entrava na fila e saía na hora, sem aviso. Agora tocar em Baixar sempre baixa; e, se não der certo, o motivo aparece na tela (e não só na notificação).' },
       { tipo: 'correcao', texto: 'No aviso de versão nova do app de Android, "O que vem com ela" mostrava novidades antigas, que o app já tinha. Agora mostra as que chegam com a versão nova (a partir da próxima atualização).' },
     ],
   },

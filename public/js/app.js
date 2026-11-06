@@ -1048,8 +1048,33 @@ function qualidadeDoDownload(video) {
 // sem Wi-Fi (no Android o navegador diz): pergunta antes, como no Spotify (uma vez, ao baixar várias)
 const podeBaixarAgora = async () => navigator.connection?.type !== 'cellular' || db.prefs().baixarDadosMoveis
   || ask({ title: 'Baixar com os dados móveis?', text: 'Você está sem Wi-Fi e o download pode gastar bastante do seu plano. Dá para liberar sempre em Ajustes → Economia de dados e offline.', ok: 'Baixar assim mesmo' });
-async function baixarMusica(song, { perguntou = false, qualidade = false } = {}) {
+// as músicas que a pessoa mandou baixar tocando em "Baixar" (os ⋮): se não der certo, o motivo aparece na tela, e não só
+// na notificação (que pode estar desligada: antes nada acontecia e o motivo ficava escondido)
+const baixarComAviso = new Set();
+// (os arquivos desta gravação já estão no aparelho, baixados por outra música da biblioteca com o mesmo vídeo: a música
+// passa a usar eles, sem baixar de novo. Antes o "Baixar" não fazia nada, calado.) true: não há o que baixar
+function usarArquivosJaBaixados(s, { avisar = false, qualidade = false } = {}) {
+  if (s.baixado || precisaBaixar(s) || qualidade) return false;
+  const lista = arquivosParaBaixar(s);
+  baixarComAviso.delete(s.id);
+  if (!lista.length) {
+    if (avisar) void ask({ title: 'Nada para baixar', text: 'Esta música não tem áudio nem vídeo para baixar. Escolha um vídeo para ela (⋮ → Escolher um vídeo) e tente de novo.', ok: 'Entendi', cancel: false });
+    return true;
+  }
+  const arquivos = Object.fromEntries(lista.map(({ yt }) => [yt, baixadoDe(yt)]).filter(([, a]) => a));
+  db.updateSong(s.id, { baixado: { arquivos, tamanho: Object.values(arquivos).reduce((t, a) => t + (a.tamanho || 0), 0), em: Date.now() } });
+  window.dispatchEvent(new CustomEvent('songbook:downloads'));
+  return true;
+}
+async function baixarMusica(song, { perguntou = false, qualidade = false, avisar = false } = {}) {
   const s = song?.id && db.song(song.id);
+  if (s && avisar) {
+    baixarComAviso.add(s.id);
+    // (a pessoa tocou em "Baixar": a pausa de antes não vale mais. Antes a música marcada como pausada entrava na fila
+    // e saía na hora, sem baixar e sem aviso — o "Baixar" dos ⋮ parecia não fazer nada)
+    if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
+  }
+  if (s && usarArquivosJaBaixados(s, { avisar, qualidade })) return;
   // (qualidade: a baixada numa qualidade menor que a escolhida é baixada de novo nela)
   if (!s || !(precisaBaixar(s) || (qualidade && precisaMelhorar(s, qualidade === 'todas'))) || baixando.has(s.id)) return;
 
@@ -1120,7 +1145,9 @@ async function baixarDaFila(pedido) {
       tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
       imagem: capaDaNotificacao(atual),
     });
+    if (baixarComAviso.has(id)) void ask({ title: 'Não deu para baixar', text: `“${atual?.title || 'A música'}”: ${erroExplicado(e)}`, ok: 'Entendi', cancel: false });
   } finally {
+    baixarComAviso.delete(id);
     // (pausado, a música sai da fila guardada pela pausa; o que falhou tenta de novo pelo completarDepois)
     if (!controle.signal.aborted && !semServidor) tirarDaFilaGuardada(id);
     controlesDeDownload.delete(id);
@@ -7393,7 +7420,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     compartilhar({ title: song.title, text: [song.title, song.artist].filter(Boolean).join(' — '), ...(url ? { url } : {}) });
   }
   if (v === 'playlist') addToSetDialog(song.id, set?.items[i]?.label || '');
-  if (v === 'baixar') baixarMusica(db.song(song.id));
+  if (v === 'baixar') baixarMusica(db.song(song.id), { avisar: true });
   if (v === 'baixando') toast(`Baixando: ${baixando.get(song.id)?.pct ?? 100}%`);
   if (v === 'tirar-download' && await ask({ title: 'Remover o download?', text: `“${song.title}” continua na biblioteca, mas só toca com internet.`, ok: 'Remover', danger: true })) { await removerDownload(song); toast('Download removido'); }
   if (v === 'tocar') { if (player.desta(song.youtube)) player.alternar(); else tocarReferencia(song); }
