@@ -5649,12 +5649,12 @@ const semLinhasDeAcordes = (sinc) => {
     // no app de Android, o próprio Android diz por onde o som sai, com o nome do fone ("JBL Tour Pro 3", sem precisar do
     // microfone) e o nome deste celular. (O APK antigo não sabe: aí vale o do navegador, abaixo)
     const nativo = pluginEcoa()?.saidaDeSom ? await pluginEcoa().saidaDeSom().catch(() => null) : null;
+    // (o nome é o do próprio Android, o mesmo das configurações do Bluetooth: não há nome para a pessoa dar)
     if (nativo && Array.isArray(nativo.saidas)) {
-      const dar = (l) => nomeDado(l) || l;
       const fone = nativo.fone || '';
       const outros = nativo.saidas.filter((x) => x.nome && x.nome !== fone);
-      return { fone: fone ? dar(fone) : '', foneOriginal: fone, generico: Boolean(fone && NOME_GENERICO.test(fone) && !nomeDado(fone)),
-        tipoFone: nativo.tipo || '', fones: [fone, ...outros.filter((x) => x.tipo !== 'hdmi' && x.tipo !== 'linha').map((x) => x.nome)].filter(Boolean).map(dar),
+      return { fone, foneOriginal: fone, generico: false, nativo: true, tipoFone: nativo.tipo || '',
+        fones: [fone, ...outros.filter((x) => x.tipo !== 'hdmi' && x.tipo !== 'linha').map((x) => x.nome)].filter(Boolean),
         saidas: outros.filter((x) => x.tipo === 'hdmi' || x.tipo === 'linha').map((x) => x.nome), comNomes: true, aparelho: nativo.aparelho || '' };
     }
     let aparelhos = [];
@@ -5685,13 +5685,13 @@ const semLinhasDeAcordes = (sinc) => {
       b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
     }
     const onde = $('.pl-onde', el);
-    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 11)}<span>${esc(fone)}</span>` : ''; }
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 13)}<span>${esc(fone)}</span>` : ''; }
     // (na barrinha de baixo, o botão de aparelhos vira o fone, na cor do app; sem fone, ele some no celular)
     const lado = $('.pl-lado [data-pl="aparelhos"]', el);
     if (lado) lado.innerHTML = icon(fone ? 'fone' : 'aparelhos', 18);
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
-    if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 12)}<span>${esc(fone)}</span>` : ''; }
+    if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 16)}<span>${esc(fone)}</span>` : ''; }
     el.classList.toggle('com-fone', Boolean(fone));
     medirNomes();
   };
@@ -5710,31 +5710,31 @@ const semLinhasDeAcordes = (sinc) => {
     // app pode usar o microfone; sem isso a lista vem sem nomes e o app não sabe que há um fone (mostrava "Este celular"
     // mesmo com o fone). Com o fone conectado, ele aparece como o aparelho que está tocando, e este aparelho embaixo
     const desenharCorpo = async () => {
-      const { fone, generico, fones, saidas, comNomes, aparelho, tipoFone } = await lerSaidasDeSom();
-      // (no app de Android, o nome deste celular: "Galaxy S23 do Kaio" no lugar de "Este celular")
-      if (aparelho) tipo[1] = aparelho;
+      const { fone, generico, nativo, fones, saidas, comNomes, aparelho, tipoFone } = await lerSaidasDeSom();
       const via = tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth';
       void mostrarAparelho();
       const musica = esc([atual?.titulo, atual?.artista].filter(Boolean).join(' – '));
       // (a qualidade: a do arquivo baixado que toca, ou a da internet)
       const qual = local ? (QUALIDADES.find(([k]) => k === qualidadeDoDownload(Boolean(local.video)))?.[1] || 'Baixada') : navigator.onLine ? 'Pela internet' : '';
       const tocando = estado === 'tocando';
+      // como o "Conectar" do Spotify: em cima, o aparelho que toca (o fone, com a qualidade, "└ ᛒ Este celular" e a
+      // música, na cor do app); embaixo, este celular (no app de Android, com o nome dele, ex. "POCO X6 Pro 5G")
       $('.ap-corpo', dlg).innerHTML = `
         <div class="ap-atual${fone ? ' com-fone' : ''}"><span class="grow">
           <b>${esc(fone || tipo[1])}${qual ? `<i class="ap-qual">${esc(qual)}</i>` : ''}</b>
-          ${fone ? `<small class="ap-via">${icon(via, 13)} ${esc(tipo[1])}</small>` : ''}
-          ${musica ? `<small class="ap-musica">${tocando ? '<span class="ap-barras" aria-hidden="true"><i></i><i></i><i></i></span>' : icon('music', 13)} ${musica}</small>` : ''}</span>${icon(fone ? 'fone' : tipo[0], 38)}</div>
-        ${fone ? `<button class="ap-nomear" data-ap="nomear">${icon('edit', 16)}<span>${generico ? 'O celular só diz "fone Bluetooth": toque para dar o nome dele' : 'Mudar o nome deste fone'}</span></button>` : ''}
-        ${fone ? `<div class="ap-saida ap-este">${icon(tipo[0], 22)}<span>${esc(tipo[1])}</span></div>` : ''}
-        ${fones.length > 1 || saidas.length ? `<h4>Outras saídas de som</h4>${[...fones.slice(1), ...saidas].map((l) => `<div class="ap-saida">${icon(ehFone(l) ? 'fone' : 'som', 22)}<span>${esc(l)}</span></div>`).join('')}` : ''}
+          ${fone ? `<small class="ap-via">${icon(via, 12)} ${esc(tipo[1])}</small>` : aparelho ? `<small class="ap-via ap-modelo">${esc(aparelho)}</small>` : ''}
+          ${musica ? `<small class="ap-musica">${tocando ? '<span class="ap-barras" aria-hidden="true"><i></i><i></i><i></i></span>' : icon('music', 13)} ${musica}</small>` : ''}</span>${icon(fone ? 'fone' : tipo[0], 30)}</div>
+        ${fone && !nativo && generico ? `<button class="ap-nomear" data-ap="nomear">${icon('edit', 16)}<span>O navegador só diz "fone Bluetooth": toque para dar o nome dele</span></button>` : ''}
+        ${fone ? `<div class="ap-saida ap-este">${icon(tipo[0], 20)}<span class="grow"><span>${esc(tipo[1])}</span>${aparelho ? `<small>${esc(aparelho)}</small>` : ''}</span></div>` : ''}
+        ${fones.length > 1 || saidas.length ? `<h4>Outras saídas de som</h4>${[...fones.slice(1), ...saidas].map((l) => `<div class="ap-saida">${icon(ehFone(l) ? 'fone' : 'som', 20)}<span class="grow"><span>${esc(l)}</span></span></div>`).join('')}` : ''}
         ${!comNomes && navigator.mediaDevices?.getUserMedia ? `<button class="ap-ver" data-ap="ver">${icon('fone', 22)}<span class="grow"><b>Mostrar fones e caixas conectados</b><small>O navegador pede para usar o microfone só para dizer os nomes dos aparelhos; nada é gravado</small></span></button>`
           : !fone && !saidas.length ? '<p class="ap-nada">Nenhum fone ou caixa conectado</p>' : ''}`;
     };
     dlg.innerHTML = `<div class="lista-cab menu-cab"><span class="menu-alca" aria-hidden="true"></span><h3>Conectar</h3></div>
       <div class="ap-corpo"></div>
       <div class="ap-botoes">
-        <button class="ap-bt" data-ap="tv">${icon('tv', 24)}<span>Transmitir na TV</span></button>
-        <button class="ap-bt" data-ap="bt">${icon('bluetooth', 24)}<span>Procurar aparelhos Bluetooth</span></button>
+        <button class="ap-bt" data-ap="tv">${icon('tv', 20)}<span>Transmitir na TV</span></button>
+        <button class="ap-bt ap-bt-cor" data-ap="bt">${icon('bluetooth', 20)}<span>Bluetooth</span></button>
       </div>`;
     document.body.append(dlg);
     dlg.addEventListener('click', (e) => {
@@ -5763,7 +5763,9 @@ const semLinhasDeAcordes = (sinc) => {
         dlg.close();
       }
       if (ap === 'bt') {
-        if (/Android/i.test(navigator.userAgent)) location.href = 'intent:#Intent;action=android.settings.BLUETOOTH_SETTINGS;end';
+        // (no app de Android, abre as configurações do Bluetooth pelo próprio Android, como o Spotify)
+        if (pluginEcoa()?.abrirBluetooth) void pluginEcoa().abrirBluetooth().catch(() => { location.href = 'intent:#Intent;action=android.settings.BLUETOOTH_SETTINGS;end'; });
+        else if (/Android/i.test(navigator.userAgent)) location.href = 'intent:#Intent;action=android.settings.BLUETOOTH_SETTINGS;end';
         else toast('Ligue o Bluetooth nos ajustes do aparelho e conecte o fone ou a caixa: o som sai por ele');
         dlg.close();
       }
