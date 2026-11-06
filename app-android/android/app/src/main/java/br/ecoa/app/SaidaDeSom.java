@@ -1,7 +1,6 @@
 package br.ecoa.app;
 
 import android.content.Context;
-import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
@@ -9,8 +8,6 @@ import android.provider.Settings;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-
-import java.util.List;
 
 // Por onde o som está saindo, pelo próprio Android (o navegador só diz "Bluetooth headset", e só com o microfone
 // liberado): o fone ou a caixa com o nome dele ("JBL Tour Pro 3"), o tipo (bluetooth, com fio, USB…), as outras saídas
@@ -25,37 +22,33 @@ final class SaidaDeSom {
         String fone = "", tipoFone = "";
         int prioridade = -1;
         AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
-        // (no Android 13 em diante, o próprio Android diz por onde a música sai agora)
-        AudioDeviceInfo rota = null;
-        if (am != null && Build.VERSION.SDK_INT >= 33) {
-            try {
-                AudioAttributes musica = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build();
-                List<android.media.AudioDeviceAttributes> ds = am.getAudioDevicesForAttributes(musica);
-                if (ds != null && !ds.isEmpty()) {
-                    android.media.AudioDeviceAttributes a = ds.get(0);
-                    for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
-                        if (d.getType() == a.getType() && (a.getAddress().isEmpty() || a.getAddress().equals(d.getAddress()))) { rota = d; break; }
-                    }
-                }
-            } catch (Exception e) { rota = null; }
-        }
+        // por onde a música sai agora (a rota de mídia do Android): pelo Bluetooth ou não. Com o Bluetooth conectado mas o
+        // som no celular (ou no fone com fio), o fone Bluetooth não conta
+        Boolean pelaRotaBt = null;
+        try {
+            android.media.MediaRouter mr = (android.media.MediaRouter) ctx.getSystemService(Context.MEDIA_ROUTER_SERVICE);
+            if (mr != null) {
+                android.media.MediaRouter.RouteInfo sel = mr.getSelectedRoute(android.media.MediaRouter.ROUTE_TYPE_LIVE_AUDIO);
+                pelaRotaBt = sel != null && sel != mr.getDefaultRoute();
+            }
+        } catch (Exception e) { pelaRotaBt = null; }
         java.util.HashSet<String> vistos = new java.util.HashSet<>();
         if (am != null) for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             String tipo = tipo(d.getType());
             if (tipo == null) continue; // (o alto-falante e o fone de ligação do próprio celular, e os internos)
             String nome = nome(d, tipo);
-            // (o mesmo fone Bluetooth aparece duas vezes: o da música e o das ligações)
+            int p = prioridade(d.getType());
+            if (pelaRotaBt != null && pelaRotaBt != "bluetooth".equals(tipo)) p -= 100;
+            if (p > prioridade) { prioridade = p; fone = nome; tipoFone = tipo; }
+            // (o mesmo fone Bluetooth aparece duas vezes: o da música e o das ligações; na lista, uma vez só)
             if (!vistos.add(nome + "|" + tipo)) continue;
             JSObject s = new JSObject();
             s.put("nome", nome);
             s.put("tipo", tipo);
             saidas.put(s);
-            int p = rota != null ? (rota.getId() == d.getId() || (rota.getType() == d.getType() && nome.equals(nome(rota, tipo))) ? 100 : 0) : prioridade(d.getType());
-            if (p > prioridade) { prioridade = p; fone = nome; tipoFone = tipo; }
         }
-        // (com a música saindo pelo alto-falante do celular, mesmo com um fone conectado, não há fone tocando)
-        if (rota != null && tipo(rota.getType()) == null) { fone = ""; tipoFone = ""; }
+        // (com a rota no celular e só o Bluetooth conectado, a música sai pelo alto-falante: não há fone tocando)
+        if (prioridade < 0) { fone = ""; tipoFone = ""; }
         r.put("fone", fone);
         r.put("tipo", tipoFone);
         r.put("saidas", saidas);
@@ -99,7 +92,7 @@ final class SaidaDeSom {
         }
     }
 
-    // sem saber a rota (antes do Android 13): o Android toca no último conectado, e os fones vêm antes das caixas
+    // entre as saídas conectadas: os fones vêm antes das caixas e da TV
     private static int prioridade(int t) {
         switch (t) {
             case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP: case 26: case 27: case 23: return 50;
