@@ -8891,7 +8891,7 @@ function enriquecerTilesArtistas(container) {
   container.querySelectorAll('[data-artista-foto]').forEach((box) => {
     const nome = box.dataset.nome || '';
     const slug = box.dataset.slug || '';
-    if (!nome) return;
+    if (!nome || (!noApk() && box.dataset.mostrando)) return;
     // Uma foto antiga não pode impedir a atualização; e uma imagem quebrada deve voltar ao desenho padrão.
     const atual = box.querySelector('img');
     if (atual && !atual.dataset.falhaTratada) {
@@ -9262,8 +9262,20 @@ const fotosArtistas = new Map();
 function fotoDoArtista(nome, slug = '') {
   const k = normalizar(nome);
   if (!k) return Promise.resolve('');
+  if (!noApk()) {
+    // A Web conserva a estratégia anterior; a disputa simultânea é específica do APK.
+    if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
+      .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
+      .then((f) => f || fotoDeezer(nome))));
+    if (!fotosArtistas.has(k)) {
+      const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
+        || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
+      fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
+    }
+    return comUltimoValor('foto', nome, fotosArtistas.get(k));
+  }
   if (!fotosArtistas.has(k)) {
-    // Não encadear YouTube → Cifra Club → Deezer → Wikipédia: uma fonte lenta deixava todas as outras esperando.
+    // No APK, não encadear YouTube → Cifra Club → Deezer → Wikipédia: uma fonte lenta deixava todas as outras esperando.
     // Cada fonte trabalha em paralelo; só uma foto real e válida pode vencer (resultado vazio não encerra a disputa).
     const cifra = async () => {
       const lista = await buscarArtistasCifraClub(nome);
@@ -9271,8 +9283,8 @@ function fotoDoArtista(nome, slug = '') {
       if (a?.capa && fotoReal(a.capa)) return a.capa;
       const alvo = slug || a?.slug;
       if (!alvo) return '';
-      const pagina = await carregarArtista(alvo, a?.nome || nome);
-      return pagina?.principal?.foto || '';
+      const pagina = await carregarArtista(alvo, a?.nome || nome).principal;
+      return pagina?.foto || '';
     };
     const fontes = [
       fotoDoCanalDeVerdade(nome),
@@ -9310,7 +9322,7 @@ const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch
 function fotoRapida(nome, slug = '') {
   if (!nome) return Promise.resolve('');
   const guardada = fotoConhecida(nome);
-  return noMaximo(fotoDoArtista(nome, slug).then((f) => f || guardada), guardada ? 700 : 2200, guardada);
+  return noMaximo(fotoDoArtista(nome, slug).then((f) => f || guardada), guardada ? (noApk() ? 700 : 1500) : (noApk() ? 2200 : 4500), guardada);
 }
 function capaRapida(titulo, artista) {
   const guardada = capaConhecida(titulo, artista);
