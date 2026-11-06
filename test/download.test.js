@@ -67,13 +67,29 @@ test('download: redescobre o servidor antes de iniciar cada fila e usa recupera�
   const inicio = app.indexOf('async function baixarMusica(song');
   const fim = app.indexOf('async function baixarAgora(id', inicio);
   const rotina = app.slice(inicio, fim);
-  assert.ok(rotina.indexOf('await carregarServidor()') < rotina.indexOf('!servidorIA().url'));
+  assert.ok(rotina.indexOf('await temServidorParaBaixar()') < rotina.indexOf('!servidorIA().url'));
   // (o arquivo vem do mesmo servidor que baixou: com o Modal de reserva, o Codespace pode ligar no meio do download)
   const baixar = app.slice(app.indexOf('async function baixarAgora(id'), app.indexOf('// as capas e a partitura', app.indexOf('async function baixarAgora(id')));
-  assert.match(baixar, /const cfg = servidorIA\(\);[\s\S]*?r = await tentarBaixar\(cfg, yt, video/);
+  assert.match(baixar, /let cfg = servidorIA\(\);[\s\S]*?\(\{ r, cfg \} = await \(volta === 0 && preparos\.get\(yt\)/);
+  // (o som e o clipe são preparados no servidor ao mesmo tempo, e o servidor que caiu no meio é trocado)
+  assert.match(baixar, /preparos\.set\(a\.yt, pr\)/);
   assert.match(baixar, /receberArquivo\(cfg, r\.arquivo/);
   const tentar = app.slice(app.indexOf('async function tentarBaixar('), app.indexOf('async function baixarAgora(id'));
   assert.match(tentar, /chamarComEtapas\(cfg, '\/baixar'/);
+  assert.match(tentar, /return \{ r, cfg \}/);
+  assert.match(tentar, /carregarServidor\(\{ forcar: true \}\)/);
+});
+
+test('download: o servidor e a fila ficam guardados ao sair do app ou recarregar a página', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  // o app abre já com o último servidor que atendeu, e guarda o que atender
+  assert.match(app, /const g = servidorGuardado\(\);\s*if \(g\) SERVIDOR_IA = g;/);
+  assert.match(app, /if \(SERVIDOR_IA\.url\) guardarServidor\(SERVIDOR_IA\)/);
+  // as telas conferem o servidor de verdade antes de recusar o download
+  assert.doesNotMatch(app, /arquivosParaBaixar\([sx]\)\.length\) && !servidorIA\(\)\.url/);
+  // a fila guardada continua ao abrir
+  assert.match(app, /filaBaixar\.push\(\{ id: s\.id, perguntou, qualidade \}\);\s*guardarNaFila\(s\.id/);
+  assert.match(app, /const pedidos = filaGuardada\(\);/);
 });
 
 test('download: o videoclipe tenta de novo, descendo de qualidade, e o parcial se completa sozinho', async () => {

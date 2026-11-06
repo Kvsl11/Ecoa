@@ -103,7 +103,7 @@ if (doLink !== null) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 const responde = (url) => fetch(url + '/saude', {
-  headers: cabecalhos(url), signal: AbortSignal.timeout(10000), cache: 'no-store',
+  headers: cabecalhos(url), signal: AbortSignal.timeout(8000), cache: 'no-store',
 }).then((r) => r.ok).catch(() => false);
 // (o Modal liga só quando alguém usa: a primeira resposta pode levar uns 20 s. Desativado — sem crédito —, ele responde
 // na hora com erro)
@@ -136,11 +136,32 @@ async function acordarCodespace(reserva) {
   } catch { estadoCodespace = 'erro'; } // (o Modal de antes, sem a rota: fica no Modal)
   window.dispatchEvent(new CustomEvent('songbook:servidor'));
 }
+// O servidor que atendeu por último fica guardado no aparelho (servidorAtivo): ao sair do app ou recarregar a página, o
+// app já começa com ele, sem esperar a descoberta. Antes ele começava sem servidor nenhum, e as telas que conferem na
+// hora ("Baixar", "Baixar as músicas salvas", baixar ao salvar) diziam "ligue o servidor" e nada baixava
+const servidorGuardado = () => {
+  const g = db.prefs().servidorAtivo;
+  const url = baseDoServidor(g?.url);
+  return url ? { url, chave: g.chave || '', ...(g.pc ? { pc: true } : {}), lumen: baseDoServidor(g.lumen || '') || url, ...(g.reserva ? { reserva: true } : {}) } : null;
+};
+const guardarServidor = (cfg) => {
+  const v = cfg?.url ? { url: cfg.url, chave: cfg.chave || '', pc: Boolean(cfg.pc), lumen: cfg.lumen || '', reserva: Boolean(cfg.reserva) } : null;
+  const antes = db.prefs().servidorAtivo || null;
+  if (JSON.stringify(antes) !== JSON.stringify(v) && (v || antes)) db.setPref('servidorAtivo', v);
+};
+{
+  const g = servidorGuardado();
+  if (g) SERVIDOR_IA = g;
+  const k = baseDoServidor(db.prefs().servidorKaraoke);
+  if (k) SERVIDOR_KARAOKE = { url: k, chave: g?.chave || '', pc: true };
+}
 // O servidor pode dormir, reiniciar ou demorar para acordar. A descoberta é compartilhada entre chamadas,
 // mas nunca fica presa para sempre ao primeiro resultado: revalida periodicamente e tenta de novo após falhas.
+// Todos os endereços são testados ao mesmo tempo (antes um por um: com o Codespace desligado eram até 10 s por
+// endereço e mais 30 s do Modal, a cada abertura do app), e vale o primeiro da ordem de preferência que responder
 function carregarServidor({ forcar = false } = {}) {
   if (carregamentoServidor) return carregamentoServidor;
-  if (!forcar && Date.now() - servidorVerificadoEm < 15000) return Promise.resolve(SERVIDOR_IA);
+  if (!forcar && Date.now() - servidorVerificadoEm < (SERVIDOR_IA.url ? 60000 : 15000)) return Promise.resolve(SERVIDOR_IA);
   carregamentoServidor = (async () => {
     // O Codespace é achado sozinho, sem QR code: o endereço publicado no site primeiro e, se ele não responder, o último
     // Codespace que respondeu neste aparelho (o site demora uns minutos para publicar o endereço novo, quando o
@@ -148,46 +169,66 @@ function carregarServidor({ forcar = false } = {}) {
     // responder. Antes o endereço do QR code vinha primeiro e, quando era o próprio Codespace e falhava uma vez, o
     // Codespace nem era tentado de novo; e o app ia para o Modal mesmo com ele desativado (sem crédito), e nada
     // funcionava
+    const sondas = new Map();
+    const sondar = (u, devagar = false) => {
+      if (!sondas.has(u)) sondas.set(u, (devagar ? respondeDevagar : responde)(u));
+      return sondas.get(u);
+    };
+    // (o guardado já começa a ser testado enquanto o endereço publicado no site chega)
+    const guardado = servidorGuardado();
+    if (guardado && !guardado.reserva) sondar(guardado.url);
     const pc = baseDoServidor(db.prefs().servidorPc);
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const url = baseDoServidor(d?.url);
-    SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
+    if (d) {
+      SERVIDOR_KARAOKE = baseDoServidor(d?.karaoke) ? { url: baseDoServidor(d.karaoke), chave: d?.chave || '', pc: true } : null;
+      if ((db.prefs().servidorKaraoke || '') !== (SERVIDOR_KARAOKE?.url || '')) db.setPref('servidorKaraoke', SERVIDOR_KARAOKE?.url || '');
+    }
     // o de reserva (o Modal): faz tudo o que o Codespace faz (o arquivo vai para ele, o Lumen na máquina pequena dele)
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
     const ehCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
     const ultimo = baseDoServidor(db.prefs().codespaceAchado);
-    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : ''].filter(Boolean))];
+    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : '',
+      guardado && !guardado.reserva && ehCodespace(guardado.url) ? guardado.url : ''].filter(Boolean))];
     servidorDoSite = codespaces[0] || '';
     reservaFora = false;
-    for (const c of codespaces) {
-      if (!(await responde(c))) continue;
-      SERVIDOR_IA = { url: c, chave: d?.chave || '', pc: true, lumen: c };
+    // os candidatos na ordem de preferência, todos testados juntos
+    const chave = d?.chave ?? guardado?.chave ?? '';
+    const candidatos = [
+      ...codespaces.map((c) => ({ cfg: { url: c, chave, pc: true, lumen: c }, codespace: true })),
+      ...(pc && !ehCodespace(pc) ? [{ cfg: { url: pc, chave: '', pc: true, lumen: pc } }] : []),
+      ...(url && !ehCodespace(url) ? [{ cfg: { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') } }] : []),
+      // (o servidor que atendeu por último, quando o site não respondeu — sem internet para o site, ou a página fora)
+      ...(!d && guardado && !guardado.reserva && !ehCodespace(guardado.url) && guardado.url !== pc ? [{ cfg: guardado }] : []),
+      ...(reserva ? [{ cfg: reserva, devagar: true }] : (!d && guardado?.reserva ? [{ cfg: guardado, devagar: true }] : [])),
+    ];
+    for (const c of candidatos) sondar(c.cfg.url, c.devagar);
+    let achado = null;
+    for (const c of candidatos) {
+      if (await sondar(c.cfg.url, c.devagar)) { achado = c; break; }
+    }
+    if (achado?.codespace) {
+      const c = achado.cfg.url;
+      SERVIDOR_IA = achado.cfg;
       estadoCodespace = 'ligado';
       // (respondeu: a marca de "sem cota" de antes, se havia, não vale mais)
       try { localStorage.removeItem(CODESPACE_SEM_COTA); } catch { /* sem armazenamento */ }
       if (db.prefs().codespaceAchado !== c) db.setPref('codespaceAchado', c);
       // (o QR code do próprio Codespace, guardado de antes, não é mais preciso)
       if (pc && ehCodespace(pc)) db.setPref('servidorPc', '');
-      return SERVIDOR_IA;
-    }
-    // o servidor do computador (o endereço colado ou o do QR code de um computador)
-    if (pc && !ehCodespace(pc) && await responde(pc)) {
-      SERVIDOR_IA = { url: pc, chave: '', pc: true, lumen: pc };
-      return SERVIDOR_IA;
-    }
-    if (url && !ehCodespace(url) && await responde(url)) {
-      SERVIDOR_IA = { url, chave: d.chave || '', lumen: baseDoServidor(d.lumen || '') };
-    } else if (reserva && await respondeDevagar(reserva.url)) {
+    } else if (achado) {
+      SERVIDOR_IA = achado.cfg;
       // o Modal atende enquanto o Codespace liga (ele manda o GitHub ligar)
-      SERVIDOR_IA = reserva;
-      void acordarCodespace(reserva);
+      if (achado.cfg.reserva) void acordarCodespace(achado.cfg);
     } else {
-      // (nenhum respondeu: sem servidor por enquanto; o próximo uso tenta de novo, e o Codespace entra assim que ligar)
+      // (nenhum respondeu: sem servidor por enquanto; o próximo uso tenta de novo, e o Codespace entra assim que ligar.
+      // O guardado continua guardado: na próxima abertura ele é testado primeiro)
       SERVIDOR_IA = { url: '', chave: '' };
       if (estadoCodespace === 'ligado') estadoCodespace = '';
       reservaFora = Boolean(reserva);
     }
+    if (SERVIDOR_IA.url) guardarServidor(SERVIDOR_IA);
     // o YouTube conectado de novo sozinho, se o servidor perdeu a conexão (ver reconectarYoutube)
     if (SERVIDOR_IA.url) setTimeout(() => reconectarYoutube(SERVIDOR_IA), 0);
     return SERVIDOR_IA;
@@ -197,6 +238,12 @@ function carregarServidor({ forcar = false } = {}) {
   });
   return carregamentoServidor;
 }
+// tem servidor para baixar? Confere de verdade (sem confiar só no que a tela sabe agora: logo depois de abrir o app a
+// descoberta ainda está andando)
+const temServidorParaBaixar = async () => {
+  if (!servidorIA().url || Date.now() - servidorVerificadoEm > 60000) await carregarServidor().catch(() => {});
+  return Boolean(servidorIA().url);
+};
 const view = $('#view');
 const titleEl = $('#title');
 const eyebrowEl = $('#eyebrow');
@@ -875,6 +922,19 @@ const baixando = new Map(); // id da música → { pct } (as que estão na fila 
 const filaBaixar = [];
 const andandoFila = new Set(); // (as filas que estão baixando agora: até DOWNLOADS_JUNTOS)
 const avisarDownloads = () => window.dispatchEvent(new CustomEvent('songbook:downloads'));
+// A fila dos downloads fica guardada no aparelho (filaDownloads: os ids, com o pedido de cada um): ao sair do app ou
+// recarregar a página no meio, ela continua sozinha quando o app abre de novo. Antes ficava só na memória, e as músicas
+// que esperavam na fila (ou a que estava baixando) eram esquecidas
+const filaGuardada = () => (Array.isArray(db.prefs().filaDownloads) ? db.prefs().filaDownloads : []);
+function guardarNaFila(id, pedido = {}) {
+  const f = filaGuardada().filter((x) => x?.id !== id);
+  db.setPref('filaDownloads', [...f, { id, ...(pedido.qualidade ? { qualidade: pedido.qualidade } : {}) }]);
+}
+function tirarDaFilaGuardada(ids) {
+  const fora = new Set([].concat(ids));
+  const f = filaGuardada();
+  if (f.some((x) => fora.has(x?.id))) db.setPref('filaDownloads', f.filter((x) => !fora.has(x?.id)));
+}
 // Em "Áudio e vídeo", baixa o áudio oficial e o videoclipe mesmo quando forem gravações diferentes.
 // Em "Só o áudio", baixa apenas o áudio oficial (ou o som do vídeo quando não houver outra faixa).
 function arquivosParaBaixar(song) {
@@ -935,6 +995,7 @@ async function baixarMusica(song, { perguntou = false, qualidade = false } = {})
   loteDeDownloads.total++;
 
   filaBaixar.push({ id: s.id, perguntou, qualidade });
+  guardarNaFila(s.id, { qualidade });
   // uma música por vez (o som e depois o vídeo dela): mais leve para o celular e para o servidor, e a notificação
   // mostra uma só; a entrega que trava não segura mais a fila (receberArquivo corta e tenta de novo)
   while (andandoFila.size < DOWNLOADS_JUNTOS && filaBaixar.length) {
@@ -957,12 +1018,18 @@ async function baixarDaFila(pedido) {
   const id = pedido.id;
   const controle = new AbortController();
   controlesDeDownload.set(id, controle);
+  let semServidor = false;
   try {
     if (db.song(id)?.baixarPausado) return; // (pausado enquanto esperava na fila)
     const atual = db.song(id);
     if (!atual) throw new Error('a música não está mais na biblioteca');
-    if (arquivosParaBaixar(atual).length) await carregarServidor();
+    // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois; com limite, para não segurar o download.
+    // Procurado enquanto o servidor é conferido, e não depois)
+    const clipe = noMaximo(garantirClipe(id).catch(() => null), 12000, null);
+    // (sem servidor agora: procura de novo na hora, em vez de desistir pelo que ficou sabido da última vez)
+    if (arquivosParaBaixar(atual).length && !(await temServidorParaBaixar())) await carregarServidor({ forcar: true }).catch(() => {});
     if (arquivosParaBaixar(atual).length && !servidorIA().url) {
+      semServidor = true; // (fica na fila guardada: baixa quando o servidor voltar, na próxima abertura)
       throw new Error('servidor de download não conectado. Confira Ajustes → Avançado no computador');
     }
     if (!pedido.perguntou && !(await podeBaixarAgora())) return;
@@ -974,8 +1041,7 @@ async function baixarDaFila(pedido) {
       tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
       imagem: capaDaNotificacao(atual),
     });
-    // (o vídeo da música é só o áudio: antes acha o clipe, para baixar os dois; com limite, para não segurar o download)
-    await noMaximo(garantirClipe(id).catch(() => null), 12000, null);
+    await clipe;
     await baixarAgora(id, { qualidade: pedido.qualidade, sinal: controle.signal });
   } catch (e) {
     if (controle.signal.aborted) return; // (pausado: sem aviso de erro)
@@ -987,6 +1053,8 @@ async function baixarDaFila(pedido) {
       imagem: capaDaNotificacao(atual),
     });
   } finally {
+    // (pausado, a música sai da fila guardada pela pausa; o que falhou tenta de novo pelo completarDepois)
+    if (!controle.signal.aborted && !semServidor) tirarDaFilaGuardada(id);
     controlesDeDownload.delete(id);
     baixando.delete(id);
     avisarDownloads();
@@ -1014,6 +1082,7 @@ function pausarDownloads(songs) {
   }
   for (let i = filaBaixar.length - 1; i >= 0; i--) if (ids.has(filaBaixar[i].id)) { baixando.delete(filaBaixar[i].id); filaBaixar.splice(i, 1); loteDeDownloads.total = Math.max(0, loteDeDownloads.total - 1); }
   for (const id of ids) controlesDeDownload.get(id)?.abort();
+  tirarDaFilaGuardada([...ids]);
   avisarDownloads();
 }
 // Em "Áudio e vídeo", a música tem que vir com o clipe. Quando o vídeo dela é só o áudio (o "Nome - Topic" do YouTube
@@ -1155,23 +1224,33 @@ async function garantirClipe(id) {
 // (a qualidade escolhida nos Ajustes vale: o vídeo tenta duas vezes nela e só depois aceita uma menor, para a música não
 // ficar sem o clipe; o arquivo menor fica marcado e é baixado de novo na escolhida depois: precisaMelhorar)
 const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'] };
+// devolve { r, cfg }: a resposta do servidor e o servidor que baixou (o arquivo fica nele). Se o servidor cai no meio
+// (o Codespace dormiu, reiniciou), procura outro na hora e continua nele, em vez de gastar as tentativas no que caiu
 async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar, sinal) {
   const q = qualidadeDoDownload(video);
   const qualidades = video ? [q, q, ...QUALIDADES_ABAIXO[q]] : [q, q, q];
   let erro;
   for (let t = 0; t < qualidades.length; t++) {
-    if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 3000 * t)); }
+    if (t) { aoRecomecar(); await new Promise((ok) => setTimeout(ok, 1500 * t)); }
     if (sinal?.aborted) throw new Error('Cancelado');
     try {
       const r = await chamarComEtapas(cfg, '/baixar', { json: { url: `https://youtu.be/${yt}`, video, qualidade: qualidades[t] }, sinal },
         (etapa, p) => { if (etapa === 'baixando' && p !== null) aoProgresso(p); });
       // (pediu o clipe e veio só o som: não vale, tenta de novo)
       if (video && r?.tipo && !String(r.tipo).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
-      return r;
+      return { r, cfg };
     } catch (e) {
       erro = e;
       if (sinal?.aborted) throw new Error('Cancelado'); // (pausado: para aqui)
       if (!navigator.onLine) break; // sem internet, as outras tentativas falhariam também
+      // (o servidor não respondeu, ou perdeu a tarefa ao reiniciar: o mesmo pedido, num servidor que responda; a qualidade
+      // não baixa por causa disso)
+      if (e.conexao || e.status === 404 || /Não consegui falar|reiniciou|demorou demais/.test(String(e.message))) {
+        const novo = await carregarServidor({ forcar: true }).catch(() => null);
+        if (!novo?.url) break;
+        cfg = novo;
+        if (video && t < 2) qualidades.splice(t + 1, 0, qualidades[t]);
+      }
     }
   }
   throw erro;
@@ -1206,12 +1285,25 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
     }
   };
 
-  // um arquivo por vez: o som e depois o vídeo (antes os dois juntos, disputando a internet do celular)
+  // (o que já está no aparelho fica; com qualidade, o que está numa qualidade menor que a escolhida baixa de novo, e o
+  // arquivo de antes continua valendo até o novo chegar inteiro)
+  const jaTem = ({ yt, video }) => {
+    const ja = baixadoDe(yt);
+    return ja && (!video || String(ja.tipo).startsWith('video')) && !(qualidade && foraDaQualidade(ja, video, qualidade === 'todas')) ? ja : null;
+  };
+  // O servidor prepara o som e o clipe ao mesmo tempo (o YouTube para o servidor é a parte demorada): enquanto o som
+  // chega ao celular, o clipe já está sendo baixado lá. A entrega ao celular continua um arquivo por vez (os dois
+  // juntos disputavam a internet do celular). Antes o clipe só começava no servidor depois que o som chegava inteiro
+  const preparos = new Map();
+  for (const a of lista) {
+    if (jaTem(a) || !/^[\w-]{11}$/.test(a.yt || '')) continue;
+    const pr = tentarBaixar(servidorIA(), a.yt, a.video, (p) => atualizarProgresso(a.yt, p * 0.8), () => progressoArquivos.set(a.yt, 0), sinal);
+    pr.catch(() => {}); // (o erro é tratado quando chega a vez do arquivo)
+    preparos.set(a.yt, pr);
+  }
   const baixarArquivo = async ({ yt, video }) => {
     const ja = baixadoDe(yt);
-    // (o que já está no aparelho fica; com qualidade, o que está numa qualidade menor que a escolhida baixa de novo, e o
-    // arquivo de antes continua valendo até o novo chegar inteiro)
-    if (ja && (!video || String(ja.tipo).startsWith('video')) && !(qualidade && foraDaQualidade(ja, video, qualidade === 'todas'))) {
+    if (jaTem({ yt, video })) {
       arquivos[yt] = ja;
       progressoArquivos.set(yt, 1);
       return;
@@ -1219,7 +1311,7 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
     try {
       if (!/^[\w-]{11}$/.test(yt || '')) throw new Error('o vídeo desta versão não é do YouTube');
       // (o mesmo servidor do começo ao fim: o arquivo baixado fica no que baixou, e o Codespace pode ligar no meio)
-      const cfg = servidorIA();
+      let cfg = servidorIA();
       // O videoclipe é o arquivo grande e o que mais falha (o servidor demora, o YouTube não entrega aquela qualidade):
       // cada arquivo tenta várias vezes (o vídeo, duas na qualidade escolhida antes de aceitar uma menor). A entrega do
       // servidor ao celular não trava: parada por 40 s, é pedida de novo, de onde parou (receberArquivo); e o arquivo
@@ -1227,7 +1319,8 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       let r;
       let blob;
       for (let volta = 0; volta < 2 && !blob; volta++) {
-        r = await tentarBaixar(cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0), sinal);
+        ({ r, cfg } = await (volta === 0 && preparos.get(yt)
+          || tentarBaixar(servidorIA().url ? servidorIA() : cfg, yt, video, (p) => atualizarProgresso(yt, p * 0.8), () => progressoArquivos.set(yt, 0), sinal)));
         try {
           blob = await receberArquivo(cfg, r.arquivo, { tamanho: Number(r.tamanho) || 0, tipo: r.tipo, sinal, aoProgresso: (p) => atualizarProgresso(yt, 0.8 + 0.19 * p) });
         } catch (e) {
@@ -1320,6 +1413,21 @@ function completarDepois(id) {
     baixarMusica(s, { perguntou: true, qualidade: true });
   }, ESPERAS_DE_COMPLETAR[n]);
 }
+// (a fila que ficou de quando o app fechou: continua logo que ele abre, de onde parou)
+setTimeout(async () => {
+  const pedidos = filaGuardada();
+  if (!pedidos.length) return;
+  const pendentes = pedidos.filter((x) => {
+    const s = db.song(x?.id);
+    return s && !s.baixarPausado && (precisaBaixar(s) || (x.qualidade && precisaMelhorar(s, x.qualidade === 'todas'))) && midiaDe(s);
+  });
+  if (pendentes.length !== pedidos.length) db.setPref('filaDownloads', pendentes);
+  if (!pendentes.length || !navigator.onLine) return;
+  // (sem servidor agora: a fila continua guardada, para a próxima abertura)
+  if (!(await temServidorParaBaixar())) return;
+  if (navigator.connection?.type === 'cellular' && !db.prefs().baixarDadosMoveis) return;
+  for (const x of pendentes) baixarMusica(db.song(x.id), { perguntou: true, qualidade: x.qualidade || false });
+}, 3000);
 setTimeout(async () => {
   const pelaMetade = db.songs().filter((s) => s.baixado && !s.baixarPausado && (precisaBaixar(s) || precisaMelhorar(s)) && midiaDe(s) && !baixando.has(s.id));
   if (!pelaMetade.length || !(await podeBaixarSozinho())) return;
@@ -1608,7 +1716,7 @@ document.addEventListener('click', async (e) => {
     }
     return;
   }
-  if (faltam.some((s) => arquivosParaBaixar(s).length) && !servidorIA().url) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
+  if (faltam.some((s) => arquivosParaBaixar(s).length) && !(await temServidorParaBaixar())) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
   if (!(await podeBaixarAgora())) return;
   // (continua de onde parou: só as que faltam, e a pausa sai)
   for (const s of faltam) { if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined }); await baixarMusica(db.song(s.id), { perguntou: true }); }
@@ -1640,11 +1748,11 @@ window.addEventListener('songbook:nova-musica', (e) => {
   novasSalvas.push(e.detail.id);
   clearTimeout(novasTempo);
   // (um pouco depois: a música recém-salva ainda ganha o vídeo e o áudio oficial)
-  novasTempo = setTimeout(() => {
+  novasTempo = setTimeout(async () => {
     const ids = novasSalvas;
     novasSalvas = [];
     const p = db.prefs();
-    if (ids.length > 3 || p.baixarAoSalvar === false || !servidorIA().url) return;
+    if (ids.length > 3 || p.baixarAoSalvar === false || !(await temServidorParaBaixar())) return;
     if (navigator.connection?.type === 'cellular' && !p.baixarDadosMoveis) return;
     ids.map((id) => db.song(id)).filter((s) => s && midiaDe(s)).forEach((s) => baixarMusica(s, { perguntou: true }));
   }, 2500);
@@ -16270,7 +16378,7 @@ function viewQualidade() {
   $('#q-atualizar').onclick = async () => {
     const velhas = desatualizadas();
     if (!velhas.length) return;
-    if (!servidorIA().url) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
+    if (!(await temServidorParaBaixar())) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
     if (!(await podeBaixarAgora())) return;
     // (sem apagar antes: cada arquivo é trocado só quando o novo, na qualidade escolhida, chega inteiro; até lá, a
     // música continua tocando sem internet)
@@ -20139,7 +20247,7 @@ function viewOffline() {
     if (b.id === 'of-todas') {
       const faltam = db.songs().filter((x) => precisaBaixar(x) && !baixando.has(x.id) && midiaDe(x));
       if (!faltam.length) return;
-      if (faltam.some((x) => arquivosParaBaixar(x).length) && !servidorIA().url) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
+      if (faltam.some((x) => arquivosParaBaixar(x).length) && !(await temServidorParaBaixar())) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
       if (!(await podeBaixarAgora())) return;
       for (const s of faltam) await baixarMusica(s, { perguntou: true });
       toast(`${faltam.length} música${faltam.length > 1 ? 's' : ''} na fila para baixar`);

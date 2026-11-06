@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 547, data: '2026-11-06', titulo: 'Os downloads lembram o servidor e ficam mais rápidos',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao sair do app ou recarregar a página, o app esquecia o servidor que estava baixando e dizia para ligar o servidor: nada baixava. Agora ele lembra o último servidor que atendeu e já abre com ele, e só troca se ele não responder.' },
+      { tipo: 'correcao', texto: 'As músicas que estavam na fila para baixar (e a que estava baixando) eram esquecidas ao fechar o app. Agora a fila fica guardada e continua sozinha logo que o app abre de novo.' },
+      { tipo: 'melhoria', texto: 'O servidor é achado bem mais rápido: todos os endereços são testados ao mesmo tempo, em vez de um por um (com o Codespace desligado, eram quase um minuto de espera a cada abertura).' },
+      { tipo: 'melhoria', texto: 'Os downloads ficaram mais rápidos: o servidor prepara o som e o clipe ao mesmo tempo, o clipe oficial é procurado enquanto o servidor é conferido, e o servidor baixa do YouTube em pedaços (o YouTube segurava a velocidade). Se o servidor cai no meio, o app passa para outro na hora.' },
+    ],
+  },
+  {
     versao: 546, data: '2026-11-05', titulo: 'O nome girando sem parar e os vídeos do artista',
     itens: [
       { tipo: 'melhoria', texto: 'O nome da música que não cabe gira num laço contínuo, como no Spotify: quando ele termina, o começo já vem logo atrás, depois de um espaço, sem voltar de uma vez para o início.' },
@@ -74,13 +83,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'O app baixa uma música por vez (o som e depois o vídeo dela), também ao baixar uma playlist inteira.' },
       { tipo: 'melhoria', texto: 'As notificações do download viraram uma só, que vai sendo atualizada ("Baixando 45% · música 2 de 4"), no lugar de uma para cada música abrindo todas de uma vez. No fim, o resumo: quantas foram baixadas.' },
-    ],
-  },
-  {
-    versao: 537, data: '2026-11-05', titulo: 'Pausar o download da playlist',
-    itens: [
-      { tipo: 'novo', texto: 'Tocando no botão de baixar da playlist enquanto ela baixa, o download pausa onde está: as músicas já baixadas ficam, as que esperavam saem da fila e a que estava baixando para. Tocando de novo, ele continua, baixando só as que faltam. O que você pausou não volta a baixar sozinho.' },
-      { tipo: 'melhoria', texto: 'O botão fica verde só com todas as músicas da playlist baixadas; com uma música nova que ainda não foi baixada, ele volta a ficar cinza.' },
     ],
   },
 ];

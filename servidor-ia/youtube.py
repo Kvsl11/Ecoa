@@ -258,6 +258,9 @@ def _baixar(video: str, pasta: str, progresso, formato: str, pos: list, juntar: 
         "progress_hooks": [andamento],
         # Baixa fragmentos DASH/HLS em paralelo quando o YouTube oferece esse formato.
         "concurrent_fragment_downloads": 4,
+        # O YouTube segura a velocidade de quem baixa o arquivo inteiro de uma vez (às vezes perto da velocidade de
+        # tocar: minutos por clipe); em pedaços de 10 MB ele entrega na velocidade da internet do servidor
+        "http_chunk_size": 10 * 1024 * 1024,
         # sem resposta do YouTube por 20 s: desiste dessa conexão e tenta de novo
         "socket_timeout": 30,
         "retries": 6,
