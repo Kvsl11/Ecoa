@@ -5877,3 +5877,4 @@ html.pp #player .pl-capinha::before, #player.modo-capa .pl-video::before, #playe
 .apk-at-andamento small { font-size: 13px; color: var(--muted); }
 .apk-at-nota { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 13px; color: var(--muted); }
 .apk-at-nota svg { flex: none; margin-top: 2px; color: var(--accent-ink); }
+.nv-cab .nv-app { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft, rgb(0 180 220 / 0.15)); color: var(--accent-ink); }
