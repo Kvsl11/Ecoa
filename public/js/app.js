@@ -9322,7 +9322,9 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';
 // tira a foto guardada para o nome (a da sessão e a do aparelho), para ela ser procurada de novo
 function esquecerFotoDoArtista(nome) {
-  fotosArtistas.delete(normalizar(nome));
+  const k = normalizar(nome);
+  fotosArtistas.delete(k);
+  for (const chave of fotosArtistas.keys()) if (chave.startsWith(`${k}|`)) fotosArtistas.delete(chave);
   delete artistasGuardados[`foto:${normalizar(nome)}`];
   try { localStorage.setItem(CHAVE_ARTISTAS, JSON.stringify(artistasGuardados)); } catch { /* sem espaço: fica na sessão */ }
 }
@@ -9380,11 +9382,15 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     if (!titulo || !artista) return;
     const avatar = linha.querySelector('[data-artista-mini]');
     // (a busca já desenha a foto definitiva: trocar de novo seria a piscada)
-    if (avatar && !item.fotoArtista) {
+    if (avatar) {
+      const fotoExibida = item.fotoArtista || '';
       fotoDaPessoa(artista, { liturgia: ehDaLiturgia(item), slug: item.slug || '', titulo }).then((url) => {
-        if (!url || !avatar.isConnected) return;
-        avatar.innerHTML = `<img src="${esc(url)}" alt="" loading="lazy">`;
-        avatar.classList.add('com-foto');
+        if (!url || url === fotoExibida || !avatar.isConnected) return;
+        const img = new Image();
+        img.alt = '';
+        img.loading = 'lazy';
+        img.onload = () => { if (avatar.isConnected) { avatar.replaceChildren(img); avatar.classList.add('com-foto'); item.fotoArtista = url; } };
+        img.src = url;
       }).catch(() => {});
     }
     // Nas buscas, a capa do álbum é preferida à miniatura do vídeo ou à foto do artista.
