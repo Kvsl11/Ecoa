@@ -432,14 +432,53 @@ public class EcoaPlugin extends Plugin {
         call.resolve(r);
     }
 
+    // o áudio da música chega em partes (base64 de até ~2 MB cada): antes ia inteiro numa chamada só, e um arquivo grande
+    // travava a ponte entre a página e o Android
+    @PluginMethod
+    public void arquivoParte(PluginCall call) {
+        String processo = call.getString("processo", "");
+        String dados = call.getString("dados", "");
+        boolean inicio = Boolean.TRUE.equals(call.getBoolean("inicio", false));
+        try {
+            java.io.File pasta = Baixador.pastaDe(getContext(), processo);
+            if (inicio) { Baixador.limpar(pasta); }
+            pasta.mkdirs();
+            java.io.File f = new java.io.File(pasta, "entrada.bin");
+            try (java.io.OutputStream o = new java.io.FileOutputStream(f, !inicio)) {
+                o.write(android.util.Base64.decode(dados, android.util.Base64.DEFAULT));
+            }
+            JSObject r = new JSObject();
+            r.put("tamanho", f.length());
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()), "erro");
+        }
+    }
+
+    // o modelo do karaokê baixado de antemão (no Wi-Fi, ao abrir o app): o primeiro karaokê não espera os 59 MB
+    @PluginMethod
+    public void prepararKaraoke(PluginCall call) {
+        Context ctx = getContext();
+        preparandoModelo.execute(() -> {
+            try { Karaoke.modelo(ctx, (e, p) -> { }); } catch (Exception e) { /* tenta de novo na próxima vez */ }
+        });
+        call.resolve();
+    }
+    private static final java.util.concurrent.ExecutorService preparandoModelo = Executors.newSingleThreadExecutor();
+    // (os pedidos da pessoa num lugar à parte: não esperam os de segundo plano na fila)
+    private static final java.util.concurrent.ExecutorService separandoPedido = Executors.newSingleThreadExecutor();
+
     @PluginMethod
     public void karaokeLocal(PluginCall call) {
         Context ctx = getContext();
         String dados = call.getString("dados", null);
+        boolean temArquivo = Boolean.TRUE.equals(call.getBoolean("temArquivo", false));
+        boolean prioridade = Boolean.TRUE.equals(call.getBoolean("prioridade", false));
         String video = call.getString("video", "");
         String nome = call.getString("nome", "audio");
         String processo = call.getString("processo", "karaoke-" + System.currentTimeMillis());
-        separando.execute(() -> {
+        if (prioridade) Karaoke.PEDIDOS.incrementAndGet();
+        (prioridade ? separandoPedido : separando).execute(() -> {
             java.io.File pasta = Baixador.pastaDe(ctx, processo);
             java.io.File trabalho = new java.io.File(pasta, "trabalho");
             Karaoke.Andamento andamento = (etapa, p) -> {
@@ -452,7 +491,13 @@ public class EcoaPlugin extends Plugin {
             try {
                 pasta.mkdirs();
                 java.io.File entrada;
-                if (dados != null && !dados.isEmpty()) {
+                String extensao = nome.toLowerCase(java.util.Locale.ROOT).replaceAll("^.*\\.", "");
+                java.io.File recebido = new java.io.File(pasta, "entrada.bin");
+                if (temArquivo && recebido.isFile()) {
+                    // (o áudio que chegou em partes)
+                    entrada = new java.io.File(pasta, "entrada." + (extensao.matches("[a-z0-9]{2,5}") ? extensao : "m4a"));
+                    if (!recebido.renameTo(entrada)) entrada = recebido;
+                } else if (dados != null && !dados.isEmpty()) {
                     String ext = nome.toLowerCase(java.util.Locale.ROOT).replaceAll("^.*\\.", "");
                     entrada = new java.io.File(pasta, "entrada." + (ext.matches("[a-z0-9]{2,5}") ? ext : "m4a"));
                     try (java.io.OutputStream o = new java.io.FileOutputStream(entrada)) {
@@ -465,7 +510,7 @@ public class EcoaPlugin extends Plugin {
                         (p) -> andamento.em("baixando", p)).arquivo;
                 }
                 java.io.File saida = new java.io.File(pasta, "karaoke.m4a");
-                Karaoke.Resultado res = Karaoke.fazer(ctx, entrada, saida, trabalho, andamento);
+                Karaoke.Resultado res = Karaoke.fazer(ctx, entrada, saida, trabalho, andamento, prioridade);
                 //noinspection ResultOfMethodCallIgnored
                 entrada.delete();
                 Baixador.limpar(trabalho);
@@ -479,6 +524,8 @@ public class EcoaPlugin extends Plugin {
                 Baixador.limpar(pasta);
                 String msg = e instanceof OutOfMemoryError ? "o celular ficou sem memória para separar a voz desta música" : String.valueOf(e.getMessage());
                 call.reject(msg, "erro");
+            } finally {
+                if (prioridade) Karaoke.PEDIDOS.decrementAndGet();
             }
         });
     }

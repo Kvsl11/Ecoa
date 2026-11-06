@@ -51,6 +51,20 @@ final class Karaoke {
 
     interface Andamento { void em(String etapa, float fracao); }
 
+    // O karaokê que a pessoa pediu (tocou no microfone) passa na frente: os feitos em segundo plano (os das músicas
+    // baixadas, os refeitos pela revisão) esperam, entre um pedaço e outro, enquanto houver um pedido dela andando.
+    // Antes era uma fila só, e o pedido dela ficava parado no começo, atrás dos de segundo plano
+    static final java.util.concurrent.atomic.AtomicInteger PEDIDOS = new java.util.concurrent.atomic.AtomicInteger();
+
+    static void esperarAVez(boolean prioridade, Andamento andamento) throws InterruptedException {
+        if (prioridade) return;
+        boolean avisou = false;
+        while (PEDIDOS.get() > 0) {
+            if (!avisou) { andamento.em("esperando", 0); avisou = true; }
+            Thread.sleep(500);
+        }
+    }
+
     // ---- o modelo: baixado na primeira vez (30 MB), conferido pelo tamanho
     static File arquivoDoModelo(Context ctx) {
         return new File(new File(ctx.getFilesDir(), "karaoke"), MODELO);
@@ -61,7 +75,7 @@ final class Karaoke {
         return f.isFile() && f.length() == MODELO_TAMANHO;
     }
 
-    static File modelo(Context ctx, Andamento andamento) throws Exception {
+    static synchronized File modelo(Context ctx, Andamento andamento) throws Exception {
         File f = arquivoDoModelo(ctx);
         //noinspection ResultOfMethodCallIgnored
         new File(f.getParentFile(), MODELO_VELHO).delete();
@@ -251,6 +265,10 @@ final class Karaoke {
     // Do áudio da música (qualquer formato que o ffmpeg abre) ao karaokê em saida (.m4a). pasta: os arquivos de
     // trabalho (apagados no fim)
     static Resultado fazer(Context ctx, File entrada, File saida, File pasta, Andamento andamento) throws Exception {
+        return fazer(ctx, entrada, saida, pasta, andamento, true);
+    }
+
+    static Resultado fazer(Context ctx, File entrada, File saida, File pasta, Andamento andamento, boolean prioridade) throws Exception {
         Baixador.preparar(ctx); // (o ffmpeg do APK extraído)
         File arqModelo = modelo(ctx, andamento);
         //noinspection ResultOfMethodCallIgnored
@@ -302,6 +320,7 @@ final class Karaoke {
             ByteBuffer saidaBytes = ByteBuffer.allocate(GEN * 16).order(ByteOrder.LITTLE_ENDIAN);
             andamento.em("separando", 0);
             for (long k = 0; k < pedacos; k++) {
+                esperarAVez(prioridade, andamento);
                 // o pedaço da música com a sobra de cada lado (antes do começo e depois do fim: silêncio)
                 long inicio = k * GEN - TRIM;
                 java.util.Arrays.fill(esquerda, 0);

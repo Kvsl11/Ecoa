@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 582, data: '2026-11-06', titulo: 'O karaokê que você pede passa na frente',
+    itens: [
+      { tipo: 'correcao', texto: 'No app de Android, o karaokê pedido no microfone podia ficar parado no começo: ele esperava, numa fila só, os karaokês que o app faz sozinho em segundo plano (os das músicas baixadas). Agora o que você pede passa na frente, e os outros esperam. O áudio também vai para a separação em partes (um arquivo grande travava), e, se algo der errado, o motivo aparece na tela. E, no Wi-Fi, o modelo do karaokê (59 MB) já é baixado de antemão. Vem com a atualização do app.' },
+    ],
+  },
+  {
     versao: 581, data: '2026-11-06', titulo: 'Os dados do artista na hora e a notificação de download que não some',
     itens: [
       { tipo: 'melhoria', texto: 'A foto do artista, os fãs, a apresentação ("Sobre o artista") e as fotos dos créditos aparecem na hora ao abrir a música: o app mostra o que já tem guardado e atualiza pela internet em segundo plano, sem aviso (antes esperava a internet toda vez e demorava muito). As músicas baixadas guardam também as fotos dos créditos, e os dados delas são atualizados sozinhos uma vez por dia.' },
@@ -70,12 +76,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'O triângulo do play parecia torto, puxado para a direita dentro do círculo (no Tocando agora, na barrinha, nas listas e no widget do Android). Agora ele fica no meio, só com o pequeno ajuste para a direita que faz ele parecer centralizado (como no Spotify). No widget, com a atualização do app.' },
       { tipo: 'melhoria', texto: 'O aviso de versão nova do app de Android ficou mais claro: o ícone do Ecoa, a versão de agora e a nova (1.27 → 1.29), o que vem com ela e, ao tocar em Atualizar, a barra do download ali mesmo, até abrir o instalador do Android.' },
-    ],
-  },
-  {
-    versao: 572, data: '2026-11-06', titulo: 'A versão certa no app de Android',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, Ajustes → Sobre mostrava a versão do site no cartão do Ecoa. Agora mostra a versão do app instalado. E a versão saiu da gaveta do perfil (ela fica em Ajustes → Sobre).' },
     ],
   },
 ];
