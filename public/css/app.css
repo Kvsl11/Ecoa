@@ -5775,7 +5775,27 @@ dialog.folha .dlg > .acts { max-width: none; }
 /* o Diagnóstico: "Consertar agora" em cima, de ponta a ponta; "Copiar" e "Fechar" lado a lado embaixo */
 .diag-acts { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
 .diag-acts [data-consertar] { grid-column: 1 / -1; justify-content: center; }
-.diag-acts .btn { justify-content: center; }
+.diag-acts .btn { justify-content: center; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+/* (Copiar e Fechar: dois botões iguais lado a lado, com contorno, e não dois textos soltos) */
+.diag-acts .btn.ghost { border: 1px solid var(--border); background: var(--surface-2); }
+.diag-acts .btn.ghost:disabled { opacity: 0.5; }
+/* o diagnóstico: o título em cima e os botões embaixo ficam parados, e só o meio rola (antes, numa folha, o fim da
+   lista ficava escondido atrás dos botões) */
+dialog.diag-dlg[open] { display: flex; flex-direction: column; overflow: hidden; }
+dialog.diag-dlg > .dlg { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+dialog.diag-dlg .diag-cab { flex: none; margin-bottom: 12px; }
+dialog.diag-dlg .diag-rolar { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; align-content: start; gap: 12px; padding-bottom: 16px; }
+dialog.diag-dlg .diag-secoes { max-height: none; overflow: visible; }
+dialog.diag-dlg .diag-rolar:focus { outline: none; } /* (o foco que a janela põe ao abrir não desenha a moldura) */
+dialog.diag-dlg .dlg > .acts.diag-acts { flex: none; position: static; margin: 0 -22px; padding: 12px 22px calc(14px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); }
+dialog.diag-dlg.folha { padding-bottom: 0; }
+dialog.diag-dlg.folha.folha-cheia > .dlg { height: auto; }
+/* (os itens com aviso não pegam o estilo da faixa de aviso do app, .aviso: o sinal laranja ficava esticado numa barra
+   e o item ganhava um fundo) */
+.diag-item.aviso { flex-wrap: nowrap; align-items: flex-start; padding: 7px 0; margin: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; }
+.diag-item.aviso span, .diag-resumo.aviso span { min-width: 0; }
+.diag-item.aviso .diag-sinal { flex: none; }
+.diag-resumo.aviso { flex-wrap: nowrap; align-items: flex-start; margin: 0; padding: 12px 14px; border-radius: 10px; font-size: inherit; font-weight: inherit; }
 .diag-item b { word-break: break-word; }
 /* celular, a barrinha de baixo com o vídeo (como no Spotify): em cima só o nome da música (girando quando não cabe) e
    embaixo o artista; a linha do fone não aparece (o ícone do fone continua à direita). Só com o áudio (a capa), o nome e
