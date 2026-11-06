@@ -1702,7 +1702,8 @@ function karaokeDoDownload(id) {
 const preparandoKaraoke = new Map(); // fonte → { pct, etapa, promessa }
 const avisarKaraoke = () => window.dispatchEvent(new CustomEvent('songbook:karaoke'));
 // o karaokê da música: o já pronto ou, se não houver, o servidor separa agora (de 1 a 3 minutos, com a porcentagem)
-function prepararKaraoke(song) {
+// prioridade: a pessoa tocou no microfone (no celular, passa na frente dos feitos em segundo plano)
+function prepararKaraoke(song, { prioridade = false } = {}) {
   const fonte = fonteDoKaraoke(song);
   if (!fonte) return Promise.reject(new Error('Esta música não tem áudio para o karaokê'));
   const pronto = karaokeDe(fonte);
@@ -1720,7 +1721,7 @@ function prepararKaraoke(song) {
     let erroNoCelular = null;
     if (noCelular) {
       try {
-        const feito = await karaokeNoCelular(noCelular, song, fonte, passo);
+        const feito = await karaokeNoCelular(noCelular, song, fonte, passo, { prioridade });
         return guardarKaraokeFeito(fonte, feito.blob, feito.info);
       } catch (e) { erroNoCelular = e; }
       passo(0, 'Preparando');
@@ -1834,6 +1835,8 @@ async function guardarKaraokeFeito(fonte, blob, dados) {
 // vai ele mesmo; sem ele, o celular baixa a música do YouTube. A primeira vez baixa o modelo (30 MB). O UVR tira a voz
 // inteira: o back vocal sai junto com o cantor (o do servidor separa só o cantor, com modelos grandes demais para o
 // celular). No navegador o plugin não existe
+// o APK instalado tem este método do plugin? (um APK antigo, com o site novo, não tem)
+const temMetodoNativo = (nome) => Boolean((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === nome));
 function karaokeNoAparelho() {
   const C = window.Capacitor;
   if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
@@ -1845,7 +1848,7 @@ const emBase64 = (blob) => new Promise((ok, falha) => {
   r.onerror = () => falha(r.error);
   r.readAsDataURL(blob);
 });
-async function karaokeNoCelular(nativo, song, fonte, passo) {
+async function karaokeNoCelular(nativo, song, fonte, passo, { prioridade = false } = {}) {
   let arquivo = null;
   let nome = 'audio.m4a';
   if (ehArquivo(fonte)) {
@@ -1863,7 +1866,8 @@ async function karaokeNoCelular(nativo, song, fonte, passo) {
   }
   const processo = `karaoke-${Date.now().toString(36)}`;
   const ETAPAS = { modelo: [0, 8, 'Baixando o modelo do karaokê (só na primeira vez, 59 MB)'], baixando: [0, 8, 'Baixando a música'],
-    lendo: [8, 10, 'Abrindo a música'], separando: [10, 95, 'Separando a voz da banda no celular'], gravando: [95, 98, 'Quase pronto'] };
+    lendo: [8, 10, 'Abrindo a música'], separando: [10, 95, 'Separando a voz da banda no celular'], gravando: [95, 98, 'Quase pronto'],
+    esperando: [10, 10, 'Esperando o karaokê que você pediu terminar'] };
   const ouvinte = await nativo.addListener('karaoke', (ev) => {
     const e = ev?.processo === processo && ETAPAS[ev.etapa];
     if (e) passo(e[0] + (e[1] - e[0]) * (Number(ev.pct) || 0), e[2]);
@@ -1871,7 +1875,17 @@ async function karaokeNoCelular(nativo, song, fonte, passo) {
   let r;
   try {
     passo(1, arquivo ? 'Abrindo a música' : 'Baixando a música');
-    r = await nativo.karaokeLocal({ processo, nome, ...(arquivo ? { dados: await emBase64(arquivo) } : { video: fonte }) });
+    // (o áudio vai para o Android em partes de 2 MB: inteiro numa chamada só, um arquivo grande travava a ponte e o
+    // karaokê ficava parado no começo)
+    const partes = Boolean(arquivo && temMetodoNativo('arquivoParte'));
+    if (partes) {
+      const PARTE = 2 * 1024 * 1024;
+      for (let ofs = 0; ofs < arquivo.size; ofs += PARTE) {
+        await nativo.arquivoParte({ processo, inicio: ofs === 0, dados: await emBase64(arquivo.slice(ofs, ofs + PARTE)) });
+        passo(1 + 6 * Math.min(1, (ofs + PARTE) / arquivo.size), 'Abrindo a música');
+      }
+    }
+    r = await nativo.karaokeLocal({ processo, nome, prioridade, ...(partes ? { temArquivo: true } : arquivo ? { dados: await emBase64(arquivo) } : { video: fonte }) });
   } finally { void Promise.resolve(ouvinte?.remove?.()).catch(() => {}); }
   passo(98, 'Quase pronto');
   let blob;
@@ -4918,7 +4932,7 @@ const semLinhasDeAcordes = (sinc) => {
   const prepararAgora = (song, { avisar: avisarPronto = false } = {}) => {
     const fonte = fonteDoKaraoke(song);
     desenharKaraoke();
-    prepararKaraoke(song).then(() => {
+    prepararKaraoke(song, { prioridade: true }).then(() => {
       if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
       entrarNoKaraoke();
       // (pedido no toque: o controle se abre um instante, para mostrar que dá para arrastar)
@@ -4926,7 +4940,8 @@ const semLinhasDeAcordes = (sinc) => {
     }).catch((e) => {
       if (fonteKaraokeAgora() === fonte) karaokeLigado = false;
       desenharKaraoke();
-      toast(e?.message || 'Não deu para preparar o karaokê agora');
+      // (na tela: o toast não aparece, e o karaokê parecia só não fazer nada)
+      void ask({ title: 'Não deu para fazer o karaokê', text: e?.message || 'Tente de novo daqui a pouco.', ok: 'Entendi', cancel: false });
     });
   };
   const desligarKaraoke = () => {
@@ -21082,6 +21097,10 @@ if (ecoaNativo) {
     window.addEventListener('songbook:downloads', guardarCapas);
     window.addEventListener('online', guardarCapas);
   }
+  // (o modelo do karaokê baixado de antemão, no Wi-Fi: o primeiro karaokê não espera os 59 MB)
+  if (karaokeNoAparelho() && temMetodoNativo('prepararKaraoke')) setTimeout(() => {
+    if (navigator.onLine && navigator.connection?.type !== 'cellular' && db.prefs().baixarKaraoke !== false) void karaokeNoAparelho().prepararKaraoke().catch(() => {});
+  }, 45000);
   // (o yt-dlp do celular, que faz os downloads: atualizado uma vez por dia, porque o YouTube muda sempre)
   if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
   // (a versão do app instalado e a das novidades que vieram com ele: a tela Novidades usa para dizer quando cada uma chegou)
