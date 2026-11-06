@@ -4,6 +4,17 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 565, data: '2026-11-06', titulo: 'O app de Android do tamanho certo, com o espaço do celular de verdade',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao importar os downloads no app de Android, o karaokê podia não aparecer: ele ficava só na cópia da música que veio no arquivo, e não na música da biblioteca do app (com outro id, ou que tomava o lugar da cópia ao juntar com a conta). Agora o karaokê e o download vão para a música daqui que toca a mesma gravação, e o aviso no fim diz quantos karaokês vieram. Quem já importou: importe o mesmo arquivo de novo.' },
+      { tipo: 'correcao', texto: 'Quando o navegador (ou o Android) não consegue separar os canais do áudio, o karaokê desligava sem dizer nada. Agora aparece o aviso.' },
+      { tipo: 'correcao', texto: 'No app de Android, tudo ficava maior que no site (textos, ícones), com textos quebrados ou sobrepostos e telas espremidas: o app aumentava o texto pelo "Tamanho da fonte" do Android. Agora ele fica do tamanho do site no Chrome (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
+      { tipo: 'correcao', texto: 'No app de Android, o armazenamento não batia com o do celular: o total era só uma parte da memória. Agora os números são os mesmos das Configurações do Android (o total, o livre e o que o Ecoa ocupa).' },
+      { tipo: 'correcao', texto: 'No player do Android (nas notificações e na tela de bloqueio), a barra ficava em 00:00 / 00:00 e não andava: a duração da música chega depois que ela começa, e o app só mandava no começo. Agora a duração e o ponto aparecem certos, e a barra anda.' },
+      { tipo: 'correcao', texto: 'No app de Android, a música baixada pausava ao minimizar o app ou apagar a tela. Agora ela continua tocando (precisa da atualização do app). A que toca pelo YouTube pausa fora da tela: essa é uma regra do YouTube.' },
+    ],
+  },
+  {
     versao: 564, data: '2026-11-06', titulo: 'A outra música começa do início',
     itens: [
       { tipo: 'correcao', texto: 'Trocar de música podia fazer a nova começar no ponto em que a de antes tinha parado (pausada em 2:10, a outra começava em 2:10), na música e no vídeo, no navegador e no app de Android. Agora a outra música sempre começa do início; só a última música, voltando ao abrir o app, continua de onde parou (agora também a baixada).' },
@@ -65,12 +76,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'As músicas que o LRCLIB e a NetEase não têm (muitas músicas católicas e brasileiras, que o Spotify tem por um serviço fechado) também ganham a letra que acompanha: o servidor da IA encaixa a letra da cifra na voz do vídeo, em segundo plano, e ela aparece sozinha quando fica pronta (leva um ou dois minutos, com o servidor ligado). O "Consertar agora" do Diagnóstico também faz isso.' },
       { tipo: 'correcao', texto: 'No Diagnóstico, tocar em "Consertar agora" numa música que não está na biblioteca parecia não fazer nada (o aviso ficava escondido atrás da janela). Agora o Diagnóstico diz que a música não está salva e o botão vira "Salvar na biblioteca"; salva, ela passa pelas correções sozinha. Depois do conserto, a janela também diz o que continua faltando e por quê (por exemplo, a letra sincronizada que o LRCLIB não tem), e o Copiar responde no próprio botão.' },
       { tipo: 'melhoria', texto: 'No celular, todas as janelas que sobem de baixo encostam no rodapé e vão de uma ponta à outra da tela, sem a folga embaixo e dos lados: as listas de opções (como os ⋮ do Tocando agora), o menu de mais opções e o calendário, como as outras folhas.' },
-    ],
-  },
-  {
-    versao: 555, data: '2026-11-06', titulo: 'O Diagnóstico arrumado',
-    itens: [
-      { tipo: 'correcao', texto: 'O Diagnóstico da música: o fim da lista ficava escondido atrás dos botões e não dava para ver. Agora o título e os botões ficam parados e só o meio rola, até a última parte. O sinal laranja dos avisos aparecia esticado numa barra (e o item com um fundo), e os botões de baixo ficaram organizados: Consertar agora em cima e, embaixo, Copiar e Fechar lado a lado, do mesmo tamanho.' },
     ],
   },
 ];

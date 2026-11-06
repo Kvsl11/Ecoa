@@ -46,3 +46,29 @@ export function juntarDownloads(aqui, veio) {
   if (veio.audioProprio && !aqui.audioProprio) patch.audioProprio = veio.audioProprio;
   return patch;
 }
+
+// Os downloads e os karaokês que vieram, ligados às músicas daqui pela gravação (e não só pelo id): a música daqui pode
+// ter outro id (salva à parte em cada aparelho) ou a cópia que veio no arquivo pode sair da biblioteca ao juntar com a
+// conta. O karaokê vale para a música cuja letra acompanha aquela gravação (fonteDe), e o download, para a música que
+// toca aquele vídeo (gravacoesDe). Só os arquivos que vieram de verdade (chaves). Devolve id → o que acrescentar
+export function downloadsPelaGravacao(aqui, veio, chaves, { fonteDe, gravacoesDe }) {
+  const kar = new Map();
+  const arq = new Map();
+  for (const m of veio) {
+    for (const [f, k] of Object.entries(m?.karaoke || {})) if (chaves.has(`kar:${f}`)) kar.set(f, k);
+    for (const [yt, a] of Object.entries(m?.baixado?.arquivos || {})) if (chaves.has(`yt:${yt}`)) arq.set(yt, a);
+  }
+  const patches = new Map();
+  for (const s of aqui) {
+    const p = {};
+    const f = fonteDe(s);
+    if (f && kar.has(f) && !s.karaoke?.[f]) p.karaoke = { ...(s.karaoke || {}), [f]: kar.get(f) };
+    const novos = [...new Set(gravacoesDe(s))].filter((yt) => yt && arq.has(yt) && !s.baixado?.arquivos?.[yt]);
+    if (novos.length) {
+      const arquivos = { ...(s.baixado?.arquivos || {}), ...Object.fromEntries(novos.map((yt) => [yt, arq.get(yt)])) };
+      p.baixado = { em: Date.now(), ...(s.baixado || {}), arquivos, tamanho: Object.values(arquivos).reduce((t, x) => t + (x?.tamanho || 0), 0) };
+    }
+    if (Object.keys(p).length) patches.set(s.id, p);
+  }
+  return { patches, karaokes: kar.size };
+}
