@@ -1,5 +1,5 @@
 // Renderização de ChordPro em HTML (acordes sobre a letra).
-import { acordesEntreParenteses, ehInstrumental, ehObservacao, isChord, parseChordPro, parteEmIngles, preferFlatsFor, semIntro, transposeChord, transposeKey } from './chordpro.js';
+import { acordesEntreParenteses, ehInstrumental, ehObservacao, isChord, parseChordPro, parteEmIngles, preferFlatsFor, semIntro, semInvisiveis, transposeChord, transposeKey } from './chordpro.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -85,6 +85,58 @@ export function renderSong(content, { transpose = 0, capo = 0, key = '' } = {}) 
     html.push('</div>');
   }
   return { meta, key: targetKey, html: html.join('') };
+}
+
+// O texto para copiar (os "⋯" da letra): só a letra (sem os acordes, a introdução e as anotações) ou a cifra, com os
+// acordes em cima da sílaba (no tom e no capotraste que estão na tela) e o nome das partes como aparecem. Em cima, o
+// nome da música e o artista (e, na cifra, o tom); uma linha em branco entre as partes
+export function textoParaCopiar(content, { comCifra = false, transpose = 0, capo = 0, key = '', titulo = '', artista = '' } = {}) {
+  const { meta, sections } = parseChordPro(comCifra ? content : semIntro(content));
+  const baseKey = meta.key || key;
+  const shift = transpose - capo;
+  const targetKey = transposeKey(baseKey, transpose);
+  const flats = preferFlatsFor(transposeKey(baseKey, shift) || targetKey);
+  const acorde = (a) => (isChord(a) ? transposeChord(a, shift, flats) : a);
+  const blocos = [];
+  for (const sec of sections) {
+    const linhas = [];
+    for (const line of sec.lines) {
+      if (line.kind === 'comment') {
+        const acordes = acordesEntreParenteses(line.text);
+        if (acordes) { if (comCifra) linhas.push(acordes.map(acorde).join(' ')); continue; }
+        const t = line.text.trim().replace(/^\((.*)\)$/, '$1');
+        if (!comCifra && ehObservacao(t)) continue; // (as anotações, "2x", "Solo"… só na cifra)
+        linhas.push(comCifra ? `(${parteEmIngles(t)})` : `(${t})`);
+        continue;
+      }
+      if (line.kind === 'text') { if (comCifra) linhas.push(line.text); continue; } // (a tablatura, só na cifra)
+      const texto = line.segments.map((x) => x.text).join('');
+      if (!comCifra) {
+        if (texto.trim() && !ehInstrumental(texto)) linhas.push(texto.replace(/\s{2,}/g, ' ').trim());
+        continue;
+      }
+      // os acordes na coluna da sílaba; se colidir com o anterior, anda para a direita (e a letra abre espaço)
+      let acordes = '';
+      let letra = '';
+      for (const seg of line.segments) {
+        if (seg.chord !== null && seg.chord !== '') {
+          const c = acorde(seg.chord);
+          const col = Math.max(letra.length, acordes.length ? acordes.length + 1 : 0);
+          acordes = acordes.padEnd(col, ' ') + c;
+          if (col > letra.length && seg.text) letra = letra.padEnd(col, ' ');
+        }
+        letra += seg.text;
+      }
+      if (acordes.trim()) linhas.push(acordes.replace(/\s+$/, ''));
+      if (letra.trim()) linhas.push(letra.replace(/\s+$/, ''));
+    }
+    if (!linhas.length) continue;
+    const nome = comCifra ? parteEmIngles(sec.label) || LABELS[sec.type] || '' : '';
+    blocos.push([nome ? `[${nome}]` : '', ...linhas].filter(Boolean).join('\n'));
+  }
+  const cab = [[titulo || meta.title, artista || meta.artist].filter(Boolean).join(' – ')];
+  if (comCifra && targetKey) cab.push(`Tom: ${targetKey}${capo ? ` (capotraste na ${capo}ª casa)` : ''}`);
+  return semInvisiveis([cab.filter(Boolean).join('\n'), ...blocos].filter(Boolean).join('\n\n')).trim();
 }
 
 // Os acordes "soltos" (que avançam por cima da letra seguinte) na tela: o que bate no próximo acorde da mesma linha ou
