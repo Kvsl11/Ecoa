@@ -5139,13 +5139,14 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-prog { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.25); }
 .pv-prog b { display: block; width: 0; height: 100%; border-radius: 1px; background: #fff; }
 /* no tablet (em pé e deitado), a prévia ocupa a tela toda, como no celular (a coluna estreita no meio ficava
-   perdida na tela grande): o clipe preenche a tela, e o artista e o cartão ficam embaixo, maiores, sem esticar */
+   perdida na tela grande): o clipe preenche a tela, e o artista e o cartão ficam embaixo, maiores, de uma ponta à
+   outra da tela (em pé e deitado) */
 html.tablet dialog.pl-previa { inset: 0; width: 100%; height: 100%; transform: none; border-radius: 0; }
 html.tablet dialog.pl-previa::backdrop { background: #000; }
 html.tablet .pv-cab { padding: calc(14px + env(safe-area-inset-top)) 16px 28px; }
 html.tablet .pv-cab b { font-size: 18px; }
 html.tablet .pv-sombra { background: linear-gradient(transparent 50%, rgb(0 0 0 / 0.8)); }
-html.tablet .pv-info { right: auto; width: min(640px, 100%); padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
+html.tablet .pv-info { padding: 0 calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left)); }
 html.tablet .pv-artista { gap: 12px; }
 html.tablet .pv-meta { margin-bottom: 14px; row-gap: 8px; }
 html.tablet .pv-meta .icon-btn { width: 44px; height: 44px; }
@@ -5528,6 +5529,9 @@ html.pp #player .pl-ferr .pl-ferr-tom:active { background: rgb(255 255 255 / 0.2
    os cartões escuros translúcidos, o tom da tela aceso na cor dos acordes, o original e o da gravação marcados */
 dialog.tons-na-cor { background: linear-gradient(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.22)), color-mix(in srgb, var(--cor-musica, #333) 75%, #000); color: #fff;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 20px 50px rgb(0 0 0 / 0.5); }
+/* (como folha, no tablet: a alça e a barra do Fechar na cor da janela, e não na do tema) */
+dialog.tons-na-cor.folha .folha-cab, dialog.tons-na-cor.folha .dlg .acts { background: transparent; border-top-color: rgb(255 255 255 / 0.1); }
+dialog.tons-na-cor.folha .menu-alca { background: rgb(255 255 255 / 0.4); }
 dialog.tons-na-cor h3 { color: #fff; }
 dialog.tons-na-cor p { color: rgb(255 255 255 / 0.75); }
 dialog.tons-na-cor p b { color: #fff; }
