@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 562, data: '2026-11-06', titulo: 'O Ecoa para Android, com widget',
+    itens: [
+      { tipo: 'novo', texto: 'O Ecoa ganhou um app de Android (APK): na gaveta do perfil, "Baixar o app para Android" (aparece no Android, pelo navegador). Ele é o mesmo Ecoa, com a sua conta Google, e traz o que o navegador não deixa: o widget da tela inicial (a capa, o nome e o artista da última música, com voltar, tocar/pausar e pular), o aviso de "tocando" nas notificações com os mesmos botões, que mantém a música tocando com o app minimizado, e os downloads guardados no próprio app.' },
+    ],
+  },
+  {
     versao: 561, data: '2026-11-06', titulo: 'O modo música só com o áudio oficial',
     itens: [
       { tipo: 'correcao', texto: 'O modo música podia tocar um vídeo que um fã subiu no próprio canal, com o nome do artista só no título, e não a gravação do canal oficial (em "Odres Novos", tocava o vídeo de outro canal, e não o do Ministério Gerados pela Imaculada). Agora o áudio do modo música vem só de uma fonte oficial: a faixa do YouTube Music, o canal do próprio artista, o mesmo canal do vídeo que você abriu ou o da gravadora. Sem achar, o modo música toca o próprio vídeo oficial. As músicas salvas são conferidas sozinhas, e o áudio que não for oficial sai.' },
@@ -60,13 +66,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'No painel do lado do tablet, a barrinha de cima (o nome da música, o artista, o ✓ e o play, que aparece ao rolar) ficou um pouco mais alta, e o nome não encosta mais na borda esquerda.' },
       { tipo: 'melhoria', texto: 'No tablet, com o player recolhido, o vídeo da barrinha de baixo fica colado na borda esquerda do cartão e com a altura toda dele, sem a margem em volta, como no celular e no Spotify.' },
-    ],
-  },
-  {
-    versao: 552, data: '2026-11-06', titulo: 'No tablet: a barra das prévias inteira e os tons no rodapé',
-    itens: [
-      { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), a janela "Escolher o tom" sobe do rodapé, como no celular, em vez de abrir no meio da tela por cima da cifra. Arraste a alça para baixo para fechar.' },
-      { tipo: 'melhoria', texto: 'Nas prévias, no tablet (em pé ou deitado), o artista, as hashtags e o cartão da música vão de uma ponta à outra da tela, embaixo, em vez de ficarem numa coluna estreita à esquerda.' },
     ],
   },
 ];

@@ -85,8 +85,30 @@ export async function iniciarConta() {
 
 // Entrar com Google: a janelinha do Google; onde ela não abre (bloqueada, app instalado no iPhone), vai para a página
 // do Google e volta. Devolve false se a pessoa fechou a janelinha
+// No app de Android (o APK), o login do site não abre (o Google não deixa entrar por dentro de um app): a conta é
+// escolhida pelo próprio Android, e o Firebase entra com ela
+const ecoaNativo = () => {
+  const C = typeof window !== 'undefined' ? window.Capacitor : null;
+  return C?.isNativePlatform?.() && C.Plugins?.Ecoa ? C.Plugins.Ecoa : null;
+};
+async function entrarPeloAndroid(f, nativo) {
+  const { auth, A } = f;
+  let r;
+  try { r = await nativo.entrarComGoogle(); } catch (e) {
+    if (e?.code === 'cancelado') return false;
+    if (e?.code === 'sem-conta') throw new Error('Nenhuma conta Google neste celular: adicione uma nas Configurações do Android e tente de novo.', { cause: e });
+    throw new Error(`Não deu para entrar com o Google pelo Android (${e?.message || 'erro'}).`, { cause: e });
+  }
+  const cred = A.GoogleAuthProvider.credential(r.idToken);
+  const u = await A.signInWithCredential(auth, cred);
+  ouvir(f);
+  definir(u.user);
+  return true;
+}
 export async function entrarComGoogle() {
   const f = await carregarSdk();
+  const nativo = ecoaNativo();
+  if (nativo) return entrarPeloAndroid(f, nativo);
   const { auth, A } = f;
   const p = new A.GoogleAuthProvider();
   p.setCustomParameters({ prompt: 'select_account' });
@@ -116,6 +138,7 @@ export async function sairDaConta() {
   estadoConta.erro = '';
   avisar();
   if (sdk) { const { auth, A } = await sdk; await A.signOut(auth).catch(() => {}); }
+  await ecoaNativo()?.sairDoGoogle().catch(() => {}); // (no Android: na próxima entrada, ele pergunta a conta de novo)
 }
 
 // o nome que aparece no perfil (Editar): fica na conta Google do app (vale nos outros aparelhos)

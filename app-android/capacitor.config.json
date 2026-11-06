@@ -1,0 +1,13 @@
+{
+  "appId": "br.ecoa.app",
+  "appName": "Ecoa",
+  "webDir": "www",
+  "server": {
+    "url": "https://kvsl11.github.io/Songbook/",
+    "androidScheme": "https",
+    "allowNavigation": ["kvsl11.github.io"]
+  },
+  "android": {
+    "backgroundColor": "#000000"
+  }
+}
