@@ -994,15 +994,17 @@ function tirarDaFilaGuardada(ids) {
 // Em "Áudio e vídeo", baixa o áudio oficial e o videoclipe mesmo quando forem gravações diferentes.
 // Em "Só o áudio", baixa apenas o áudio oficial (ou o som do vídeo quando não houver outra faixa).
 function arquivosParaBaixar(song) {
-  // (a música sem clipe de verdade — o vídeo é só a capa parada — baixa só o som: o vídeo não tem o que mostrar)
-  const comVideo = db.prefs().baixarVideo !== false && !song.semClipe;
   const vs = versoesDe(song);
+  // Se já há duas versões identificadas, a existência de um vídeo separado é prova
+  // suficiente de que há videoclipe: não deixe uma marca antiga "semClipe" escondê-lo.
+  const videoId = vs?.video || song.youtube || '';
   const audio = vs && !ehArquivo(vs.audio) ? vs.audio : '';
-  // (o áudio oficial que é o próprio vídeo da música — o clipe é a gravação — é baixado uma vez só, como vídeo: antes
-  // eram dois downloads do mesmo vídeo guardados no mesmo lugar, e o do áudio, chegando por último, apagava o clipe)
-  const lista = audio && !(audio === song.youtube && comVideo) ? [{ yt: audio, video: false }] : [];
-  // Com "Áudio e vídeo", o clipe é obrigatório mesmo se for uma gravação diferente do áudio oficial.
-  if (song.youtube && (comVideo || (!audio && !song.audioProprio))) lista.push({ yt: song.youtube, video: comVideo });
+  const temClipeIdentificado = Boolean(vs?.video && vs?.audio && vs.video !== vs.audio);
+  const comVideo = db.prefs().baixarVideo !== false && (!song.semClipe || temClipeIdentificado);
+  // O áudio oficial que também é o clipe deve ser baixado uma única vez, como vídeo.
+  const lista = audio && !(audio === videoId && comVideo) ? [{ yt: audio, video: false }] : [];
+  // A versão de vídeo pode ser diferente da faixa de áudio; as duas são obrigatórias.
+  if (videoId && (comVideo || (!audio && !song.audioProprio))) lista.push({ yt: videoId, video: comVideo });
   return lista;
 }
 // Se o áudio já baixou, mas o clipe falhou, o download continua incompleto e pode ser tentado de novo.
