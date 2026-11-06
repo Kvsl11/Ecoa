@@ -104,7 +104,8 @@ const P = {
   trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
   expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>',
-  play: '<path d="M7 4.6v14.8a1.1 1.1 0 0 0 1.66.94l12.2-7.4a1.1 1.1 0 0 0 0-1.88L8.66 3.66A1.1 1.1 0 0 0 7 4.6z" fill="currentColor" stroke="none"/>',
+  // (o triângulo um pouco à direita do meio, como no Spotify: centrado pelo "peso" ele parecia torto para a direita)
+  play: '<path d="M5.8 4.6v14.8a1.1 1.1 0 0 0 1.66.94l12.2-7.4a1.1 1.1 0 0 0 0-1.88L7.46 3.66A1.1 1.1 0 0 0 5.8 4.6z" fill="currentColor" stroke="none"/>',
   pause: '<rect x="5.5" y="3.5" width="4.4" height="17" rx="1.2" fill="currentColor" stroke="none"/><rect x="14.1" y="3.5" width="4.4" height="17" rx="1.2" fill="currentColor" stroke="none"/>',
   som: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13"/>',
   mudo: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9.5l5 5M22 9.5l-5 5"/>',
