@@ -99,6 +99,11 @@ let servidorDoSite = '';
 // o servidor do Codespace: a porta pública dele (…-7860.app.github.dev) ou, quando o GitHub não deixa a porta pública,
 // o túnel da Cloudflare que ele abre (….trycloudflare.com)
 const doCodespace = (host) => /\.app\.github\.dev$|\.trycloudflare\.com$/i.test(host || '');
+// No APK, o Codespace não é usado nem ligado: os downloads são feitos no próprio celular, e procurar o Codespace a cada
+// abertura (e pedir ao Modal que ligasse ele) gastava a cota de horas do GitHub. O que ainda precisa de servidor no APK
+// usa só o servidor no computador da pessoa ou o Modal. No navegador, nada muda
+const semCodespaceNoApp = () => Boolean(baixadorDoAparelho());
+const urlDoCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
 const doLink = new URLSearchParams(location.search).get('ia');
 if (doLink !== null) {
   db.setPref('servidorPc', baseDoServidor(doLink));
@@ -123,7 +128,7 @@ let estadoCodespace = ''; // o que o Modal disse por último: ligado | ligando |
 let acordandoEm = 0;
 const CODESPACE_SEM_COTA = 'songbook.codespaceSemCota';
 async function acordarCodespace(reserva) {
-  if (!reserva?.url || Date.now() - acordandoEm < 60e3) return;
+  if (!reserva?.url || semCodespaceNoApp() || Date.now() - acordandoEm < 60e3) return;
   let semCota = 0;
   try { semCota = Number(localStorage.getItem(CODESPACE_SEM_COTA)) || 0; } catch { /* sem armazenamento */ }
   if (Date.now() - semCota < 30 * 60e3) { estadoCodespace = 'sem-cota'; return; }
@@ -153,7 +158,7 @@ const guardarServidor = (cfg) => {
 };
 {
   const g = servidorGuardado();
-  if (g) SERVIDOR_IA = g;
+  if (g && !(semCodespaceNoApp() && urlDoCodespace(g.url))) SERVIDOR_IA = g;
   const k = baseDoServidor(db.prefs().servidorKaraoke);
   if (k) SERVIDOR_KARAOKE = { url: k, chave: g?.chave || '', pc: true };
 }
@@ -177,7 +182,9 @@ function carregarServidor({ forcar = false } = {}) {
       return sondas.get(u);
     };
     // (o guardado já começa a ser testado enquanto o endereço publicado no site chega)
-    const guardado = servidorGuardado();
+    const guardadoAntes = servidorGuardado();
+    // (no APK, o Codespace guardado de antes não é mais procurado: nem ele nem os outros endereços do Codespace)
+    const guardado = guardadoAntes && !(semCodespaceNoApp() && urlDoCodespace(guardadoAntes.url)) ? guardadoAntes : null;
     if (guardado && !guardado.reserva) sondar(guardado.url);
     const pc = baseDoServidor(db.prefs().servidorPc);
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
@@ -191,7 +198,7 @@ function carregarServidor({ forcar = false } = {}) {
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
     const ehCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
     const ultimo = baseDoServidor(db.prefs().codespaceAchado);
-    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : '',
+    const codespaces = semCodespaceNoApp() ? [] : [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : '',
       guardado && !guardado.reserva && ehCodespace(guardado.url) ? guardado.url : ''].filter(Boolean))];
     servidorDoSite = codespaces[0] || '';
     reservaFora = false;

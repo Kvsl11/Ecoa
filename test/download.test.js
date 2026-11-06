@@ -87,7 +87,10 @@ test('download: redescobre o servidor antes de iniciar cada fila e usa recupera�
 test('download: o servidor e a fila ficam guardados ao sair do app ou recarregar a página', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   // o app abre já com o último servidor que atendeu, e guarda o que atender
-  assert.match(app, /const g = servidorGuardado\(\);\s*if \(g\) SERVIDOR_IA = g;/);
+  assert.match(app, /const g = servidorGuardado\(\);\s*if \(g && !\(semCodespaceNoApp\(\) && urlDoCodespace\(g\.url\)\)\) SERVIDOR_IA = g;/);
+  // (no APK o Codespace não é procurado nem ligado: gastava a cota do GitHub)
+  assert.match(app, /const codespaces = semCodespaceNoApp\(\) \? \[\]/);
+  assert.match(app, /if \(!reserva\?\.url \|\| semCodespaceNoApp\(\)/);
   assert.match(app, /if \(SERVIDOR_IA\.url\) guardarServidor\(SERVIDOR_IA\)/);
   // as telas conferem o servidor de verdade antes de recusar o download
   assert.doesNotMatch(app, /arquivosParaBaixar\([sx]\)\.length\) && !servidorIA\(\)\.url/);
