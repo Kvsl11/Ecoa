@@ -33,7 +33,9 @@ test('download de vídeo não é omitido quando a faixa de áudio é outra grava
   const inicio = app.indexOf('function arquivosParaBaixar(song)');
   const fim = app.indexOf('// Se o áudio já baixou', inicio);
   const rotina = app.slice(inicio, fim);
-  assert.match(rotina, /if \(song\.youtube && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
+  assert.match(rotina, /const videoId = vs\?\.video \|\| song\.youtube/);
+  assert.match(rotina, /const temClipeIdentificado = Boolean\(vs\?\.video && vs\?\.audio && vs\.video !== vs\.audio\)/);
+  assert.match(rotina, /if \(videoId && \(comVideo \|\| \(!audio && !song\.audioProprio\)\)\) lista\.push/);
   assert.doesNotMatch(rotina, /vs\?\.diferentes\) lista\.push/);
 });
 
