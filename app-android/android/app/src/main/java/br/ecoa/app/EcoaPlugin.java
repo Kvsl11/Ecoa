@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 //  - musica({ titulo, artista, capa, tocando }): a música do player, para o widget e o aviso de "tocando"
 //  - entrarComGoogle(): o login do Google pelo próprio Android (o do site não abre dentro de um app) → { idToken }
 //  - armazenamento(): o espaço do celular → { total, livre, app } em bytes (app: tudo o que o Ecoa guarda, downloads inclusos)
+//  - avisar({ titulo, texto, tag, href, silenciosa, imagem }): uma notificação do Android (os downloads)
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -68,6 +69,14 @@ public class EcoaPlugin extends Plugin {
         // (guardada até o site ouvir: com o app abrindo, o ouvinte ainda não existe)
         p.notifyListeners("acao", dados, true);
         return true;
+    }
+
+    // uma notificação do site (os downloads): { titulo, texto, tag, href, silenciosa, imagem }
+    @PluginMethod
+    public void avisar(PluginCall call) {
+        Avisos.mostrar(getContext(), call.getString("titulo", "Ecoa"), call.getString("texto", ""), call.getString("tag", ""),
+            call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""));
+        call.resolve();
     }
 
     @PluginMethod

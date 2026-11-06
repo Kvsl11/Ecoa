@@ -10,6 +10,8 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No app de Android, o aviso de "tocando" virou o player do próprio Android: com a capa, a barra do tempo (dá para arrastar), os botões, a tela de bloqueio e os botões do fone (precisa instalar o APK novo).' },
       { tipo: 'correcao', texto: 'O "Baixar o app para Android" ficava parado em "Baixando…" e o arquivo não aparecia nos downloads (o link levava ao GitHub, que redireciona para outro endereço). Agora o Ecoa.apk baixa direto do próprio site do Ecoa.' },
       { tipo: 'melhoria', texto: 'No app de Android, Ajustes → Downloads e economia de dados mostra o espaço de verdade do celular: o total, o livre, o que os outros apps e o sistema ocupam e tudo o que o Ecoa guarda (precisa instalar o APK novo). Os downloads do app ficam no próprio app, separados dos do navegador: a música baixada no navegador precisa ser baixada de novo no app.' },
+      { tipo: 'correcao', texto: 'No app de Android, as notificações dos downloads não apareciam. Agora são as do próprio Android (com a capa; tocar abre a música), e o Android pergunta pelas notificações ao abrir o app e pelo microfone na primeira vez que ele é usado (precisa instalar o APK novo).' },
+      { tipo: 'melhoria', texto: 'No app de Android, saíram o "Instalar o app" (em Sobre) e a tela Permissões dos Ajustes: as permissões são as do Android (Configurações → Apps → Ecoa). No navegador, tudo continua como estava.' },
     ],
   },
   {

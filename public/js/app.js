@@ -385,6 +385,11 @@ function irParaMusica(id) {
 
 // ------------------------------------------------------------------ util
 
+// O app de Android (o APK): a marca vem do index.html, que já a põe antes de tudo. Lá as notificações e as permissões
+// são as do próprio Android (o WebView não tem a notificação do navegador), e não há o "Instalar o app"
+const noApk = () => document.documentElement.classList.contains('app-android');
+const pluginEcoa = () => { const C = window.Capacitor; return (C?.isNativePlatform?.() && C.Plugins?.Ecoa) || null; };
+
 // Mensagens comuns não aparecem sobre a tela. Somente eventos de download usam
 // notificações do Android/sistema, sem criar avisos internos no aplicativo.
 function toast() {}
@@ -394,6 +399,10 @@ const podeNotificarNoSistema = () =>
   'serviceWorker' in navigator;
 
 async function notificarSistema({ titulo, texto = '', tag = '', href = '', silenciosa = false, renovar = false, imagem = '' }) {
+  const nativo = pluginEcoa();
+  if (nativo?.avisar) {
+    try { await nativo.avisar({ titulo: titulo || 'Ecoa', texto, tag, href, silenciosa: silenciosa && !renovar, imagem }); return true; } catch { return false; }
+  }
   if (!podeNotificarNoSistema()) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -415,6 +424,7 @@ async function notificarSistema({ titulo, texto = '', tag = '', href = '', silen
 // e pede (uma vez: "Agora não" guarda a escolha), e Ajustes → Permissões mostra e pede de novo quando quiser.
 // 'ok', 'pedir' (ainda não respondida), 'negado' ou 'sem' (navegador sem notificações; no iPhone, só no app instalado)
 function estadoDasNotificacoes() {
+  if (noApk()) return 'ok'; // (no APK, quem pergunta e guarda a resposta é o Android)
   if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'sem';
   return Notification.permission === 'granted' ? 'ok' : Notification.permission === 'denied' ? 'negado' : 'pedir';
 }
@@ -424,7 +434,7 @@ async function pedirNotificacoes() {
   try { await Notification.requestPermission(); } catch { /* navegador antigo: o estado diz */ }
   return estadoDasNotificacoes();
 }
-const COMO_LIBERAR_NOTIF = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
+const COMO_LIBERAR_NOTIF = noApk() ? 'Para liberar: nas Configurações do Android, em Apps → Ecoa → Notificações.' : 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
 
 // Capa usada nas notificações de download, quando disponível.
 const capaDaNotificacao = (song) =>
@@ -16526,7 +16536,7 @@ function viewTopicosAjustes() {
     </section>
     <div class="aj-atalhos">${ATALHOS_AJUSTES.map((a) => atalhoDosAjustes(a)).join('')}</div>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
-      ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
+      ${TOPICOS_AJUSTES.filter((t) => !(noApk() && t.id === 'permissoes')).map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
     </nav>
     ${usuarioConta() ? '<button class="aj-sair" data-sair>Sair</button>' : ''}</div>`;
   view.querySelector('.aj-atalhos').onclick = (e) => {
@@ -16674,7 +16684,7 @@ const TOPICOS_AJUSTES = [
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
   { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
-  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: 'Versão · Novidades · Instalar o app' },
+  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Novidades' : 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
   const top = TOPICOS_AJUSTES.find((x) => x.id === topico && x.secao);
@@ -18593,7 +18603,7 @@ async function pedirMicrofone() {
     return 'ok';
   } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
 }
-const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Permissões → Microfone.';
+const COMO_LIBERAR_MIC = noApk() ? 'Para liberar: nas Configurações do Android, em Apps → Ecoa → Permissões → Microfone → Permitir.' : 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Permissões → Microfone.';
 // As vozes do Lumen são as do Gemini, com os nomes de lá (e o jeito de cada uma). A voz escolhida dá o gênero: voz
 // feminina, "a Lumen"; masculina, "o Lumen" (a IA também fala de si nesse gênero)
 const VOZES_GEMINI = [
@@ -20263,7 +20273,7 @@ function route() {
     case 'ajustes': return viewSettings(b);
     case 'conta': return viewConta();
     case 'qualidade': return viewQualidade();
-    case 'permissoes': return viewPermissoes();
+    case 'permissoes': if (noApk()) { location.replace('#/ajustes'); return; } return viewPermissoes();
     case 'partituras': return viewPartituras();
     case 'compartilhado': return viewCompartilhado();
     case 'oracoes': return viewOracoes();
@@ -20405,6 +20415,8 @@ if (ecoaNativo) {
   };
   player.ouvir(mandar);
   ecoaNativo.addListener('acao', ({ acao } = {}) => {
+    // (tocou numa notificação de download: abre a página dela)
+    if (/^abrir:#/.test(acao || '')) { location.hash = acao.slice(6); return; }
     // (com o app abrindo pelo widget, a última música ainda pode estar voltando: espera um pouco por ela)
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
@@ -20451,7 +20463,7 @@ setTimeout(() => {
 // (funções declaradas: a tela de Ajustes pode ser desenhada antes deste trecho rodar)
 let pedidoInstalar = null;
 const CHAVE_ADIADO = 'songbook.instalar.adiado';
-function jaInstalado() { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+function jaInstalado() { return noApk() || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
 function ehIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 function adiado() { try { return Date.now() - Number(localStorage.getItem('songbook.instalar.adiado') || 0) < 7 * 864e5; } catch { return false; } }
 
