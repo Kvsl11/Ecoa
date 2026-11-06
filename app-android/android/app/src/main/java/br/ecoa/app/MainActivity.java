@@ -18,6 +18,9 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         Acoes.daIntent(getIntent());
         pedirNotificacoes();
+        // O texto do mesmo tamanho do site no Chrome: o WebView aumenta o texto pelo "Tamanho da fonte" do Android, e no
+        // app tudo ficava maior, com textos quebrados, sobrepostos e telas espremidas (o site é feito para o tamanho normal)
+        if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
     }
 
     // As notificações (os downloads e o player) com a pergunta do próprio Android, uma vez, ao abrir o app pela primeira

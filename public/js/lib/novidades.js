@@ -4,10 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 565, data: '2026-11-06', titulo: 'O karaokê vem junto ao levar os downloads',
+    versao: 565, data: '2026-11-06', titulo: 'O app de Android do tamanho certo, com o espaço do celular de verdade',
     itens: [
       { tipo: 'correcao', texto: 'Ao importar os downloads no app de Android, o karaokê podia não aparecer: ele ficava só na cópia da música que veio no arquivo, e não na música da biblioteca do app (com outro id, ou que tomava o lugar da cópia ao juntar com a conta). Agora o karaokê e o download vão para a música daqui que toca a mesma gravação, e o aviso no fim diz quantos karaokês vieram. Quem já importou: importe o mesmo arquivo de novo.' },
       { tipo: 'correcao', texto: 'Quando o navegador (ou o Android) não consegue separar os canais do áudio, o karaokê desligava sem dizer nada. Agora aparece o aviso.' },
+      { tipo: 'correcao', texto: 'No app de Android, tudo ficava maior que no site (textos, ícones), com textos quebrados ou sobrepostos e telas espremidas: o app aumentava o texto pelo "Tamanho da fonte" do Android. Agora ele fica do tamanho do site no Chrome (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
+      { tipo: 'correcao', texto: 'No app de Android, o armazenamento não batia com o do celular: o total era só uma parte da memória. Agora os números são os mesmos das Configurações do Android (o total, o livre e o que o Ecoa ocupa).' },
     ],
   },
   {

@@ -124,15 +124,39 @@ public class EcoaPlugin extends Plugin {
     public void armazenamento(PluginCall call) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
-                JSObject r = new JSObject();
-                r.put("total", fs.getTotalBytes());
-                r.put("livre", fs.getAvailableBytes());
-                // a pasta do app inteira: o WebView (os downloads no IndexedDB, o cache), os arquivos e as preferências
                 Context ctx = getContext();
-                long app = tamanho(ctx.getDataDir());
-                File ext = ctx.getExternalCacheDir();
-                if (ext != null) app += tamanho(ext.getParentFile());
+                JSObject r = new JSObject();
+                long total = 0, livre = 0, app = 0;
+                // os números das Configurações do Android (Armazenamento): o total do celular (os 128 GB da caixa) e o
+                // livre, e o que o Ecoa ocupa (o app, os dados — os downloads no WebView — e o cache), pelo próprio
+                // Android. Antes era só a partição de dados (menor que o total do celular) e a pasta do app medida à mão
+                if (Build.VERSION.SDK_INT >= 26) {
+                    try {
+                        android.app.usage.StorageStatsManager ssm = ctx.getSystemService(android.app.usage.StorageStatsManager.class);
+                        total = ssm.getTotalBytes(android.os.storage.StorageManager.UUID_DEFAULT);
+                        livre = ssm.getFreeBytes(android.os.storage.StorageManager.UUID_DEFAULT);
+                        try {
+                            android.app.usage.StorageStats st = ssm.queryStatsForPackage(android.os.storage.StorageManager.UUID_DEFAULT, ctx.getPackageName(), android.os.Process.myUserHandle());
+                            app = st.getAppBytes() + st.getDataBytes() + st.getCacheBytes();
+                        } catch (Exception semApp) {
+                            app = 0; // (medido à mão, abaixo)
+                        }
+                    } catch (Exception e) {
+                        total = 0;
+                    }
+                }
+                if (total <= 0) {
+                    StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
+                    total = fs.getTotalBytes();
+                    livre = fs.getAvailableBytes();
+                }
+                if (app <= 0) {
+                    app = tamanho(ctx.getDataDir());
+                    File ext = ctx.getExternalCacheDir();
+                    if (ext != null) app += tamanho(ext.getParentFile());
+                }
+                r.put("total", total);
+                r.put("livre", livre);
                 r.put("app", app);
                 call.resolve(r);
             } catch (Exception e) {
