@@ -124,9 +124,25 @@ public class EcoaPlugin extends Plugin {
     // uma notificação do site (os downloads): { titulo, texto, tag, href, silenciosa, imagem }
     @PluginMethod
     public void avisar(PluginCall call) {
+        // Android 13 ou mais novo exige permissão em tempo de execução. Antes, o APK só tentava
+        // publicar o aviso e o Android descartava silenciosamente a notificação do download.
+        if (Build.VERSION.SDK_INT >= 33 && getPermissionState("avisos") == PermissionState.PROMPT) {
+            requestPermissionForAlias("avisos", call, "depoisDosAvisos");
+            return;
+        }
+        mostrarAviso(call);
+    }
+
+    private void mostrarAviso(PluginCall call) {
         Avisos.mostrar(getContext(), call.getString("titulo", "Ecoa"), call.getString("texto", ""), call.getString("tag", ""),
             call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""));
         call.resolve();
+    }
+
+    @PermissionCallback
+    private void depoisDosAvisos(PluginCall call) {
+        if (getPermissionState("avisos") == PermissionState.GRANTED) mostrarAviso(call);
+        else call.resolve(); // a pessoa pode continuar usando o app mesmo se não permitir avisos
     }
 
     // a versão deste APK instalado: { codigo, nome }
