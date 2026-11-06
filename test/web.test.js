@@ -682,3 +682,21 @@ test('gravacaoOficial: com a duração do áudio, a edição do mesmo master, n�
   assert.ok([10, 11, 12, 13].includes(gravacaoOficial(lista, 0).id));
   assert.ok([10, 11, 12, 13].includes(gravacaoOficial(lista, 269).id));
 });
+
+
+test('canalDoArtista: uma instância Piped sem canal não bloqueia outra que tem foto válida', async () => {
+  const { canalDoArtista } = await import('../public/js/lib/web.js');
+  const foto = 'https://proxy.exemplo/canal=s176-c-k?host=yt3.ggpht.com';
+  const fetchImpl = async (url) => ({
+    ok: true,
+    json: async () => url.startsWith('https://piped-vazio')
+      ? { items: [] }
+      : { items: [{ type: 'channel', name: 'Artista Teste', verified: true, thumbnail: foto, url: '/channel/UCteste' }] },
+  });
+  const canal = await canalDoArtista('Artista Teste', {
+    fetchImpl,
+    instancias: ['https://piped-vazio', 'https://piped-com-foto'],
+  });
+  assert.equal(canal?.nome, 'Artista Teste');
+  assert.equal(canal?.id, 'UCteste');
+});
