@@ -16542,10 +16542,11 @@ function viewTopicosAjustes() {
     if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Armazenamento · Cache`; }
     return t.s;
   };
+  const versaoLabel = noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`;
   view.innerHTML = `<div class="ajustes aj-topicos">
     <section class="aj-topo">
       <span class="aj-logo">${logo(44)}</span>
-      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
+      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">${versaoLabel}</span></div>
     </section>
     <div class="aj-atalhos">${ATALHOS_AJUSTES.map((a) => atalhoDosAjustes(a)).join('')}</div>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
@@ -16567,6 +16568,13 @@ function viewTopicosAjustes() {
     await sairDaConta();
     viewTopicosAjustes();
   });
+  // No APK, mostra a versão real instalada no Android (versionName), não a versão do site.
+  if (noApk()) {
+    const elVersao = view.querySelector('.aj-versao');
+    pluginEcoa()?.versao?.().then((info) => {
+      if (elVersao?.isConnected) elVersao.textContent = `Ecoa · APK ${info?.nome || info?.codigo || ''}`.trim();
+    }).catch(() => {});
+  }
   // o microfone só se sabe esperando a consulta do navegador
   estadoDoMicrofone().then((m) => {
     const sm = $('.aj-topico[href="#/permissoes"] small', view);
