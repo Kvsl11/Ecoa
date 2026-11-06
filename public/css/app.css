@@ -3448,7 +3448,8 @@ html.tablet body.painel-recolhido #player .pl-lado { display: none; }
 /* com o vídeo tocando (como no celular e no Spotify): o vídeo colado na borda esquerda do cartão, da altura toda dele,
    sem margem em volta; o nome e os botões ao lado */
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) { padding-top: 0; padding-bottom: 0; padding-left: 0; }
-html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { height: 100%; align-self: stretch; border-radius: 15px 0 0 15px; }
+/* (a altura toda menos o fio do andamento, que fica no pé do cartão: o vídeo não passa por cima dele) */
+html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { height: auto; margin-bottom: 4px; align-self: stretch; border-radius: 15px 0 0 15px; }
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-info { padding-left: 4px; }
 html.tablet body.painel-recolhido #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) ~ #pl-tela:not(.no-palco):not(.na-telinha) { border-radius: 15px 0 0 15px; }
 /* na página da música o menu de baixo some (volta ao sair pela seta do topo) */
@@ -5769,8 +5770,9 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
 /* celular, a barrinha de baixo com o vídeo tocando (como no Spotify): o vídeo colado na borda esquerda, da altura da
    barrinha, sem margem; o nome, o fone e os botões ao lado */
 @media (max-width: 899px) {
+  /* (o vídeo para logo acima da linha do andamento, no pé da barrinha: antes ia até o fundo e cobria o começo dela) */
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video {
-    width: 112px; aspect-ratio: 16 / 9; margin: 0; border-radius: 8px 0 0 8px; align-self: stretch; }
+    width: 112px; aspect-ratio: 16 / 9; margin: 0 0 2px; border-radius: 8px 0 0 8px; align-self: stretch; }
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-info { padding-left: 14px; }
 }
 /* a barra de botões de baixo das folhas vai de ponta a ponta (o max-width de .dlg > * deixava ela 44 px mais curta,
