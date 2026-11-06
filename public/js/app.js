@@ -16929,7 +16929,9 @@ function infoDaGaveta(u) {
 
 // o app de Android (o APK que o robô do GitHub monta: .github/workflows/android.yml): o botão de baixar aparece só no
 // Android, pelo navegador (no próprio app ele não tem por que aparecer)
-const LINK_APK = 'https://github.com/Kvsl11/Songbook/releases/download/android/Ecoa.apk';
+// (do próprio site, e não do GitHub: o link do GitHub passa por um redirecionamento, e no celular o download do APK
+// ficava parado em "Baixando…" e não aparecia nos downloads. O robô do site copia o APK publicado para cá)
+const LINK_APK = 'Ecoa.apk';
 const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
 function abrirGavetaDoPerfil() {
   if (document.querySelector('.perfil-gaveta')) return;
