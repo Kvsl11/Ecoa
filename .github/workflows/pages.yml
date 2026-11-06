@@ -175,6 +175,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download android -p Ecoa.apk -D public --clobber && ls -la public/Ecoa.apk || echo "::notice::Ainda não há APK publicado"
+          # (a versão do APK publicado: o app instalado compara com a dele e oferece a atualização)
+          gh release download android -p Ecoa-versao.json -D public --clobber && cat public/Ecoa-versao.json || echo "::notice::O APK publicado ainda não tem o arquivo da versão"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

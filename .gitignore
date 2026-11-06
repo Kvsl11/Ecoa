@@ -19,3 +19,4 @@ servidor-ia/textos-acervo.jsonl
 
 # o APK do app de Android: o robô do site copia o publicado para cá na hora de publicar (não vai para o repositório)
 public/Ecoa.apk
+public/Ecoa-versao.json

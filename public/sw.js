@@ -102,7 +102,7 @@ self.addEventListener('fetch', (e) => {
 
   if (url.origin === location.origin) {
     // (o APK do app de Android vai direto da rede para o download: não passa pelo cache, que guardaria 4 MB à toa)
-    if (url.pathname.endsWith('.apk')) return;
+    if (url.pathname.endsWith('.apk') || url.pathname.endsWith('/Ecoa-versao.json')) return;
     const api = url.pathname.includes('/api/');
     // código do app: sempre do pacote desta versão (as páginas abrem o index.html do pacote)
     if (!api && (req.mode === 'navigate' || DO_APP.has(url.pathname))) {

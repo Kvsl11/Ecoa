@@ -16686,7 +16686,7 @@ const TOPICOS_AJUSTES = [
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
   { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
-  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Novidades' : 'Versão · Novidades · Instalar o app' },
+  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Atualização do app · Novidades' : 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
   const top = TOPICOS_AJUSTES.find((x) => x.id === topico && x.secao);
@@ -16762,6 +16762,7 @@ function viewSettings(topico) {
     ${secao('Sobre', `
     <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
     <div class="settings-group">
+      ${noApk() ? `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Atualização do app</div><div class="s" id="apk-at-s">Verificando…</div></div><button class="btn small" id="apk-at" data-acao="verificar">Verificar</button></div>` : ''}
       ${jaInstalado() ? '' : `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Instalar o app</div><div class="s">Ícone na tela inicial e funciona sem internet</div></div><button class="btn small primary" id="instalar">Instalar</button></div>`}
       <a class="setting" href="#/novidades"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Novidades</div><div class="s">O que mudou em cada versão</div></div>${icon('next', 18)}</a>
     </div>`)}
@@ -16819,6 +16820,13 @@ function viewSettings(topico) {
   };
   infoModelo();
   $('#instalar')?.addEventListener('click', instalarApp);
+  if ($('#apk-at')) {
+    void mostrarAtualizacaoApk();
+    $('#apk-at').addEventListener('click', async (e) => {
+      if (e.currentTarget.dataset.acao === 'atualizar') await atualizarApk(e.currentTarget);
+      else await mostrarAtualizacaoApk();
+    });
+  }
   $('#diagramas').onchange = (e) => { db.setPref('diagramas', e.target.checked); toast(e.target.checked ? 'Diagrama dos acordes ligado' : 'Diagrama dos acordes desligado'); };
   $('#destaque').onclick = (e) => {
     const b = e.target.closest('[data-v]');
@@ -16945,6 +16953,58 @@ function infoDaGaveta(u) {
 // ficava parado em "Baixando…" e não aparecia nos downloads. O robô do site copia o APK publicado para cá)
 const LINK_APK = 'Ecoa.apk';
 const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
+// A atualização do próprio APK: o robô publica a versão do APK (Ecoa-versao.json, ao lado do Ecoa.apk no site) e o app
+// compara com a dele. Atualizar baixa o APK novo e abre a tela de instalar do Android (que sempre pergunta antes).
+// O APK antigo, sem o versao(), conta como desatualizado (só dá para atualizar pelo navegador, uma última vez)
+async function conferirAtualizacaoApk() {
+  const nativo = pluginEcoa();
+  if (!nativo) return null;
+  const [instalada, publicada] = await Promise.all([
+    nativo.versao ? nativo.versao().catch(() => null) : null,
+    fetch(`${new URL('Ecoa-versao.json', document.baseURI).href}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]);
+  return { instalada, publicada, nova: Boolean(publicada?.codigo && (!instalada?.codigo || Number(publicada.codigo) > Number(instalada.codigo))) };
+}
+async function atualizarApk(bt) {
+  const nativo = pluginEcoa();
+  if (!nativo?.versao) {
+    await ask({ title: 'Atualize pelo navegador desta vez', text: 'Este app ainda não sabe se atualizar sozinho. Abra o Ecoa no Chrome, toque na sua foto → "Baixar o app para Android" e instale por cima. Depois disso, as próximas atualizações saem daqui mesmo.', ok: 'Entendi', cancel: false });
+    return;
+  }
+  const texto = bt?.textContent;
+  if (bt) { bt.disabled = true; bt.textContent = 'Baixando…'; }
+  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (bt && pct >= 0) bt.textContent = `${pct}%`; })?.catch?.(() => null);
+  try {
+    await nativo.atualizar({ url: new URL(LINK_APK, document.baseURI).href });
+    // (a tela de instalar do Android abriu; se a pessoa cancelar, o botão volta)
+    if (bt) { bt.textContent = 'Instalando…'; setTimeout(() => { if (bt.isConnected) bt.textContent = texto; }, 8000); }
+  } catch (e) {
+    if (e?.code === 'permitir') await ask({ title: 'Permita a atualização', text: 'O Android abriu a tela para permitir que o Ecoa instale a atualização. Ligue "Permitir desta fonte", volte e toque em Atualizar de novo.', ok: 'Entendi', cancel: false });
+    else await ask({ title: 'Não deu para atualizar', text: `${e?.message || e}. Confira a internet e tente de novo.`, ok: 'Entendi', cancel: false });
+    if (bt) bt.textContent = texto;
+  } finally {
+    ouvinte?.remove?.();
+    if (bt) bt.disabled = false;
+  }
+}
+// a linha "Atualização do app" (Ajustes → Sobre, só no APK)
+async function mostrarAtualizacaoApk() {
+  const sub = $('#apk-at-s');
+  const bt = $('#apk-at');
+  if (!sub || !bt) return;
+  sub.textContent = 'Verificando…';
+  bt.disabled = true;
+  const r = await conferirAtualizacaoApk();
+  if (!$('#apk-at-s')) return;
+  bt.disabled = false;
+  const atual = r?.instalada?.nome ? `Versão do app ${r.instalada.nome}` : 'Versão do app antiga';
+  if (!r?.publicada) { sub.textContent = `${atual} · não deu para verificar (sem internet?)`; bt.textContent = 'Verificar'; bt.dataset.acao = 'verificar'; return; }
+  if (r.nova) { sub.textContent = `${atual} · a versão ${r.publicada.nome} chegou`; bt.textContent = 'Atualizar'; bt.className = 'btn small primary'; bt.dataset.acao = 'atualizar'; return; }
+  sub.textContent = `${atual} · é a mais nova`;
+  bt.textContent = 'Verificar';
+  bt.className = 'btn small';
+  bt.dataset.acao = 'verificar';
+}
 function abrirGavetaDoPerfil() {
   if (document.querySelector('.perfil-gaveta')) return;
   const u = usuarioConta();
@@ -20432,6 +20492,13 @@ if (ecoaNativo) {
   });
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
+  // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e avisa uma vez por versão
+  setTimeout(async () => {
+    const r = await conferirAtualizacaoApk().catch(() => null);
+    if (!r?.nova || !r.instalada?.codigo || db.prefs().apkAvisado === r.publicada.codigo) return;
+    db.setPref('apkAvisado', r.publicada.codigo);
+    if (await ask({ title: 'Atualização do app', text: `A versão ${r.publicada.nome} do app de Android chegou (a sua é a ${r.instalada.nome}). Ela baixa e o Android pergunta se pode instalar. Dá para atualizar depois em Ajustes → Sobre.`, ok: 'Atualizar' })) await atualizarApk();
+  }, 8000);
 }
 
 // ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a

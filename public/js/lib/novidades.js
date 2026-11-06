@@ -13,6 +13,7 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No app de Android, as notificações dos downloads não apareciam. Agora são as do próprio Android (com a capa; tocar abre a música), e o Android pergunta pelas notificações ao abrir o app e pelo microfone na primeira vez que ele é usado (precisa instalar o APK novo).' },
       { tipo: 'melhoria', texto: 'No app de Android, saíram o "Instalar o app" (em Sobre) e a tela Permissões dos Ajustes: as permissões são as do Android (Configurações → Apps → Ecoa). No navegador, tudo continua como estava.' },
       { tipo: 'novo', texto: 'Levar os downloads para o app de Android sem baixar de novo: no navegador, Ajustes → Downloads e economia de dados → Exportar os downloads (um arquivo com o áudio, o vídeo e o karaokê baixados); no app, Importar os downloads e escolher esse arquivo. Vale também entre dois aparelhos.' },
+      { tipo: 'novo', texto: 'O app de Android se atualiza sozinho: ao abrir, ele avisa quando chega uma versão nova, e em Ajustes → Sobre → Atualização do app dá para verificar e atualizar. Ele baixa e o Android pergunta se pode instalar (na primeira vez, pede para permitir que o Ecoa instale a atualização). Este APK novo ainda precisa ser instalado pelo navegador; os próximos, não.' },
     ],
   },
   {

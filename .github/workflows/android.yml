@@ -114,6 +114,9 @@ jobs:
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Ecoa.apk"
           ls -la "$RUNNER_TEMP/Ecoa.apk"
+          # a versão deste APK: o app instalado confere por ela se há atualização (Ajustes → Sobre)
+          echo "{\"codigo\": $ECOA_VERSAO_CODIGO, \"nome\": \"$ECOA_VERSAO_NOME\"}" > "$RUNNER_TEMP/Ecoa-versao.json"
+          cat "$RUNNER_TEMP/Ecoa-versao.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -131,7 +134,7 @@ jobs:
           - O widget da tela inicial: segure o dedo na tela inicial → Widgets → Ecoa.
           - O aviso de "tocando" com os botões, que mantém a música tocando com o app minimizado.
 
-          As novidades do app chegam sozinhas (ele abre o site publicado); este arquivo só muda quando a parte de Android muda.
+          As novidades do app chegam sozinhas (ele abre o site publicado); este arquivo só muda quando a parte de Android muda. Quando muda, o app avisa e atualiza por Ajustes → Sobre → Atualização do app.
           NOTAS
           gh release delete android --cleanup-tag --yes 2>/dev/null || true
-          gh release create android "$RUNNER_TEMP/Ecoa.apk" --title "Ecoa para Android" --notes-file "$RUNNER_TEMP/notas.md" --target "$GITHUB_SHA" --latest=false
+          gh release create android "$RUNNER_TEMP/Ecoa.apk" "$RUNNER_TEMP/Ecoa-versao.json" --title "Ecoa para Android" --notes-file "$RUNNER_TEMP/notas.md" --target "$GITHUB_SHA" --latest=false

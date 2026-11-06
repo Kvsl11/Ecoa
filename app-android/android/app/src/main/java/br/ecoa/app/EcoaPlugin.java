@@ -39,6 +39,7 @@ import java.util.concurrent.Executors;
 //  - entrarComGoogle(): o login do Google pelo próprio Android (o do site não abre dentro de um app) → { idToken }
 //  - armazenamento(): o espaço do celular → { total, livre, app } em bytes (app: tudo o que o Ecoa guarda, downloads inclusos)
 //  - avisar({ titulo, texto, tag, href, silenciosa, imagem }): uma notificação do Android (os downloads)
+//  - versao() → { codigo, nome }; atualizar({ url }): baixa o APK novo e abre a instalação (evento "atualizacao": { pct })
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -77,6 +78,46 @@ public class EcoaPlugin extends Plugin {
         Avisos.mostrar(getContext(), call.getString("titulo", "Ecoa"), call.getString("texto", ""), call.getString("tag", ""),
             call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""));
         call.resolve();
+    }
+
+    // a versão deste APK instalado: { codigo, nome }
+    @PluginMethod
+    public void versao(PluginCall call) {
+        try {
+            android.content.pm.PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            JSObject r = new JSObject();
+            r.put("codigo", Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode);
+            r.put("nome", info.versionName);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    // baixa o APK novo ({ url }) e abre a tela de instalar do Android. O andamento vai no evento "atualizacao" ({ pct }).
+    // Sem a permissão de instalar apps, abre a tela dela e devolve o erro "permitir" (a pessoa volta e toca de novo)
+    @PluginMethod
+    public void atualizar(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || !url.startsWith("https://")) { call.reject("Endereço da atualização inválido.", "erro"); return; }
+        if (!Atualizacao.podeInstalar(getContext())) {
+            Atualizacao.abrirPermissao(getActivity());
+            call.reject("Permita que o Ecoa instale a atualização e toque em Atualizar de novo.", "permitir");
+            return;
+        }
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                File apk = Atualizacao.baixar(getContext(), url, (pct) -> {
+                    JSObject d = new JSObject();
+                    d.put("pct", pct);
+                    notifyListeners("atualizacao", d);
+                });
+                Atualizacao.instalar(getActivity(), apk);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()), "erro");
+            }
+        });
     }
 
     @PluginMethod
