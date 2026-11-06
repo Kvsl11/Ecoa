@@ -285,10 +285,15 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoArtista: b\.dataset\.fotoArtista \|\| ''/);
   assert.match(app, /fotoArtista: item\.fotoArtista/);
   assert.match(app, /preview\.fotoArtista \? \{ fotoArtista: preview\.fotoArtista \}/);
-  assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: foto \}\)/);
+  assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: url \}\)/, 'a foto corrigida que chega depois também é persistida');
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
-  assert.match(app, /Promise\.any\(fontes\.map/,'as fontes de foto devem ser consultadas em paralelo');
+  assert.match(app, /artistaDoDeezer\(nome, titulo \? \{ titulo \} : \{\}\)/, 'a foto precisa ser confirmada pela faixa e pelo artista');
+  assert.match(app, /confirmado\.then\(\(a\) => a \|\| \(titulo \? null : porNome\(\)\)\)/, 'sem correspondência da faixa, não aceita um homônimo só pelo nome');
+  assert.match(app, /noMaximo\(fotoDeezer\(nome, titulo\), 1800, ''\)/, 'a foto da faixa confirmada tem prioridade sobre fontes genéricas');
+  assert.match(app, /enriquecerLinhasMusicais\(\$\('#mu-res'\), lista, \{ busca: true \}\)/, 'as fotos são carregadas depois que os resultados já aparecem');
+  assert.match(app, /limitar\(buscarCifraClub\(termo\).*4500\)/, 'a busca não espera indefinidamente por uma fonte lenta');
+  assert.match(app, /noMaximo\(pVideos, 2200, \[\]\)/, 'o YouTube não pode segurar a lista de músicas');
   assert.match(app, /fotosArtistas\.delete\(k\)/,'falhas vazias não podem ficar memorizadas durante a sessão');
   assert.match(app, /const exibida = box\.dataset\.mostrando/,'fotos já exibidas também precisam ser atualizadas');
 });
