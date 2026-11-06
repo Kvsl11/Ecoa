@@ -22,7 +22,7 @@ import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
-import { montarPacote, lerPacote, juntarDownloads } from './lib/transferir.js';
+import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from './lib/transferir.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
@@ -4699,7 +4699,8 @@ const semLinhasDeAcordes = (sinc) => {
       if (ok === false) {
         karaokeLigado = false;
         desenharKaraoke();
-        toast('Este navegador junta os canais do áudio, e o karaokê não funciona nele. Experimente o Chrome');
+        // (avisa de verdade: o toast não aparece mais, e o karaokê só desligava sem dizer nada)
+        void ask({ title: 'O karaokê não funciona aqui', text: noApk() ? 'O Android deste celular junta os canais do áudio, e o karaokê não consegue separar a voz da banda no app. No Chrome ele pode funcionar.' : 'Este navegador junta os canais do áudio, e o karaokê não funciona nele. Experimente o Chrome.', ok: 'Entendi', cancel: false });
         return;
       }
       if (!karaokeLigado || fonteKaraokeAgora() !== fonte) return;
@@ -20642,7 +20643,9 @@ async function exportarDownloads(bt) {
     a.download = `ecoa-downloads-${hojeISO()}.ecoa`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10 * 60e3); // (o arquivo grande demora para o navegador gravar)
-    await ask({ title: 'Downloads exportados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Downloads e economia de dados → Importar os downloads e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
+    const nKar = arquivos.filter((a) => a.chave.startsWith('kar:')).length;
+    const nMus = musicas.filter((m) => m.baixado || m.audioProprio).length;
+    await ask({ title: 'Downloads exportados', text: `${nMus} música${nMus === 1 ? '' : 's'}${nKar ? ` e ${nKar} karaokê${nKar === 1 ? '' : 's'}` : ''} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Downloads e economia de dados → Importar os downloads e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
   } catch (e) {
     await ask({ title: 'Não deu para exportar', text: String(e?.message || e), ok: 'Entendi', cancel: false });
   } finally {
@@ -20673,10 +20676,22 @@ async function importarDownloads(bt) {
       if (!m?.id) continue;
       const aqui = db.song(m.id);
       if (aqui) db.updateSong(m.id, juntarDownloads(aqui, m));
-      else { db.saveSong(m); novas++; }
+      // (a mesma música já está aqui com outro id: não entra repetida; os arquivos vão para ela logo abaixo)
+      else if (!(m.youtube && db.songs().some((x) => x.youtube === m.youtube))) { db.saveSong(m); novas++; }
     }
+    // e pela gravação: o karaokê e o download vão também para a música daqui que toca a mesma gravação (com outro id,
+    // ou quando a cópia que veio no arquivo sai ao juntar a biblioteca com a conta). Antes ficavam só na cópia, e o
+    // karaokê não aparecia na música da biblioteca do app
+    const chaves = new Set(arquivos.map((a) => a.chave));
+    const vsDe = (x) => versoesDe(x) || {};
+    const { patches, karaokes } = downloadsPelaGravacao(db.songs(), musicas, chaves, {
+      fonteDe: fonteDoKaraoke, gravacoesDe: (x) => [x.youtube, vsDe(x).audio, vsDe(x).video],
+    });
+    for (const [id, patch] of patches) db.updateSong(id, patch);
     window.dispatchEvent(new CustomEvent('songbook:downloads'));
-    await ask({ title: 'Downloads importados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} baixada${musicas.length === 1 ? '' : 's'} aqui, sem baixar de novo${novas ? ` (${novas} entraram na biblioteca)` : ''}. O arquivo exportado já pode ser apagado da pasta Downloads.`, ok: 'Entendi', cancel: false });
+    avisarKaraoke();
+    const nMus = musicas.filter((m) => m?.baixado || m?.audioProprio).length;
+    await ask({ title: 'Downloads importados', text: `${nMus} música${nMus === 1 ? '' : 's'} baixada${nMus === 1 ? '' : 's'}${karaokes ? ` e ${karaokes} karaokê${karaokes === 1 ? '' : 's'}` : ''} aqui, sem baixar de novo${novas ? ` (${novas} entraram na biblioteca)` : ''}. O arquivo exportado já pode ser apagado da pasta Downloads.`, ok: 'Entendi', cancel: false });
   } catch (e) {
     await ask({ title: 'Não deu para importar', text: /QuotaExceeded|quota/i.test(String(e?.name || e?.message)) ? 'Falta espaço no aparelho para os downloads.' : String(e?.message || e), ok: 'Entendi', cancel: false });
   } finally {
