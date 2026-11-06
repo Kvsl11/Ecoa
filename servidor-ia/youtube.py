@@ -284,33 +284,51 @@ def _baixar(video: str, pasta: str, progresso, formato: str, pos: list, juntar: 
         opcoes["cookiefile"] = cookies
         with open(cookies, encoding="utf-8") as f:
             antes = f.read()
-    # o YouTube pede login ("confirme que não é um robô") a quem baixa de servidor na nuvem; alguns aparelhos (a TV,
-    # o Safari, o celular, os óculos de realidade virtual) ainda passam sem login: tenta um por um até um baixar
+    # O YouTube pede login ("confirme que não é um robô") a quem baixa da nuvem; alguns clientes
+    # ainda passam sem login. Além disso, um formato pode ser selecionado corretamente e falhar só
+    # durante a transferência. Nesse caso, tenta a próxima alternativa do seletor (ex.: outro MP4,
+    # uma resolução menor ou o formato combinado), em vez de desistir depois da primeira falha.
+    clientes_yt = (None, ["tv"], ["web_safari"], ["android_vr"], ["mweb"], ["tv_embedded"])
+    formatos = [parte.strip() for parte in formato.split("/") if parte.strip()]
     info, erros = None, []
-    for indice, clientes in enumerate((None, ["tv"], ["web_safari"], ["android_vr"], ["mweb"], ["tv_embedded"])):
-        tentativa = dict(opcoes)
-        if clientes:
-            tentativa["extractor_args"] = {"youtube": {"player_client": clientes}}
-        try:
-            with yt_dlp.YoutubeDL(tentativa) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video}", download=True)
-            erros = []
-            break
-        except yt_dlp.utils.DownloadError as e:
-            erros.append(e)
-            # Só troca o cliente do YouTube quando o erro realmente pede login.
-            # Falhas de rede/formato/arquivo não melhoram repetindo seis consultas
-            # de extração: devolve o erro imediatamente e deixa o usuário tentar de novo.
-            if not pede_login(e) or indice == 5:
+
+    def limpar_parciais():
+        import shutil
+        for nome in os.listdir(pasta):
+            caminho = os.path.join(pasta, nome)
+            if os.path.isfile(caminho):
+                os.remove(caminho)
+            elif os.path.isdir(caminho):
+                shutil.rmtree(caminho, ignore_errors=True)
+
+    for formato_atual in formatos:
+        for indice, clientes in enumerate(clientes_yt):
+            tentativa = dict(opcoes)
+            tentativa["format"] = formato_atual
+            if clientes:
+                tentativa["extractor_args"] = {"youtube": {"player_client": clientes}}
+            try:
+                with yt_dlp.YoutubeDL(tentativa) as ydl:
+                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={video}", download=True)
+                erros = []
                 break
-            ultimo[0] = -1  # o próximo cliente começa do 0%
-            for f in os.listdir(pasta):
-                caminho = os.path.join(pasta, f)
-                if os.path.isfile(caminho):
-                    os.remove(caminho)
-                elif os.path.isdir(caminho):
-                    import shutil
-                    shutil.rmtree(caminho, ignore_errors=True)
+            except yt_dlp.utils.DownloadError as e:
+                erros.append(e)
+                limpar_parciais()
+                if pede_login(e):
+                    # Só troca o cliente quando o erro realmente pede login.
+                    # Se todos os clientes forem recusados, outro formato não resolve autenticação.
+                    if indice < len(clientes_yt) - 1:
+                        ultimo[0] = -1
+                        continue
+                    break
+                # Erro de rede/formato/arquivo: o yt-dlp já aplicou suas tentativas internas.
+                # Agora passa para a próxima alternativa de formato, sem repetir a mesma extração.
+                break
+        if info:
+            break
+        if erros and pede_login(erros[-1]):
+            break
     if cookies:
         guardar_cookies_renovados(cookies, antes)
     if erros:
