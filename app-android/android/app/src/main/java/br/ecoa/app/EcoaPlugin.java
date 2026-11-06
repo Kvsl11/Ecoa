@@ -120,6 +120,19 @@ public class EcoaPlugin extends Plugin {
         });
     }
 
+    // a cor dos ícones da barra de status e da de navegação ({ escuros }): escuros no tema claro do site (fundo branco),
+    // claros no escuro. O app vai de ponta a ponta, com as barras transparentes sobre o fundo do site
+    @PluginMethod
+    public void barras(PluginCall call) {
+        boolean escuros = Boolean.TRUE.equals(call.getBoolean("escuros", false));
+        getActivity().runOnUiThread(() -> {
+            androidx.core.view.WindowInsetsControllerCompat c = androidx.core.view.WindowCompat.getInsetsController(getActivity().getWindow(), getActivity().getWindow().getDecorView());
+            c.setAppearanceLightStatusBars(escuros);
+            c.setAppearanceLightNavigationBars(escuros);
+        });
+        call.resolve();
+    }
+
     @PluginMethod
     public void armazenamento(PluginCall call) {
         Executors.newSingleThreadExecutor().execute(() -> {
