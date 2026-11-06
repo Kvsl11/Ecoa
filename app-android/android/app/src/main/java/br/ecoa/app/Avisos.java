@@ -42,7 +42,7 @@ final class Avisos {
                 int id = tag == null || tag.isEmpty() ? (int) (System.currentTimeMillis() & 0xffffff) : tag.hashCode();
                 PendingIntent toque = PendingIntent.getActivity(app, id, abrir, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                 NotificationCompat.Builder b = new NotificationCompat.Builder(app, CANAL)
-                    .setSmallIcon(R.drawable.ic_nota)
+                    .setSmallIcon(R.drawable.ic_ecoa)
                     .setContentTitle(titulo == null || titulo.isEmpty() ? "Ecoa" : titulo)
                     .setContentText(texto)
                     .setStyle(new NotificationCompat.BigTextStyle().bigText(texto))

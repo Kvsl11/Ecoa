@@ -1,0 +1,11 @@
+<!-- a logo do Ecoa (o "e" com as ondas do som), só o desenho, para o ícone pequeno das notificações e do player do Android -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="44" android:viewportHeight="44">
+  <group android:translateX="-10" android:translateY="-10">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6.4" android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M14.5,32H39.5A12.5,12.5 0,1 0,36.29 40.36"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.2" android:strokeLineCap="round" android:strokeAlpha="0.7" android:fillColor="#00000000"
+        android:pathData="M43.15,19.38A20.5,20.5 0,0 1,43.15 44.62"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeAlpha="0.45" android:fillColor="#00000000"
+        android:pathData="M50.75,17.16A28,28 0,0 1,50.75 46.84"/>
+  </group>
+</vector>
