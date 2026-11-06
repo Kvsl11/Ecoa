@@ -207,18 +207,17 @@ async function lerPagina(url, ler, { proxies = [], fetchImpl, nome = 'o site' } 
     return ler(await res.text());
   };
 
-  // No Android, uma página direta que não responde não deve prender a tela por 25 s em cada proxy.
-  // Tenta primeiro o endereço original por até 10 s; se ele falhar, disputa as reservas em paralelo.
+  // No Android, não espera uma fonte lenta para só então tentar a próxima: disputa o endereço original
+  // e os proxies em paralelo. A primeira resposta que passar pela leitura/validação vence; respostas HTTP
+  // vazias ou páginas incompatíveis não bloqueiam as demais. Cada tentativa tem limite próprio.
   // Na Web, mantém exatamente a sequência e os tempos anteriores.
   if (nativa) {
-    try { return await consultar(url, {}, 10000); } catch (diretoErro) {
-      if (!alternativas.length) throw diretoErro;
-      try {
-        return await Promise.any(alternativas.map(([alvo, headers]) => consultar(alvo, headers, 10000)));
-      } catch (e) {
-        const erros = e?.errors || [];
-        throw erros[erros.length - 1] || diretoErro;
-      }
+    const tentativasNativas = [[url, {}], ...alternativas];
+    try {
+      return await Promise.any(tentativasNativas.map(([alvo, headers]) => consultar(alvo, headers, 7000)));
+    } catch (e) {
+      const erros = e?.errors || [];
+      throw erros.find((x) => x && !/AbortError|aborted|timeout/i.test(String(x.message || x))) || erros[0] || new Error(`Sem acesso a ${nome}`);
     }
   }
 
