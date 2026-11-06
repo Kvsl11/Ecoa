@@ -25,7 +25,9 @@ test('download: o som e o vídeo, um depois do outro, e o progresso inclui a tra
   assert.ok(app.includes('texto: `Baixando ${pct}%${posicaoNoLote()}`'));
   assert.match(app, /void guardarImagensDaMusica\(song\)\.catch/);
   assert.match(youtube, /"concurrent_fragment_downloads": 4/);
-  assert.match(youtube, /if not pede_login\(e\) or indice == 5/);
+  assert.match(youtube, /formatos = \[parte\.strip\(\) for parte in formato\.split\("\/"\)/);
+  assert.match(youtube, /tentativa\["format"\] = formato_atual/);
+  assert.match(youtube, /limpar_parciais\(\)/);
 });
 
 test('download de vídeo não é omitido quando a faixa de áudio é outra gravação', async () => {
