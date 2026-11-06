@@ -1892,6 +1892,10 @@ const REVISOES = [
   // da própria música, ou o de nome igual — escrito junto ou separado — com mais fãs. A foto do artista que veio do
   // Deezer é conferida e, nas baixadas, o "Sobre o artista" é guardado de novo
   { rev: 22, artista: true, quais: (s) => Boolean(nomeDoArtistaDaMusica(s)) && (Boolean(s.baixado) || /dzcdn\.net\/images\/artist\//.test(s.fotoArtista || '')) },
+  // v558: o título do vídeo com " // " ("Odres Novos // Luau da Imaculada II") ficava inteiro como o nome da música, e
+  // a busca não achava a cifra nem a letra: a música era salva vazia. As salvas sem a cifra e a letra tiram o nome de
+  // novo e procuram de novo (a letra sincronizada vem depois, com a letra)
+  { rev: 23, semCifra: true, letra: true, quais: (s) => /Não achei a letra nem a cifra/.test(s.content || '') },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -1900,6 +1904,8 @@ function soEmMissasMontadas(id) {
   const sets = db.sets().filter((st) => st.items.some((it) => it.songId === id));
   return sets.length > 0 && sets.every((st) => /^(Ouvir · )?Missa \d{2}\/\d{2}\/\d{4} – /.test(st.name || ''));
 }
+// o aviso que fica no lugar da cifra quando nem ela nem a letra foram achadas
+const SEM_CIFRA = /Não achei a letra nem a cifra/;
 const REVISAO_MUSICAS = REVISOES[REVISOES.length - 1].rev;
 const revisando = new Set();
 const sincOkDe = (x) => x?.sincronia?.fonte === 'lrclib' && x.sincronia.video === videoDaLetra(x) && x.sincronia.tempos?.length && !x.sincronia.provisoria;
@@ -1967,6 +1973,27 @@ async function revisarMusica(id, pendentes, chaves) {
   }
   if (quer('fotosLiturgia') && s.fotoArtista) { db.updateSong(id, { fotoArtista: undefined }); s = db.song(id); }
   if (quer('soNoRepertorio')) { db.updateSong(id, { soNoRepertorio: true }); s = db.song(id); }
+  // a música salva sem a letra nem a cifra (o aviso "Não achei a letra nem a cifra" no lugar delas), muitas vezes com o
+  // título inteiro do vídeo ("Odres Novos // Luau da Imaculada II"): o nome é tirado de novo do título e a cifra (ou a
+  // letra) é procurada de novo. Sem achar, fica só o nome arrumado
+  if (quer('semCifra') && SEM_CIFRA.test(s.content || '')) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const nomes = nomesSeparadosDoTitulo(tituloCruDoVideo(s.title || ''), s.artist || '') || { titulo: s.title || '', artista: s.artist || '' };
+      const r = await noMaximo(trazerMusicaJa({ titulo: nomes.titulo, artista: nomes.artista, artistaIncerto: true, ...(s.youtube ? { video: { id: s.youtube, url: `https://www.youtube.com/watch?v=${s.youtube}` } } : {}) }), 60000, null).catch(() => null);
+      s = db.song(id);
+      if (!s) return true;
+      if (r?.source && SEM_CIFRA.test(s.content || '')) {
+        const m = renderSong(r.content).meta;
+        db.updateSong(id, { content: r.content, source: r.source, title: m.title || nomes.titulo, artist: m.artist || nomes.artista || s.artist });
+      } else if (nomes.titulo && nomes.titulo !== s.title && SEM_CIFRA.test(s.content || '')) {
+        db.updateSong(id, { title: nomes.titulo, artist: nomes.artista || s.artist, content: definirMeta(s.content, 'title', nomes.titulo) });
+      }
+      if (r === null) completa = false;
+      s = db.song(id);
+      if (!s) return true;
+    }
+  }
   // a capa automática escolhida de novo, pela regra nova
   if (quer('capa') && s.title && s.artist) {
     if (!navigator.onLine) completa = false;
@@ -7799,14 +7826,28 @@ const tituloCruDoVideo = (t) => String(t || '').replace(/\s*[([{【][^)\]}】]*[
 function nomesDoVideo(v) {
   const semFeat = (x) => x.replace(/\s+(ft\.?|feat\.?|part\.?|com)\s.+$/i, '').trim();
   const cru = tituloCruDoVideo(v.titulo);
-  if (/ \| /.test(cru) && !/ [-–—] /.test(cru)) {
-    const [a, b] = cru.split(' | ').map((x) => x.trim());
-    const [titulo, artista] = mesmoNome(a, v.canal) ? [b, a] : [a, b];
-    return { titulo: tituloLimpo(semFeat(titulo)) || titulo, artista };
-  }
-  const limpo = semFeat(tituloDoVideo(v.titulo));
-  const [artista, titulo] = / [-–—] /.test(limpo) ? [limpo.split(/ [-–—] /)[0].trim(), limpo.split(/ [-–—] /).slice(1).join(' - ').trim()] : [v.canal || '', limpo];
-  return { titulo: tituloLimpo(titulo) || titulo, artista };
+  return nomesSeparadosDoTitulo(cru, v.canal || '', semFeat) || (() => {
+    const limpo = semFeat(tituloDoVideo(v.titulo));
+    const [artista, titulo] = / [-–—] /.test(limpo) ? [limpo.split(/ [-–—] /)[0].trim(), limpo.split(/ [-–—] /).slice(1).join(' - ').trim()] : [v.canal || '', limpo];
+    return { titulo: tituloLimpo(titulo) || titulo, artista };
+  })();
+}
+// "Música | Artista" e "Música // Evento" (como os vídeos de música católica: "Odres Novos // Luau da Imaculada II", no
+// canal do ministério): a parte que é o canal (ou o artista que se sabe) é o artista; o título é a primeira das outras.
+// Com " | " e duas partes, sem o canal em nenhuma, a segunda é o artista; com " // ", o artista é o canal (a outra parte
+// é o evento, o álbum). null se o título não tem esses separadores (ou tem o traço "Artista - Música")
+function nomesSeparadosDoTitulo(cru, artistaSabido = '', semFeat = (x) => x) {
+  const SEP = / (?:\||\/\/) /;
+  if (!SEP.test(cru) || / [-–—] /.test(cru)) return null;
+  const partes = cru.split(SEP).map((x) => x.trim()).filter(Boolean);
+  if (partes.length < 2) return null;
+  const iArt = artistaSabido ? partes.findIndex((x) => mesmoNome(x, artistaSabido) || parecidoNome(x, artistaSabido)) : -1;
+  let titulo;
+  let artista;
+  if (iArt >= 0) { artista = partes[iArt]; titulo = partes.find((_, j) => j !== iArt); }
+  else if (/ \/\/ /.test(cru)) { titulo = partes[0]; artista = artistaSabido; }
+  else { [titulo, artista] = partes; }
+  return { titulo: tituloLimpo(semFeat(titulo)) || titulo, artista: artista || artistaSabido };
 }
 
 // Vídeo escolhido na busca: qual música é? Procura no Cifra Club e no Letras pelo título do vídeo inteiro e fica com
@@ -7819,7 +7860,7 @@ async function musicaDoVideo(v, conhecido = {}) {
   const noVideo = ` ${normalizar(cru)} `;
   const artistaConhecido = String(conhecido.artista || '').trim();
   const quem = `${quemNoVideo(v)}${normalizar(artistaConhecido)} `;
-  const lista = await buscarMusicas(cru.replace(/\s[|–—-]\s/g, ' ')).catch(() => []);
+  const lista = await buscarMusicas(cru.replace(/\s(?:[|–—-]|\/\/)\s/g, ' ')).catch(() => []);
   const tit = (r) => normalizar(tituloLimpo(r.titulo));
   const cabe = lista.filter((r) => tit(r).length >= 3 && noVideo.includes(` ${tit(r)} `));
   const doArtista = cabe.filter((r) => r.artista && artistasDe('', r.artista).some((a) => artistaNoTexto(a, quem)));

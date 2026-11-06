@@ -1406,11 +1406,12 @@ export function nomesDoVideoDoArtista(tituloVideo, artista) {
   // (o apóstrofo dentro da palavra não é aspa: em "Don't Stop 'Til You Get Enough" a música não é "t Stop")
   const aspas = /(?<![\p{L}\p{N}])['‘’"“”「『]([^'‘’"“”」』]{2,})['‘’"“”」』](?![\p{L}\p{N}])/u.exec(t);
   if (aspas) titulo = aspas[1];
-  else if (/ [-–—|] /.test(t)) {
-    const partes = t.split(/ [-–—|] /).map((x) => x.trim()).filter(Boolean);
+  else if (/ (?:[-–—|]|\/\/) /.test(t)) {
+    const partes = t.split(/ (?:[-–—|]|\/\/) /).map((x) => x.trim()).filter(Boolean);
     const i = partes.findIndex(ehDoArtista);
-    // (a primeira parte que não é o artista: "Artista - Música | Trilha da Copa" é a Música)
-    titulo = i >= 0 ? partes.find((_, j) => j !== i) || '' : partes[1] || partes[0];
+    // (a primeira parte que não é o artista: "Artista - Música | Trilha da Copa" é a Música; sem o artista no título,
+    // "Música // Evento", dos vídeos de música católica, é a Música da esquerda)
+    titulo = i >= 0 ? partes.find((_, j) => j !== i) || '' : / \/\/ /.test(t) ? partes[0] : partes[1] || partes[0];
   } else if (temArtista(t)) {
     // "Jung Kook Seven Official MV": sem o nome do artista
     titulo = t.replace(new RegExp(String(artista).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i'), ' ');
