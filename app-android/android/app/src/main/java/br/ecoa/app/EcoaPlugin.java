@@ -54,6 +54,8 @@ import java.util.concurrent.Executors;
 //    próprio celular (Karaoke.java: o UVR no ONNX Runtime); evento "karaoke" ({ processo, etapa, pct }). O arquivo fica em
 //    caminho até o site guardar e chamar apagarLocal({ caminho })
 //  - karaokeDisponivel() → { tem, modelo }: se o celular faz karaokê (e se o modelo de 30 MB já foi baixado)
+//  - capasOffline({ urls }): guarda de antemão as capas destas músicas (as baixadas), para o aviso de "tocando" e o
+//    widget mostrarem a capa certa sem internet
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -446,6 +448,17 @@ public class EcoaPlugin extends Plugin {
             r.put("texto", g.texto);
             call.resolve(r);
         });
+    }
+
+    @PluginMethod
+    public void capasOffline(PluginCall call) {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        try {
+            com.getcapacitor.JSArray a = call.getArray("urls");
+            if (a != null) for (int i = 0; i < a.length() && i < 1000; i++) urls.add(a.getString(i));
+        } catch (Exception e) { /* lista estragada: nada */ }
+        Capas.guardarTodas(getContext(), urls);
+        call.resolve();
     }
 
     @PluginMethod

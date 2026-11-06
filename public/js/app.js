@@ -28,6 +28,7 @@ import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClip
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
+import { estadoDaConexao, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -6396,10 +6397,51 @@ const semLinhasDeAcordes = (sinc) => {
       return;
     }
     if (puxada.pc) return;
-    // (o card sobe um pouco junto com o dedo; numa fila, para o lado ele anda junto, como no Spotify)
-    el.style.translate = dy < 0 && Math.abs(dy) > Math.abs(dx) ? `0 ${Math.max(dy, -60) / 2}px`
-      : el.classList.contains('com-fila') && Math.abs(dx) > Math.abs(dy) ? `${Math.max(-80, Math.min(80, dx)) / 2}px 0` : '';
+    // numa fila, para o lado: o nome da música anda junto com o dedo, inteiro, e vai sumindo (como no Spotify); soltando,
+    // a próxima entra pelo outro lado. Antes o cartão todo andava só a metade do dedo, até 40 px, e parecia preso
+    if (puxada.eixo === 'h' && ehMini() && el.classList.contains('com-fila')) {
+      const txt = $('.pl-info .pl-txt', el);
+      if (txt) {
+        if (!puxada.nome) { puxada.nome = txt; txt.style.transition = 'none'; try { el.setPointerCapture(e.pointerId); } catch { /* segue sem captura */ } }
+        const larg = txt.offsetWidth || 200;
+        txt.style.transform = `translateX(${dx}px)`;
+        txt.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / (larg * 0.8)));
+        // (a velocidade do fim do gesto: uma passada rápida, mesmo curta, já troca de música)
+        const agora = performance.now();
+        puxada.vel = puxada.ultT ? (e.clientX - puxada.ultX) / Math.max(1, agora - puxada.ultT) : 0;
+        puxada.ultX = e.clientX;
+        puxada.ultT = agora;
+      }
+      el.style.translate = '';
+      return;
+    }
+    // (o card sobe um pouco junto com o dedo)
+    el.style.translate = dy < 0 && Math.abs(dy) > Math.abs(dx) ? `0 ${Math.max(dy, -60) / 2}px` : '';
   });
+  // O nome que estava sendo arrastado: sai pelo lado do dedo e o da música nova entra pelo outro (trocou), ou volta ao
+  // lugar (não trocou)
+  const soltarNome = (txt, trocou, dx) => {
+    if (!txt) return;
+    const larg = txt.offsetWidth || 200;
+    txt.style.transition = 'transform 0.14s ease-out, opacity 0.14s ease-out';
+    if (!trocou) {
+      txt.style.transform = '';
+      txt.style.opacity = '';
+      setTimeout(() => { txt.style.transition = ''; }, 160);
+      return;
+    }
+    txt.style.transform = `translateX(${dx < 0 ? -larg : larg}px)`;
+    txt.style.opacity = '0';
+    setTimeout(() => {
+      txt.style.transition = 'none';
+      txt.style.transform = `translateX(${dx < 0 ? larg * 0.5 : -larg * 0.5}px)`;
+      void txt.offsetWidth;
+      txt.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+      txt.style.transform = '';
+      txt.style.opacity = '';
+      setTimeout(() => { txt.style.transition = ''; }, 220);
+    }, 140);
+  };
   const soltarPuxada = (e) => {
     if (!puxada || e.pointerId !== puxada.id) return;
     const dy = e.clientY - puxada.y;
@@ -6428,12 +6470,21 @@ const semLinhasDeAcordes = (sinc) => {
     // vai para a anterior, como no Spotify (no celular o mini player não tem mais esses botões). Antes o gesto apertava o
     // botão "anterior", que no meio da música volta ao começo dela: a música recomeçava e não trocava. Agora troca sempre
     // de música; sem a próxima (fim da fila), avisa, e sem a anterior, aí sim volta ao começo
-    if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    // (troca com o dedo passando de 1/4 do nome, ou com uma passada rápida de pelo menos 24 px)
+    const larg = p.nome?.offsetWidth || 200;
+    const passou = Math.abs(dx) > Math.min(60, larg / 4) || (Math.abs(dx) > 24 && Math.abs(p.vel || 0) > 0.35 && Math.sign(p.vel) === Math.sign(dx));
+    if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && passou && Math.abs(dx) > Math.abs(dy) * 1.5) {
       engolirClique = true;
       setTimeout(() => { engolirClique = false; }, 400);
-      if (dx < 0) { if (!pular(1)) toast('Esta é a última música da fila'); }
-      else if (!pular(-1)) api.irPara(0);
+      let trocou = true;
+      if (dx < 0) { if (!pular(1)) { trocou = false; toast('Esta é a última música da fila'); } }
+      else if (!pular(-1)) { trocou = false; api.irPara(0); }
+      soltarNome(p.nome, trocou, dx);
       return;
+    }
+    if (p.nome) {
+      soltarNome(p.nome, false, dx);
+      if (p.eixo === 'h') { engolirClique = true; setTimeout(() => { engolirClique = false; }, 400); return; }
     }
     if (e.type !== 'pointerup' || dy > -40 || Math.abs(dy) < Math.abs(dx) * 1.2 || !ehMini()) return;
     engolirClique = true; // (o clique que vem depois do arraste não aperta o botão onde o dedo saiu)
@@ -20864,6 +20915,28 @@ if (ecoaNativo) {
   });
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
+  // As capas das músicas baixadas guardadas no app, de antemão: tocando sem internet, o aviso de "tocando" e o widget
+  // mostram a capa certa (antes ficava a da música anterior). As mesmas que o player manda: a capa da música ou a do vídeo
+  if (ecoaNativo.capasOffline) {
+    let guardarCapasT = 0;
+    const guardarCapas = () => {
+      clearTimeout(guardarCapasT);
+      guardarCapasT = setTimeout(() => {
+        if (!navigator.onLine) return;
+        const urls = new Set();
+        for (const s of db.songs()) {
+          if (!s.baixado) continue;
+          if (/^https?:/.test(s.cover || '')) urls.add(s.cover);
+          const vs = versoesDe(s);
+          for (const yt of [s.youtube, vs?.video, vs?.audio]) if (/^[\w-]{11}$/.test(yt || '')) urls.add(`https://i.ytimg.com/vi/${yt}/hqdefault.jpg`);
+        }
+        if (urls.size) void ecoaNativo.capasOffline({ urls: [...urls] }).catch(() => {});
+      }, 5000);
+    };
+    setTimeout(guardarCapas, 15000);
+    window.addEventListener('songbook:downloads', guardarCapas);
+    window.addEventListener('online', guardarCapas);
+  }
   // (o yt-dlp do celular, que faz os downloads: atualizado uma vez por dia, porque o YouTube muda sempre)
   if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
   // (a versão do app instalado e a das novidades que vieram com ele: a tela Novidades usa para dizer quando cada uma chegou)
@@ -20954,8 +21027,34 @@ if (ehIOS() && !jaInstalado()) setTimeout(mostrarConvite, 2500);
 // ---------------------------------------------------------------- offline
 // pede ao navegador para não apagar os dados do app (repertórios, músicas, liturgia guardada)
 navigator.storage?.persist?.().catch(() => {});
-window.addEventListener('offline', () => toast('Sem internet: o app continua com os repertórios e a liturgia guardados'));
-window.addEventListener('online', () => toast('Conexão de volta'));
+// O aviso da conexão, como no Spotify: "Você está offline" (fica enquanto não há internet), "Conectado novamente" (uns
+// segundos, quando ela volta) e "Conexão lenta" (com a rede fraca). Antes só havia um aviso que nem aparecia
+{
+  const el = Object.assign(document.createElement('div'), { id: 'aviso-rede', hidden: true });
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  document.body.append(el);
+  let estado = 'ok';
+  let some = 0;
+  const mostrar = (tipo) => {
+    clearTimeout(some);
+    el.hidden = !tipo;
+    document.documentElement.classList.toggle('aviso-rede', Boolean(tipo));
+    if (tipo) { el.className = tipo; el.textContent = TEXTO_DA_CONEXAO[tipo]; }
+  };
+  const conferir = () => {
+    const novo = estadoDaConexao({ online: navigator.onLine, rede: navigator.connection || null });
+    if (novo === estado) return;
+    const antes = estado;
+    estado = novo;
+    if (novo !== 'ok') { mostrar(novo); return; }
+    if (antes === 'offline') { mostrar('volta'); some = setTimeout(() => mostrar(null), 3000); } else mostrar(null);
+  };
+  window.addEventListener('online', conferir);
+  window.addEventListener('offline', conferir);
+  navigator.connection?.addEventListener?.('change', conferir);
+  conferir();
+}
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const tinhaControle = Boolean(navigator.serviceWorker.controller);

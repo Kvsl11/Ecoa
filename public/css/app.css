@@ -91,7 +91,7 @@ img { display: block; }
    --player-h). As barras flutuantes (seleção, montar repertório, botão +, ensaio, avisos) ficam logo acima. */
 /* a página reserva embaixo o --rodape mais uma folga; as barras que acompanham a rolagem (sticky) contam a partir
    desse espaço reservado, então usam bottom negativo (8px - folga) para encostar logo acima do menu/player */
-:root { --player-h: 0px; --base-rodape: calc(var(--nav-h) + env(safe-area-inset-bottom)); --rodape: var(--base-rodape); --col-esq: 0px; --folga-pe: 48px; }
+:root { --player-h: 0px; --aviso-rede: 0px; --base-rodape: calc(var(--nav-h) + var(--aviso-rede) + env(safe-area-inset-bottom)); --rodape: var(--base-rodape); --col-esq: 0px; --folga-pe: 48px; }
 body.com-player { --rodape: calc(var(--base-rodape) + var(--player-h) + 6px); }
 /* computador: o app tem 8 px de margem e o menu lateral à esquerda; as barras ficam alinhadas com a coluna principal */
 @media (min-width: 900px) {
@@ -130,8 +130,8 @@ main > * { position: relative; z-index: 1; }
 .brand-row, .side-lib { display: none; }
 .logo { display: block; flex: none; }
 .nav {
-  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + var(--aviso-rede) + env(safe-area-inset-bottom));
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--aviso-rede));
   display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
   /* como no Spotify: levemente transparente em cima (o conteúdo aparece de leve) e preto embaixo */
   background: linear-gradient(180deg, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.86) 40%, #000 72%);
@@ -5890,3 +5890,21 @@ html.pp #player .pl-capinha::before, #player.modo-capa .pl-video::before, #playe
 html.app-android, html.app-android body, html.app-android * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html.app-android :is(input, textarea, select, [contenteditable]:not([contenteditable="false"])),
 html.app-android :is(input, textarea, [contenteditable]:not([contenteditable="false"])) * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+
+/* ============================================================ o aviso da conexão (como no Spotify)
+   "Você está offline" enquanto não há internet, "Conectado novamente" por uns segundos quando ela volta e "Conexão
+   lenta" com a rede fraca. No celular, numa faixa embaixo do menu (o menu e a barrinha sobem o tanto da faixa); no
+   computador e no tablet, um selo no rodapé */
+#aviso-rede { position: fixed; z-index: 31; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  padding: 6px 14px; border-radius: 999px; background: var(--bg-elev); color: var(--text); font-size: 13px; font-weight: 700;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35); pointer-events: none; white-space: nowrap; }
+#aviso-rede[hidden] { display: none; }
+#aviso-rede.lenta { color: #f5a524; }
+#aviso-rede.volta { color: #30a46c; }
+@media (max-width: 899px) {
+  html.aviso-rede:not(.tablet) { --aviso-rede: 22px; }
+  html:not(.tablet) #aviso-rede { left: 0; right: 0; transform: none; bottom: env(safe-area-inset-bottom); height: 22px; padding: 0;
+    display: grid; place-items: center; border-radius: 0; background: transparent; box-shadow: none; font-size: 12px; font-weight: 600; }
+  html:not(.tablet) #aviso-rede[hidden] { display: none; }
+  body.performance #aviso-rede { display: none; }
+}

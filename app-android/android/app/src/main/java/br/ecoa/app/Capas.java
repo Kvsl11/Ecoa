@@ -20,37 +20,107 @@ final class Capas {
 
     static File arquivo(Context ctx) { return new File(ctx.getFilesDir(), "capa-widget.jpg"); }
 
+    // as capas já baixadas, uma por endereço: a música que já tocou (ou foi baixada) mostra a capa certa também sem
+    // internet. Ficam as MAX_GUARDADAS mais recentes
+    static final int MAX_GUARDADAS = 400;
+    static File pasta(Context ctx) { return new File(ctx.getFilesDir(), "capas"); }
+
+    static File guardada(Context ctx, String url) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(url.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 10; i++) sb.append(String.format("%02x", d[i]));
+            return new File(pasta(ctx), sb + ".jpg");
+        } catch (Exception e) {
+            return new File(pasta(ctx), Integer.toHexString(url.hashCode()) + ".jpg");
+        }
+    }
+
+    // A capa da música que começou a tocar. A de antes sai NA HORA (sem a nova, o aviso e o widget ficam com o desenho
+    // do app, e não com a capa de outra música: antes, sem internet ou com o download falhando, ficava a capa da
+    // música anterior). A guardada vale na hora; senão, é baixada (e guardada)
     static void baixar(Context ctx, String url, Runnable depois) {
         final Context app = ctx.getApplicationContext();
         fila.execute(() -> {
             File f = arquivo(app);
-            if (url == null || !url.startsWith("http")) { f.delete(); depois.run(); return; }
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection) new URL(url).openConnection();
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(15000);
-                Bitmap b;
-                try (InputStream in = c.getInputStream()) { b = BitmapFactory.decodeStream(in); }
-                if (b == null) return;
-                // (pequena: o widget recebe a imagem inteira e tem limite de tamanho)
-                int lado = 360;
-                // (sem a borda fina clara que muitas capas trazem: com o canto arredondado do Android, ela aparecia
-                // como pontas brancas cortadas no aviso e na tela de bloqueio)
-                int[] r = semBorda(b);
-                int w = r[2] - r[0];
-                int h = r[3] - r[1];
-                int q = Math.min(w, h);
-                Bitmap quadrada = Bitmap.createBitmap(b, r[0] + (w - q) / 2, r[1] + (h - q) / 2, q, q);
-                Bitmap menor = Bitmap.createScaledBitmap(quadrada, lado, lado, true);
-                try (FileOutputStream out = new FileOutputStream(f)) { menor.compress(Bitmap.CompressFormat.JPEG, 88, out); }
-                depois.run();
-            } catch (Exception e) {
-                // sem a capa: fica a de antes (ou o desenho do app)
-            } finally {
-                if (c != null) c.disconnect();
+            //noinspection ResultOfMethodCallIgnored
+            f.delete();
+            if (url == null || !url.startsWith("http")) { depois.run(); return; }
+            File g = guardada(app, url);
+            if (!g.isFile() && !buscar(url, g)) { depois.run(); return; }
+            if (copiar(g, f)) {
+                //noinspection ResultOfMethodCallIgnored
+                g.setLastModified(System.currentTimeMillis());
             }
+            depois.run();
         });
+    }
+
+    // Guarda de antemão as capas destas músicas (as baixadas: tocam sem internet, e a capa tem de vir junto)
+    static void guardarTodas(Context ctx, java.util.List<String> urls) {
+        final Context app = ctx.getApplicationContext();
+        fila.execute(() -> {
+            int novas = 0;
+            for (String url : urls) {
+                if (url == null || !url.startsWith("http")) continue;
+                File g = guardada(app, url);
+                if (g.isFile()) continue;
+                if (buscar(url, g) && ++novas >= 60) break; // (um tanto por vez: o resto na próxima)
+            }
+            limparVelhas(app);
+        });
+    }
+
+    // baixa a capa, quadrada, pequena e sem a borda clara, em destino. false: sem internet ou imagem estragada
+    static boolean buscar(String url, File destino) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(15000);
+            Bitmap b;
+            try (InputStream in = c.getInputStream()) { b = BitmapFactory.decodeStream(in); }
+            if (b == null) return false;
+            // (pequena: o widget recebe a imagem inteira e tem limite de tamanho)
+            int lado = 360;
+            // (sem a borda fina clara que muitas capas trazem: com o canto arredondado do Android, ela aparecia
+            // como pontas brancas cortadas no aviso e na tela de bloqueio)
+            int[] r = semBorda(b);
+            int w = r[2] - r[0];
+            int h = r[3] - r[1];
+            int q = Math.min(w, h);
+            Bitmap quadrada = Bitmap.createBitmap(b, r[0] + (w - q) / 2, r[1] + (h - q) / 2, q, q);
+            Bitmap menor = Bitmap.createScaledBitmap(quadrada, lado, lado, true);
+            //noinspection ResultOfMethodCallIgnored
+            destino.getParentFile().mkdirs();
+            File tmp = new File(destino.getPath() + ".tmp");
+            try (FileOutputStream out = new FileOutputStream(tmp)) { menor.compress(Bitmap.CompressFormat.JPEG, 88, out); }
+            return tmp.renameTo(destino);
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    static boolean copiar(File de, File para) {
+        File tmp = new File(para.getPath() + ".tmp");
+        try (InputStream in = new java.io.FileInputStream(de); FileOutputStream out = new FileOutputStream(tmp)) {
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } catch (Exception e) {
+            return false;
+        }
+        return tmp.renameTo(para);
+    }
+
+    static void limparVelhas(Context ctx) {
+        File[] fs = pasta(ctx).listFiles();
+        if (fs == null || fs.length <= MAX_GUARDADAS) return;
+        java.util.Arrays.sort(fs, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+        for (int i = MAX_GUARDADAS; i < fs.length; i++) //noinspection ResultOfMethodCallIgnored
+            fs[i].delete();
     }
 
     // o retângulo da capa sem a borda: de cada lado, tira as linhas claras e quase iguais (até 6% do lado). Devolve
