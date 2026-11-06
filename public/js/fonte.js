@@ -12,7 +12,7 @@ import { buscarCifraClub as buscarCifraClubDireto, buscarLetras as buscarLetrasD
 const PREFIXO = 'songbook.cache.';
 // No APK, metadados e resultados de busca não podem ficar meio dia congelados: renovam a cada 5 min.
 // A liturgia é estável, mas correções e atualizações do dia precisam chegar no mesmo dia. Na Web, preserva os prazos antigos.
-const NO_APK = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+const NO_APK = typeof document !== 'undefined' && (document.documentElement.classList.contains('app-android') || Boolean(window.Capacitor?.isNativePlatform?.()));
 const VALIDADE = NO_APK ? 5 * 60e3 : 12 * 3600e3;
 const VALIDADE_LITURGIA = NO_APK ? 6 * 3600e3 : 5 * 864e5;
 const MAX_ITENS = 140;
