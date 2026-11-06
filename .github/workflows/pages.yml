@@ -21,7 +21,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  deployments: read # (a lista das publicações do github-pages, para achar a que segura a fila)
 
 # uma publicação por vez, na fila: a de depois espera a que está rodando terminar. Antes a nova cancelava a que
 # estava rodando, e cada merge mostrava um "cancelled" (o push e, logo depois, o fim da publicação do servidor da IA
@@ -51,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url || steps.deploy2.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -183,84 +182,11 @@ jobs:
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: public
-      # Antes de publicar, libera a fila: o GitHub só faz uma publicação por vez, e uma que ficou presa ("Please cancel
-      # <commit> first") segura todas as seguintes. Cancela as publicações dos últimos commits e do ambiente github-pages
-      # que EXISTEM e não terminaram com sucesso, até as que aparecem como "cancelada" mas o GitHub ainda conta como em
-      # andamento (foi o que travou o #406: "deployment_cancelled" na consulta e "in progress" na hora de publicar). Só
-      # as que existem: mandar cancelar um commit que ainda não tinha publicação fazia ela já nascer cancelada (foi o que
-      # travou do #404 ao #407)
-      - name: Destravar publicações presas
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const ids = new Set();
-            const { data: commits } = await github.rest.repos.listCommits({ owner, repo, sha: context.ref, per_page: 15 });
-            commits.forEach((c) => ids.add(c.sha));
-            try {
-              const { data: deps } = await github.rest.repos.listDeployments({ owner, repo, environment: 'github-pages', per_page: 30 });
-              deps.forEach((d) => ids.add(d.sha));
-            } catch (e) { core.info(`Sem a lista de publicações do ambiente (${e.status || e.message})`); }
-            ids.delete(context.sha);
-            for (const id of ids) {
-              let status = '';
-              try { status = (await github.request('GET /repos/{owner}/{repo}/pages/deployments/{id}', { owner, repo, id })).data.status || ''; } catch (e) { continue; } // (não existe: não mexe)
-              if (status === 'succeed') continue;
-              try {
-                await github.request('POST /repos/{owner}/{repo}/pages/deployments/{id}/cancel', { owner, repo, id });
-                core.info(`Publicação ${id.slice(0, 7)} (${status || 'sem situação'}): cancelada`);
-              } catch (e) { core.info(`Publicação ${id.slice(0, 7)} (${status || 'sem situação'}): ${e.status || e.message}`); }
-            }
-      # A publicação oficial. Ela espera a fila pelo máximo que a ação deixa (10 minutos)
+      # A fila é serializada por concurrency acima. Não cancelar deployments manualmente:
+      # isso pode interromper uma publicação válida. Espera até 20 minutos para o GitHub Pages concluir.
       - id: deploy
-        continue-on-error: true
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-          timeout: 600000
+          timeout: 1200000
           error_count: 30
-      # O GitHub recusou ("Please cancel <commit> first"): cancela exatamente a publicação que ele aponta e tenta de novo,
-      # com o número do próprio commit (a de antes, com um número inventado, recebia 404). Depois espera a fila até 15
-      # minutos, sem cancelar a própria publicação
-      - id: deploy2
-        name: Publicar de novo, liberando a publicação que o GitHub aponta
-        if: steps.deploy.outcome == 'failure'
-        uses: actions/github-script@v7
-        env:
-          ARTEFATO: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
-            const { data: lista } = await github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: context.runId, name: process.env.ARTEFATO });
-            const artefato = lista.artifacts[0];
-            if (!artefato) { core.setFailed(`Artefato ${process.env.ARTEFATO} não encontrado`); return; }
-            let dep = null;
-            for (let tentativa = 1; tentativa <= 8 && !dep; tentativa++) {
-              try {
-                ({ data: dep } = await github.request('POST /repos/{owner}/{repo}/pages/deployments', {
-                  owner, repo, artifact_id: artefato.id, pages_build_version: context.sha, oidc_token: await core.getIDToken(),
-                }));
-              } catch (e) {
-                const presa = /cancel ([0-9a-f]{40})/i.exec(String(e.message))?.[1];
-                core.warning(`Tentativa ${tentativa}: ${e.status || ''} ${e.message}`);
-                if (presa && presa !== context.sha) {
-                  try { await github.request('POST /repos/{owner}/{repo}/pages/deployments/{id}/cancel', { owner, repo, id: presa }); core.notice(`Publicação presa cancelada: ${presa.slice(0, 7)}`); } catch (e2) { core.info(`Cancelar ${presa.slice(0, 7)}: ${e2.status || e2.message}`); }
-                }
-                await espera(20000);
-              }
-            }
-            if (!dep) { core.setFailed('O GitHub não aceitou a publicação em 8 tentativas'); return; }
-            const id = dep.id || context.sha;
-            core.info(`Publicação ${id}`);
-            const FALHOU = ['deployment_failed', 'deployment_content_failed', 'deployment_cancelled', 'deployment_lost', 'deployment_attempt_error'];
-            const ate = Date.now() + 15 * 60 * 1000;
-            while (Date.now() < ate) {
-              await espera(5000);
-              let status = '';
-              try { status = (await github.request('GET /repos/{owner}/{repo}/pages/deployments/{id}', { owner, repo, id })).data.status || ''; } catch { status = ''; }
-              core.info(`Situação: ${status || '(sem resposta)'}`);
-              if (status === 'succeed') { core.setOutput('page_url', dep.page_url || ''); core.notice('Publicado'); return; }
-              if (FALHOU.includes(status)) { core.setFailed(`A publicação terminou como ${status}`); return; }
-            }
-            core.setFailed('A publicação não terminou em 15 minutos');
