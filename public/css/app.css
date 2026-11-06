@@ -4029,6 +4029,7 @@ html.pp #player .pl-artista-bio.so-mais .pl-artista-mais { position: static; pad
 .of-meus { background: var(--accent); }
 .of-cache { background: #f0a020; }
 .of-livre { background: var(--surface-3, rgb(255 255 255 / 0.25)); }
+.of-outros { background: #8a8a8a; }
 .of-armazenamento .setting { padding-left: 0; padding-right: 0; }
 .ind-i.ind-baixada { background: none; }
 

@@ -81,7 +81,10 @@ public class TocandoService extends Service {
             .addAction(R.drawable.ic_anterior, "Voltar", EcoaWidget.botao(ctx, Acoes.ANTERIOR, 21))
             .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, tocando ? "Pausar" : "Tocar", EcoaWidget.botao(ctx, Acoes.ALTERNAR, 22))
             .addAction(R.drawable.ic_proxima, "Pular", EcoaWidget.botao(ctx, Acoes.PROXIMA, 23))
-            .setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2));
+            .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                // (com a sessão de mídia, o aviso vira o player do Android: a capa, a barra do tempo, a tela de bloqueio)
+                .setMediaSession(Sessao.de(ctx).getSessionToken())
+                .setShowActionsInCompactView(0, 1, 2));
         return b.build();
     }
 }

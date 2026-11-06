@@ -4,6 +4,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 563, data: '2026-11-06', titulo: 'O app de Android: baixa do site, sem a foto por cima e com o player do Android',
+    itens: [
+      { tipo: 'correcao', texto: 'No app de Android, a foto do perfil ficava por cima dos títulos e dos botões do topo (o app ia por baixo da barra de status do celular). Agora ele começa abaixo dela, como no navegador.' },
+      { tipo: 'melhoria', texto: 'No app de Android, o aviso de "tocando" virou o player do próprio Android: com a capa, a barra do tempo (dá para arrastar), os botões, a tela de bloqueio e os botões do fone (precisa instalar o APK novo).' },
+      { tipo: 'correcao', texto: 'O "Baixar o app para Android" ficava parado em "Baixando…" e o arquivo não aparecia nos downloads (o link levava ao GitHub, que redireciona para outro endereço). Agora o Ecoa.apk baixa direto do próprio site do Ecoa.' },
+      { tipo: 'melhoria', texto: 'No app de Android, Ajustes → Downloads e economia de dados mostra o espaço de verdade do celular: o total, o livre, o que os outros apps e o sistema ocupam e tudo o que o Ecoa guarda (precisa instalar o APK novo). Os downloads do app ficam no próprio app, separados dos do navegador: a música baixada no navegador precisa ser baixada de novo no app.' },
+      { tipo: 'correcao', texto: 'No app de Android, as notificações dos downloads não apareciam. Agora são as do próprio Android (com a capa; tocar abre a música), e o Android pergunta pelas notificações ao abrir o app e pelo microfone na primeira vez que ele é usado (precisa instalar o APK novo).' },
+      { tipo: 'melhoria', texto: 'No app de Android, saíram o "Instalar o app" (em Sobre) e a tela Permissões dos Ajustes: as permissões são as do Android (Configurações → Apps → Ecoa). No navegador, tudo continua como estava.' },
+      { tipo: 'novo', texto: 'Levar os downloads para o app de Android sem baixar de novo: no navegador, Ajustes → Downloads e economia de dados → Exportar os downloads (um arquivo com o áudio, o vídeo e o karaokê baixados); no app, Importar os downloads e escolher esse arquivo. Vale também entre dois aparelhos.' },
+      { tipo: 'novo', texto: 'O app de Android se atualiza sozinho: ao abrir, ele avisa quando chega uma versão nova, e em Ajustes → Sobre → Atualização do app dá para verificar e atualizar. Ele baixa e o Android pergunta se pode instalar (na primeira vez, pede para permitir que o Ecoa instale a atualização). Este APK novo ainda precisa ser instalado pelo navegador; os próximos, não.' },
+    ],
+  },
+  {
     versao: 562, data: '2026-11-06', titulo: 'O Ecoa para Android, com widget',
     itens: [
       { tipo: 'novo', texto: 'O Ecoa ganhou um app de Android (APK): na gaveta do perfil, "Baixar o app para Android" (aparece no Android, pelo navegador). Ele é o mesmo Ecoa, com a sua conta Google, e traz o que o navegador não deixa: o widget da tela inicial (a capa, o nome e o artista da última música, com voltar, tocar/pausar e pular), o aviso de "tocando" nas notificações com os mesmos botões, que mantém a música tocando com o app minimizado, e os downloads guardados no próprio app.' },
@@ -59,13 +72,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'No Explorar do Tocando agora, "Parecidos com…" e "Parecidas com…" às vezes não abriam nada (com o Justice, por exemplo): o Deezer recusava os pedidos feitos todos de uma vez ao abrir a tela, e o app guardava a resposta vazia como se não houvesse parecidos. Agora o pedido é refeito, e, se mesmo assim não vier nada, os cartões mostram outra sugestão (os artistas da rádio do artista, as músicas mais ouvidas dele) ou abrem as músicas do artista.' },
       { tipo: 'melhoria', texto: 'No tablet (em pé ou deitado), o Diagnóstico da música sobe do rodapé, como os ⋮, em vez de abrir no meio da tela.' },
-    ],
-  },
-  {
-    versao: 553, data: '2026-11-06', titulo: 'As barrinhas do tablet mais bem acabadas',
-    itens: [
-      { tipo: 'melhoria', texto: 'No painel do lado do tablet, a barrinha de cima (o nome da música, o artista, o ✓ e o play, que aparece ao rolar) ficou um pouco mais alta, e o nome não encosta mais na borda esquerda.' },
-      { tipo: 'melhoria', texto: 'No tablet, com o player recolhido, o vídeo da barrinha de baixo fica colado na borda esquerda do cartão e com a altura toda dele, sem a margem em volta, como no celular e no Spotify.' },
     ],
   },
 ];

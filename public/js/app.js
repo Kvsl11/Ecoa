@@ -22,6 +22,7 @@ import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
+import { montarPacote, lerPacote, juntarDownloads } from './lib/transferir.js';
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
@@ -385,6 +386,11 @@ function irParaMusica(id) {
 
 // ------------------------------------------------------------------ util
 
+// O app de Android (o APK): a marca vem do index.html, que já a põe antes de tudo. Lá as notificações e as permissões
+// são as do próprio Android (o WebView não tem a notificação do navegador), e não há o "Instalar o app"
+const noApk = () => document.documentElement.classList.contains('app-android');
+const pluginEcoa = () => { const C = window.Capacitor; return (C?.isNativePlatform?.() && C.Plugins?.Ecoa) || null; };
+
 // Mensagens comuns não aparecem sobre a tela. Somente eventos de download usam
 // notificações do Android/sistema, sem criar avisos internos no aplicativo.
 function toast() {}
@@ -394,6 +400,10 @@ const podeNotificarNoSistema = () =>
   'serviceWorker' in navigator;
 
 async function notificarSistema({ titulo, texto = '', tag = '', href = '', silenciosa = false, renovar = false, imagem = '' }) {
+  const nativo = pluginEcoa();
+  if (nativo?.avisar) {
+    try { await nativo.avisar({ titulo: titulo || 'Ecoa', texto, tag, href, silenciosa: silenciosa && !renovar, imagem }); return true; } catch { return false; }
+  }
   if (!podeNotificarNoSistema()) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -415,6 +425,7 @@ async function notificarSistema({ titulo, texto = '', tag = '', href = '', silen
 // e pede (uma vez: "Agora não" guarda a escolha), e Ajustes → Permissões mostra e pede de novo quando quiser.
 // 'ok', 'pedir' (ainda não respondida), 'negado' ou 'sem' (navegador sem notificações; no iPhone, só no app instalado)
 function estadoDasNotificacoes() {
+  if (noApk()) return 'ok'; // (no APK, quem pergunta e guarda a resposta é o Android)
   if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'sem';
   return Notification.permission === 'granted' ? 'ok' : Notification.permission === 'denied' ? 'negado' : 'pedir';
 }
@@ -424,7 +435,7 @@ async function pedirNotificacoes() {
   try { await Notification.requestPermission(); } catch { /* navegador antigo: o estado diz */ }
   return estadoDasNotificacoes();
 }
-const COMO_LIBERAR_NOTIF = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
+const COMO_LIBERAR_NOTIF = noApk() ? 'Para liberar: nas Configurações do Android, em Apps → Ecoa → Notificações.' : 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
 
 // Capa usada nas notificações de download, quando disponível.
 const capaDaNotificacao = (song) =>
@@ -6544,17 +6555,18 @@ function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls
   });
 }
 
-function ask({ title, text = '', value = null, ok = 'Confirmar', danger = false }) {
+function ask({ title, text = '', value = null, ok = 'Confirmar', danger = false, cancel = true }) {
   return openDialog(`
     <h3>${esc(title)}</h3>
     ${text ? `<p>${esc(text)}</p>` : ''}
     ${value !== null ? `<input class="input" value="${esc(value)}" autofocus>` : ''}
-    <div class="acts"><button class="btn ghost" data-no>Cancelar</button><button class="btn ${danger ? 'danger solid' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
+    <div class="acts">${cancel ? '<button class="btn ghost" data-no>Cancelar</button>' : ''}<button class="btn ${danger ? 'danger solid' : 'primary'}" data-ok>${esc(ok)}</button></div>`,
   (dlg, done) => {
     const input = $('input', dlg);
     const confirm = () => done(input ? input.value.trim() || null : true);
     $('[data-ok]', dlg).onclick = confirm;
-    $('[data-no]', dlg).onclick = () => done(null);
+    const nao = $('[data-no]', dlg);
+    if (nao) nao.onclick = () => done(null);
     input?.addEventListener('keydown', (e) => e.key === 'Enter' && confirm());
     setTimeout(() => input?.select(), 30);
   });
@@ -16526,7 +16538,7 @@ function viewTopicosAjustes() {
     </section>
     <div class="aj-atalhos">${ATALHOS_AJUSTES.map((a) => atalhoDosAjustes(a)).join('')}</div>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
-      ${TOPICOS_AJUSTES.map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
+      ${TOPICOS_AJUSTES.filter((t) => !(noApk() && t.id === 'permissoes')).map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
     </nav>
     ${usuarioConta() ? '<button class="aj-sair" data-sair>Sair</button>' : ''}</div>`;
   view.querySelector('.aj-atalhos').onclick = (e) => {
@@ -16674,7 +16686,7 @@ const TOPICOS_AJUSTES = [
   { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
   { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
   { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: 'Servidor da IA · Conta do YouTube · Apagar tudo' },
-  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: 'Versão · Novidades · Instalar o app' },
+  { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Atualização do app · Novidades' : 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
   const top = TOPICOS_AJUSTES.find((x) => x.id === topico && x.secao);
@@ -16750,6 +16762,7 @@ function viewSettings(topico) {
     ${secao('Sobre', `
     <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s">Versão ${APP_VERSAO}</div></div></div></div>
     <div class="settings-group">
+      ${noApk() ? `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Atualização do app</div><div class="s" id="apk-at-s">Verificando…</div></div><button class="btn small" id="apk-at" data-acao="verificar">Verificar</button></div>` : ''}
       ${jaInstalado() ? '' : `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Instalar o app</div><div class="s">Ícone na tela inicial e funciona sem internet</div></div><button class="btn small primary" id="instalar">Instalar</button></div>`}
       <a class="setting" href="#/novidades"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Novidades</div><div class="s">O que mudou em cada versão</div></div>${icon('next', 18)}</a>
     </div>`)}
@@ -16807,6 +16820,13 @@ function viewSettings(topico) {
   };
   infoModelo();
   $('#instalar')?.addEventListener('click', instalarApp);
+  if ($('#apk-at')) {
+    void mostrarAtualizacaoApk();
+    $('#apk-at').addEventListener('click', async (e) => {
+      if (e.currentTarget.dataset.acao === 'atualizar') await atualizarApk(e.currentTarget);
+      else await mostrarAtualizacaoApk();
+    });
+  }
   $('#diagramas').onchange = (e) => { db.setPref('diagramas', e.target.checked); toast(e.target.checked ? 'Diagrama dos acordes ligado' : 'Diagrama dos acordes desligado'); };
   $('#destaque').onclick = (e) => {
     const b = e.target.closest('[data-v]');
@@ -16929,8 +16949,62 @@ function infoDaGaveta(u) {
 
 // o app de Android (o APK que o robô do GitHub monta: .github/workflows/android.yml): o botão de baixar aparece só no
 // Android, pelo navegador (no próprio app ele não tem por que aparecer)
-const LINK_APK = 'https://github.com/Kvsl11/Songbook/releases/download/android/Ecoa.apk';
+// (do próprio site, e não do GitHub: o link do GitHub passa por um redirecionamento, e no celular o download do APK
+// ficava parado em "Baixando…" e não aparecia nos downloads. O robô do site copia o APK publicado para cá)
+const LINK_APK = 'Ecoa.apk';
 const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
+// A atualização do próprio APK: o robô publica a versão do APK (Ecoa-versao.json, ao lado do Ecoa.apk no site) e o app
+// compara com a dele. Atualizar baixa o APK novo e abre a tela de instalar do Android (que sempre pergunta antes).
+// O APK antigo, sem o versao(), conta como desatualizado (só dá para atualizar pelo navegador, uma última vez)
+async function conferirAtualizacaoApk() {
+  const nativo = pluginEcoa();
+  if (!nativo) return null;
+  const [instalada, publicada] = await Promise.all([
+    nativo.versao ? nativo.versao().catch(() => null) : null,
+    fetch(`${new URL('Ecoa-versao.json', document.baseURI).href}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]);
+  return { instalada, publicada, nova: Boolean(publicada?.codigo && (!instalada?.codigo || Number(publicada.codigo) > Number(instalada.codigo))) };
+}
+async function atualizarApk(bt) {
+  const nativo = pluginEcoa();
+  if (!nativo?.versao) {
+    await ask({ title: 'Atualize pelo navegador desta vez', text: 'Este app ainda não sabe se atualizar sozinho. Abra o Ecoa no Chrome, toque na sua foto → "Baixar o app para Android" e instale por cima. Depois disso, as próximas atualizações saem daqui mesmo.', ok: 'Entendi', cancel: false });
+    return;
+  }
+  const texto = bt?.textContent;
+  if (bt) { bt.disabled = true; bt.textContent = 'Baixando…'; }
+  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (bt && pct >= 0) bt.textContent = `${pct}%`; })?.catch?.(() => null);
+  try {
+    await nativo.atualizar({ url: new URL(LINK_APK, document.baseURI).href });
+    // (a tela de instalar do Android abriu; se a pessoa cancelar, o botão volta)
+    if (bt) { bt.textContent = 'Instalando…'; setTimeout(() => { if (bt.isConnected) bt.textContent = texto; }, 8000); }
+  } catch (e) {
+    if (e?.code === 'permitir') await ask({ title: 'Permita a atualização', text: 'O Android abriu a tela para permitir que o Ecoa instale a atualização. Ligue "Permitir desta fonte", volte e toque em Atualizar de novo.', ok: 'Entendi', cancel: false });
+    else await ask({ title: 'Não deu para atualizar', text: `${e?.message || e}. Confira a internet e tente de novo.`, ok: 'Entendi', cancel: false });
+    if (bt) bt.textContent = texto;
+  } finally {
+    ouvinte?.remove?.();
+    if (bt) bt.disabled = false;
+  }
+}
+// a linha "Atualização do app" (Ajustes → Sobre, só no APK)
+async function mostrarAtualizacaoApk() {
+  const sub = $('#apk-at-s');
+  const bt = $('#apk-at');
+  if (!sub || !bt) return;
+  sub.textContent = 'Verificando…';
+  bt.disabled = true;
+  const r = await conferirAtualizacaoApk();
+  if (!$('#apk-at-s')) return;
+  bt.disabled = false;
+  const atual = r?.instalada?.nome ? `Versão do app ${r.instalada.nome}` : 'Versão do app antiga';
+  if (!r?.publicada) { sub.textContent = `${atual} · não deu para verificar (sem internet?)`; bt.textContent = 'Verificar'; bt.dataset.acao = 'verificar'; return; }
+  if (r.nova) { sub.textContent = `${atual} · a versão ${r.publicada.nome} chegou`; bt.textContent = 'Atualizar'; bt.className = 'btn small primary'; bt.dataset.acao = 'atualizar'; return; }
+  sub.textContent = `${atual} · é a mais nova`;
+  bt.textContent = 'Verificar';
+  bt.className = 'btn small';
+  bt.dataset.acao = 'verificar';
+}
 function abrirGavetaDoPerfil() {
   if (document.querySelector('.perfil-gaveta')) return;
   const u = usuarioConta();
@@ -18591,7 +18665,7 @@ async function pedirMicrofone() {
     return 'ok';
   } catch (e) { return e?.name === 'NotFoundError' ? 'sem' : 'negado'; }
 }
-const COMO_LIBERAR_MIC = 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Permissões → Microfone.';
+const COMO_LIBERAR_MIC = noApk() ? 'Para liberar: nas Configurações do Android, em Apps → Ecoa → Permissões → Microfone → Permitir.' : 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Microfone → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Permissões → Microfone.';
 // As vozes do Lumen são as do Gemini, com os nomes de lá (e o jeito de cada uma). A voz escolhida dá o gênero: voz
 // feminina, "a Lumen"; masculina, "o Lumen" (a IA também fala de si nesse gênero)
 const VOZES_GEMINI = [
@@ -20261,7 +20335,7 @@ function route() {
     case 'ajustes': return viewSettings(b);
     case 'conta': return viewConta();
     case 'qualidade': return viewQualidade();
-    case 'permissoes': return viewPermissoes();
+    case 'permissoes': if (noApk()) { location.replace('#/ajustes'); return; } return viewPermissoes();
     case 'partituras': return viewPartituras();
     case 'compartilhado': return viewCompartilhado();
     case 'oracoes': return viewOracoes();
@@ -20379,31 +20453,52 @@ const ecoaNativo = (() => {
 if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
   let ultimo = '';
+  let ultimoTempo = 0;
+  let ultimoEm = 0;
+  let ultimoTocando = false;
   const mandar = () => {
     const a = player.atual;
     if (!a?.titulo) { if (ultimo) { ultimo = ''; void ecoaNativo.parou().catch(() => {}); } return; }
     const yt = a.video || a.youtube;
     const capa = /^https?:/.test(a.capa || '') ? a.capa : yt && !ehArquivo(yt) ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : '';
     const dados = { titulo: a.titulo || '', artista: a.artista || '', capa, tocando: player.estado === 'tocando' };
-    const chave = JSON.stringify(dados);
-    if (chave === ultimo) return;
+    // (o ponto e a duração vão para a barra do tempo do player do Android, que anda sozinha enquanto toca: o ponto só
+    // é mandado de novo quando muda de verdade, como ao pular ou voltar, e não a cada segundo)
+    const duracao = Math.round(Number(player.duracao) || 0);
+    const tempo = Math.max(0, Number(player.tempoAgora) || 0);
+    const chave = JSON.stringify({ ...dados, duracao });
+    const esperado = ultimoEm ? ultimoTempo + (ultimoTocando ? (performance.now() - ultimoEm) / 1000 : 0) : -99;
+    if (chave === ultimo && Math.abs(esperado - tempo) < 3) return;
     ultimo = chave;
-    void ecoaNativo.musica(dados).catch(() => {});
+    ultimoTempo = tempo;
+    ultimoEm = performance.now();
+    ultimoTocando = dados.tocando;
+    void ecoaNativo.musica({ ...dados, duracao, tempo }).catch(() => {});
   };
   player.ouvir(mandar);
   ecoaNativo.addListener('acao', ({ acao } = {}) => {
+    // (tocou numa notificação de download: abre a página dela)
+    if (/^abrir:#/.test(acao || '')) { location.hash = acao.slice(6); return; }
     // (com o app abrindo pelo widget, a última música ainda pode estar voltando: espera um pouco por ela)
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
       if (acao === 'alternar') player.alternar();
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
+      else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)
       mandar();
     };
     fazer();
   });
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
+  // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e avisa uma vez por versão
+  setTimeout(async () => {
+    const r = await conferirAtualizacaoApk().catch(() => null);
+    if (!r?.nova || !r.instalada?.codigo || db.prefs().apkAvisado === r.publicada.codigo) return;
+    db.setPref('apkAvisado', r.publicada.codigo);
+    if (await ask({ title: 'Atualização do app', text: `A versão ${r.publicada.nome} do app de Android chegou (a sua é a ${r.instalada.nome}). Ela baixa e o Android pergunta se pode instalar. Dá para atualizar depois em Ajustes → Sobre.`, ok: 'Atualizar' })) await atualizarApk();
+  }, 8000);
 }
 
 // ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a
@@ -20437,7 +20532,7 @@ setTimeout(() => {
 // (funções declaradas: a tela de Ajustes pode ser desenhada antes deste trecho rodar)
 let pedidoInstalar = null;
 const CHAVE_ADIADO = 'songbook.instalar.adiado';
-function jaInstalado() { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+function jaInstalado() { return noApk() || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
 function ehIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 function adiado() { try { return Date.now() - Number(localStorage.getItem('songbook.instalar.adiado') || 0) < 7 * 864e5; } catch { return false; } }
 
@@ -20518,6 +20613,69 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 const fmtBytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round((n || 0) / 1e3)} KB`);
 // os caches que dá para limpar (as capas e os dados guardados enquanto se usa o app); o pacote do app e os downloads ficam
 const ehCacheLimpavel = (k) => k === 'songbook-imagens' || k === 'songbook-extras' || /-api$/.test(k);
+// Levar os downloads (o navegador e o app de Android guardam cada um no seu canto: o outro não enxerga): um arquivo com
+// as músicas baixadas e os arquivos delas (lib/transferir.js), que o outro lado importa
+async function exportarDownloads(bt) {
+  const chaves = [...(await chavesDosAudios().catch(() => new Set()))];
+  if (!chaves.length) { await ask({ title: 'Nada para exportar', text: 'Não há áudio, vídeo nem karaokê baixado neste aparelho.', ok: 'Entendi', cancel: false }); return; }
+  const texto = bt.textContent;
+  bt.disabled = true;
+  bt.textContent = 'Juntando…';
+  try {
+    const arquivos = [];
+    for (const chave of chaves) {
+      const blob = await lerAudio(chave).catch(() => null);
+      if (blob instanceof Blob && blob.size) arquivos.push({ chave, blob });
+    }
+    const musicas = db.songs().filter((x) => x.baixado || x.karaoke || x.audioProprio);
+    const pacote = montarPacote({ musicas, arquivos });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(pacote);
+    a.download = `ecoa-downloads-${hojeISO()}.ecoa`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10 * 60e3); // (o arquivo grande demora para o navegador gravar)
+    await ask({ title: 'Downloads exportados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Downloads e economia de dados → Importar os downloads e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
+  } catch (e) {
+    await ask({ title: 'Não deu para exportar', text: String(e?.message || e), ok: 'Entendi', cancel: false });
+  } finally {
+    bt.disabled = false;
+    bt.textContent = texto;
+  }
+}
+async function importarDownloads(bt) {
+  const arquivo = await new Promise((ok) => {
+    const inp = Object.assign(document.createElement('input'), { type: 'file' });
+    inp.onchange = () => ok(inp.files?.[0] || null);
+    inp.click();
+  });
+  if (!arquivo) return;
+  const texto = bt.textContent;
+  bt.disabled = true;
+  try {
+    const { musicas, arquivos } = await lerPacote(arquivo);
+    let feitos = 0;
+    for (const { chave, blob } of arquivos) {
+      bt.textContent = `${Math.round((feitos / arquivos.length) * 100)}%`;
+      // (o pedaço do arquivo escolhido vira um arquivo de verdade no aparelho: o escolhido pode sumir depois)
+      await guardarAudio(chave, new Blob([await blob.arrayBuffer()], { type: blob.type }));
+      feitos++;
+    }
+    let novas = 0;
+    for (const m of musicas) {
+      if (!m?.id) continue;
+      const aqui = db.song(m.id);
+      if (aqui) db.updateSong(m.id, juntarDownloads(aqui, m));
+      else { db.saveSong(m); novas++; }
+    }
+    window.dispatchEvent(new CustomEvent('songbook:downloads'));
+    await ask({ title: 'Downloads importados', text: `${musicas.length} música${musicas.length === 1 ? '' : 's'} baixada${musicas.length === 1 ? '' : 's'} aqui, sem baixar de novo${novas ? ` (${novas} entraram na biblioteca)` : ''}. O arquivo exportado já pode ser apagado da pasta Downloads.`, ok: 'Entendi', cancel: false });
+  } catch (e) {
+    await ask({ title: 'Não deu para importar', text: /QuotaExceeded|quota/i.test(String(e?.name || e?.message)) ? 'Falta espaço no aparelho para os downloads.' : String(e?.message || e), ok: 'Entendi', cancel: false });
+  } finally {
+    bt.disabled = false;
+    bt.textContent = texto;
+  }
+}
 function viewOffline() {
   setTab('');
   setTint('#1f3a2c');
@@ -20543,6 +20701,12 @@ function viewOffline() {
           <button class="btn small primary" id="of-todas"${faltam.length ? '' : ' disabled'}>${icon('baixar', 15)} ${faltam.length ? `Baixar ${faltam.length}` : 'Todas baixadas'}</button></div>
         <a class="setting" href="#/biblioteca/baixadas"><span class="ico">${icon('baixada', 18)}</span><div class="grow"><div class="t">Músicas baixadas</div><div class="s">Tocam sem internet, com a letra, a cifra e a partitura</div></div>${icon('next', 18)}</a>
       </div></section>
+      <section class="aj-sec"><h3 class="aj-titulo">Levar os downloads</h3><div class="settings-group">
+        <div class="setting"><span class="ico">${icon('upload', 18)}</span><div class="grow"><div class="t">Exportar os downloads</div><div class="s">${noApk() ? 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar a outro aparelho sem baixar de novo' : 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar ao app de Android (ou a outro aparelho) sem baixar de novo'}</div></div>
+          <button class="btn small" id="of-exportar">Exportar</button></div>
+        <div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Importar os downloads</div><div class="s">Escolha o arquivo "ecoa-downloads" exportado ${noApk() ? 'no navegador' : 'em outro aparelho'}: as músicas ficam baixadas aqui</div></div>
+          <button class="btn small" id="of-importar">Importar</button></div>
+      </div></section>
       <section class="aj-sec"><h3 class="aj-titulo">Armazenamento</h3><div class="settings-group of-armazenamento">
         <div class="of-barra" id="of-barra"><i class="of-dl"></i><i class="of-meus"></i><i class="of-cache"></i></div>
         <ul class="of-legenda" id="of-legenda"><li class="muted">Calculando…</li></ul>
@@ -20564,17 +20728,26 @@ function viewOffline() {
     for (const s of db.songs().filter((x) => x.audioProprio)) meus += (await lerAudio(s.id).catch(() => null))?.size || 0;
     // estimate() mede o uso real desta origem (IndexedDB, CacheStorage e localStorage) informado pelo navegador.
     // Se a API não existir, mostramos ao menos o tamanho dos arquivos locais que conseguimos medir.
+    // No app de Android, o próprio Android diz o espaço do celular (o total, o livre e a pasta inteira do Ecoa)
+    const cel = ecoaNativo?.armazenamento ? await ecoaNativo.armazenamento().catch(() => null) : null;
+    const temCelular = cel && cel.total > 0;
     const temMedidaReal = Number.isFinite(est.usage);
-    const usado = temMedidaReal ? est.usage : dl + meus;
+    const usado = temCelular ? Math.max(cel.app, dl + meus) : temMedidaReal ? est.usage : dl + meus;
     const cache = Math.max(0, usado - dl - meus);
-    const total = usado || 1;
+    const outros = temCelular ? Math.max(0, cel.total - cel.livre - usado) : 0;
+    const livre = temCelular ? cel.livre : 0;
+    const total = temCelular ? cel.total : usado || 1;
     const barra = $('#of-barra');
     if (!barra) return;
-    [['.of-dl', dl], ['.of-meus', meus], ['.of-cache', cache]].forEach(([c, n]) => { barra.querySelector(c).style.width = `${Math.max(n ? 0.6 : 0, (n / total) * 100)}%`; });
-    $('#of-legenda').innerHTML = [['of-dl', 'Downloads', dl], ['of-meus', 'Áudios seus', meus], ['of-cache', 'Outros dados e cache do app', cache]]
-      .map(([c, n, v]) => `<li><i class="${c}"></i><span>${n}</span><b>${fmtBytes(v)}</b></li>`).join('')
+    if (temCelular && !barra.querySelector('.of-outros')) barra.insertAdjacentHTML('beforeend', '<i class="of-outros"></i>');
+    [['.of-dl', dl], ['.of-meus', meus], ['.of-cache', cache], ['.of-outros', outros]].forEach(([c, n]) => { const el = barra.querySelector(c); if (el) el.style.width = `${Math.max(n ? 0.6 : 0, (n / total) * 100)}%`; });
+    const itens = [['of-dl', 'Downloads', dl], ['of-meus', 'Áudios seus', meus], ['of-cache', 'Outros dados e cache do app', cache]];
+    if (temCelular) itens.push(['of-outros', 'Outros apps e o sistema', outros], ['of-livre', 'Livre', livre]);
+    $('#of-legenda').innerHTML = itens.map(([c, n, v]) => `<li><i class="${c}"></i><span>${n}</span><b>${fmtBytes(v)}</b></li>`).join('')
       + `<li class="of-total"><span>Total ocupado pelo Ecoa</span><b>${fmtBytes(usado)}</b></li>`
-      + `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Ecoa. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA.</span></li>`;
+      + (temCelular
+        ? `<li class="of-total"><span>Espaço do celular</span><b>${fmtBytes(cel.livre)} livres de ${fmtBytes(cel.total)}</b></li>`
+        : `<li class="of-aviso muted">${icon('info', 14)}<span>${temMedidaReal ? 'Uso medido pelo navegador para o Ecoa. ' : 'Estimativa parcial: este navegador não oferece a medição completa. '}O espaço livre total do celular não pode ser consultado por um site ou PWA: no app de Android ele aparece aqui.</span></li>`);
   };
   desenhar();
   // a cada avanço de um download só os números mudam (antes a tela inteira era desenhada de novo a cada 1%, com o
@@ -20623,6 +20796,8 @@ function viewOffline() {
       for (const s of faltam) await baixarMusica(s, { perguntou: true });
       toast(`${faltam.length} música${faltam.length > 1 ? 's' : ''} na fila para baixar`);
     }
+    if (b.id === 'of-exportar') await exportarDownloads(b);
+    if (b.id === 'of-importar') { await importarDownloads(b); desenhar(); }
     if (b.id === 'of-remover' && await ask({ title: 'Remover todos os downloads?', text: 'As músicas continuam na biblioteca, mas só tocam com internet.', ok: 'Remover', danger: true })) {
       await removerTodosDownloads();
       toast('Downloads removidos');

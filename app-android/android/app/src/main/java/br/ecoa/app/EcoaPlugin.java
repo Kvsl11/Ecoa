@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.CancellationSignal;
+import android.os.Environment;
+import android.os.StatFs;
 
 import androidx.credentials.Credential;
 import androidx.credentials.CredentialManager;
@@ -29,11 +31,15 @@ import com.getcapacitor.annotation.PermissionCallback;
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
+import java.io.File;
 import java.util.concurrent.Executors;
 
 // O que o site faz no Android pelo "window.Capacitor.Plugins.Ecoa":
 //  - musica({ titulo, artista, capa, tocando }): a música do player, para o widget e o aviso de "tocando"
 //  - entrarComGoogle(): o login do Google pelo próprio Android (o do site não abre dentro de um app) → { idToken }
+//  - armazenamento(): o espaço do celular → { total, livre, app } em bytes (app: tudo o que o Ecoa guarda, downloads inclusos)
+//  - avisar({ titulo, texto, tag, href, silenciosa, imagem }): uma notificação do Android (os downloads)
+//  - versao() → { codigo, nome }; atualizar({ url }): baixa o APK novo e abre a instalação (evento "atualizacao": { pct })
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -66,6 +72,89 @@ public class EcoaPlugin extends Plugin {
         return true;
     }
 
+    // uma notificação do site (os downloads): { titulo, texto, tag, href, silenciosa, imagem }
+    @PluginMethod
+    public void avisar(PluginCall call) {
+        Avisos.mostrar(getContext(), call.getString("titulo", "Ecoa"), call.getString("texto", ""), call.getString("tag", ""),
+            call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""));
+        call.resolve();
+    }
+
+    // a versão deste APK instalado: { codigo, nome }
+    @PluginMethod
+    public void versao(PluginCall call) {
+        try {
+            android.content.pm.PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            JSObject r = new JSObject();
+            r.put("codigo", Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode);
+            r.put("nome", info.versionName);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    // baixa o APK novo ({ url }) e abre a tela de instalar do Android. O andamento vai no evento "atualizacao" ({ pct }).
+    // Sem a permissão de instalar apps, abre a tela dela e devolve o erro "permitir" (a pessoa volta e toca de novo)
+    @PluginMethod
+    public void atualizar(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || !url.startsWith("https://")) { call.reject("Endereço da atualização inválido.", "erro"); return; }
+        if (!Atualizacao.podeInstalar(getContext())) {
+            Atualizacao.abrirPermissao(getActivity());
+            call.reject("Permita que o Ecoa instale a atualização e toque em Atualizar de novo.", "permitir");
+            return;
+        }
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                File apk = Atualizacao.baixar(getContext(), url, (pct) -> {
+                    JSObject d = new JSObject();
+                    d.put("pct", pct);
+                    notifyListeners("atualizacao", d);
+                });
+                Atualizacao.instalar(getActivity(), apk);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()), "erro");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void armazenamento(PluginCall call) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
+                JSObject r = new JSObject();
+                r.put("total", fs.getTotalBytes());
+                r.put("livre", fs.getAvailableBytes());
+                // a pasta do app inteira: o WebView (os downloads no IndexedDB, o cache), os arquivos e as preferências
+                Context ctx = getContext();
+                long app = tamanho(ctx.getDataDir());
+                File ext = ctx.getExternalCacheDir();
+                if (ext != null) app += tamanho(ext.getParentFile());
+                r.put("app", app);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
+    }
+
+    private static long tamanho(File f) {
+        if (f == null || !f.exists()) return 0;
+        if (f.isFile()) return f.length();
+        long t = 0;
+        File[] filhos = f.listFiles();
+        if (filhos != null) for (File c : filhos) {
+            try {
+                if (!c.getCanonicalPath().startsWith(f.getCanonicalPath())) continue; // não segue os atalhos para fora
+            } catch (Exception e) { continue; }
+            t += tamanho(c);
+        }
+        return t;
+    }
+
     @PluginMethod
     public void pronto(PluginCall call) {
         String p = pendente;
@@ -81,12 +170,17 @@ public class EcoaPlugin extends Plugin {
         String artista = call.getString("artista", "");
         String capa = call.getString("capa", "");
         boolean tocando = Boolean.TRUE.equals(call.getBoolean("tocando", false));
+        Double duracao = call.getDouble("duracao", 0.0);
+        Double tempo = call.getDouble("tempo", 0.0);
         SharedPreferences.Editor e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
-        e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando);
+        e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando)
+            .putFloat("duracao", duracao == null ? 0f : duracao.floatValue()).putFloat("tempo", tempo == null ? 0f : tempo.floatValue())
+            .putLong("quando", android.os.SystemClock.elapsedRealtime());
         boolean capaNova = !capa.equals(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("capa", ""));
         e.putString("capa", capa).apply();
-        if (capaNova) Capas.baixar(ctx, capa, () -> { EcoaWidget.atualizarTodos(ctx); TocandoService.atualizar(ctx); });
+        if (capaNova) Capas.baixar(ctx, capa, () -> { EcoaWidget.atualizarTodos(ctx); Sessao.atualizar(ctx); TocandoService.atualizar(ctx); });
         EcoaWidget.atualizarTodos(ctx);
+        Sessao.atualizar(ctx);
         // (o aviso de "tocando" mantém o app vivo em segundo plano enquanto toca)
         if (tocando) {
             if (Build.VERSION.SDK_INT >= 33 && getPermissionState("avisos") == PermissionState.PROMPT) {

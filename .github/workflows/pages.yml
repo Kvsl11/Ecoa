@@ -10,9 +10,10 @@ on:
   pull_request:
     branches: [main, master, ccr-59dd75f2-oirnca]
   workflow_dispatch:
-  workflow_run: # depois de ler o texto dos PDFs do acervo: põe o texto novo no site (o Lumen do Codespace baixa)
-    workflows: [Publicar o servidor da IA]
+  workflow_run: # depois de ler o texto dos PDFs do acervo: põe o texto novo no site (o Lumen do Codespace baixa); e depois de um APK novo
+    workflows: [Publicar o servidor da IA, App de Android]
     types: [completed]
+    branches: [main, master, ccr-59dd75f2-oirnca]
   schedule:
     - cron: '23 7 * * *' # todo dia às 04h23 (Brasília)
 
@@ -166,6 +167,16 @@ jobs:
             gzip -9 -c servidor-ia/textos-acervo.jsonl > public/data/textos-acervo.jsonl.gz
             echo "::notice::$(wc -l < servidor-ia/textos-acervo.jsonl) arquivos do acervo com o texto lido, $(du -h public/data/textos-acervo.jsonl.gz | cut -f1) no site"
           fi
+      # o app de Android (o Ecoa.apk publicado pelo robô "App de Android") vai junto com o site: o botão "Baixar o app
+      # para Android" baixa do próprio site (o link do GitHub redireciona, e no celular o download ficava parado)
+      - name: O APK do app de Android no site
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download android -p Ecoa.apk -D public --clobber && ls -la public/Ecoa.apk || echo "::notice::Ainda não há APK publicado"
+          # (a versão do APK publicado: o app instalado compara com a dele e oferece a atualização)
+          gh release download android -p Ecoa-versao.json -D public --clobber && cat public/Ecoa-versao.json || echo "::notice::O APK publicado ainda não tem o arquivo da versão"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
