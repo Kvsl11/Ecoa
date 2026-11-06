@@ -1617,6 +1617,8 @@ function botaoBaixar(song, cls = '') {
 // nas emendas. O de antes é atualizado (a revisão 6, ou o toque no microfone): o servidor só separa o cantor da voz que
 // já estava no arquivo (servidor-ia: /karaoke/atualizar)
 const KARAOKE_VERSAO = 2;
+// o modelo que separa a voz no celular (Karaoke.java): mudou, os karaokês feitos com o de antes são feitos de novo (rev 25)
+const MODELO_KARAOKE_CELULAR = 'uvr-inst-hq4';
 const chaveKaraoke = (fonte) => `kar:${fonte}`;
 const fonteDoKaraoke = (song) => (song ? videoDaLetra(song) : '');
 // o da música ainda não salva (a prévia da busca): só enquanto o app está aberto
@@ -1830,7 +1832,7 @@ async function karaokeNoCelular(nativo, song, fonte, passo) {
     if (!arquivo && !/^[\w-]{11}$/.test(fonte)) throw new Error('O áudio desta música não está neste aparelho');
   }
   const processo = `karaoke-${Date.now().toString(36)}`;
-  const ETAPAS = { modelo: [0, 8, 'Baixando o modelo do karaokê (só na primeira vez)'], baixando: [0, 8, 'Baixando a música'],
+  const ETAPAS = { modelo: [0, 8, 'Baixando o modelo do karaokê (só na primeira vez, 59 MB)'], baixando: [0, 8, 'Baixando a música'],
     lendo: [8, 10, 'Abrindo a música'], separando: [10, 95, 'Separando a voz da banda no celular'], gravando: [95, 98, 'Quase pronto'] };
   const ouvinte = await nativo.addListener('karaoke', (ev) => {
     const e = ev?.processo === processo && ETAPAS[ev.etapa];
@@ -1845,7 +1847,7 @@ async function karaokeNoCelular(nativo, song, fonte, passo) {
   let blob;
   try { blob = await lerBaixadoNoAparelho({ caminho: r.caminho, tipo: 'audio/mp4' }); } finally { void nativo.apagarLocal({ caminho: r.caminho }).catch(() => {}); }
   if (!blob || blob.size < 10000) throw new Error('o karaokê saiu vazio');
-  return { blob, info: { tipo: 'audio/mp4', versao: KARAOKE_VERSAO, celular: true, ...(r.duracao ? { duracao: r.duracao } : {}) } };
+  return { blob, info: { tipo: 'audio/mp4', versao: KARAOKE_VERSAO, celular: true, modelo: MODELO_KARAOKE_CELULAR, ...(r.duracao ? { duracao: r.duracao } : {}) } };
 }
 // o karaokê desta gravação sai das músicas (o arquivo sumiu do aparelho, ou vai ser apagado)
 function esquecerKaraoke(fonte, songs = db.songs().filter((s) => s.karaoke?.[fonte])) {
@@ -1994,6 +1996,7 @@ window.addEventListener('songbook:downloads', () => {
 //             novo só esses
 //   rebaixar: 'video' | 'audio' | true — baixa de novo esses arquivos de todas as músicas baixadas (quando o próprio
 //             download mudou: a qualidade, o formato…)
+//   karaokeCelular: o karaokê feito no celular (APK) com um modelo que não é o de agora é feito de novo, no celular
 //   quais(song): opcional, só as músicas em que a correção faz diferença
 const REVISOES = [
   // v385: a primeira, para todas: a letra que faltava, o áudio oficial que não foi achado e os downloads incompletos,
@@ -2087,6 +2090,9 @@ const REVISOES = [
   // só no título (outra gravação: em "Odres Novos", o modo música tocava outra coisa que não o vídeo do canal oficial).
   // Agora vale só uma fonte oficial; o áudio das salvas é conferido, e o que não for oficial sai (procura de novo)
   { rev: 24, conferirAudio: true, versoes: true, letra: true, arquivos: true, quais: (s) => { const vs = versoesDe(s); return Boolean(vs?.audio) && !ehArquivo(vs.audio) && vs.audio !== vs.video && !s.audioProprio; } },
+  // v580: o karaokê do app de Android (feito no celular) passou para o modelo UVR Inst HQ 4: o de antes (UVR 9482) deixava
+  // a voz chiando no fundo e levava instrumentos junto. O feito com o modelo velho é feito de novo, no celular
+  { rev: 25, karaokeCelular: true, quais: (s) => Object.values(s.karaoke || {}).some((k) => k?.celular && k.modelo !== MODELO_KARAOKE_CELULAR) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2332,6 +2338,15 @@ async function revisarMusica(id, pendentes, chaves) {
     }
     s = db.song(id);
   }
+  // o karaokê feito no celular com o modelo velho: feito de novo no celular (só no APK; no navegador não há como)
+  if (s && quer('karaokeCelular') && karaokeNoAparelho()) {
+    for (const [fonte, k] of Object.entries(s.karaoke || {})) {
+      if (!k?.celular || k.modelo === MODELO_KARAOKE_CELULAR) continue;
+      esquecerKaraoke(fonte);
+      if (fonte === fonteDoKaraoke(db.song(id))) { try { await prepararKaraoke(db.song(id)); } catch { completa = false; } }
+    }
+    s = db.song(id);
+  }
   // a baixada cujo vídeo é só o áudio (o Topic, o Official Audio): procura o clipe, e o download abaixo baixa o que falta
   if (s?.baixado && quer('clipe')) {
     if (!navigator.onLine) completa = false;
@@ -2558,7 +2573,23 @@ function cortarFaixas(img) {
   }
   Promise.resolve(faixasMedidas.get(src)).then((f) => { if (img.isConnected && (img.currentSrc || img.src) === src) aplicarFaixas(img, f); });
 }
-document.addEventListener('load', (e) => { if (e.target?.matches?.('.quadros img.q')) cortarFaixas(e.target); }, true);
+// O quadro do clipe que o YouTube não tem (os vídeos antigos ou de baixa resolução não têm o sd1…sd3 nem o maxres1…3)
+// chega como a imagem cinza de 120x90 com o "play" no meio: ela aparecia na capa animada (na barrinha e no Tocando
+// agora), sobretudo ao trocar de música. Agora o quadro vira a miniatura normal do vídeo (a hqdefault, que todo vídeo
+// tem) e, se nem ela existir, sai
+function quadroSemImagem(img) {
+  const src = img.currentSrc || img.src || '';
+  const id = /i\.ytimg\.com\/vi\/([\w-]{11})\//.exec(src)?.[1];
+  if (id && !/\/hqdefault\.jpg/.test(src)) { img.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`; return; }
+  img.remove();
+}
+const ehImagemCinzaDoYoutube = (img) => img.naturalWidth > 0 && img.naturalWidth <= 120 && img.naturalHeight <= 90;
+document.addEventListener('load', (e) => {
+  if (!e.target?.matches?.('.quadros img.q, .quadros img.canvas-img')) return;
+  if (ehImagemCinzaDoYoutube(e.target)) { quadroSemImagem(e.target); return; }
+  if (e.target.matches('img.q')) cortarFaixas(e.target);
+}, true);
+document.addEventListener('error', (e) => { if (e.target?.matches?.('.quadros img.q, .quadros img.canvas-img')) quadroSemImagem(e.target); }, true);
 // tem quadros em alta? (quando não tem, o YouTube devolve uma imagem cinza de 120x90)
 function tipoDosQuadros(id) {
   return new Promise((ok) => {

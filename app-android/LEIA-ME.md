@@ -12,8 +12,8 @@ O APK empacota uma cópia local da interface e dos arquivos estáticos de `publi
 não precisam de rede podem abrir mesmo sem conexão. A versão Web continua sendo publicada separadamente em
 `https://kvsl11.github.io/Songbook/` e não é alterada por esta configuração.
 
-**O karaokê é feito no próprio celular**: a voz separada da banda por um modelo de 30 MB, baixado na primeira vez que
-alguém usa (1 a 2 minutos por música, conforme o aparelho; depois fica guardado e toca na hora, sem internet). O back
+**O karaokê é feito no próprio celular**: a voz separada da banda por um modelo de 59 MB (UVR MDX-Net Inst HQ 4), baixado na primeira vez que
+alguém usa (2 a 4 minutos por música, conforme o aparelho; depois fica guardado e toca na hora, sem internet). O back
 vocal sai junto com o cantor (o servidor separava só o cantor, com modelos grandes demais para o celular).
 
 **O Lúmen pensa no próprio celular**: o app procura no acervo (com o texto dos PDFs) e chama o Gemini direto, sem o

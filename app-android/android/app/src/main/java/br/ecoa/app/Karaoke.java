@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// O karaokê feito no próprio celular, sem o servidor: a voz separada da banda pelo UVR MDX-Net (UVR_MDXNET_9482, o
-// modelo de 30 MB que o app baixa na primeira vez) rodando no ONNX Runtime, e o arquivo gravado como o do servidor
+// O karaokê feito no próprio celular, sem o servidor: a banda separada da voz pelo UVR MDX-Net Inst HQ 4 (o modelo de
+// 59 MB que o app baixa na primeira vez) rodando no ONNX Runtime. Medido no MUSDB18 (8 músicas com a voz e a banda
+// gravadas à parte): a banda sai com 15,6 dB de SDR e a voz com 11,3 dB, contra 11,3 e 7,6 dB do UVR 9482 de antes (que
+// deixava a voz chiando no fundo e levava instrumentos junto). Custa mais tempo: cerca do dobro, e o arquivo gravado como o do servidor
 // (servidor-ia/karaoke.py): um M4A (AAC) de 4 canais "quad", 44,1 kHz — banda esquerda/direita (a gravação menos a voz)
 // e voz esquerda/direita. Banda + voz = a gravação, amostra por amostra.
 //
@@ -31,19 +33,20 @@ import java.util.List;
 final class Karaoke {
     private Karaoke() {}
 
-    static final String MODELO = "UVR_MDXNET_9482.onnx";
+    static final String MODELO = "UVR-MDX-NET-Inst_HQ_4.onnx";
     static final String MODELO_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/" + MODELO;
-    static final long MODELO_TAMANHO = 29704738L;
+    static final long MODELO_TAMANHO = 59074650L;
+    static final String MODELO_VELHO = "UVR_MDXNET_9482.onnx"; // (o de antes: sai do aparelho)
 
-    // os parâmetros do modelo (gravados nele: n_fft 4096, hop 1024, dim_f 2048, dim_t 256, dim_c 4)
+    // os parâmetros do modelo (gravados nele: n_fft 5120, hop 1024, dim_f 2560, dim_t 256, dim_c 4). A saída é a BANDA
     static final int SR = 44100;
-    static final int NFFT = 4096;
+    static final int NFFT = 5120;
     static final int HOP = 1024;
-    static final int DF = 2048;
+    static final int DF = 2560;
     static final int DT = 256;
     static final int CHUNK = HOP * (DT - 1);   // 261120 amostras por pedaço
     static final int TRIM = NFFT / 2;          // a sobra de cada lado (descartada)
-    static final int GEN = CHUNK - 2 * TRIM;   // o que cada pedaço entrega
+    static final int GEN = CHUNK - 2 * TRIM;   // o que cada pedaço entrega (256000)
     static final int MAX_SEGUNDOS = 1800;
 
     interface Andamento { void em(String etapa, float fracao); }
@@ -60,6 +63,8 @@ final class Karaoke {
 
     static File modelo(Context ctx, Andamento andamento) throws Exception {
         File f = arquivoDoModelo(ctx);
+        //noinspection ResultOfMethodCallIgnored
+        new File(f.getParentFile(), MODELO_VELHO).delete();
         if (f.isFile() && f.length() == MODELO_TAMANHO) return f;
         //noinspection ResultOfMethodCallIgnored
         f.getParentFile().mkdirs();
@@ -115,15 +120,50 @@ final class Karaoke {
 
     // ---- a STFT do modelo (janela de Hann periódica, center=True com reflexo, como o torch.stft)
     static final float[] JANELA = new float[NFFT];
-    static final double[] COS = new double[NFFT / 2];
-    static final double[] SEN = new double[NFFT / 2];
     static {
         for (int i = 0; i < NFFT; i++) JANELA[i] = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * i / NFFT));
-        for (int i = 0; i < NFFT / 2; i++) { COS[i] = Math.cos(-2 * Math.PI * i / NFFT); SEN[i] = Math.sin(-2 * Math.PI * i / NFFT); }
     }
 
-    // FFT complexa de NFFT pontos, no lugar; inversa: conjugado, sem dividir (quem chama divide)
+    // FFT complexa de n pontos, no lugar (inversa: o conjugado, sem dividir; quem chama divide). n = 2^k ou 5 × 2^k (o
+    // n_fft 5120 do modelo): o de 5 × 2^k são 5 FFTs de 2^k (as amostras de 5 em 5) juntadas por uma borboleta de 5
     static void fft(double[] re, double[] im, boolean inversa) {
+        int n = re.length;
+        if ((n & (n - 1)) == 0) { fft2(re, im, inversa); return; }
+        if (n % 5 != 0 || ((n / 5) & (n / 5 - 1)) != 0) throw new IllegalArgumentException("tamanho da FFT: " + n);
+        int m = n / 5;
+        double[][] sr = new double[5][m], si = new double[5][m];
+        for (int r = 0; r < 5; r++) {
+            for (int k = 0; k < m; k++) { sr[r][k] = re[5 * k + r]; si[r][k] = im[5 * k + r]; }
+            fft2(sr[r], si[r], inversa);
+        }
+        double[][] w = giro(n);
+        double sinal = inversa ? 1 : -1;
+        for (int k = 0; k < n; k++) {
+            double ar = 0, ai = 0;
+            int km = k % m;
+            for (int r = 0; r < 5; r++) {
+                int t = (int) ((long) r * k % n);
+                double c = w[0][t], sn = sinal * w[1][t];
+                ar += sr[r][km] * c - si[r][km] * sn;
+                ai += sr[r][km] * sn + si[r][km] * c;
+            }
+            re[k] = ar;
+            im[k] = ai;
+        }
+    }
+
+    // cos e sen de 2πt/n (a tabela de cada tamanho, feita uma vez)
+    private static final java.util.Map<Integer, double[][]> GIROS = new java.util.concurrent.ConcurrentHashMap<>();
+    static double[][] giro(int n) {
+        return GIROS.computeIfAbsent(n, (x) -> {
+            double[][] w = new double[2][x];
+            for (int t = 0; t < x; t++) { w[0][t] = Math.cos(2 * Math.PI * t / x); w[1][t] = Math.sin(2 * Math.PI * t / x); }
+            return w;
+        });
+    }
+
+    // a FFT de potência de 2 (Cooley-Tukey, no lugar)
+    static void fft2(double[] re, double[] im, boolean inversa) {
         int n = re.length;
         for (int i = 1, j = 0; i < n; i++) {
             int bit = n >> 1;
@@ -131,15 +171,20 @@ final class Karaoke {
             j ^= bit;
             if (i < j) { double t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
         }
+        double sinal = inversa ? 1 : -1;
         for (int len = 2; len <= n; len <<= 1) {
-            int passo = n / len;
+            double ang = sinal * 2 * Math.PI / len;
+            double wr0 = Math.cos(ang), wi0 = Math.sin(ang);
             for (int i = 0; i < n; i += len) {
+                double wr = 1, wi = 0;
                 for (int k = 0; k < len / 2; k++) {
-                    double wr = COS[k * passo], wi = inversa ? -SEN[k * passo] : SEN[k * passo];
                     int a = i + k, b = i + k + len / 2;
                     double xr = re[b] * wr - im[b] * wi, xi = re[b] * wi + im[b] * wr;
                     re[b] = re[a] - xr; im[b] = im[a] - xi;
                     re[a] += xr; im[a] += xi;
+                    double t = wr * wr0 - wi * wi0;
+                    wi = wr * wi0 + wi * wr0;
+                    wr = t;
                 }
             }
         }
@@ -234,7 +279,20 @@ final class Karaoke {
         OrtSession.SessionOptions op = new OrtSession.SessionOptions();
         op.setIntraOpNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors())));
         op.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-        try (OrtSession sessao = env.createSession(arqModelo.getAbsolutePath(), op);
+        // (o XNNPACK, quando o aparelho tem: as convoluções do modelo bem mais rápidas no processador do celular)
+        OrtSession sessaoCriada;
+        try {
+            OrtSession.SessionOptions rapido = new OrtSession.SessionOptions();
+            rapido.setIntraOpNumThreads(1);
+            rapido.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+            java.util.Map<String, String> xnn = new java.util.HashMap<>();
+            xnn.put("intra_op_num_threads", String.valueOf(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors()))));
+            rapido.addXnnpack(xnn);
+            sessaoCriada = env.createSession(arqModelo.getAbsolutePath(), rapido);
+        } catch (Throwable semXnnpack) {
+            sessaoCriada = env.createSession(arqModelo.getAbsolutePath(), op);
+        }
+        try (OrtSession sessao = sessaoCriada;
              RandomAccessFile musica = new RandomAccessFile(pcm, "r");
              OutputStream out = new BufferedOutputStream(gravar.getOutputStream(), 1 << 20)) {
             String nomeEntrada = sessao.getInputNames().iterator().next();
@@ -261,21 +319,21 @@ final class Karaoke {
                 }
                 stft(esquerda, espectro, 0);
                 stft(direita, espectro, 2);
-                float[] voz;
+                float[] banda;
                 try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(espectro), new long[] { 1, 4, DF, DT });
                      OrtSession.Result r = sessao.run(Collections.singletonMap(nomeEntrada, t))) {
                     FloatBuffer fb = ((OnnxTensor) r.get(0)).getFloatBuffer();
-                    voz = new float[fb.remaining()];
-                    fb.get(voz);
+                    banda = new float[fb.remaining()];
+                    fb.get(banda);
                 }
-                float[] vozE = istft(voz, 0), vozD = istft(voz, 2);
+                // (o modelo devolve a banda; a voz é a gravação menos a banda: banda + voz = a gravação)
+                float[] bandaE = istft(banda, 0), bandaD = istft(banda, 2);
                 // o que este pedaço entrega: GEN amostras do meio (no último, só até o fim da música)
                 int quantas = (int) Math.min(GEN, n - k * GEN);
                 saidaBytes.clear();
                 for (int i = 0; i < quantas; i++) {
-                    float me = esquerda[TRIM + i], md = direita[TRIM + i];
-                    float ve = vozE[TRIM + i], vd = vozD[TRIM + i];
-                    saidaBytes.putFloat(me - ve).putFloat(md - vd).putFloat(ve).putFloat(vd);
+                    float be = bandaE[TRIM + i], bd = bandaD[TRIM + i];
+                    saidaBytes.putFloat(be).putFloat(bd).putFloat(esquerda[TRIM + i] - be).putFloat(direita[TRIM + i] - bd);
                 }
                 out.write(saidaBytes.array(), 0, quantas * 16);
                 andamento.em("separando", (k + 1) / (float) pedacos);
