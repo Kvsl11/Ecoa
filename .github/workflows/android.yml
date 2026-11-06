@@ -16,9 +16,11 @@ on:
       - 'app-android/**'
       - '.github/workflows/android.yml'
 
+# (uma montagem por vez, na fila: antes a nova cancelava a que estava montando, e a primeira chave, criada pela de
+# antes, fazia a de depois falhar)
 concurrency:
   group: android-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -67,6 +69,10 @@ jobs:
           if [ -z "$ECOA_CHAVE_SENHA" ]; then
             echo "::error::Falta o segredo ECOA_CHAVE_SENHA (Settings → Secrets and variables → Actions). Veja app-android/LEIA-ME.md"
             exit 1
+          fi
+          # (a chave pode ter sido criada por outra montagem depois da versão que esta pegou: vem do ramo, se já estiver lá)
+          if [ ! -f "$ENC" ] && [ "$PRINCIPAL" = "true" ]; then
+            git fetch -q origin "$GITHUB_REF_NAME" && git checkout -q "origin/$GITHUB_REF_NAME" -- "$ENC" 2>/dev/null || true
           fi
           if [ -f "$ENC" ]; then
             openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$ENC" -out "$P12" -pass env:ECOA_CHAVE_SENHA \
