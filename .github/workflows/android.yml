@@ -116,7 +116,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Ecoa.apk"
           ls -la "$RUNNER_TEMP/Ecoa.apk"
           # a versão deste APK: o app instalado confere por ela se há atualização (Ajustes → Sobre)
-          echo "{\"codigo\": $ECOA_VERSAO_CODIGO, \"nome\": \"$ECOA_VERSAO_NOME\"}" > "$RUNNER_TEMP/Ecoa-versao.json"
+          # (com as novidades que vão dentro deste APK: o aviso de versão nova mostra só as que o app instalado não tem)
+          node ../scripts/versao-apk.mjs "$ECOA_VERSAO_CODIGO" "$ECOA_VERSAO_NOME" > "$RUNNER_TEMP/Ecoa-versao.json"
           cat "$RUNNER_TEMP/Ecoa-versao.json"
 
       - uses: actions/upload-artifact@v4

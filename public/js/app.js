@@ -18,7 +18,7 @@ import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cor
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
-import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
+import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
@@ -16834,7 +16834,7 @@ function viewSettings(topico) {
     <div class="ajustes">
     <section class="aj-topo">
       <span class="aj-logo">${logo(44)}</span>
-      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
+      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">${noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`}</span></div>
     </section>
 
     ${secao('Aparência', `
@@ -17126,7 +17126,9 @@ async function atualizarApk(bt, aoAndar) {
 // novidades que dependem da atualização do app) e, ao tocar em Atualizar, o andamento do download ali mesmo
 async function oferecerAtualizacaoApk(r) {
   // (o nome curto de cada versão que mexeu no app de Android: "O play no meio do círculo", "Copiar a letra e a cifra"…)
-  const doApp = NOVIDADES.filter((n) => n.itens.some((it) => /atualiza[çc][ãa]o do app|app de Android|APK/i.test(it.texto))).slice(0, 4).map((n) => n.titulo);
+  // (as novidades que vêm DENTRO do APK novo e que este ainda não tem: o robô publica junto com a versão. Antes eram as
+  // do próprio app instalado, as antigas)
+  const doApp = novidadesQueChegam(r.publicada).slice(0, 5).map((n) => n.titulo);
   await openDialog(`
     <div class="apk-at">
       <div class="apk-at-cab"><span class="apk-at-ic">${logo(52)}</span><span class="grow"><h3>Nova versão do app</h3>

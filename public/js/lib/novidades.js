@@ -8,6 +8,7 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'No app de Android, as músicas e os videoclipes passam a ser baixados no próprio celular, sem o servidor: não precisa mais ligar o Codespace nem o servidor no computador para baixar. A mesma qualidade escolhida em Ajustes → Economia de dados e offline vale, e a porcentagem aparece como antes. Vem com a atualização do app (que fica um pouco maior). No navegador, nada muda.' },
       { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. O que ainda precisa de servidor no app (o karaokê pelo servidor e as respostas do Lúmen) usa o servidor no computador ou o de reserva.' },
+      { tipo: 'correcao', texto: 'No aviso de versão nova do app de Android, "O que vem com ela" mostrava novidades antigas, que o app já tinha. Agora mostra as que chegam com a versão nova (a partir da próxima atualização).' },
     ],
   },
   {
@@ -93,4 +94,12 @@ export function novidadesNaoVistas(vista) {
   const v = Number(vista) || 0;
   if (!v) return NOVIDADES.slice(0, 1);
   return NOVIDADES.filter((n) => n.versao > v);
+}
+
+// O aviso de versão nova do app de Android: as novidades do APK publicado (Ecoa-versao.json, que o robô monta com as
+// novidades que vão dentro dele) que o app instalado ainda não tem. webInstalada: a primeira versão das novidades do
+// app instalado. O arquivo de antes, sem as novidades, não mostra nada (antes apareciam as do app instalado, antigas)
+export function novidadesQueChegam(publicada, webInstalada = NOVIDADES[0]?.versao) {
+  return (Array.isArray(publicada?.novidades) ? publicada.novidades : [])
+    .filter((n) => Number(n?.versao) > Number(webInstalada || 0) && n.titulo);
 }
