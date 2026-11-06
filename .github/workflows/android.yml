@@ -51,12 +51,23 @@ jobs:
         run: |
           set -e
           ENC=app-android/chave/ecoa.p12.enc
+          mkdir -p "$RUNNER_TEMP/chave"
+          P12="$RUNNER_TEMP/chave/ecoa.p12"
+          if [ -z "$ECOA_CHAVE_SENHA" ] && [ "$PRINCIPAL" != "true" ]; then
+            # (fora do ramo principal o APK não é publicado: sem a senha, uma chave descartável só para conferir que ele monta)
+            export ECOA_CHAVE_SENHA="$(openssl rand -hex 24)"
+            echo "::add-mask::$ECOA_CHAVE_SENHA"
+            printf '%s' "$ECOA_CHAVE_SENHA" > "$RUNNER_TEMP/chave/senha-descartavel"
+            keytool -genkeypair -storetype PKCS12 -keystore "$P12" -alias ecoa -keyalg RSA -keysize 2048 -validity 30 \
+              -storepass "$ECOA_CHAVE_SENHA" -keypass "$ECOA_CHAVE_SENHA" -dname "CN=Ecoa teste"
+            echo "arquivo=$P12" >> "$GITHUB_OUTPUT"
+            echo "Montado com uma chave descartável (fora do ramo principal, sem publicar)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ -z "$ECOA_CHAVE_SENHA" ]; then
             echo "::error::Falta o segredo ECOA_CHAVE_SENHA (Settings → Secrets and variables → Actions). Veja app-android/LEIA-ME.md"
             exit 1
           fi
-          mkdir -p "$RUNNER_TEMP/chave"
-          P12="$RUNNER_TEMP/chave/ecoa.p12"
           if [ -f "$ENC" ]; then
             openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$ENC" -out "$P12" -pass env:ECOA_CHAVE_SENHA \
               || { echo "::error::A senha do segredo ECOA_CHAVE_SENHA não abre a chave guardada (ela mudou?)"; exit 1; }
@@ -93,6 +104,7 @@ jobs:
           ECOA_VERSAO_NOME: 1.${{ github.run_number }}
         run: |
           chmod +x gradlew
+          if [ -f "$RUNNER_TEMP/chave/senha-descartavel" ]; then export ECOA_CHAVE_SENHA="$(cat "$RUNNER_TEMP/chave/senha-descartavel")"; fi
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Ecoa.apk"
           ls -la "$RUNNER_TEMP/Ecoa.apk"
