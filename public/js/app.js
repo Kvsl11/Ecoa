@@ -28,6 +28,7 @@ import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClip
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
+import { estadoDaConexao, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -39,7 +40,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -2387,7 +2388,8 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     await noMaximo(sincronizarMusica(s), 45000, 'demorou');
     // (sem a letra na internet: o servidor da IA sincroniza pela voz do vídeo; leva um ou dois minutos)
     const s1 = db.song(id);
-    if (s1 && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
+    // (só com um servidor conectado: no APK ele não é procurado, e antes o botão ficava até 5 minutos girando à toa)
+    if (s1 && servidorIA().url && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
       passo('Sincronizando a letra pelo áudio…');
       await noMaximo(sincronizarPeloServidor(s1), 300000, false);
     }
@@ -2414,6 +2416,24 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     const audio = versoesDe(d)?.audio || '';
     if (audio !== antes.audio) mudou.push(audio ? 'O áudio oficial (o modo música) foi achado' : 'O áudio oficial errado saiu');
     if (Object.keys(d.baixado?.arquivos || {}).join() !== antes.arquivos || (d.rebaixar && !antes.rebaixar)) mudou.push('O download foi conferido e o que faltava voltou para baixar');
+  }
+  // ---- o que é do app de Android (o APK): o baixador do celular e o karaokê feito nele
+  const nativo = baixadorDoAparelho();
+  if (nativo && d) {
+    // o baixador (o yt-dlp do celular): preparado e, com download faltando, atualizado na hora (o YouTube muda sempre e
+    // o yt-dlp velho para de baixar); sem problema, só a atualização do dia
+    const faltaBaixar = Boolean(d.baixado || d.rebaixar) && precisaBaixar(d);
+    passo(faltaBaixar ? 'Atualizando o baixador do celular…' : 'Conferindo o baixador do celular…');
+    const b = await noMaximo(nativo.baixadorLocal({ atualizar: true, forcar: faltaBaixar }), 90000, null).catch(() => null);
+    if (b?.atualizacao === 'atualizado') mudou.push(`O baixador do celular (yt-dlp) foi atualizado${b.versao ? ` para a versão ${b.versao}` : ''}`);
+    else if (b && !b.pronto) mudou.push(`O baixador do celular não ficou pronto (${b.erro || 'erro desconhecido'}): reinstale o app se continuar`);
+    // o karaokê que sumiu do aparelho: sai da música e é feito de novo no celular
+    const fk = fonteDoKaraoke(d);
+    if (fk && karaokeDe(fk) && !chaves.has(chaveKaraoke(fk))) {
+      esquecerKaraoke(fk);
+      mudou.push('O karaokê tinha sumido do aparelho: ele vai ser feito de novo');
+      if (karaokeNoAparelho()) void prepararKaraoke(db.song(id)).catch(() => {});
+    }
   }
   return mudou;
 }
@@ -6086,6 +6106,21 @@ const semLinhasDeAcordes = (sinc) => {
       const deOnde = /dzcdn\.net/.test(fs) ? 'Deezer' : /(ggpht|googleusercontent)\.com/.test(fs) ? 'YouTube' : /wikimedia\.org/.test(fs) ? 'Wikipédia' : /sscdn\.co|cifraclub/.test(fs) ? 'Cifra Club' : fs ? 'outro site' : 'nenhuma';
       item('Foto da música', deOnde);
     }
+    // o que o app de Android faz no próprio celular (sem servidor)
+    if (noApk()) {
+      secao('App de Android');
+      const nat = baixadorDoAparelho();
+      if (nat) {
+        const b = await noMaximo(nat.baixadorLocal({}), 20000, null).catch(() => null);
+        item('Baixador do celular', b ? (b.pronto ? `pronto · yt-dlp ${b.versao || '?'}` : `não ficou pronto: ${b.erro || '?'}`) : 'não respondeu', b?.pronto ? 'ok' : 'erro', b?.pronto ? '' : 'o baixador do celular não está pronto (os downloads não funcionam)');
+      } else item('Baixador do celular', 'este app ainda não tem: atualize o app', 'aviso', 'o app está numa versão antiga, sem os downloads no celular');
+      const busca = Boolean((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina'));
+      item('Busca direta das páginas', busca ? 'ligada (sem os serviços intermediários)' : 'não (versão antiga do app)', busca ? 'ok' : 'aviso');
+      const lumen = await lumenNoAparelho().catch(() => null);
+      item('Lúmen no celular', lumen ? 'com a chave do Gemini' : 'sem a chave do Gemini (responde pela busca simples)', lumen ? 'ok' : 'aviso', lumen ? '' : 'o Lúmen do app está sem a chave do Gemini (configure o segredo GEMINI_API_KEY_APK no GitHub)');
+      const k = karaokeNoAparelho() ? await noMaximo(karaokeNoAparelho().karaokeDisponivel(), 5000, null).catch(() => null) : null;
+      item('Karaokê no celular', k ? `sim · modelo ${k.modelo ? 'baixado' : 'ainda não baixado (baixa na primeira vez, 30 MB)'}` : 'não (versão antiga do app)', k ? 'ok' : 'aviso');
+    }
     secao('Karaokê');
     const fk = song ? fonteDoKaraoke(song) : '';
     const kar = karaokeDe(fk);
@@ -6190,7 +6225,7 @@ const semLinhasDeAcordes = (sinc) => {
         // (o que continua faltando depois do conserto fica dito, com o porquê: o conserto não tem como achar o que não
         // existe, como a letra sincronizada que o LRCLIB não tem)
         const resta = d ? [...d.problemas, ...d.avisos] : [];
-        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (nem o LRCLIB nem a NetEase têm esta música, e o servidor da IA não conseguiu sincronizar pelo áudio: confira se ele está ligado)` : r);
+        const porque = (r) => (/letra sincronizada/.test(r) ? `${r} (nem o LRCLIB nem a NetEase têm esta música${servidorIA().url ? ', e o servidor da IA não conseguiu sincronizar pelo áudio' : ''})` : r);
         bConsertar.innerHTML = `${icon('refresh', 16)} Consertar agora`;
         recado(`<b>${icon('check', 16)} ${mudou?.length ? 'O que foi consertado' : 'Conferido: nada precisou mudar'}</b>${mudou?.length ? `<ul>${mudou.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}${resta.length ? `<p class="muted diag-resta">Continua faltando (o app não tem como consertar):</p><ul>${resta.map((r) => `<li>${esc(porque(r))}</li>`).join('')}</ul>` : ''}`);
       };
@@ -6396,10 +6431,51 @@ const semLinhasDeAcordes = (sinc) => {
       return;
     }
     if (puxada.pc) return;
-    // (o card sobe um pouco junto com o dedo; numa fila, para o lado ele anda junto, como no Spotify)
-    el.style.translate = dy < 0 && Math.abs(dy) > Math.abs(dx) ? `0 ${Math.max(dy, -60) / 2}px`
-      : el.classList.contains('com-fila') && Math.abs(dx) > Math.abs(dy) ? `${Math.max(-80, Math.min(80, dx)) / 2}px 0` : '';
+    // numa fila, para o lado: o nome da música anda junto com o dedo, inteiro, e vai sumindo (como no Spotify); soltando,
+    // a próxima entra pelo outro lado. Antes o cartão todo andava só a metade do dedo, até 40 px, e parecia preso
+    if (puxada.eixo === 'h' && ehMini() && el.classList.contains('com-fila')) {
+      const txt = $('.pl-info .pl-txt', el);
+      if (txt) {
+        if (!puxada.nome) { puxada.nome = txt; txt.style.transition = 'none'; try { el.setPointerCapture(e.pointerId); } catch { /* segue sem captura */ } }
+        const larg = txt.offsetWidth || 200;
+        txt.style.transform = `translateX(${dx}px)`;
+        txt.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / (larg * 0.8)));
+        // (a velocidade do fim do gesto: uma passada rápida, mesmo curta, já troca de música)
+        const agora = performance.now();
+        puxada.vel = puxada.ultT ? (e.clientX - puxada.ultX) / Math.max(1, agora - puxada.ultT) : 0;
+        puxada.ultX = e.clientX;
+        puxada.ultT = agora;
+      }
+      el.style.translate = '';
+      return;
+    }
+    // (o card sobe um pouco junto com o dedo)
+    el.style.translate = dy < 0 && Math.abs(dy) > Math.abs(dx) ? `0 ${Math.max(dy, -60) / 2}px` : '';
   });
+  // O nome que estava sendo arrastado: sai pelo lado do dedo e o da música nova entra pelo outro (trocou), ou volta ao
+  // lugar (não trocou)
+  const soltarNome = (txt, trocou, dx) => {
+    if (!txt) return;
+    const larg = txt.offsetWidth || 200;
+    txt.style.transition = 'transform 0.14s ease-out, opacity 0.14s ease-out';
+    if (!trocou) {
+      txt.style.transform = '';
+      txt.style.opacity = '';
+      setTimeout(() => { txt.style.transition = ''; }, 160);
+      return;
+    }
+    txt.style.transform = `translateX(${dx < 0 ? -larg : larg}px)`;
+    txt.style.opacity = '0';
+    setTimeout(() => {
+      txt.style.transition = 'none';
+      txt.style.transform = `translateX(${dx < 0 ? larg * 0.5 : -larg * 0.5}px)`;
+      void txt.offsetWidth;
+      txt.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+      txt.style.transform = '';
+      txt.style.opacity = '';
+      setTimeout(() => { txt.style.transition = ''; }, 220);
+    }, 140);
+  };
   const soltarPuxada = (e) => {
     if (!puxada || e.pointerId !== puxada.id) return;
     const dy = e.clientY - puxada.y;
@@ -6428,12 +6504,21 @@ const semLinhasDeAcordes = (sinc) => {
     // vai para a anterior, como no Spotify (no celular o mini player não tem mais esses botões). Antes o gesto apertava o
     // botão "anterior", que no meio da música volta ao começo dela: a música recomeçava e não trocava. Agora troca sempre
     // de música; sem a próxima (fim da fila), avisa, e sem a anterior, aí sim volta ao começo
-    if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    // (troca com o dedo passando de 1/4 do nome, ou com uma passada rápida de pelo menos 24 px)
+    const larg = p.nome?.offsetWidth || 200;
+    const passou = Math.abs(dx) > Math.min(60, larg / 4) || (Math.abs(dx) > 24 && Math.abs(p.vel || 0) > 0.35 && Math.sign(p.vel) === Math.sign(dx));
+    if (e.type === 'pointerup' && ehMini() && el.classList.contains('com-fila') && passou && Math.abs(dx) > Math.abs(dy) * 1.5) {
       engolirClique = true;
       setTimeout(() => { engolirClique = false; }, 400);
-      if (dx < 0) { if (!pular(1)) toast('Esta é a última música da fila'); }
-      else if (!pular(-1)) api.irPara(0);
+      let trocou = true;
+      if (dx < 0) { if (!pular(1)) { trocou = false; toast('Esta é a última música da fila'); } }
+      else if (!pular(-1)) { trocou = false; api.irPara(0); }
+      soltarNome(p.nome, trocou, dx);
       return;
+    }
+    if (p.nome) {
+      soltarNome(p.nome, false, dx);
+      if (p.eixo === 'h') { engolirClique = true; setTimeout(() => { engolirClique = false; }, 400); return; }
     }
     if (e.type !== 'pointerup' || dy > -40 || Math.abs(dy) < Math.abs(dx) * 1.2 || !ehMini()) return;
     engolirClique = true; // (o clique que vem depois do arraste não aperta o botão onde o dedo saiu)
@@ -20820,6 +20905,16 @@ const ecoaNativo = (() => {
 })();
 if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
+  // (as páginas da internet lidas pela parte nativa, direto: sem a trava de CORS e sem depender dos serviços públicos
+  // que abrem a página por nós — as informações do artista e da música vinham faltando no app)
+  if ((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina')) {
+    usarBuscaNativa(async (url, { headers = {}, timeout = 12000 } = {}) => {
+      const r = await ecoaNativo.buscarPagina({ url, cabecalhos: headers, tempo: timeout });
+      if (!r?.status) throw new TypeError(r?.texto || 'Failed to fetch');
+      const status = r.status >= 200 && r.status <= 599 ? r.status : 502;
+      return new Response([101, 204, 205, 304].includes(status) ? null : (r.texto ?? ''), { status, headers: r.tipo ? { 'content-type': r.tipo } : {} });
+    });
+  }
   let ultimo = '';
   let ultimoTempo = 0;
   let ultimoEm = 0;
@@ -20864,6 +20959,28 @@ if (ecoaNativo) {
   });
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
+  // As capas das músicas baixadas guardadas no app, de antemão: tocando sem internet, o aviso de "tocando" e o widget
+  // mostram a capa certa (antes ficava a da música anterior). As mesmas que o player manda: a capa da música ou a do vídeo
+  if (ecoaNativo.capasOffline) {
+    let guardarCapasT = 0;
+    const guardarCapas = () => {
+      clearTimeout(guardarCapasT);
+      guardarCapasT = setTimeout(() => {
+        if (!navigator.onLine) return;
+        const urls = new Set();
+        for (const s of db.songs()) {
+          if (!s.baixado) continue;
+          if (/^https?:/.test(s.cover || '')) urls.add(s.cover);
+          const vs = versoesDe(s);
+          for (const yt of [s.youtube, vs?.video, vs?.audio]) if (/^[\w-]{11}$/.test(yt || '')) urls.add(`https://i.ytimg.com/vi/${yt}/hqdefault.jpg`);
+        }
+        if (urls.size) void ecoaNativo.capasOffline({ urls: [...urls] }).catch(() => {});
+      }, 5000);
+    };
+    setTimeout(guardarCapas, 15000);
+    window.addEventListener('songbook:downloads', guardarCapas);
+    window.addEventListener('online', guardarCapas);
+  }
   // (o yt-dlp do celular, que faz os downloads: atualizado uma vez por dia, porque o YouTube muda sempre)
   if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
   // (a versão do app instalado e a das novidades que vieram com ele: a tela Novidades usa para dizer quando cada uma chegou)
@@ -20954,8 +21071,34 @@ if (ehIOS() && !jaInstalado()) setTimeout(mostrarConvite, 2500);
 // ---------------------------------------------------------------- offline
 // pede ao navegador para não apagar os dados do app (repertórios, músicas, liturgia guardada)
 navigator.storage?.persist?.().catch(() => {});
-window.addEventListener('offline', () => toast('Sem internet: o app continua com os repertórios e a liturgia guardados'));
-window.addEventListener('online', () => toast('Conexão de volta'));
+// O aviso da conexão, como no Spotify: "Você está offline" (fica enquanto não há internet), "Conectado novamente" (uns
+// segundos, quando ela volta) e "Conexão lenta" (com a rede fraca). Antes só havia um aviso que nem aparecia
+{
+  const el = Object.assign(document.createElement('div'), { id: 'aviso-rede', hidden: true });
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  document.body.append(el);
+  let estado = 'ok';
+  let some = 0;
+  const mostrar = (tipo) => {
+    clearTimeout(some);
+    el.hidden = !tipo;
+    document.documentElement.classList.toggle('aviso-rede', Boolean(tipo));
+    if (tipo) { el.className = tipo; el.textContent = TEXTO_DA_CONEXAO[tipo]; }
+  };
+  const conferir = () => {
+    const novo = estadoDaConexao({ online: navigator.onLine, rede: navigator.connection || null });
+    if (novo === estado) return;
+    const antes = estado;
+    estado = novo;
+    if (novo !== 'ok') { mostrar(novo); return; }
+    if (antes === 'offline') { mostrar('volta'); some = setTimeout(() => mostrar(null), 3000); } else mostrar(null);
+  };
+  window.addEventListener('online', conferir);
+  window.addEventListener('offline', conferir);
+  navigator.connection?.addEventListener?.('change', conferir);
+  conferir();
+}
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const tinhaControle = Boolean(navigator.serviceWorker.controller);

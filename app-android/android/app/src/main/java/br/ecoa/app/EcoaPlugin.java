@@ -54,6 +54,10 @@ import java.util.concurrent.Executors;
 //    próprio celular (Karaoke.java: o UVR no ONNX Runtime); evento "karaoke" ({ processo, etapa, pct }). O arquivo fica em
 //    caminho até o site guardar e chamar apagarLocal({ caminho })
 //  - karaokeDisponivel() → { tem, modelo }: se o celular faz karaokê (e se o modelo de 30 MB já foi baixado)
+//  - capasOffline({ urls }): guarda de antemão as capas destas músicas (as baixadas), para o aviso de "tocando" e o
+//    widget mostrarem a capa certa sem internet
+//  - buscarPagina({ url, cabecalhos, tempo }) → { status, texto, tipo }: uma página da internet lida direto (sem a trava
+//    de CORS do navegador; Paginas.java). status 0: nem chegou ao site
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -446,6 +450,35 @@ public class EcoaPlugin extends Plugin {
             r.put("texto", g.texto);
             call.resolve(r);
         });
+    }
+
+    // (várias ao mesmo tempo: a tela do artista pede muitas de uma vez)
+    private static final java.util.concurrent.ExecutorService lendoPaginas = Executors.newFixedThreadPool(6);
+
+    @PluginMethod
+    public void buscarPagina(PluginCall call) {
+        String url = call.getString("url", "");
+        JSObject cab = call.getObject("cabecalhos", null);
+        int tempo = Math.max(3000, Math.min(60000, call.getInt("tempo", 15000)));
+        lendoPaginas.execute(() -> {
+            Paginas.Resposta p = Paginas.buscar(url, cab, tempo);
+            JSObject r = new JSObject();
+            r.put("status", p.status);
+            r.put("texto", p.texto);
+            r.put("tipo", p.tipo);
+            call.resolve(r);
+        });
+    }
+
+    @PluginMethod
+    public void capasOffline(PluginCall call) {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        try {
+            com.getcapacitor.JSArray a = call.getArray("urls");
+            if (a != null) for (int i = 0; i < a.length() && i < 1000; i++) urls.add(a.getString(i));
+        } catch (Exception e) { /* lista estragada: nada */ }
+        Capas.guardarTodas(getContext(), urls);
+        call.resolve();
     }
 
     @PluginMethod
