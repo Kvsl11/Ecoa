@@ -9238,16 +9238,37 @@ const fotosArtistas = new Map();
 // Wikipédia)
 function fotoDoArtista(nome, slug = '') {
   const k = normalizar(nome);
-  // a música veio do Cifra Club: o artista é o da página dela (sem adivinhar pelo nome)
-  if (slug && !fotosArtistas.has(k)) fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
-    .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
-    .then((f) => f || fotoDeezer(nome))));
+  if (!k) return Promise.resolve('');
   if (!fotosArtistas.has(k)) {
-    // a busca do Cifra Club nem sempre traz a foto (a do Justice vem vazia): aí vale a da página do artista, a mesma
-    // que aparece ao abrir o artista (sem isso, o Deezer trazia a foto de outro artista com o mesmo nome)
-    const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
-      || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-    fotosArtistas.set(k, fotoDoCanalDeVerdade(nome).then((f) => f || cifraClub()).then((f) => f || fotoDeezer(nome)).then((f) => f || fotoWikipedia(nome)));
+    // Não encadear YouTube → Cifra Club → Deezer → Wikipédia: uma fonte lenta deixava todas as outras esperando.
+    // Cada fonte trabalha em paralelo; só uma foto real e válida pode vencer (resultado vazio não encerra a disputa).
+    const cifra = async () => {
+      const lista = await buscarArtistasCifraClub(nome);
+      const a = slug ? (lista.find((x) => x.slug === slug) || artistaCerto(lista, nome)) : artistaCerto(lista, nome);
+      if (a?.capa && fotoReal(a.capa)) return a.capa;
+      const alvo = slug || a?.slug;
+      if (!alvo) return '';
+      const pagina = await carregarArtista(alvo, a?.nome || nome);
+      return pagina?.principal?.foto || '';
+    };
+    const fontes = [
+      fotoDoCanalDeVerdade(nome),
+      cifra(),
+      fotoDeezer(nome),
+      fotoWikipedia(nome),
+      ...(slug ? [carregarArtista(slug, nome).then((x) => x?.principal?.foto || '')] : []),
+    ];
+    let tentativa;
+    tentativa = Promise.any(fontes.map((p) => Promise.resolve(p).then((f) => {
+      const url = fotoReal(f);
+      if (!url) throw new Error('Esta fonte não trouxe uma foto válida');
+      return url;
+    }))).catch(() => '').then((foto) => {
+      // Não guardar falha vazia em memória: se o serviço estiver fora do ar, a próxima entrada tenta de novo.
+      if (!foto && fotosArtistas.get(k) === tentativa) fotosArtistas.delete(k);
+      return foto;
+    });
+    fotosArtistas.set(k, tentativa);
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
@@ -9266,7 +9287,7 @@ const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch
 function fotoRapida(nome, slug = '') {
   if (!nome) return Promise.resolve('');
   const guardada = fotoConhecida(nome);
-  return noMaximo(fotoDoArtista(nome, slug).then((f) => f || guardada), guardada ? 1500 : 4500, guardada);
+  return noMaximo(fotoDoArtista(nome, slug).then((f) => f || guardada), guardada ? 700 : 2200, guardada);
 }
 function capaRapida(titulo, artista) {
   const guardada = capaConhecida(titulo, artista);
