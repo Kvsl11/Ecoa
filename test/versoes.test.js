@@ -37,6 +37,12 @@ test('acha o áudio oficial da gravação (e não o clipe, o ao vivo ou outra du
     v('thrillerlive1', 'Michael Jackson - Thriller (Live)', 'Michael Jackson', 360),
   ];
   assert.equal(escolherAudio(thriller, { titulo: 'Thriller', artista: 'Michael Jackson', duracao: 357, evitar: 'thrillerclip1' })?.id, 'thrilleraudio');
+  // (o vídeo que um fã subiu no próprio canal, com o nome do artista só no título, não é o áudio oficial; o do canal do
+  // clipe, o canal oficial do ministério, é)
+  const odres = [v('JG6RmNXZv00', 'Odres Novos - Gerados Pela Imaculada', 'Raul Correia', 300)];
+  assert.equal(escolherAudio(odres, { titulo: 'Odres Novos', artista: 'Gerados pela Imaculada', duracao: 0, evitar: 'Yquwfjrl-FE' }), null);
+  const doCanal = [v('oficial0001', 'Odres Novos (Áudio Oficial)', 'Ministério Gerados pela Imaculada', 300)];
+  assert.equal(escolherAudio(doCanal, { titulo: 'Odres Novos', artista: 'Gerados pela Imaculada', duracao: 0 })?.id, 'oficial0001');
 });
 
 test('o tempo passa do áudio para o clipe e volta, trecho por trecho (cena antes e no meio)', () => {
