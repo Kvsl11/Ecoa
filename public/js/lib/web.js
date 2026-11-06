@@ -1378,8 +1378,22 @@ export async function creditosDaWikipedia({ titulo, artista }, { fetchImpl } = {
 // que está entre aspas. Também "Artista - Música (Official Video)" e "Música | Artista". musica: false para o vídeo que
 // não é de música (uma propaganda, uma entrevista), que fica de fora da lista
 const juntoV = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-const ENFEITES_DO_VIDEO = /\s*[([]?\s*\b(official\s+(music\s+)?(video|mv|m\/v|audio|visualizer|lyric(s)?\s+video|performance\s+video)|music\s+video|lyric(s)?\s+video|visuali[sz]er|performance\s+video|dance\s+practice|m\/v|mv|audio\s+oficial|v[ií]deo\s+oficial|clipe\s+oficial|oficial|official|teaser|4k|hd)\b\s*[)\]]?/gi;
+const ENFEITES_DO_VIDEO = /\s*[([]?\s*\b(official\s+(?:(?:music|4k|hd|uhd|remastered|full|short)\s+)*(video|mv|m\/v|audio|visualizer|lyric(s)?\s+video|performance\s+video)|music\s+video|lyric(s)?\s+video|visuali[sz]er|performance\s+video|dance\s+practice|m\/v|mv|audio\s+oficial|v[ií]deo\s+oficial|clipe\s+oficial|oficial|official|teaser|4k|hd)\b\s*[)\]]?/gi;
 const PARECE_MUSICA = /\b(m\/?v|official|music video|lyric|visuali[sz]er|audio|performance|live|ao vivo|clipe|v[ií]deo oficial|feat\.?|ft\.)\b|['‘’"“”「『]/i;
+// o que sobra dos parênteses depois de tirar os enfeites: os que ficaram vazios ou só com "Video" saem, e o parêntese
+// sem par também ("Thriller (Official 4K Video)" mostrava "Thriller Video)")
+const semParentesesSoltos = (t) => {
+  let s = String(t).replace(/[([]\s*(?:video|v[ií]deo|audio|[áa]udio|version)?\s*[)\]]/gi, ' ');
+  const abertos = [];
+  const fora = new Set();
+  [...s].forEach((c, i) => {
+    if (c === '(' || c === '[') abertos.push(i);
+    else if (c === ')' || c === ']') { if (abertos.length) abertos.pop(); else fora.add(i); }
+  });
+  abertos.forEach((i) => fora.add(i));
+  s = [...s].map((c, i) => (fora.has(i) ? ' ' : c)).join('');
+  return s.replace(/\s+(?:video|v[ií]deo|audio)\s*$/i, '').replace(/\s+/g, ' ').trim();
+};
 export function nomesDoVideoDoArtista(tituloVideo, artista) {
   const bruto = String(tituloVideo || '').replace(/\s+/g, ' ').trim();
   const alvo = juntoV(artista);
@@ -1389,7 +1403,8 @@ export function nomesDoVideoDoArtista(tituloVideo, artista) {
   let t = bruto.replace(/[【[][^\]】]*[\]】]/g, ' ').replace(/\s*\|\s*[^|]*$/, (m) => (temArtista(m) ? '' : m)).trim();
   let titulo = '';
   // a música entre aspas: 'Seven (feat. Latto)', “Seven”, 「Seven」
-  const aspas = /['‘’"“”「『]([^'‘’"“”」』]{2,})['‘’"“”」』]/.exec(t);
+  // (o apóstrofo dentro da palavra não é aspa: em "Don't Stop 'Til You Get Enough" a música não é "t Stop")
+  const aspas = /(?<![\p{L}\p{N}])['‘’"“”「『]([^'‘’"“”」』]{2,})['‘’"“”」』](?![\p{L}\p{N}])/u.exec(t);
   if (aspas) titulo = aspas[1];
   else if (/ [-–—|] /.test(t)) {
     const partes = t.split(/ [-–—|] /).map((x) => x.trim()).filter(Boolean);
@@ -1400,7 +1415,7 @@ export function nomesDoVideoDoArtista(tituloVideo, artista) {
     // "Jung Kook Seven Official MV": sem o nome do artista
     titulo = t.replace(new RegExp(String(artista).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i'), ' ');
   } else titulo = t;
-  titulo = titulo.replace(ENFEITES_DO_VIDEO, ' ').replace(/\(\s*\)|\[\s*\]/g, ' ').replace(/^[\s:,'"‘’“”.-]+|[\s:,'"‘’“”.-]+$/g, '').replace(/\s+/g, ' ').trim();
+  titulo = semParentesesSoltos(titulo.replace(ENFEITES_DO_VIDEO, ' ').replace(/\(\s*\)|\[\s*\]/g, ' ')).replace(/^[\s:,'"‘’“”.-]+|[\s:,'"‘’“”.-]+$/g, '').replace(/\s+/g, ' ').trim();
   const musica = Boolean(titulo) && temArtista(bruto) && (PARECE_MUSICA.test(bruto) || / [-–—] /.test(bruto)) && !/\b(interview|entrevista|behind|making|reaction|react|vlog|teaser|trailer|shorts|fmv|fan ?made|fan ?mv|fanmade|edit|cover|karaoke|nightcore|sped up|slowed|8d audio|tutorial|reaccion)\b/i.test(bruto);
   return { titulo: titulo || bruto, artista: String(artista || '').trim(), musica };
 }
