@@ -1,8 +1,9 @@
 # O app de Android do Ecoa (o APK): o mesmo site (kvsl11.github.io/Songbook) dentro de um app, com o widget da tela
 # inicial, o aviso de "tocando" com os botões e o login do Google pelo próprio Android. Publicado em
 # Releases → android (o arquivo Ecoa.apk), que o botão "Baixar o app para Android" do site baixa.
-# O site muda sozinho dentro do app (ele abre o site publicado): o APK só é montado de novo quando a parte de Android
-# muda (app-android/). Fora do ramo principal, só monta (não publica).
+# O site muda sozinho dentro do app (ele abre o site publicado), mas o APK também é recompilado a cada push:
+# assim cada merge recebe um versionCode novo e o arquivo de versão chega ao site após a publicação do APK.
+# Fora do ramo principal, só monta (não publica).
 #
 # A chave que assina o APK tem de ser sempre a mesma (senão o novo não instala por cima do anterior). Ela fica no
 # repositório trancada (app-android/chave/ecoa.p12.enc), e só abre com a senha do segredo ECOA_CHAVE_SENHA. Na primeira
@@ -11,10 +12,9 @@ name: App de Android
 
 on:
   workflow_dispatch:
+  # Não filtrar por pasta: alterações do site também precisam atualizar o APK/versão publicados,
+  # evitando que o APK instalado fique sem receber a versão correspondente ao último merge.
   push:
-    paths:
-      - 'app-android/**'
-      - '.github/workflows/android.yml'
 
 # (uma montagem por vez, na fila: antes a nova cancelava a que estava montando, e a primeira chave, criada pela de
 # antes, fazia a de depois falhar)
