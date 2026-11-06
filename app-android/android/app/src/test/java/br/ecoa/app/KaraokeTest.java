@@ -10,7 +10,7 @@ import org.junit.Test;
 public class KaraokeTest {
     @Test public void tamanhos() {
         assertEquals(261120, Karaoke.CHUNK);
-        assertEquals(257024, Karaoke.GEN);
+        assertEquals(256000, Karaoke.GEN);
     }
 
     @Test public void idaEVolta() {
@@ -32,6 +32,24 @@ public class KaraokeTest {
         }
         double sdr = 10 * Math.log10(energia / erro);
         assertTrue("SDR da ida e volta: " + sdr, sdr > 60);
+    }
+
+    @Test public void fftDeCincoVezesDoisConfereComADft() {
+        int n = 5120;
+        double[] re = new double[n], im = new double[n];
+        java.util.Random rnd = new java.util.Random(1);
+        double[] x = new double[n];
+        for (int i = 0; i < n; i++) { x[i] = rnd.nextGaussian(); re[i] = x[i]; }
+        Karaoke.fft(re, im, false);
+        for (int k : new int[] { 0, 1, 7, 1023, 1024, 2560, 5119 }) {
+            double ar = 0, ai = 0;
+            for (int i = 0; i < n; i++) { ar += x[i] * Math.cos(-2 * Math.PI * k * i / n); ai += x[i] * Math.sin(-2 * Math.PI * k * i / n); }
+            assertEquals(ar, re[k], 1e-6);
+            assertEquals(ai, im[k], 1e-6);
+        }
+        // (a inversa traz de volta, dividindo por n)
+        Karaoke.fft(re, im, true);
+        for (int i = 0; i < n; i += 97) assertEquals(x[i], re[i] / n, 1e-9);
     }
 
     @Test public void fftConfereComADft() {

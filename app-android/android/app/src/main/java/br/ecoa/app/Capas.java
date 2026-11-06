@@ -80,7 +80,8 @@ final class Capas {
             c.setReadTimeout(15000);
             Bitmap b;
             try (InputStream in = c.getInputStream()) { b = BitmapFactory.decodeStream(in); }
-            if (b == null) return false;
+            // (a imagem cinza de 120x90 com o "play" que o YouTube devolve quando não tem a miniatura: não é capa)
+            if (b == null || (b.getWidth() <= 120 && b.getHeight() <= 90)) return false;
             // (pequena: o widget recebe a imagem inteira e tem limite de tamanho)
             int lado = 360;
             // (sem a borda fina clara que muitas capas trazem: com o canto arredondado do Android, ela aparecia

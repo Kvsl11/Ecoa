@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 580, data: '2026-11-06', titulo: 'O karaokê do celular com muito mais qualidade',
+    itens: [
+      { tipo: 'melhoria', texto: 'No app de Android, o karaokê feito no celular passou para um modelo bem melhor: a voz não fica mais chiando no fundo e os instrumentos não somem junto com ela. Leva mais tempo (cerca do dobro, conforme o celular) e, na primeira vez, o app baixa o modelo novo (59 MB). Os karaokês já feitos no celular são refeitos sozinhos, um por vez. Dica: com "Baixar também o karaokê" ligado (Ajustes → Downloads), ele fica pronto junto com o download, antes de você precisar.' },
+      { tipo: 'correcao', texto: 'Na capa animada (na barrinha e no Tocando agora), alguns clipes, sobretudo os antigos, mostravam uma imagem cinza com um "play" no meio ao trocar de música. Agora entra a imagem do próprio vídeo, e o aviso de "tocando" do Android também não usa mais essa imagem.' },
+    ],
+  },
+  {
     versao: 579, data: '2026-11-06', titulo: 'A capa certa no aviso, o aviso de offline e a barrinha que acompanha o dedo',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o aviso de "tocando" (e o widget) às vezes mostrava a capa da música anterior, principalmente sem internet. Agora a capa de antes sai na hora, e as capas das músicas baixadas ficam guardadas no celular para aparecerem certas offline. Vem com a atualização do app.' },
@@ -67,12 +74,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Nos ⋯ da letra (no Tocando agora) e nos ⋮ da música: Copiar a letra (só a letra, com o nome da música e o artista em cima) e Copiar a letra com cifra (os acordes em cima da sílaba, no tom e no capotraste que estão na tela, com o nome das partes). É só colar no WhatsApp, num documento ou onde quiser. No navegador e no app de Android.' },
       { tipo: 'correcao', texto: 'Algumas capas (de álbuns que vêm com uma borda fina clara) apareciam com as pontas brancas cortadas nos cantos arredondados: nas listas, na gaveta do perfil, na barrinha, no Tocando agora, no aviso do Android e na tela de bloqueio. Agora a borda fica de fora (no aviso e na tela de bloqueio, com a atualização do app).' },
       { tipo: 'melhoria', texto: 'O menu de baixo do celular e o degradê atrás da barrinha ficaram um pouco mais escuros (ainda deixando ver de leve o que está por trás).' },
-    ],
-  },
-  {
-    versao: 570, data: '2026-11-06', titulo: 'A barrinha colada no menu, como no Spotify',
-    itens: [
-      { tipo: 'melhoria', texto: 'No celular (no navegador e no app de Android), a barrinha da música agora fica colada no menu de baixo, sem a faixa entre os dois, e o menu ficou mais transparente: o que está na tela aparece por trás dele, escurecendo até o pé, como no Spotify. Os ícones e os nomes do menu ficaram um pouco maiores.' },
     ],
   },
 ];
