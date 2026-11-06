@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 567, data: '2026-11-06', titulo: 'O APK diz em qual fone está tocando',
+    itens: [
+      { tipo: 'correcao', texto: 'No app de Android, ao conectar um fone (Bluetooth, com fio ou USB) o app não percebia nem dizia o nome dele. Agora o próprio Android diz por onde o som sai, com o nome do fone ou da caixa (o mesmo das configurações do Bluetooth, como "JBL Tour Pro 3"), sem pedir o microfone, e avisa na hora em que ele conecta ou desconecta (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
+      { tipo: 'melhoria', texto: 'No app de Android, a folha Conectar mostra o nome deste celular (o de Configurações → Sobre o telefone, ou o modelo) no lugar de "Este celular".' },
+    ],
+  },
+  {
     versao: 566, data: '2026-11-06', titulo: 'O APK mostra a própria versão e aproveita a tela inteira',
     itens: [
       { tipo: 'melhoria', texto: 'No menu do perfil do APK, a versão agora é a do aplicativo Android instalado (APK), e não a versão do site. No navegador, a versão do site continua aparecendo normalmente.' },
@@ -70,13 +77,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O vídeo com o título no jeito "Odres Novos // Luau da Imaculada II" (comum nos vídeos de música católica) abria como uma música com esse nome inteiro, e a busca não achava a letra nem a cifra. Agora o nome da música é o da esquerda e o artista é o canal. As músicas que já tinham sido salvas assim, sem a letra e a cifra, arrumam o nome e procuram de novo sozinhas (o "Consertar agora" do Diagnóstico também).' },
     ],
   },
-  {
-    versao: 557, data: '2026-11-06', titulo: 'A música baixada continua com o app minimizado',
-    itens: [
-      { tipo: 'correcao', texto: 'A música baixada parava ao minimizar o app ou apagar a tela quando tocava o clipe baixado (no modo vídeo, ou no modo música de uma música sem o áudio oficial): o celular pausa os vídeos em segundo plano. Agora, ao minimizar, o mesmo arquivo passa a tocar só como som, do mesmo ponto, e volta a ser vídeo quando o app abre de novo. A próxima música da fila, baixada, também continua.' },
-    ],
-  },
-
 ];
 
 // A primeira versão de cada mês. O número mostrado ("2026.10.31-383") é a data da versão e quantas versões o mês já

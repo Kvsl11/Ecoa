@@ -41,6 +41,8 @@ import java.util.concurrent.Executors;
 //  - avisar({ titulo, texto, tag, href, silenciosa, imagem }): uma notificação do Android (os downloads)
 //  - versao() → { codigo, nome }; atualizar({ url }): baixa o APK novo e abre a instalação (evento "atualizacao": { pct })
 //  - sairDoGoogle(): esquece a conta escolhida (na próxima entrada, o Android pergunta de novo)
+//  - saidaDeSom() → { fone, tipo, saidas: [{ nome, tipo }], aparelho, modelo, fabricante }: por onde o som sai (o fone
+//    ou a caixa com o nome dele) e o nome deste celular; evento "saida" (o mesmo) ao conectar ou desconectar um fone
 //  - evento "acao" ({ acao: 'anterior' | 'alternar' | 'proxima' }): um botão do widget ou do aviso foi tocado
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class EcoaPlugin extends Plugin {
@@ -51,14 +53,47 @@ public class EcoaPlugin extends Plugin {
     private static EcoaPlugin ativo;
     private static String pendente; // a ação que chegou antes de o site ficar pronto
 
+    // conectou ou desconectou um fone, uma caixa ou um cabo: avisa o site (evento "saida")
+    private android.media.AudioDeviceCallback ouvinteDeSaida;
+    private final android.os.Handler principal = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable lerSaida = () -> { if (getBridge() != null) notifyListeners("saida", SaidaDeSom.ler(getContext())); };
+
     @Override
     public void load() {
         ativo = this;
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+            ouvinteDeSaida = new android.media.AudioDeviceCallback() {
+                @Override public void onAudioDevicesAdded(android.media.AudioDeviceInfo[] d) { avisarSaida(); }
+                @Override public void onAudioDevicesRemoved(android.media.AudioDeviceInfo[] d) { avisarSaida(); }
+            };
+            if (am != null) am.registerAudioDeviceCallback(ouvinteDeSaida, principal);
+        } catch (Exception e) { ouvinteDeSaida = null; }
+    }
+
+    // (o Android troca a rota um instante depois de avisar: lê de novo logo depois)
+    private void avisarSaida() {
+        principal.removeCallbacks(lerSaida);
+        principal.postDelayed(lerSaida, 400);
     }
 
     @Override
     protected void handleOnDestroy() {
         if (ativo == this) ativo = null;
+        principal.removeCallbacks(lerSaida);
+        if (ouvinteDeSaida != null) {
+            try {
+                android.media.AudioManager am = (android.media.AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) am.unregisterAudioDeviceCallback(ouvinteDeSaida);
+            } catch (Exception e) { /* já saiu */ }
+            ouvinteDeSaida = null;
+        }
+    }
+
+    // por onde o som está saindo agora e o nome deste celular (ver SaidaDeSom)
+    @PluginMethod
+    public void saidaDeSom(PluginCall call) {
+        try { call.resolve(SaidaDeSom.ler(getContext())); } catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
     }
 
     // entrega a ação ao site; false se o app não está aberto (aí ele é aberto com a ação)

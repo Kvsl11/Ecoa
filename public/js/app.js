@@ -5637,6 +5637,17 @@ const semLinhasDeAcordes = (sinc) => {
   const NOME_GENERICO = /^(bluetooth( headset| headphones| audio)?|headset|headphones|fones? de ouvido( bluetooth)?|fone bluetooth|wired headset|usb headset)$/i;
   const nomeDado = (l) => (db.prefs().nomesFones || {})[l] || '';
   const lerSaidasDeSom = async () => {
+    // no app de Android, o próprio Android diz por onde o som sai, com o nome do fone ("JBL Tour Pro 3", sem precisar do
+    // microfone) e o nome deste celular. (O APK antigo não sabe: aí vale o do navegador, abaixo)
+    const nativo = pluginEcoa()?.saidaDeSom ? await pluginEcoa().saidaDeSom().catch(() => null) : null;
+    if (nativo && Array.isArray(nativo.saidas)) {
+      const dar = (l) => nomeDado(l) || l;
+      const fone = nativo.fone || '';
+      const outros = nativo.saidas.filter((x) => x.nome && x.nome !== fone);
+      return { fone: fone ? dar(fone) : '', foneOriginal: fone, generico: Boolean(fone && NOME_GENERICO.test(fone) && !nomeDado(fone)),
+        tipoFone: nativo.tipo || '', fones: [fone, ...outros.filter((x) => x.tipo !== 'hdmi' && x.tipo !== 'linha').map((x) => x.nome)].filter(Boolean).map(dar),
+        saidas: outros.filter((x) => x.tipo === 'hdmi' || x.tipo === 'linha').map((x) => x.nome), comNomes: true, aparelho: nativo.aparelho || '' };
+    }
     let aparelhos = [];
     try { aparelhos = await navigator.mediaDevices.enumerateDevices(); } catch { /* o navegador não lista */ }
     const som = aparelhos.filter((d) => /^audio/.test(d.kind));
@@ -5650,7 +5661,7 @@ const semLinhasDeAcordes = (sinc) => {
   // Onde o som está saindo, embaixo dos controles e no player pequeno (como no Spotify): com um fone ou uma caixa
   // conectada, o ícone do fone e o nome dele, em verde; sem, só o ícone de aparelhos
   const mostrarAparelho = async () => {
-    const { fone } = await lerSaidasDeSom();
+    const { fone, tipoFone } = await lerSaidasDeSom();
     // conectou ou desconectou o fone com o app aberto: avisa embaixo, como o Spotify ("Tocando em JBL Tour Pro 3")
     if (foneConferido && fone !== foneAgora) {
       if (fone) toast(`🎧 Tocando em ${fone}`);
@@ -5665,7 +5676,7 @@ const semLinhasDeAcordes = (sinc) => {
       b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
     }
     const onde = $('.pl-onde', el);
-    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon('bluetooth', 11)}<span>${esc(fone)}</span>` : ''; }
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 11)}<span>${esc(fone)}</span>` : ''; }
     // (na barrinha de baixo, o botão de aparelhos vira o fone, na cor do app; sem fone, ele some no celular)
     const lado = $('.pl-lado [data-pl="aparelhos"]', el);
     if (lado) lado.innerHTML = icon(fone ? 'fone' : 'aparelhos', 18);
@@ -5676,6 +5687,8 @@ const semLinhasDeAcordes = (sinc) => {
     medirNomes();
   };
   navigator.mediaDevices?.addEventListener?.('devicechange', () => void mostrarAparelho());
+  // (no app de Android, o próprio Android avisa quando um fone conecta ou desconecta)
+  void pluginEcoa()?.addListener?.('saida', () => { void mostrarAparelho(); document.dispatchEvent(new Event('ecoa-saida')); });
   setTimeout(() => void mostrarAparelho(), 1500);
   // "Conectar" (como no Spotify): onde está tocando — o fone ou a caixa conectada, ou este aparelho — com a música que
   // toca, e as outras saídas de som que o navegador conhece. Embaixo: levar para a TV (o YouTube transmite para TV e
@@ -5688,7 +5701,10 @@ const semLinhasDeAcordes = (sinc) => {
     // app pode usar o microfone; sem isso a lista vem sem nomes e o app não sabe que há um fone (mostrava "Este celular"
     // mesmo com o fone). Com o fone conectado, ele aparece como o aparelho que está tocando, e este aparelho embaixo
     const desenharCorpo = async () => {
-      const { fone, generico, fones, saidas, comNomes } = await lerSaidasDeSom();
+      const { fone, generico, fones, saidas, comNomes, aparelho, tipoFone } = await lerSaidasDeSom();
+      // (no app de Android, o nome deste celular: "Galaxy S23 do Kaio" no lugar de "Este celular")
+      if (aparelho) tipo[1] = aparelho;
+      const via = tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth';
       void mostrarAparelho();
       const musica = esc([atual?.titulo, atual?.artista].filter(Boolean).join(' – '));
       // (a qualidade: a do arquivo baixado que toca, ou a da internet)
@@ -5697,7 +5713,7 @@ const semLinhasDeAcordes = (sinc) => {
       $('.ap-corpo', dlg).innerHTML = `
         <div class="ap-atual${fone ? ' com-fone' : ''}"><span class="grow">
           <b>${esc(fone || tipo[1])}${qual ? `<i class="ap-qual">${esc(qual)}</i>` : ''}</b>
-          ${fone ? `<small class="ap-via">${icon('bluetooth', 13)} ${esc(tipo[1])}</small>` : ''}
+          ${fone ? `<small class="ap-via">${icon(via, 13)} ${esc(tipo[1])}</small>` : ''}
           ${musica ? `<small class="ap-musica">${tocando ? '<span class="ap-barras" aria-hidden="true"><i></i><i></i><i></i></span>' : icon('music', 13)} ${musica}</small>` : ''}</span>${icon(fone ? 'fone' : tipo[0], 38)}</div>
         ${fone ? `<button class="ap-nomear" data-ap="nomear">${icon('edit', 16)}<span>${generico ? 'O celular só diz "fone Bluetooth": toque para dar o nome dele' : 'Mudar o nome deste fone'}</span></button>` : ''}
         ${fone ? `<div class="ap-saida ap-este">${icon(tipo[0], 22)}<span>${esc(tipo[1])}</span></div>` : ''}
@@ -5746,7 +5762,8 @@ const semLinhasDeAcordes = (sinc) => {
     // conectou ou desconectou um fone com a folha aberta: atualiza
     const mudou = () => desenharCorpo();
     navigator.mediaDevices?.addEventListener?.('devicechange', mudou);
-    dlg.addEventListener('close', () => { navigator.mediaDevices?.removeEventListener?.('devicechange', mudou); dlg.remove(); });
+    document.addEventListener('ecoa-saida', mudou);
+    dlg.addEventListener('close', () => { navigator.mediaDevices?.removeEventListener?.('devicechange', mudou); document.removeEventListener('ecoa-saida', mudou); dlg.remove(); });
     arrastarFolha(dlg);
     await desenharCorpo();
     dlg.showModal();
