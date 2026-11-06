@@ -21,6 +21,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: read # (a lista das publicações do github-pages, para achar a que segura a fila)
 
 # uma publicação por vez, na fila: a de depois espera a que está rodando terminar. Antes a nova cancelava a que
 # estava rodando, e cada merge mostrava um "cancelled" (o push e, logo depois, o fim da publicação do servidor da IA
@@ -193,16 +194,25 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const ANDANDO = ['deployment_queued', 'deployment_in_progress', 'updating_pages', 'syncing_files', 'pending', 'queued', 'in_progress'];
+            // (os últimos commits do ramo e, de qualquer ramo, as últimas publicações do ambiente github-pages: uma presa
+            // de fora do ramo também segura a fila)
+            const ids = new Set();
             const { data: commits } = await github.rest.repos.listCommits({ owner, repo, sha: context.ref, per_page: 15 });
-            for (const c of commits) {
-              if (c.sha === context.sha) continue;
+            commits.forEach((c) => ids.add(c.sha));
+            try {
+              const { data: deps } = await github.rest.repos.listDeployments({ owner, repo, environment: 'github-pages', per_page: 30 });
+              deps.forEach((d) => ids.add(d.sha));
+            } catch (e) { core.info(`Sem a lista de publicações do ambiente (${e.status || e.message})`); }
+            ids.delete(context.sha);
+            for (const id of ids) {
               let status = '';
-              try { status = (await github.request('GET /repos/{owner}/{repo}/pages/deployments/{id}', { owner, repo, id: c.sha })).data.status || ''; } catch (e) { continue; } // (não existe)
+              try { status = (await github.request('GET /repos/{owner}/{repo}/pages/deployments/{id}', { owner, repo, id })).data.status || ''; } catch (e) { continue; } // (não existe)
+              core.info(`Publicação ${id.slice(0, 7)}: ${status || '(sem situação)'}`);
               if (!ANDANDO.includes(status)) continue;
               try {
-                await github.request('POST /repos/{owner}/{repo}/pages/deployments/{id}/cancel', { owner, repo, id: c.sha });
-                core.notice(`Publicação presa cancelada: ${c.sha.slice(0, 7)} (${status})`);
-              } catch (e) { /* (já terminou) */ }
+                await github.request('POST /repos/{owner}/{repo}/pages/deployments/{id}/cancel', { owner, repo, id });
+                core.notice(`Publicação presa cancelada: ${id.slice(0, 7)} (${status})`);
+              } catch (e) { core.warning(`Não deu para cancelar a publicação ${id.slice(0, 7)} (${status}): ${e.status || e.message}`); }
             }
       # A publicação tem o número do commit, e o GitHub não deixa publicar de novo um commit cuja publicação foi
       # cancelada: desistir cedo deixava o commit sem publicar para sempre. Foi o que travou o #404: ficou mais de 4
