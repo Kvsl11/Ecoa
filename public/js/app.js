@@ -431,10 +431,11 @@ const podeNotificarNoSistema = () =>
   Notification.permission === 'granted' &&
   'serviceWorker' in navigator;
 
-async function notificarSistema({ titulo, texto = '', tag = '', href = '', silenciosa = false, renovar = false, imagem = '' }) {
+// fixa: no APK, a notificação do download em andamento, que não sai ao arrastar (só quando a fila acaba); pct: a barra
+async function notificarSistema({ titulo, texto = '', tag = '', href = '', silenciosa = false, renovar = false, imagem = '', fixa = false, pct = -1 }) {
   const nativo = pluginEcoa();
   if (nativo?.avisar) {
-    try { await nativo.avisar({ titulo: titulo || 'Ecoa', texto, tag, href, silenciosa: silenciosa && !renovar, imagem }); return true; } catch { return false; }
+    try { await nativo.avisar({ titulo: titulo || 'Ecoa', texto, tag, href, silenciosa: silenciosa && !renovar, imagem, fixa, pct }); return true; } catch { return false; }
   }
   if (!podeNotificarNoSistema()) return false;
   try {
@@ -1144,7 +1145,7 @@ async function baixarDaFila(pedido) {
     void notificarSistema({
       titulo: atual.title || 'Download',
       texto: `Download iniciado · preparando áudio e videoclipe${posicaoNoLote()}`,
-      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
+      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id, fixa: true, pct: 0,
       imagem: capaDaNotificacao(atual),
     });
     await clipe;
@@ -1155,12 +1156,15 @@ async function baixarDaFila(pedido) {
     void notificarSistema({
       titulo: atual?.title || 'Download',
       texto: 'Não deu para baixar · ' + erroExplicado(e) + posicaoNoLote(),
-      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
+      // (com mais músicas na fila, continua presa: o download segue)
+      tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id, fixa: filaBaixar.length > 0,
       imagem: capaDaNotificacao(atual),
     });
     if (baixarComAviso.has(id)) void ask({ title: 'Não deu para baixar', text: `“${atual?.title || 'A música'}”: ${erroExplicado(e)}`, ok: 'Entendi', cancel: false });
   } finally {
     baixarComAviso.delete(id);
+    // (pausado, sem mais nada na fila: a notificação presa do download sai)
+    if (controle.signal.aborted && !filaBaixar.length) void pluginEcoa()?.soltarAviso?.().catch(() => {});
     // (pausado, a música sai da fila guardada pela pausa; o que falhou tenta de novo pelo completarDepois)
     if (!controle.signal.aborted && !semServidor) tirarDaFilaGuardada(id);
     controlesDeDownload.delete(id);
@@ -1398,7 +1402,7 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       void notificarSistema({
         titulo: song.title,
         texto: `Baixando ${pct}%${posicaoNoLote()}`,
-        tag: TAG_DOWNLOAD, silenciosa: true, href: `#/musica/${id}`,
+        tag: TAG_DOWNLOAD, silenciosa: true, href: `#/musica/${id}`, fixa: true, pct,
         imagem: capaDaNotificacao(song),
       });
     }
@@ -1515,7 +1519,7 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
   void notificarSistema({
     titulo: song.title,
     texto: `${avisoFalhas ? 'Download parcial · ' + avisoFalhas : 'Download concluído'}${song.artist ? ` · ${song.artist}` : ''} · ${fmtBytes(tamanho)}${posicaoNoLote()}`,
-    tag: TAG_DOWNLOAD, renovar: loteDeDownloads.total <= 1, silenciosa: loteDeDownloads.total > 1, href: `#/musica/${id}`,
+    tag: TAG_DOWNLOAD, renovar: loteDeDownloads.total <= 1, silenciosa: loteDeDownloads.total > 1, href: `#/musica/${id}`, fixa: filaBaixar.length > 0,
     imagem: capaDaNotificacao(song),
   });
 }
@@ -1558,6 +1562,27 @@ setTimeout(async () => {
   for (const s of pelaMetade) baixarMusica(s, { perguntou: true, qualidade: true });
 }, 45e3);
 
+// Uma vez por dia, com internet (e fora dos dados móveis, se a pessoa não liberou), os dados e as fotos das músicas
+// baixadas são atualizados em segundo plano, uma de cada vez e sem aviso: a foto do artista, os fãs, a apresentação,
+// as fotos dos créditos. O que mudou passa a valer da próxima vez, também sem internet
+const CHAVE_DADOS_BAIXADAS = 'songbook.dadosBaixadasEm';
+async function atualizarDadosDasBaixadas() {
+  if (!navigator.onLine || (navigator.connection?.type === 'cellular' && !db.prefs().baixarDadosMoveis)) return;
+  let ultima = 0;
+  try { ultima = Number(localStorage.getItem(CHAVE_DADOS_BAIXADAS)) || 0; } catch { /* sem armazenamento */ }
+  if (Date.now() - ultima < 24 * 3600e3) return;
+  try { localStorage.setItem(CHAVE_DADOS_BAIXADAS, String(Date.now())); } catch { /* sem armazenamento */ }
+  for (const s of db.songs().filter((x) => x.baixado)) {
+    if (!navigator.onLine) break;
+    // (o guardado volta na hora e a busca na internet o atualiza por trás: sem segurar as telas esperando a internet
+    // enquanto isto roda; as fotos novas entram no cache dos downloads na próxima volta)
+    await noMaximo(guardarImagensDaMusica(db.song(s.id) || s), 60000, null).catch(() => {});
+    await new Promise((ok) => setTimeout(ok, 4000));
+  }
+}
+setTimeout(() => void atualizarDadosDasBaixadas(), 90e3);
+window.addEventListener('online', () => setTimeout(() => void atualizarDadosDasBaixadas(), 30e3));
+
 // as capas e a partitura da música no cache dos downloads (o service worker usa sem internet)
 async function guardarImagensDaMusica(song) {
   if (!('caches' in window)) return;
@@ -1569,9 +1594,14 @@ async function guardarImagensDaMusica(song) {
   const dele = artista ? await Promise.all([fotoDoArtista(artista, slug).catch(() => ''), descricaoDoArtista(artista).catch(() => null), deezerDoArtista(artista, { titulo: song.title }).catch(() => null),
     canalGuardado(artista).catch(() => null), audioDbGuardado(artista).catch(() => null)]) : [];
   const [fotoA, info, dz, canal, adb] = dele;
+  // (e as fotos das pessoas dos créditos: aparecem sem internet também)
+  const meta = renderSong(song.content || '').meta || {};
+  const pessoas = pessoasDosCreditos({ artista: song.artist || '', titulo: song.title || '', compositor: meta.composer, letrista: meta.lyricist }).slice(0, 8);
+  const liturgia = ehDaLiturgia(song);
+  const fotosCred = await Promise.all(pessoas.map((p) => noMaximo((soNosCreditos(p) && !liturgia ? fotoDeCreditado(p.nome) : fotoDaPessoa(p.nome, { liturgia })), 15000, '').catch(() => '')));
   const urls = [song.cover, ...yts.flatMap((y) => [`https://i.ytimg.com/vi/${y}/hqdefault.jpg`, `https://i.ytimg.com/vi/${y}/mqdefault.jpg`]),
     ...paginasDaPartitura(song.content), mxlDaPartitura(song.content),
-    fotoA, info?.foto, dz?.foto, canal?.foto, ...(adb?.fotos || [])].filter((u) => u && typeof u === 'string' && !/^data:/.test(u));
+    fotoA, info?.foto, dz?.foto, canal?.foto, ...(adb?.fotos || []), ...fotosCred].filter((u) => u && typeof u === 'string' && !/^data:/.test(u));
   const c = await caches.open(CACHE_BAIXADOS);
   await Promise.all(urls.map(async (u) => {
     try {
@@ -3550,12 +3580,16 @@ const player = (() => {
     }
     box.innerHTML = cartoes.join('');
     box.hidden = !cartoes.length;
+    // (a foto já guardada na música — ou a última do artista guardada no aparelho — entra na hora, sem esperar nada;
+    // a da internet só troca se for outra)
+    const fotoJa = (comInfo && (song?.fotoArtista || fotoConhecida(nomeBusca))) || '';
+    if (fotoJa) { const f = $('.pl-extra [data-foto]', el); if (f) { f.classList.add('com-foto'); f.style.backgroundImage = `url("${fotoJa}")`; } }
     // (a foto do artista principal pela página dele no Cifra Club, quando a música veio de lá; antes das bolinhas)
     if (comInfo) fotoDoArtista(nomeBusca, slug);
     porFotos(box, pessoas, { liturgia });
     if (comInfo) fotoDoArtista(nomeBusca).then((url) => {
       const f = $('.pl-extra [data-foto]', el);
-      if (!url || !f || extraDe !== chave) return;
+      if (!url || !f || extraDe !== chave || url === fotoJa) return;
       const img = new Image();
       img.onload = () => { f.classList.add('com-foto'); f.style.backgroundImage = `url("${url}")`; };
       img.src = url;
@@ -9133,8 +9167,32 @@ function explorarCreditos(d) {
 const CHAVE_ARTISTAS = 'songbook.artistas';
 let artistasGuardados = (() => { try { return JSON.parse(localStorage.getItem(CHAVE_ARTISTAS) || '{}'); } catch { return {}; } })();
 let guardandoArtistas = 0;
+// (o conserto e as revisões esperam o valor de agora: conferem se ele mudou)
+let esperarValorNovo = 0;
+async function comValorNovo(fn) {
+  esperarValorNovo++;
+  try { return await fn(); } finally { esperarValorNovo--; }
+}
+// os artistas das músicas baixadas: os dados deles não saem do aparelho (tocam sem internet)
+function artistasDasBaixadas() {
+  const nomes = new Set();
+  for (const s of db.songs()) if (s.baixado) { const n = nomeDoArtistaDaMusica(s); if (n) nomes.add(normalizar(n)); }
+  return nomes;
+}
+// Com o guardado no aparelho, ele volta NA HORA, e o valor da internet só atualiza o guardado, em segundo plano (vale
+// da próxima vez, sem aviso). Antes a tela esperava a internet toda vez (o canal do YouTube, o Cifra Club, o Deezer e
+// a Wikipédia, um depois do outro): a foto do artista, os fãs, a apresentação e as fotos dos créditos demoravam muito,
+// até nas músicas baixadas
 function comUltimoValor(tipo, nome, promessa) {
   const k = `${tipo}:${normalizar(nome)}`;
+  const atualizar = valorDaInternet(tipo, k, promessa);
+  const g = artistasGuardados[k]?.v;
+  const temGuardado = !(g === null || g === undefined || g === '' || (Array.isArray(g) && !g.length));
+  if (!temGuardado || esperarValorNovo) return atualizar;
+  atualizar.catch(() => {});
+  return Promise.resolve(tipo === 'foto' || tipo === 'capa' ? fotoReal(g) : g);
+}
+function valorDaInternet(tipo, k, promessa) {
   return Promise.resolve(promessa).catch(() => null).then((v) => {
     if (tipo === 'foto' || tipo === 'capa') v = fotoReal(v);
     const vazio = v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length);
@@ -9145,9 +9203,10 @@ function comUltimoValor(tipo, nome, promessa) {
     artistasGuardados[k] = { v, t: Date.now() };
     clearTimeout(guardandoArtistas);
     guardandoArtistas = setTimeout(() => {
-      // (os 300 mais recentes)
-      const ordem = Object.entries(artistasGuardados).sort((a, b) => b[1].t - a[1].t).slice(0, 300);
-      artistasGuardados = Object.fromEntries(ordem);
+      // (os 300 mais recentes, e sempre os dos artistas das músicas baixadas)
+      const baixadas = artistasDasBaixadas();
+      const ordem = Object.entries(artistasGuardados).sort((a, b) => b[1].t - a[1].t);
+      artistasGuardados = Object.fromEntries(ordem.filter(([kk], i) => i < 300 || baixadas.has(kk.slice(kk.indexOf(':') + 1))));
       try { localStorage.setItem(CHAVE_ARTISTAS, JSON.stringify(artistasGuardados)); } catch { /* sem espaço: fica na sessão */ }
     }, 800);
     return v;
@@ -9541,9 +9600,13 @@ async function consertarArtistaDaMusica(id, { esquecer = true } = {}) {
   const slug = /cifraclub\.com\.br\/([^/?#]+)/.exec(s.source || '')?.[1] || '';
   const antes = { deezer: ultimoValorDoArtista('deezer', nome) || null, foto: s.fotoArtista || '', wiki: Boolean(ultimoValorDoArtista('wiki', nome)) };
   if (esquecer) { esquecerArtista(nome); esquecerFotoDoArtista(nome); }
-  // (o Deezer primeiro, confirmado pela música: a foto e a apresentação usam o artista que ele achou)
-  const dz = await noMaximo(deezerDoArtista(nome, { titulo: s.title }), 15000, null);
-  const [foto, info] = await Promise.all([noMaximo(fotoDoArtista(nome, slug), 20000, ''), noMaximo(descricaoComNomeDoDeezer(nome, dz), 15000, null)]);
+  // (o Deezer primeiro, confirmado pela música: a foto e a apresentação usam o artista que ele achou; os valores de
+  // agora, e não os guardados)
+  const [dz, foto, info] = await comValorNovo(async () => {
+    const d = await noMaximo(deezerDoArtista(nome, { titulo: s.title }), 15000, null);
+    const [f, i] = await Promise.all([noMaximo(fotoDoArtista(nome, slug), 20000, ''), noMaximo(descricaoComNomeDoDeezer(nome, d), 15000, null)]);
+    return [d, f, i];
+  });
   s = db.song(id);
   if (!s) return null;
   let fotoTrocada = false;

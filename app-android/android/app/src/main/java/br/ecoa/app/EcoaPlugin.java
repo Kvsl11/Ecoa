@@ -58,6 +58,8 @@ import java.util.concurrent.Executors;
 //    widget mostrarem a capa certa sem internet
 //  - buscarPagina({ url, cabecalhos, tempo }) → { status, texto, tipo }: uma página da internet lida direto (sem a trava
 //    de CORS do navegador; Paginas.java). status 0: nem chegou ao site
+//  - avisar({ …, fixa, pct }): fixa = a notificação do download em andamento, que não sai ao arrastar (BaixandoService);
+//    pct = a barra; soltarAviso(): ela sai (pausou tudo)
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
@@ -157,7 +159,15 @@ public class EcoaPlugin extends Plugin {
 
     private void mostrarAviso(PluginCall call) {
         Avisos.mostrar(getContext(), call.getString("titulo", "Ecoa"), call.getString("texto", ""), call.getString("tag", ""),
-            call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""));
+            call.getString("href", ""), Boolean.TRUE.equals(call.getBoolean("silenciosa", false)), call.getString("imagem", ""),
+            Boolean.TRUE.equals(call.getBoolean("fixa", false)), call.getInt("pct", -1));
+        call.resolve();
+    }
+
+    // a notificação presa do download sai (pausou tudo, ou a fila acabou sem aviso final)
+    @PluginMethod
+    public void soltarAviso(PluginCall call) {
+        Avisos.soltar();
         call.resolve();
     }
 

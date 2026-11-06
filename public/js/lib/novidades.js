@@ -4,8 +4,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 581, data: '2026-11-06', titulo: 'A barra da atualização do app que só anda para a frente',
+    versao: 581, data: '2026-11-06', titulo: 'Os dados do artista na hora e a notificação de download que não some',
     itens: [
+      { tipo: 'melhoria', texto: 'A foto do artista, os fãs, a apresentação ("Sobre o artista") e as fotos dos créditos aparecem na hora ao abrir a música: o app mostra o que já tem guardado e atualiza pela internet em segundo plano, sem aviso (antes esperava a internet toda vez e demorava muito). As músicas baixadas guardam também as fotos dos créditos, e os dados delas são atualizados sozinhos uma vez por dia.' },
+      { tipo: 'melhoria', texto: 'No app de Android, a notificação do download fica presa enquanto há música baixando ou esperando na fila (não sai mais sem querer ao arrastar), com a barra do andamento; o download continua mesmo com o app minimizado. Quando a fila acaba, ela vira uma notificação comum. Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, ao atualizar o app (em Ajustes → Sobre ou no aviso de versão nova), a porcentagem do download pulava e voltava (10, 20 e pouco, 5…): cada toque em Atualizar começava outro download, e os dois se misturavam. Agora é um download só, que os dois lugares acompanham, e a barra só anda para a frente. Vem com a atualização do app.' },
     ],
   },
