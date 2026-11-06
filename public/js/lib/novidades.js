@@ -6,9 +6,11 @@ export const NOVIDADES = [
   {
     versao: 577, data: '2026-11-06', titulo: 'O karaokê e o Lúmen no próprio celular, no app de Android',
     itens: [
-      { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. O que ainda precisa de servidor no app (o karaokê pelo servidor e as respostas do Lúmen) usa o servidor no computador ou o de reserva.' },
+      { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. Os downloads, o karaokê, o Lúmen e a partitura agora são feitos no próprio celular.' },
       { tipo: 'novo', texto: 'No app de Android, o karaokê é feito no próprio celular, sem o servidor: a voz é separada da banda ali mesmo (de 1 a 2 minutos por música, conforme o celular; na primeira vez o app baixa o modelo, de 30 MB). Depois fica guardado e toca na hora, até sem internet. Nesse karaokê, o back vocal sai junto com o cantor.' },
       { tipo: 'novo', texto: 'No app de Android, o Lúmen responde direto do celular, sem o servidor: procura no acervo (inclusive no texto dos PDFs, guardado no aparelho) e pergunta ao Gemini, com a busca na web. Fotos, PDFs, áudios e vídeos enviados na conversa também vão direto para ele.' },
+      { tipo: 'novo', texto: 'No app de Android, a partitura pelo vídeo da música é feita no próprio celular, sem o servidor: o app baixa o áudio (ou usa o já baixado) e escreve a partitura ali mesmo.' },
+      { tipo: 'correcao', texto: 'No app de Android, a tela Novidades passava da largura da tela (o texto era cortado à direita) e mostrava o número de versão do site. Agora cabe na tela e mostra a versão do app em que cada novidade chegou (quando o app sabe; senão, só a data).' },
       { tipo: 'correcao', texto: 'O Baixar dos ⋮ de uma música às vezes não fazia nada: a música que já tinha tido o download pausado entrava na fila e saía na hora, sem aviso. Agora tocar em Baixar sempre baixa; e, se não der certo, o motivo aparece na tela (e não só na notificação).' },
       { tipo: 'correcao', texto: 'No aviso de versão nova do app de Android, "O que vem com ela" mostrava novidades antigas, que o app já tinha. Agora mostra as que chegam com a versão nova (a partir da próxima atualização).' },
     ],
@@ -103,4 +105,14 @@ export function novidadesNaoVistas(vista) {
 export function novidadesQueChegam(publicada, webInstalada = NOVIDADES[0]?.versao) {
   return (Array.isArray(publicada?.novidades) ? publicada.novidades : [])
     .filter((n) => Number(n?.versao) > Number(webInstalada || 0) && n.titulo);
+}
+
+// Em qual versão do app de Android cada novidade chegou: historico = [{ codigo, nome, web }] (os APKs que o app
+// conhece: os que ele mesmo já foi e os que o robô publicou), web = a primeira versão das novidades que o APK trouxe.
+// A novidade v chegou no primeiro APK com web >= v, desde que o APK anterior a ele (conhecido) ainda não a tivesse;
+// sem saber o anterior, não dá para dizer: null (a tela mostra só a data, nunca um número errado)
+export function versaoDoAppDaNovidade(v, historico = []) {
+  const l = historico.filter((h) => Number(h?.codigo) && Number(h.web)).sort((a, b) => a.codigo - b.codigo);
+  const i = l.findIndex((h) => Number(h.web) >= Number(v));
+  return i > 0 && Number(l[i - 1].web) < Number(v) ? String(l[i].nome) : null;
 }

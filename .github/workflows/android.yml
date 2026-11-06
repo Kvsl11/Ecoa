@@ -121,7 +121,9 @@ jobs:
           ls -la "$RUNNER_TEMP/Ecoa.apk"
           # a versão deste APK: o app instalado confere por ela se há atualização (Ajustes → Sobre)
           # (com as novidades que vão dentro deste APK: o aviso de versão nova mostra só as que o app instalado não tem)
-          node ../scripts/versao-apk.mjs "$ECOA_VERSAO_CODIGO" "$ECOA_VERSAO_NOME" > "$RUNNER_TEMP/Ecoa-versao.json"
+          # (e o histórico dos APKs publicados: o do arquivo anterior, mais este)
+          gh release download android -p Ecoa-versao.json -D "$RUNNER_TEMP/anterior" 2>/dev/null || true
+          node ../scripts/versao-apk.mjs "$ECOA_VERSAO_CODIGO" "$ECOA_VERSAO_NOME" "$RUNNER_TEMP/anterior/Ecoa-versao.json" > "$RUNNER_TEMP/Ecoa-versao.json"
           cat "$RUNNER_TEMP/Ecoa-versao.json"
 
       - uses: actions/upload-artifact@v4

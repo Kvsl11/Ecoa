@@ -3552,11 +3552,16 @@ html.tablet body.na-musica.com-player.painel-recolhido .main-col { margin-bottom
 
 /* ---------------------------------------------------------------- Novidades: o que mudou em cada atualização */
 .nv-intro { margin: -4px 0 18px; }
-.nv-lista { display: grid; gap: 14px; max-width: 760px; }
+.nv-lista { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 760px; }
 .nv-versao { padding: 18px 20px 14px; border-radius: 16px; background: var(--bg-elev); scroll-margin-top: 96px; }
 .nv-versao.destaque { box-shadow: inset 0 0 0 2px var(--accent); }
-.nv-cab { display: flex; align-items: center; gap: 10px; }
-.nv-cab small { color: var(--muted); font-size: 13px; }
+/* (no celular, o número, o selo "Com a atualização do app" e a data quebram em linhas: antes ficavam numa só, o cartão
+   passava da largura da tela e o texto era cortado à direita) */
+.nv-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; }
+.nv-cab small { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.nv-cab .chip[hidden] { display: none; }
+.nv-versao { min-width: 0; overflow-wrap: break-word; }
+.nv-versao li > span:last-child { min-width: 0; }
 .nv-versao h3 { margin: 10px 0 10px; font-size: 19px; font-weight: 800; }
 .nv-versao ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .nv-versao li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; font-size: 15px; line-height: 1.45; }

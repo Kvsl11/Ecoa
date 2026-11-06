@@ -18,7 +18,7 @@ import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cor
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
-import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam } from './lib/novidades.js';
+import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam, versaoDoAppDaNovidade } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
@@ -401,6 +401,18 @@ function irParaMusica(id) {
 const noApk = () => document.documentElement.classList.contains('app-android');
 const pluginEcoa = () => { const C = window.Capacitor; return (C?.isNativePlatform?.() && C.Plugins?.Ecoa) || null; };
 // No APK, usa o versionName e o versionCode reais do Android, nunca a versão do site.
+// As versões do app de Android que este aparelho conhece ({ codigo, nome, web }: web é a primeira das novidades que
+// cada APK trouxe): as que ele mesmo já foi (anotadas ao abrir) e as do histórico que o robô publica. É por elas que a
+// tela Novidades diz em qual versão do app cada novidade chegou
+const CHAVE_VERSOES_APK = 'songbook.versoesApk';
+function versoesApkConhecidas() {
+  try { const l = JSON.parse(localStorage.getItem(CHAVE_VERSOES_APK) || '[]'); return Array.isArray(l) ? l : []; } catch { return []; }
+}
+function anotarVersoesApk(novas = []) {
+  const porCodigo = new Map(versoesApkConhecidas().map((h) => [Number(h.codigo), h]));
+  for (const h of novas) if (Number(h?.codigo) && Number(h.web) && h.nome) porCodigo.set(Number(h.codigo), { codigo: Number(h.codigo), nome: String(h.nome), web: Number(h.web) });
+  try { localStorage.setItem(CHAVE_VERSOES_APK, JSON.stringify([...porCodigo.values()].sort((a, b) => a.codigo - b.codigo).slice(-80))); } catch { /* sem armazenamento */ }
+}
 function mostrarVersaoApk(el, prefixo = 'Ecoa · APK') {
   if (!noApk() || !el) return;
   const nativo = pluginEcoa();
@@ -13097,7 +13109,9 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // escolhido vai para ele; sem ele, é lido no aparelho. A partitura pelo áudio da própria música vai para o servidor
   // que houver (o do computador ou o da nuvem)
   const noPc = Boolean(servidorIA().pc && servidorIA().url);
-  const temServidor = Boolean(servidorIA().url);
+  // (no APK, o próprio celular baixa o áudio do vídeo e escreve a partitura: não precisa de servidor)
+  const noCelular = Boolean(baixadorDoAparelho());
+  const temServidor = Boolean(servidorIA().url) || noCelular;
   // o servidor no GitHub Codespaces (.devcontainer/) dorme quando ninguém usa: o endereço não muda, então basta
   // ligar o Codespace (github.com/codespaces, até pelo celular) e tocar em "Já liguei"
   const pcGuardado = baseDoServidor(db.prefs().servidorPc) || servidorDoSite;
@@ -13131,7 +13145,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     const opcao = (id, ic, nome, sub) => `<button class="ia-opcao" id="${id}"><span class="ia-opcao-ic">${icon(ic, 18)}</span><span class="ia-opcao-txt"><b>${nome}</b><small>${sub}</small></span>${icon('next', 16)}</button>`;
     passo.innerHTML = `<div class="ia-fontes">
       ${motivo ? `<div class="ia-aviso">${icon('info', 18)}<span>${esc(motivo)}</span>${sozinha ? `<button class="btn small primary" id="ia-auto">${icon('refresh', 15)} Tentar de novo</button>` : ''}</div>` : ''}
-      ${sozinha && !motivo ? opcao('ia-auto', 'sparkles', 'Gerar pela IA do servidor', fonte.arquivo ? 'Com o seu áudio desta música' : 'Com o áudio do vídeo da música') : ''}
+      ${sozinha && !motivo ? opcao('ia-auto', 'sparkles', noCelular ? 'Gerar pela IA, aqui no celular' : 'Gerar pela IA do servidor', fonte.arquivo ? 'Com o seu áudio desta música' : 'Com o áudio do vídeo da música') : ''}
       ${!noPc && fonte?.arquivo ? opcao('ia-meu', 'music', 'Usar o seu áudio', 'O que você importou no ⋯ da música') : ''}
       <button class="ia-solte" id="ia-arquivo"><span class="ia-solte-ic">${icon('upload', 22)}</span>
         <b>Escolher o áudio da música</b><small>MP3, M4A, WAV ou OGG · até 6 minutos</small></button>
@@ -13139,7 +13153,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
           <a class="btn small primary" href="https://github.com/codespaces" target="_blank" rel="noopener">Ligar no GitHub</a><button class="btn small" id="ia-religar">${icon('refresh', 15)} Já liguei</button></div>` : ''}
       <ul class="ia-dicas">
         <li>Voz e violão rendem mais que banda completa.</li>
-        ${noPc || noGithub ? '' : '<li>Com o servidor da IA ligado, a partitura sai bem mais fiel (Ajustes → Servidor da IA).</li>'}
+        ${noPc || noGithub || noCelular ? '' : '<li>Com o servidor da IA ligado, a partitura sai bem mais fiel (Ajustes → Servidor da IA).</li>'}
         <li>No Android: Compartilhar → Ecoa traz o áudio direto para cá.</li>
       </ul></div>`;
     $('#ia-auto')?.addEventListener('click', () => gerarSozinha());
@@ -13576,7 +13590,38 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // a partitura vem do áudio que a pessoa importa (ou que chegou pelo Compartilhar), lido no aparelho: não depende de
   // servidor (antes, com o vídeo, ia sozinha para o servidor baixar o áudio do YouTube)
   // pelo servidor, sozinha, com o áudio da própria música (sem escolher arquivo nem colar link)
+  // no APK: o áudio da música (o seu, o já baixado ou baixado agora pelo próprio celular) lido aqui mesmo
+  async function gerarNoCelular() {
+    if (fonte.arquivo) {
+      const a = await arquivoDaMusica(song);
+      if (a) lerNoAparelho(a); else telaFontes('O seu áudio desta música não está neste aparelho: escolha o arquivo.');
+      return;
+    }
+    const yt = /([\w-]{11})$/.exec(fonte.url)?.[1] || '';
+    const ja = baixadoDe(yt);
+    let blob = ja && String(ja.tipo || '').startsWith('audio') ? await lerAudio(chaveBaixada(yt)).catch(() => null) : null;
+    if (!blob) {
+      telaEtapas(ETAPAS_IA.filter(([k]) => k === 'baixando'));
+      $('#ia-etapa-onde').textContent = 'Aqui no aparelho';
+      const etapas = etapasEmSequencia();
+      etapas.avisar('baixando', 0);
+      const ctrl = new AbortController();
+      $('#ia-cancelar').onclick = () => { ctrl.abort(); telaFontes(); };
+      try {
+        // (a qualidade normal: menor, e basta para ouvir as notas)
+        const r = await baixarNoAparelho(baixadorDoAparelho(), yt, false, 'normal', { sinal: ctrl.signal, aoProgresso: (p) => etapas.avisar('baixando', p) });
+        try { blob = await lerBaixadoNoAparelho(r); } finally { void baixadorDoAparelho()?.apagarLocal({ caminho: r.caminho }).catch(() => {}); }
+      } catch (e) {
+        if (ctrl.signal.aborted || !view.contains(passo)) return;
+        telaFontes(`Não consegui baixar o áudio do vídeo (${e?.message || e}). Escolha o arquivo de áudio da música.`);
+        return;
+      }
+      if (!view.contains(passo)) return;
+    }
+    lerNoAparelho(new File([blob], 'audio.m4a', { type: blob.type || 'audio/mp4' }));
+  }
   async function gerarSozinha() {
+    if (noCelular) { await gerarNoCelular(); return; }
     if (fonte.arquivo) {
       const a = await arquivoDaMusica(song);
       if (a) lerNoServidor({ arquivo: a }); else telaFontes('O seu áudio desta música não está neste aparelho: escolha o arquivo.');
@@ -17190,6 +17235,8 @@ async function conferirAtualizacaoApk() {
     nativo.versao ? nativo.versao().catch(() => null) : null,
     fetch(`${URL_VERSAO_APK_PUBLICADA}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
+  // (o histórico dos APKs publicados fica anotado: a tela Novidades usa)
+  if (Array.isArray(publicada?.historico)) anotarVersoesApk(publicada.historico);
   return { instalada, publicada, nova: Boolean(publicada?.codigo && (!instalada?.codigo || Number(publicada.codigo) > Number(instalada.codigo))) };
 }
 async function atualizarApk(bt, aoAndar) {
@@ -20819,6 +20866,8 @@ if (ecoaNativo) {
   void ecoaNativo.pronto().catch(() => {});
   // (o yt-dlp do celular, que faz os downloads: atualizado uma vez por dia, porque o YouTube muda sempre)
   if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
+  // (a versão do app instalado e a das novidades que vieram com ele: a tela Novidades usa para dizer quando cada uma chegou)
+  void ecoaNativo.versao?.().then((info) => { if (info?.codigo) anotarVersoesApk([{ codigo: info.codigo, nome: info.nome || String(info.codigo), web: NOVIDADES[0]?.versao }]); }).catch(() => {});
   // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e avisa uma vez por versão
   setTimeout(async () => {
     const r = await conferirAtualizacaoApk().catch(() => null);
@@ -21180,6 +21229,9 @@ function viewOffline() {
 
 function viewNovidades(versao) {
   const TIPO_NOVIDADE = { novo: ['Novo', 'sparkles'], melhoria: ['Melhoria', 'up'], correcao: ['Correção', 'check'] };
+  // (no app de Android, o número é o da versão do app em que a novidade chegou; sem saber, fica só a data — o número
+  // do site não quer dizer nada no app)
+  const chipDoApp = (v) => { const nome = versaoDoAppDaNovidade(v, versoesApkConhecidas()); return `<span class="chip sm nv-num"${nome ? '' : ' hidden'} data-nv="${esc(String(v))}">${nome ? `versão ${esc(nome)}` : ''}</span>`; };
   setTab('');
   setTint('#1f3a44');
   setHeader('Novidades', { back: '#/ajustes/sobre' });
@@ -21191,12 +21243,19 @@ function viewNovidades(versao) {
       // a marca "Com a atualização do app")
       const doApp = n.itens.some((it) => /atualiza[çc][ãa]o do app/i.test(it.texto));
       return `<section class="nv-versao${String(n.versao) === String(versao) ? ' destaque' : ''}" id="nv-${n.versao}">
-      <div class="nv-cab"><span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span>${noApk() && doApp ? `<span class="chip sm nv-app">${icon('download', 12)} Com a atualização do app</span>` : ''}<small>${esc(data(n.data))}</small></div>
+      <div class="nv-cab">${noApk() ? chipDoApp(n.versao) : `<span class="chip sm">versão ${esc(versaoMostrada(n.versao, n.data))}</span>`}${noApk() && doApp ? `<span class="chip sm nv-app">${icon('download', 12)} Com a atualização do app</span>` : ''}<small>${esc(data(n.data))}</small></div>
       <h3>${esc(n.titulo)}</h3>
       <ul>${n.itens.map((it) => { const [nome, ic] = TIPO_NOVIDADE[it.tipo] || TIPO_NOVIDADE.melhoria; return `<li data-tipo="${it.tipo}"><span class="nv-ic">${icon(ic, 14)}</span><span><b>${nome}</b> ${esc(it.texto)}</span></li>`; }).join('')}</ul>
     </section>`;
     }).join('')}</div>`;
   mostrarVersaoApk($('.nv-versao-app', view), 'Você está no app de Android, versão');
+  // (o histórico publicado pode trazer as versões que faltavam: os números aparecem quando chegam)
+  if (noApk()) void conferirAtualizacaoApk().then(() => {
+    for (const el of view.querySelectorAll('.nv-num[data-nv]')) {
+      const nome = versaoDoAppDaNovidade(el.dataset.nv, versoesApkConhecidas());
+      if (nome) { el.textContent = `versão ${nome}`; el.hidden = false; }
+    }
+  }).catch(() => {});
   // a versão pedida (pela notificação) aparece na tela; a mais nova já está no alto, com o título: não rola (rolar
   // levava o título "Novidades do app" para baixo da barra do topo, cortado)
   if (versao && String(versao) !== String(NOVIDADES[0]?.versao)) requestAnimationFrame(() => $(`#nv-${CSS.escape(versao)}`)?.scrollIntoView({ block: 'start' }));
