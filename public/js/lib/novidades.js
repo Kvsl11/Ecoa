@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 577, data: '2026-11-06', titulo: 'O karaokê e o Lúmen no próprio celular, no app de Android',
+    itens: [
+      { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. O que ainda precisa de servidor no app (o karaokê pelo servidor e as respostas do Lúmen) usa o servidor no computador ou o de reserva.' },
+      { tipo: 'novo', texto: 'No app de Android, o karaokê é feito no próprio celular, sem o servidor: a voz é separada da banda ali mesmo (de 1 a 2 minutos por música, conforme o celular; na primeira vez o app baixa o modelo, de 30 MB). Depois fica guardado e toca na hora, até sem internet. Nesse karaokê, o back vocal sai junto com o cantor.' },
+      { tipo: 'novo', texto: 'No app de Android, o Lúmen responde direto do celular, sem o servidor: procura no acervo (inclusive no texto dos PDFs, guardado no aparelho) e pergunta ao Gemini, com a busca na web. Fotos, PDFs, áudios e vídeos enviados na conversa também vão direto para ele.' },
+      { tipo: 'correcao', texto: 'O Baixar dos ⋮ de uma música às vezes não fazia nada: a música que já tinha tido o download pausado entrava na fila e saía na hora, sem aviso. Agora tocar em Baixar sempre baixa; e, se não der certo, o motivo aparece na tela (e não só na notificação).' },
+      { tipo: 'correcao', texto: 'No aviso de versão nova do app de Android, "O que vem com ela" mostrava novidades antigas, que o app já tinha. Agora mostra as que chegam com a versão nova (a partir da próxima atualização).' },
+    ],
+  },
+  {
     versao: 576, data: '2026-11-06', titulo: 'Os downloads no próprio celular, no app de Android',
     itens: [
       { tipo: 'novo', texto: 'No app de Android, as músicas e os videoclipes passam a ser baixados no próprio celular, sem o servidor: não precisa mais ligar o Codespace nem o servidor no computador para baixar. A mesma qualidade escolhida em Ajustes → Economia de dados e offline vale, e a porcentagem aparece como antes. Vem com a atualização do app (que fica um pouco maior). No navegador, nada muda.' },
@@ -65,13 +75,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Todas as janelas agora sobem do rodapé com a alcinha em cima, iguais no app de Android e no navegador: as perguntas de confirmar ("Novo repertório", apagar…), as de configurar (PDF, PowerPoint, tom, diagnóstico), as listas de escolha (o ⋯ do Tocando agora, o tom da partitura, escolher uma música) e, no celular, o menu ⋯ da música e o calendário. Puxando a alça para cima, a janela cresce; para baixo, fecha.' },
     ],
   },
-  {
-    versao: 567, data: '2026-11-06', titulo: 'O topo do app de Android no lugar',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, agora de ponta a ponta, a foto do perfil e os botões do topo ficavam por cima dos filtros, dos títulos e dos Ajustes: o topo descia a altura da barra de status, e o começo das páginas não. Agora as páginas também descem, e o fundo de cada uma vai até atrás do relógio e da bateria.' },
-      { tipo: 'melhoria', texto: 'No app de Android, os ícones do relógio e da bateria ficam escuros no tema claro e claros no escuro (precisa da atualização do app).' },
-    ],
-  },
 ];
 
 // A primeira versão de cada mês. O número mostrado ("2026.10.31-383") é a data da versão e quantas versões o mês já
@@ -92,4 +95,12 @@ export function novidadesNaoVistas(vista) {
   const v = Number(vista) || 0;
   if (!v) return NOVIDADES.slice(0, 1);
   return NOVIDADES.filter((n) => n.versao > v);
+}
+
+// O aviso de versão nova do app de Android: as novidades do APK publicado (Ecoa-versao.json, que o robô monta com as
+// novidades que vão dentro dele) que o app instalado ainda não tem. webInstalada: a primeira versão das novidades do
+// app instalado. O arquivo de antes, sem as novidades, não mostra nada (antes apareciam as do app instalado, antigas)
+export function novidadesQueChegam(publicada, webInstalada = NOVIDADES[0]?.versao) {
+  return (Array.isArray(publicada?.novidades) ? publicada.novidades : [])
+    .filter((n) => Number(n?.versao) > Number(webInstalada || 0) && n.titulo);
 }

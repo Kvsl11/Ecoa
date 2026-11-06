@@ -18,7 +18,7 @@ import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cor
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
-import { NOVIDADES, APP_VERSAO, versaoMostrada } from './lib/novidades.js';
+import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam } from './lib/novidades.js';
 import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
@@ -27,6 +27,7 @@ import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio,
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
+import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -99,6 +100,11 @@ let servidorDoSite = '';
 // o servidor do Codespace: a porta pública dele (…-7860.app.github.dev) ou, quando o GitHub não deixa a porta pública,
 // o túnel da Cloudflare que ele abre (….trycloudflare.com)
 const doCodespace = (host) => /\.app\.github\.dev$|\.trycloudflare\.com$/i.test(host || '');
+// No APK, o Codespace não é usado nem ligado: os downloads são feitos no próprio celular, e procurar o Codespace a cada
+// abertura (e pedir ao Modal que ligasse ele) gastava a cota de horas do GitHub. O que ainda precisa de servidor no APK
+// usa só o servidor no computador da pessoa ou o Modal. No navegador, nada muda
+const semCodespaceNoApp = () => Boolean(baixadorDoAparelho());
+const urlDoCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
 const doLink = new URLSearchParams(location.search).get('ia');
 if (doLink !== null) {
   db.setPref('servidorPc', baseDoServidor(doLink));
@@ -123,7 +129,7 @@ let estadoCodespace = ''; // o que o Modal disse por último: ligado | ligando |
 let acordandoEm = 0;
 const CODESPACE_SEM_COTA = 'songbook.codespaceSemCota';
 async function acordarCodespace(reserva) {
-  if (!reserva?.url || Date.now() - acordandoEm < 60e3) return;
+  if (!reserva?.url || semCodespaceNoApp() || Date.now() - acordandoEm < 60e3) return;
   let semCota = 0;
   try { semCota = Number(localStorage.getItem(CODESPACE_SEM_COTA)) || 0; } catch { /* sem armazenamento */ }
   if (Date.now() - semCota < 30 * 60e3) { estadoCodespace = 'sem-cota'; return; }
@@ -153,7 +159,7 @@ const guardarServidor = (cfg) => {
 };
 {
   const g = servidorGuardado();
-  if (g) SERVIDOR_IA = g;
+  if (g && !(semCodespaceNoApp() && urlDoCodespace(g.url))) SERVIDOR_IA = g;
   const k = baseDoServidor(db.prefs().servidorKaraoke);
   if (k) SERVIDOR_KARAOKE = { url: k, chave: g?.chave || '', pc: true };
 }
@@ -177,7 +183,9 @@ function carregarServidor({ forcar = false } = {}) {
       return sondas.get(u);
     };
     // (o guardado já começa a ser testado enquanto o endereço publicado no site chega)
-    const guardado = servidorGuardado();
+    const guardadoAntes = servidorGuardado();
+    // (no APK, o Codespace guardado de antes não é mais procurado: nem ele nem os outros endereços do Codespace)
+    const guardado = guardadoAntes && !(semCodespaceNoApp() && urlDoCodespace(guardadoAntes.url)) ? guardadoAntes : null;
     if (guardado && !guardado.reserva) sondar(guardado.url);
     const pc = baseDoServidor(db.prefs().servidorPc);
     const d = await fetch(new URL('data/servidor-ia.json', document.baseURI), { cache: 'no-store' })
@@ -191,7 +199,7 @@ function carregarServidor({ forcar = false } = {}) {
     const reserva = baseDoServidor(d?.reserva) ? { url: baseDoServidor(d.reserva), chave: d.chave || '', pc: true, lumen: baseDoServidor(d.reservaLumen || '') || baseDoServidor(d.reserva), reserva: true } : null;
     const ehCodespace = (u) => { try { return Boolean(u) && doCodespace(new URL(u).host); } catch { return false; } };
     const ultimo = baseDoServidor(db.prefs().codespaceAchado);
-    const codespaces = [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : '',
+    const codespaces = semCodespaceNoApp() ? [] : [...new Set([ehCodespace(url) ? url : '', ehCodespace(ultimo) ? ultimo : '', ehCodespace(pc) ? pc : '',
       guardado && !guardado.reserva && ehCodespace(guardado.url) ? guardado.url : ''].filter(Boolean))];
     servidorDoSite = codespaces[0] || '';
     reservaFora = false;
@@ -1040,8 +1048,33 @@ function qualidadeDoDownload(video) {
 // sem Wi-Fi (no Android o navegador diz): pergunta antes, como no Spotify (uma vez, ao baixar várias)
 const podeBaixarAgora = async () => navigator.connection?.type !== 'cellular' || db.prefs().baixarDadosMoveis
   || ask({ title: 'Baixar com os dados móveis?', text: 'Você está sem Wi-Fi e o download pode gastar bastante do seu plano. Dá para liberar sempre em Ajustes → Economia de dados e offline.', ok: 'Baixar assim mesmo' });
-async function baixarMusica(song, { perguntou = false, qualidade = false } = {}) {
+// as músicas que a pessoa mandou baixar tocando em "Baixar" (os ⋮): se não der certo, o motivo aparece na tela, e não só
+// na notificação (que pode estar desligada: antes nada acontecia e o motivo ficava escondido)
+const baixarComAviso = new Set();
+// (os arquivos desta gravação já estão no aparelho, baixados por outra música da biblioteca com o mesmo vídeo: a música
+// passa a usar eles, sem baixar de novo. Antes o "Baixar" não fazia nada, calado.) true: não há o que baixar
+function usarArquivosJaBaixados(s, { avisar = false, qualidade = false } = {}) {
+  if (s.baixado || precisaBaixar(s) || qualidade) return false;
+  const lista = arquivosParaBaixar(s);
+  baixarComAviso.delete(s.id);
+  if (!lista.length) {
+    if (avisar) void ask({ title: 'Nada para baixar', text: 'Esta música não tem áudio nem vídeo para baixar. Escolha um vídeo para ela (⋮ → Escolher um vídeo) e tente de novo.', ok: 'Entendi', cancel: false });
+    return true;
+  }
+  const arquivos = Object.fromEntries(lista.map(({ yt }) => [yt, baixadoDe(yt)]).filter(([, a]) => a));
+  db.updateSong(s.id, { baixado: { arquivos, tamanho: Object.values(arquivos).reduce((t, a) => t + (a.tamanho || 0), 0), em: Date.now() } });
+  window.dispatchEvent(new CustomEvent('songbook:downloads'));
+  return true;
+}
+async function baixarMusica(song, { perguntou = false, qualidade = false, avisar = false } = {}) {
   const s = song?.id && db.song(song.id);
+  if (s && avisar) {
+    baixarComAviso.add(s.id);
+    // (a pessoa tocou em "Baixar": a pausa de antes não vale mais. Antes a música marcada como pausada entrava na fila
+    // e saía na hora, sem baixar e sem aviso — o "Baixar" dos ⋮ parecia não fazer nada)
+    if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
+  }
+  if (s && usarArquivosJaBaixados(s, { avisar, qualidade })) return;
   // (qualidade: a baixada numa qualidade menor que a escolhida é baixada de novo nela)
   if (!s || !(precisaBaixar(s) || (qualidade && precisaMelhorar(s, qualidade === 'todas'))) || baixando.has(s.id)) return;
 
@@ -1112,7 +1145,9 @@ async function baixarDaFila(pedido) {
       tag: TAG_DOWNLOAD, silenciosa: true, href: '#/musica/' + id,
       imagem: capaDaNotificacao(atual),
     });
+    if (baixarComAviso.has(id)) void ask({ title: 'Não deu para baixar', text: `“${atual?.title || 'A música'}”: ${erroExplicado(e)}`, ok: 'Entendi', cancel: false });
   } finally {
+    baixarComAviso.delete(id);
     // (pausado, a música sai da fila guardada pela pausa; o que falhou tenta de novo pelo completarDepois)
     if (!controle.signal.aborted && !semServidor) tirarDaFilaGuardada(id);
     controlesDeDownload.delete(id);
@@ -1635,8 +1670,18 @@ function prepararKaraoke(song) {
     avisarKaraoke();
   };
   estado.promessa = (async () => {
+    // (no APK: o karaokê é feito no próprio celular, sem servidor; o servidor, se houver, fica de reserva)
+    const noCelular = karaokeNoAparelho();
+    let erroNoCelular = null;
+    if (noCelular) {
+      try {
+        const feito = await karaokeNoCelular(noCelular, song, fonte, passo);
+        return guardarKaraokeFeito(fonte, feito.blob, feito.info);
+      } catch (e) { erroNoCelular = e; }
+      passo(0, 'Preparando');
+    }
     await carregarServidor().catch(() => {});
-    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
+    if (!servidorIA().url && !SERVIDOR_KARAOKE) throw erroNoCelular || new Error('O karaokê precisa do servidor da IA para separar a voz da banda. Ligue o servidor (Ajustes → Avançado → Servidor da IA) e toque no microfone de novo');
     // o envio (ou o download do áudio pelo servidor) até 10%, a separação até 90% e a vinda do arquivo até 99%
     const aoEtapa = (etapa, p) => {
       if (etapa === 'enviando') passo(10 * (p ?? 0), 'Enviando o áudio');
@@ -1724,17 +1769,70 @@ function prepararKaraoke(song) {
       }
       blob = new Blob(blocos, { type: r.tipo || 'audio/mp4' });
     } else blob = await resp.blob();
-    await guardarAudio(chaveKaraoke(fonte), blob);
-    const info = { tipo: r.tipo || blob.type || 'audio/mp4', tamanho: blob.size, em: Date.now(), versao: r.versao || 1, ...(r.duracao ? { duracao: r.duracao } : {}) };
-    // na música salva (e nas outras da biblioteca com a mesma gravação); a da busca, só enquanto o app está aberto
-    const donas = db.songs().filter((s) => fonteDoKaraoke(s) === fonte);
-    if (donas.length) donas.forEach((s) => db.updateSong(s.id, { karaoke: { ...(s.karaoke || {}), [fonte]: info } }));
-    else karaokesAvulsos.set(fonte, info);
-    return info;
+    return guardarKaraokeFeito(fonte, blob, { tipo: r.tipo || blob.type || 'audio/mp4', versao: r.versao || 1, ...(r.duracao ? { duracao: r.duracao } : {}) });
   })().finally(() => { preparandoKaraoke.delete(fonte); avisarKaraoke(); });
   preparandoKaraoke.set(fonte, estado);
   avisarKaraoke();
   return estado.promessa;
+}
+// o karaokê pronto guardado no aparelho, na música salva (e nas outras da biblioteca com a mesma gravação); o da
+// música da busca, só enquanto o app está aberto
+async function guardarKaraokeFeito(fonte, blob, dados) {
+  await guardarAudio(chaveKaraoke(fonte), blob);
+  const info = { tipo: dados.tipo || blob.type || 'audio/mp4', tamanho: blob.size, em: Date.now(), ...dados };
+  const donas = db.songs().filter((s) => fonteDoKaraoke(s) === fonte);
+  if (donas.length) donas.forEach((s) => db.updateSong(s.id, { karaoke: { ...(s.karaoke || {}), [fonte]: info } }));
+  else karaokesAvulsos.set(fonte, info);
+  return info;
+}
+// O karaokê feito no próprio celular (o APK: Karaoke.java, o UVR no ONNX Runtime). O áudio que já está no aparelho
+// vai ele mesmo; sem ele, o celular baixa a música do YouTube. A primeira vez baixa o modelo (30 MB). O UVR tira a voz
+// inteira: o back vocal sai junto com o cantor (o do servidor separa só o cantor, com modelos grandes demais para o
+// celular). No navegador o plugin não existe
+function karaokeNoAparelho() {
+  const C = window.Capacitor;
+  if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
+  return (C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'karaokeLocal') ? C.Plugins.Ecoa : null;
+}
+const emBase64 = (blob) => new Promise((ok, falha) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',')[1] || '');
+  r.onerror = () => falha(r.error);
+  r.readAsDataURL(blob);
+});
+async function karaokeNoCelular(nativo, song, fonte, passo) {
+  let arquivo = null;
+  let nome = 'audio.m4a';
+  if (ehArquivo(fonte)) {
+    arquivo = await lerAudio(fonte.slice(ARQ.length)).catch(() => null);
+    if (!arquivo) throw new Error('O áudio desta música não está neste aparelho');
+    nome = song.audioProprio?.nome || 'audio';
+  } else {
+    // (o áudio baixado; sem ele, o clipe baixado também serve: o ffmpeg tira o som dele)
+    const b = baixadoDe(fonte);
+    if (b && (b.tamanho || 0) < 55e6) {
+      arquivo = await lerAudio(chaveBaixada(fonte)).catch(() => null);
+      nome = String(b.tipo || '').startsWith('video') ? 'clipe.mp4' : String(b.tipo).includes('webm') ? 'audio.webm' : 'audio.m4a';
+    }
+    if (!arquivo && !/^[\w-]{11}$/.test(fonte)) throw new Error('O áudio desta música não está neste aparelho');
+  }
+  const processo = `karaoke-${Date.now().toString(36)}`;
+  const ETAPAS = { modelo: [0, 8, 'Baixando o modelo do karaokê (só na primeira vez)'], baixando: [0, 8, 'Baixando a música'],
+    lendo: [8, 10, 'Abrindo a música'], separando: [10, 95, 'Separando a voz da banda no celular'], gravando: [95, 98, 'Quase pronto'] };
+  const ouvinte = await nativo.addListener('karaoke', (ev) => {
+    const e = ev?.processo === processo && ETAPAS[ev.etapa];
+    if (e) passo(e[0] + (e[1] - e[0]) * (Number(ev.pct) || 0), e[2]);
+  });
+  let r;
+  try {
+    passo(1, arquivo ? 'Abrindo a música' : 'Baixando a música');
+    r = await nativo.karaokeLocal({ processo, nome, ...(arquivo ? { dados: await emBase64(arquivo) } : { video: fonte }) });
+  } finally { void Promise.resolve(ouvinte?.remove?.()).catch(() => {}); }
+  passo(98, 'Quase pronto');
+  let blob;
+  try { blob = await lerBaixadoNoAparelho({ caminho: r.caminho, tipo: 'audio/mp4' }); } finally { void nativo.apagarLocal({ caminho: r.caminho }).catch(() => {}); }
+  if (!blob || blob.size < 10000) throw new Error('o karaokê saiu vazio');
+  return { blob, info: { tipo: 'audio/mp4', versao: KARAOKE_VERSAO, celular: true, ...(r.duracao ? { duracao: r.duracao } : {}) } };
 }
 // o karaokê desta gravação sai das músicas (o arquivo sumiu do aparelho, ou vai ser apagado)
 function esquecerKaraoke(fonte, songs = db.songs().filter((s) => s.karaoke?.[fonte])) {
@@ -7322,7 +7420,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     compartilhar({ title: song.title, text: [song.title, song.artist].filter(Boolean).join(' — '), ...(url ? { url } : {}) });
   }
   if (v === 'playlist') addToSetDialog(song.id, set?.items[i]?.label || '');
-  if (v === 'baixar') baixarMusica(db.song(song.id));
+  if (v === 'baixar') baixarMusica(db.song(song.id), { avisar: true });
   if (v === 'baixando') toast(`Baixando: ${baixando.get(song.id)?.pct ?? 100}%`);
   if (v === 'tirar-download' && await ask({ title: 'Remover o download?', text: `“${song.title}” continua na biblioteca, mas só toca com internet.`, ok: 'Remover', danger: true })) { await removerDownload(song); toast('Download removido'); }
   if (v === 'tocar') { if (player.desta(song.youtube)) player.alternar(); else tocarReferencia(song); }
@@ -16829,7 +16927,7 @@ function viewSettings(topico) {
     <div class="ajustes">
     <section class="aj-topo">
       <span class="aj-logo">${logo(44)}</span>
-      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">Ecoa · versão ${APP_VERSAO}</span></div>
+      <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">${noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`}</span></div>
     </section>
 
     ${secao('Aparência', `
@@ -17121,7 +17219,9 @@ async function atualizarApk(bt, aoAndar) {
 // novidades que dependem da atualização do app) e, ao tocar em Atualizar, o andamento do download ali mesmo
 async function oferecerAtualizacaoApk(r) {
   // (o nome curto de cada versão que mexeu no app de Android: "O play no meio do círculo", "Copiar a letra e a cifra"…)
-  const doApp = NOVIDADES.filter((n) => n.itens.some((it) => /atualiza[çc][ãa]o do app|app de Android|APK/i.test(it.texto))).slice(0, 4).map((n) => n.titulo);
+  // (as novidades que vêm DENTRO do APK novo e que este ainda não tem: o robô publica junto com a versão. Antes eram as
+  // do próprio app instalado, as antigas)
+  const doApp = novidadesQueChegam(r.publicada).slice(0, 5).map((n) => n.titulo);
   await openDialog(`
     <div class="apk-at">
       <div class="apk-at-cab"><span class="apk-at-ic">${logo(52)}</span><span class="grow"><h3>Nova versão do app</h3>
@@ -19238,16 +19338,62 @@ const carregarArquivosAcervo = () => fetch(new URL('data/acervo.json', document.
     const titulo = String(nome).replace(/\.[a-z0-9]{2,4}$/i, '');
     return { titulo, caminho: pasta.split('/').join(' / '), texto: `${pasta.split('/').slice(-2).join(' ')} ${titulo}`, id, formato, tipo: 'arquivo' };
   })).catch(() => []);
-async function indiceDasDuvidas() {
-  if (indiceDuvidas) return indiceDuvidas;
+async function trechosDasDuvidas() {
   const [cantos, cadernos, arquivos] = await Promise.all([carregarCantos(), carregarHinario(), carregarArquivosAcervo()]);
-  const trechos = [
+  return [
     ...arquivos,
     ...cantos.map((c) => ({ titulo: c.titulo, caminho: [...(c.caminho || []), c.arquivo].filter(Boolean).join(' / '), texto: textoSemCifra(c.chordpro), id: c.id, i: c.i, tipo: 'canto' })),
     ...cadernos.flatMap((cad) => cad.cantos.map((c, i) => ({ titulo: c.titulo, caminho: `Hinário Litúrgico / ${cad.celebracao || cad.nome}`, texto: `${c.parte || ''}\n${textoSemCifra(c.chordpro)}`, id: cad.id, i, tipo: 'hinario' }))),
   ];
-  indiceDuvidas = criarIndiceDuvidas(trechos);
+}
+async function indiceDasDuvidas() {
+  if (indiceDuvidas) return indiceDuvidas;
+  indiceDuvidas = criarIndiceDuvidas(await trechosDasDuvidas());
   return indiceDuvidas;
+}
+
+// ---- o Lúmen no próprio celular (o APK com a chave do Gemini): sem o servidor e sem o Codespace. A busca no acervo é
+// feita aqui (com o texto dos PDFs do acervo, que o site publica e o app guarda por uma semana) e o Gemini é chamado
+// pelo plugin do APK (a chave não passa pela página). No navegador, nada disso existe e o Lúmen segue como sempre
+let geminiNoApp = null;
+async function lumenNoAparelho() {
+  const C = window.Capacitor;
+  if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
+  if (!(C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'gemini')) return null;
+  if (geminiNoApp === null) geminiNoApp = await C.Plugins.Ecoa.geminiDisponivel().then((r) => Boolean(r?.tem)).catch(() => false);
+  return geminiNoApp ? C.Plugins.Ecoa : null;
+}
+const URL_TEXTOS_ACERVO = 'https://kvsl11.github.io/Songbook/data/textos-acervo.jsonl.gz';
+const CACHE_LUMEN = 'ecoa-lumen';
+// o texto dos PDFs do acervo (2 MB compactado): guardado no aparelho e baixado de novo depois de uma semana
+async function textosDoAcervo() {
+  let cache = null;
+  try { cache = await caches.open(CACHE_LUMEN); } catch { /* sem Cache Storage */ }
+  const guardada = await cache?.match(URL_TEXTOS_ACERVO).catch(() => null);
+  const idade = guardada ? Date.now() - Number(guardada.headers.get('x-ecoa-em') || 0) : Infinity;
+  let resp = guardada;
+  if ((!guardada || idade > 7 * 24 * 3600e3) && navigator.onLine) {
+    const nova = await fetch(URL_TEXTOS_ACERVO, { cache: 'no-store' }).catch(() => null);
+    if (nova?.ok) {
+      const corpo = await nova.arrayBuffer();
+      resp = new Response(corpo, { headers: { 'content-type': 'application/gzip', 'x-ecoa-em': String(Date.now()) } });
+      await cache?.put(URL_TEXTOS_ACERVO, resp.clone()).catch(() => {});
+    }
+  }
+  if (!resp || typeof DecompressionStream === 'undefined') return '';
+  return new Response(resp.body.pipeThrough(new DecompressionStream('gzip'))).text().catch(() => '');
+}
+let indiceLumen = null;
+async function indiceDoLumen() {
+  indiceLumen ||= (async () => criarIndiceDuvidas([...(await trechosDasDuvidas()), ...trechosDosPdfs(await textosDoAcervo())]))()
+    .catch((e) => { indiceLumen = null; throw e; });
+  return indiceLumen;
+}
+const estadoGemini = {};
+async function perguntarNoAparelho(nativo, { pergunta, historico, contexto = '', voz = false, anexos = [] }) {
+  const achados = await indiceDoLumen().then((ix) => ix.buscar(pergunta, 14)).catch(() => []);
+  const chamarGemini = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 150000 });
+  return responderNoAparelho({ pergunta, historico, contexto, voz, genero: generoLumen(), anexos, achados }, chamarGemini, estadoGemini);
 }
 // quantas palavras diferentes da pergunta aparecem no texto
 // quantas palavras (assuntos) a pergunta tem, sem as de conversa
@@ -19433,13 +19579,17 @@ function viewDuvidas() {
     };
     resp.etapa = `Lendo ${anexo.nome}…`;
     mostrarEtapa(resp);
-    await comPrazo(carregarServidor().catch(() => {}), 12000);
-    const cfgIA = servidorLumen();
-    if (cfgIA) {
+    // (no APK com o Gemini, no próprio celular; senão, pelo servidor)
+    const local = await lumenNoAparelho();
+    if (!local) await comPrazo(carregarServidor().catch(() => {}), 12000);
+    const cfgIA = local ? null : servidorLumen();
+    if (local || cfgIA) {
       try {
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos: [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }] }, tempo: 200e3 });
+        const anexos = [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }];
+        const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, voz, anexos })
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos }, tempo: 200e3 });
         if (ia?.resposta) return pronto({ ia });
       } catch (e) { if (e.status === 501) lumenSemIA = true; else resp.semIA = true; }
     }
@@ -19506,16 +19656,19 @@ function viewDuvidas() {
     }
     // o Lumen com IA (servidor), quando está disponível; se falhar, segue a busca gratuita logo abaixo. O endereço do
     // servidor é conferido aqui (antes, sem outra tela ter carregado o servidor, o Lumen ia direto para a busca simples)
-    await comPrazo(carregarServidor().catch(() => {}), 12000);
-    const cfgIA = servidorLumen();
-    if (cfgIA) {
+    // (no APK com a chave do Gemini, o Lumen pensa no próprio celular, sem servidor)
+    const local = await lumenNoAparelho();
+    if (!local) await comPrazo(carregarServidor().catch(() => {}), 12000);
+    const cfgIA = local ? null : servidorLumen();
+    if (local || cfgIA) {
       resp.etapa = 'Lumen está pensando…';
       mostrarEtapa(resp);
       try {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
-        const ia = await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
+        const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, contexto: await contextoDoApp(q), voz })
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
         if (ia?.resposta) {
           const { texto: semAcoes, depois } = acoesDaIA(ia.resposta);
           ia.resposta = semAcoes;

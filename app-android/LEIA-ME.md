@@ -12,6 +12,13 @@ O APK empacota uma cópia local da interface e dos arquivos estáticos de `publi
 não precisam de rede podem abrir mesmo sem conexão. A versão Web continua sendo publicada separadamente em
 `https://kvsl11.github.io/Songbook/` e não é alterada por esta configuração.
 
+**O karaokê é feito no próprio celular**: a voz separada da banda por um modelo de 30 MB, baixado na primeira vez que
+alguém usa (1 a 2 minutos por música, conforme o aparelho; depois fica guardado e toca na hora, sem internet). O back
+vocal sai junto com o cantor (o servidor separava só o cantor, com modelos grandes demais para o celular).
+
+**O Lúmen pensa no próprio celular**: o app procura no acervo (com o texto dos PDFs) e chama o Gemini direto, sem o
+Codespace (veja "A chave do Gemini do Lúmen", abaixo).
+
 **Os downloads de músicas e videoclipes são feitos no próprio celular**: o APK leva o yt-dlp (com o Python, o ffmpeg e
 o QuickJS) e não precisa do Codespace nem do servidor Python para baixar. O yt-dlp se atualiza sozinho uma vez por dia.
 O inventário do que já saiu do servidor e do que falta está em `MIGRACAO-NATIVA.md`.
@@ -50,6 +57,26 @@ O Google só deixa o app entrar com a conta se souber a "impressão digital" da 
    - Nome do pacote: `br.ecoa.app`
    - Certificado de assinatura SHA-1: o que você copiou.
 3. Salve. Não precisa baixar o arquivo `google-services.json`.
+
+### 3. A chave do Gemini do Lúmen (travada ao app)
+
+O Lúmen chama o Gemini direto do celular, sem servidor. A chave vai **dentro do APK**, que é público em Releases: por
+isso ela precisa ser travada ao app, para não servir em outro lugar.
+
+1. No [Google AI Studio](https://aistudio.google.com/apikey), crie uma chave **só para o app** (não use a mesma do
+   servidor: travada ao Android, ela para de funcionar no Codespace/Modal).
+2. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, nome `GEMINI_API_KEY_APK`, valor:
+   a chave nova. (Sem esse segredo, o robô usa o `GEMINI_API_KEY` do servidor, sem trava.)
+3. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), abra essa chave:
+   - **Restrições de aplicativo → Apps Android → Adicionar**: pacote `br.ecoa.app` e a **SHA-1** do resumo do robô
+     (a mesma do passo 2, do Firebase).
+   - **Restrições de API → Restringir chave**: só a **Generative Language API**.
+4. Rode o robô de novo (Actions → App de Android → Run workflow) e instale o APK novo.
+
+O app manda o pacote e a impressão digital em cada pedido (cabeçalhos `X-Android-Package` e `X-Android-Cert`); com a
+trava, a chave copiada do APK não funciona em outro programa que não mande os mesmos dados. Não é uma proteção
+absoluta (quem souber o pacote e a impressão digital consegue imitar), mas impede o uso casual. Vale também pôr um
+limite de cota por dia na chave.
 
 ## Para instalar
 

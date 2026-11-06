@@ -87,7 +87,10 @@ test('download: redescobre o servidor antes de iniciar cada fila e usa recupera�
 test('download: o servidor e a fila ficam guardados ao sair do app ou recarregar a página', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   // o app abre já com o último servidor que atendeu, e guarda o que atender
-  assert.match(app, /const g = servidorGuardado\(\);\s*if \(g\) SERVIDOR_IA = g;/);
+  assert.match(app, /const g = servidorGuardado\(\);\s*if \(g && !\(semCodespaceNoApp\(\) && urlDoCodespace\(g\.url\)\)\) SERVIDOR_IA = g;/);
+  // (no APK o Codespace não é procurado nem ligado: gastava a cota do GitHub)
+  assert.match(app, /const codespaces = semCodespaceNoApp\(\) \? \[\]/);
+  assert.match(app, /if \(!reserva\?\.url \|\| semCodespaceNoApp\(\)/);
   assert.match(app, /if \(SERVIDOR_IA\.url\) guardarServidor\(SERVIDOR_IA\)/);
   // as telas conferem o servidor de verdade antes de recusar o download
   assert.doesNotMatch(app, /arquivosParaBaixar\([sx]\)\.length\) && !servidorIA\(\)\.url/);
@@ -209,4 +212,14 @@ test('download: uma notificação só para a fila toda (não uma por música ao 
   assert.doesNotMatch(app, /tag: `baixar-\$\{id\}`|tag: 'baixar-' \+/);
   assert.match(app, /const TAG_DOWNLOAD = 'baixar';/);
   assert.match(app, /titulo: 'Downloads concluídos'/);
+});
+
+test('download: o "Baixar" dos ⋮ tira a pausa de antes e avisa na tela se não der certo', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /if \(v === 'baixar'\) baixarMusica\(db\.song\(song\.id\), \{ avisar: true \}\)/);
+  const baixar = app.slice(app.indexOf('function usarArquivosJaBaixados('), app.indexOf('const DOWNLOADS_JUNTOS'));
+  assert.match(baixar, /if \(s && avisar\) \{[\s\S]*?if \(s\.baixarPausado\) db\.updateSong\(s\.id, \{ baixarPausado: undefined \}\)/);
+  // (os arquivos já baixados por outra música com o mesmo vídeo: a música passa a usar eles)
+  assert.match(baixar, /if \(s\.baixado \|\| precisaBaixar\(s\) \|\| qualidade\) return false;/);
+  assert.match(app, /if \(baixarComAviso\.has\(id\)\) void ask\(\{ title: 'Não deu para baixar'/);
 });
