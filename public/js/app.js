@@ -14520,6 +14520,13 @@ function viewSong(id, ctx = {}) {
     return tela;
   };
   let rolouEm = 0;
+  let precisaPosicionarSinc = true;
+  const posicionarNaLinhaCantada = (linha, suave = false) => {
+    if (!linha?.isConnected) return;
+    const topo = view.scrollTop + linha.getBoundingClientRect().top - view.getBoundingClientRect().top
+      - Math.max(24, (view.clientHeight - linha.offsetHeight) / 2);
+    view.scrollTo({ top: Math.max(0, topo), behavior: suave ? 'smooth' : 'instant' });
+  };
   const marcarRolagem = () => { rolouEm = Date.now(); };
   view.addEventListener('wheel', marcarRolagem, { passive: true });
   view.addEventListener('touchmove', marcarRolagem, { passive: true });
@@ -14554,7 +14561,10 @@ function viewSong(id, ctx = {}) {
     if (!linha) return;
     linha.classList.add('agora');
     // a letra vai junto, a não ser que a pessoa tenha rolado com o dedo há pouco
-    if (player.estado === 'tocando' && Date.now() - rolouEm > 4000) linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (player.estado === 'tocando' && Date.now() - rolouEm > 4000) {
+      if (precisaPosicionarSinc) { posicionarNaLinhaCantada(linha); precisaPosicionarSinc = false; }
+      else linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }, 80); // conferido várias vezes por segundo: a linha acende junto com a voz, não até 0,2 s depois
   // a sincronia desta música chegou (pedida aqui, pelo Tocando agora ou ao abrir): a letra já acompanha, sem sair
   const sincChegou = (e) => {
@@ -14757,6 +14767,7 @@ function viewSong(id, ctx = {}) {
         comCifra = b.dataset.modo === 'cifra' && !semCifra;
         db.setPref('modo', comCifra ? 'cifra' : 'letra');
         view.querySelectorAll('#tools [data-modo]').forEach((x) => x.setAttribute('aria-pressed', String((x.dataset.modo === 'cifra') === comCifra)));
+        precisaPosicionarSinc = true;
         break;
       case 'scroll':
         if (scrollTimer) { stopScroll(); setScrollBtn(false); } else { setScrollBtn(true); tick(); }
