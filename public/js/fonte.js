@@ -10,9 +10,11 @@ import { getLiturgia as getLiturgiaDireto } from './lib/cnbb.js';
 import { buscarCifraClub as buscarCifraClubDireto, buscarLetras as buscarLetrasDireto, getCifraClub as getCifraClubDireto, buscarArtistasCifraClub as buscarArtistasDireto, getArtistaCifraClub as getArtistaDireto, getDiscografiaCifraClub as getDiscografiaDireto, getTodasMusicasCifraClub as getTodasMusicasDireto, getLetra as getLetraDireto, letraReserva as letraReservaDireto, PROXIES_PUBLICOS } from './lib/web.js';
 
 const PREFIXO = 'songbook.cache.';
-const VALIDADE = 12 * 3600e3;
-// a liturgia de uma data não muda: vale por mais tempo (e fica guardada para o modo offline)
-const VALIDADE_LITURGIA = 5 * 864e5;
+// No APK, metadados e resultados de busca não podem ficar meio dia congelados: renovam a cada 5 min.
+// A liturgia é estável, mas correções e atualizações do dia precisam chegar no mesmo dia. Na Web, preserva os prazos antigos.
+const NO_APK = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+const VALIDADE = NO_APK ? 5 * 60e3 : 12 * 3600e3;
+const VALIDADE_LITURGIA = NO_APK ? 6 * 3600e3 : 5 * 864e5;
 const MAX_ITENS = 140;
 // missa sem o repertório da Cindy (ainda não publicado, ou não achado por versões antigas do app): vale só 12 h,
 // para buscar de novo
