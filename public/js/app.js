@@ -4789,6 +4789,8 @@ const semLinhasDeAcordes = (sinc) => {
     duracaoDe(yt) { return duracoes.get(yt) || 0; },
     // o último tempo que o YouTube informou (não anda sozinho: no anúncio fica parado)
     get tempoInformado() { return tempo; },
+    // tocando do aparelho (um download ou o áudio da pessoa), e não do YouTube
+    get doAparelho() { return Boolean(local); },
     get duracao() { return duracao; },
     tocandoAgora: (youtube) => desta(youtube) && estado === 'tocando',
     tocandoAlgo: () => Boolean(atual) && estado === 'tocando',
@@ -20470,7 +20472,8 @@ if (ecoaNativo) {
     if (!a?.titulo) { if (ultimo) { ultimo = ''; void ecoaNativo.parou().catch(() => {}); } return; }
     const yt = a.video || a.youtube;
     const capa = /^https?:/.test(a.capa || '') ? a.capa : yt && !ehArquivo(yt) ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : '';
-    const dados = { titulo: a.titulo || '', artista: a.artista || '', capa, tocando: player.estado === 'tocando' };
+    // (doAparelho: a música baixada continua com o app minimizado; a do YouTube pausa, que é a regra do YouTube)
+    const dados = { titulo: a.titulo || '', artista: a.artista || '', capa, tocando: player.estado === 'tocando', doAparelho: player.doAparelho };
     // (o ponto e a duração vão para a barra do tempo do player do Android, que anda sozinha enquanto toca: o ponto só
     // é mandado de novo quando muda de verdade, como ao pular ou voltar, e não a cada segundo)
     const duracao = Math.round(Number(player.duracao) || 0);
@@ -20485,6 +20488,9 @@ if (ecoaNativo) {
     void ecoaNativo.musica({ ...dados, duracao, tempo }).catch(() => {});
   };
   player.ouvir(mandar);
+  // (a duração só se sabe depois que a música abre, e o player não avisa quando ela chega: sem isto, o player do Android
+  // ficava em 00:00 / 00:00 e a barra não andava. A cada 2 s confere; só manda de novo quando mudou de verdade)
+  setInterval(() => { if (player.atual) mandar(); }, 2000);
   ecoaNativo.addListener('acao', ({ acao } = {}) => {
     // (tocou numa notificação de download: abre a página dela)
     if (/^abrir:#/.test(acao || '')) { location.hash = acao.slice(6); return; }

@@ -10,6 +10,8 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Quando o navegador (ou o Android) não consegue separar os canais do áudio, o karaokê desligava sem dizer nada. Agora aparece o aviso.' },
       { tipo: 'correcao', texto: 'No app de Android, tudo ficava maior que no site (textos, ícones), com textos quebrados ou sobrepostos e telas espremidas: o app aumentava o texto pelo "Tamanho da fonte" do Android. Agora ele fica do tamanho do site no Chrome (precisa da atualização do app: Ajustes → Sobre → Atualização do app).' },
       { tipo: 'correcao', texto: 'No app de Android, o armazenamento não batia com o do celular: o total era só uma parte da memória. Agora os números são os mesmos das Configurações do Android (o total, o livre e o que o Ecoa ocupa).' },
+      { tipo: 'correcao', texto: 'No player do Android (nas notificações e na tela de bloqueio), a barra ficava em 00:00 / 00:00 e não andava: a duração da música chega depois que ela começa, e o app só mandava no começo. Agora a duração e o ponto aparecem certos, e a barra anda.' },
+      { tipo: 'correcao', texto: 'No app de Android, a música baixada pausava ao minimizar o app ou apagar a tela. Agora ela continua tocando (precisa da atualização do app). A que toca pelo YouTube pausa fora da tela: essa é uma regra do YouTube.' },
     ],
   },
   {

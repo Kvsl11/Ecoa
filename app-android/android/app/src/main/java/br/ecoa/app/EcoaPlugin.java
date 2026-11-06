@@ -205,6 +205,9 @@ public class EcoaPlugin extends Plugin {
         if (capaNova) Capas.baixar(ctx, capa, () -> { EcoaWidget.atualizarTodos(ctx); Sessao.atualizar(ctx); TocandoService.atualizar(ctx); });
         EcoaWidget.atualizarTodos(ctx);
         Sessao.atualizar(ctx);
+        // (tocando do aparelho — a música baixada, o áudio da pessoa —, a página continua visível com o app minimizado e
+        // a música não pausa. A do YouTube pausa escondida: é a regra do YouTube, que o app não contorna)
+        EcoaWebView.definirTocando(tocando && Boolean.TRUE.equals(call.getBoolean("doAparelho", false)));
         // (o aviso de "tocando" mantém o app vivo em segundo plano enquanto toca)
         if (tocando) {
             if (Build.VERSION.SDK_INT >= 33 && getPermissionState("avisos") == PermissionState.PROMPT) {
@@ -224,6 +227,7 @@ public class EcoaPlugin extends Plugin {
 
     @PluginMethod
     public void parou(PluginCall call) {
+        EcoaWebView.definirTocando(false);
         TocandoService.desligar(getContext());
         call.resolve();
     }
