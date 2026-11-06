@@ -17363,7 +17363,14 @@ async function atualizarApk(bt, aoAndar) {
   }
   const texto = bt?.textContent;
   if (bt) { bt.disabled = true; bt.textContent = 'Baixando…'; }
-  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => { if (pct >= 0) { if (bt) bt.textContent = `${pct}%`; aoAndar?.(pct); } })?.catch?.(() => null);
+  // (a porcentagem só anda para a frente: um pedido repetido acompanha o mesmo download, e o número não volta)
+  let maior = -1;
+  const ouvinte = await nativo.addListener?.('atualizacao', ({ pct } = {}) => {
+    if (!(pct >= 0) || pct <= maior) return;
+    maior = Math.min(100, pct);
+    if (bt) bt.textContent = `${maior}%`;
+    aoAndar?.(maior);
+  })?.catch?.(() => null);
   try {
     await nativo.atualizar({ url: URL_APK_PUBLICADO });
     // (a tela de instalar do Android abriu; se a pessoa cancelar, o botão volta)

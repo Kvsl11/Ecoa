@@ -192,20 +192,46 @@ public class EcoaPlugin extends Plugin {
             call.reject("Permita que o Ecoa instale a atualização e toque em Atualizar de novo.", "permitir");
             return;
         }
+        // (um download por vez: tocar em Atualizar de novo — no Sobre, no aviso de versão nova — acompanha o que já está
+        // baixando. Antes cada toque começava outro download no mesmo arquivo, e as porcentagens dos dois se misturavam
+        // na barra: 10, 20 e pouco, 5…)
+        synchronized (ATUALIZANDO) {
+            ATUALIZANDO.add(call);
+            if (ATUALIZANDO.size() > 1) {
+                if (ultimoPctAtualizacao >= 0) { JSObject d = new JSObject(); d.put("pct", ultimoPctAtualizacao); notifyListeners("atualizacao", d); }
+                return;
+            }
+            ultimoPctAtualizacao = -1;
+        }
         Executors.newSingleThreadExecutor().execute(() -> {
+            File apk = null;
+            String erro = null;
             try {
-                File apk = Atualizacao.baixar(getContext(), url, (pct) -> {
+                apk = Atualizacao.baixar(getContext(), url, (pct) -> {
+                    // (só para a frente)
+                    if (pct <= ultimoPctAtualizacao) return;
+                    ultimoPctAtualizacao = pct;
                     JSObject d = new JSObject();
                     d.put("pct", pct);
                     notifyListeners("atualizacao", d);
                 });
                 Atualizacao.instalar(getActivity(), apk);
-                call.resolve();
             } catch (Exception e) {
-                call.reject(String.valueOf(e.getMessage()), "erro");
+                erro = String.valueOf(e.getMessage());
+            }
+            java.util.List<PluginCall> todos;
+            synchronized (ATUALIZANDO) {
+                todos = new java.util.ArrayList<>(ATUALIZANDO);
+                ATUALIZANDO.clear();
+                ultimoPctAtualizacao = -1;
+            }
+            for (PluginCall c : todos) {
+                if (erro == null) c.resolve(); else c.reject(erro, "erro");
             }
         });
     }
+    private static final java.util.List<PluginCall> ATUALIZANDO = new java.util.ArrayList<>();
+    private static volatile int ultimoPctAtualizacao = -1;
 
     // a cor dos ícones da barra de status e da de navegação ({ escuros }): escuros no tema claro do site (fundo branco),
     // claros no escuro. O app vai de ponta a ponta, com as barras transparentes sobre o fundo do site
