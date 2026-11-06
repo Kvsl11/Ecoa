@@ -56,3 +56,40 @@ Esta branch concentra a migração do APK. A versão Web publicada não deve per
 ## Próximo trabalho de código
 
 O primeiro trabalho de implementação é integrar o serviço Android de downloads ao fluxo real do app. A rotina completa já foi localizada no blob de `public/js/app.js`: `tentarBaixar` chama `/baixar` e `baixarAgora` recebe o arquivo como Blob e grava via `guardarAudio` (IndexedDB). A implementação nativa deve preservar esse contrato de armazenamento/leitura ou migrar os consumidores juntos; não basta adicionar um método Java desconectado. O ponto crítico que ainda exige solução é a obtenção/resolução da mídia do YouTube: hoje isso é feito por `yt-dlp` no servidor. Uma transferência Android nativa sozinha não elimina essa dependência.
+
+
+## Arquitetura híbrida desejada e impacto nas cotas
+
+A regra é executar no aparelho tudo que já tem entrada e saída local e reservar o Codespace para operações que realmente precisam de serviço remoto. A versão Web mantém o comportamento atual.
+
+| Operação | APK Android | Codespace/serviço |
+| --- | --- | --- |
+| Interface, navegação, player, notificações e controles | Executa localmente | Não participa |
+| Biblioteca, metadados e reprodução de arquivos já baixados | Executa localmente | Não participa |
+| Receber e guardar o arquivo final | Já é feito no aparelho (Blob → IndexedDB) | Entrega o resultado preparado |
+| Resolver ID de vídeo e preparar áudio/vídeo com yt-dlp | Não substitui hoje o backend | Continua sendo a etapa pesada do fluxo atual |
+| Importar arquivo que a pessoa já possui no aparelho | Deve ser nativo/local | Não participa |
+| Busca no acervo e respostas determinísticas do Lúmen | Executa localmente quando possível | Não participa |
+| Resposta generativa do Lúmen | Modelo local apenas após avaliação de compatibilidade | Provedor remoto quando o modo local não estiver disponível |
+| Separação de voz para karaokê | Só migrar após provar qualidade e desempenho em aparelhos reais | Fallback para o processamento atual |
+
+**Importante sobre economia:** o recebimento do arquivo e o armazenamento já acontecem no APK. Reescrever essa parte em Java/Kotlin não reduz, por si só, o tempo de CPU do Codespace. O consumo de computação ocorre principalmente durante a resolução e a preparação da mídia com yt-dlp (e nos modelos de karaokê/IA). A redução real virá de mover operações independentes para o aparelho, reutilizar resultados já preparados e não iniciar tarefas remotas quando o conteúdo já estiver disponível localmente.
+
+### Política de acionamento do Codespace
+
+- Não consultar nem acordar o serviço ao abrir telas que funcionam com dados locais.
+- Só iniciar uma chamada remota após ação explícita que precise dela.
+- Verificar primeiro cache/biblioteca local e evitar repetir processamento já concluído.
+- Manter fila limitada e cancelar tarefas remotas quando a pessoa cancelar a operação.
+- Mostrar claramente quando uma função precisa que o Codespace esteja ligado; não simular funcionamento offline.
+- Se o Codespace for usado manualmente, desligá-lo quando terminar. A simples redução de chamadas não elimina o consumo de horas enquanto o ambiente permanece ligado.
+
+### Ordem de implementação da arquitetura híbrida
+
+1. Instrumentar/classificar chamadas remotas por funcionalidade e confirmar que telas e reprodução locais não fazem chamadas desnecessárias.
+2. Implementar importação local de áudio/vídeo no Android, com seleção de arquivos do aparelho e integração com a biblioteca, sem tocar no fluxo Web.
+3. Revisar o fluxo de download para garantir que só solicita ao servidor arquivos realmente ausentes e que cada áudio/vídeo é validado separadamente antes de concluir.
+4. Migrar operações determinísticas do Lúmen e processamento de áudio compatível para módulos locais, mantendo fallback remoto explícito.
+5. Avaliar separação de voz e modelo generativo local com testes de memória, bateria, tempo e qualidade em aparelhos reais.
+
+Nenhuma etapa será considerada concluída apenas por adicionar uma classe nativa: precisa estar ligada à interface, ao armazenamento e aos consumidores reais do recurso, e ter teste de integração.
