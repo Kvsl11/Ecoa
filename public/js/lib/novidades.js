@@ -6,6 +6,7 @@ export const NOVIDADES = [
   {
     versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco e os downloads sempre com o vídeo',
     itens: [
+      { tipo: 'correcao', texto: 'Nos dados móveis, o aviso "Conexão lenta" aparecia o tempo todo, mesmo com a internet boa: ele vinha da estimativa de velocidade do celular, que nos dados móveis costuma ser baixa e fixa. Agora o app confirma com uma medida de verdade (pedidos pequenos à internet, cronometrados) e só avisa quando a conexão está mesmo lenta; quando melhora, o aviso sai sozinho.' },
       { tipo: 'correcao', texto: 'No app de Android, a tela Ajustes → Avançado mostrava um pedaço de cartão vazio em cima do "Apagar tudo". Saiu.' },
       { tipo: 'melhoria', texto: 'Em Ajustes → Downloads, saiu a escolha "O que baixar": as músicas são baixadas sempre com o áudio e o clipe. Quem tinha escolhido "Só o áudio" recebe sozinho, em segundo plano, o clipe das músicas já baixadas.' },
       { tipo: 'melhoria', texto: 'Os avisos "Conexão lenta" e "Conectado novamente", embaixo do menu, aparecem em branco, como o "Você está offline" (antes eram laranja e verde).' },

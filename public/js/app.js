@@ -28,7 +28,7 @@ import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClip
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
-import { estadoDaConexao, TEXTO_DA_CONEXAO } from './lib/conexao.js';
+import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -21374,10 +21374,40 @@ navigator.storage?.persist?.().catch(() => {});
   // (no APK, a conexão vista pelo próprio Android: o WebView nem sempre avisa a página quando a internet cai ou volta,
   // e o aviso não aparecia no app)
   let doAndroid = null;
+  // (a estimativa do Android e a do navegador só levantam a suspeita de conexão lenta; ela só aparece se pedidos de
+  // verdade à internet demorarem: lib/conexao.js, lentaPelasMedidas. Nos dados móveis a estimativa vinha sempre baixa)
+  let medida = { lenta: false, em: 0 };
+  let medindo = null;
+  let remedir = 0;
+  const umPedido = async () => {
+    const ini = performance.now();
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      await fetch(`https://www.gstatic.com/generate_204?t=${Date.now()}`, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+      return performance.now() - ini;
+      // (passou do tempo: lenta; outro erro — o endereço bloqueado nesta rede — não diz nada sobre a velocidade)
+    } catch (e) { return e?.name === 'AbortError' ? Infinity : NaN; } finally { clearTimeout(t); }
+  };
+  const medir = () => {
+    if (!medindo) {
+      medindo = (async () => {
+        const tempos = [];
+        for (let i = 0; i < 3; i++) tempos.push(await umPedido());
+        medida = { lenta: lentaPelasMedidas(tempos), em: Date.now() };
+      })().finally(() => { medindo = null; conferir(); });
+    }
+    return medindo;
+  };
   const conferir = () => {
-    const novo = doAndroid
-      ? (!doAndroid.online ? 'offline' : doAndroid.lenta ? 'lenta' : estadoDaConexao({ online: true, rede: navigator.connection || null }))
-      : estadoDaConexao({ online: navigator.onLine, rede: navigator.connection || null });
+    const online = doAndroid ? doAndroid.online : navigator.onLine;
+    const suspeita = online && ((doAndroid?.lenta) || estadoDaConexao({ online: true, rede: navigator.connection || null }) === 'lenta');
+    // (a medida vale por 1 minuto; com a suspeita e sem uma medida recente, mede antes de mostrar qualquer coisa)
+    if (suspeita && Date.now() - medida.em > 60e3) void medir();
+    const novo = !online ? 'offline' : (medida.lenta && Date.now() - medida.em <= 90e3) || (suspeita && medida.lenta) ? 'lenta' : 'ok';
+    // (enquanto mostra "Conexão lenta", mede de novo a cada minuto: a conexão que melhorou tira o aviso)
+    clearTimeout(remedir);
+    if (novo === 'lenta') remedir = setTimeout(() => { void medir(); }, 60e3);
     if (novo === estado) return;
     const antes = estado;
     estado = novo;
