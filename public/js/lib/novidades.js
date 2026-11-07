@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 585, data: '2026-11-07', titulo: 'Adicionar à playlist: os botões no rodapé e só as músicas que faltam',
+    itens: [
+      { tipo: 'melhoria', texto: 'Em "Adicionar a esta playlist", as músicas que já estão na playlist não aparecem mais na lista: só as que dá para adicionar.' },
+      { tipo: 'correcao', texto: 'Em "Adicionar a esta playlist" (e ao escolher uma música), os botões Selecionar todas, Cancelar e Adicionar ficam sempre no rodapé, e a lista rola acima deles. Antes, com a folha puxada para cima, os botões ficavam no meio da tela, com um espaço vazio embaixo.' },
+    ],
+  },
+  {
     versao: 584, data: '2026-11-07', titulo: 'Tudo mais rápido: as fotos, a música da busca, os artistas e os álbuns',
     itens: [
       { tipo: 'melhoria', texto: 'As fotos dos artistas (na biblioteca, na busca, na música) chegam muito mais rápido: o app pergunta ao YouTube, ao Cifra Club e ao Deezer ao mesmo tempo, em vez de um depois do outro, e não espera mais os servidores do YouTube que estão fora do ar (eles ficam de fora por um tempo).' },
@@ -75,12 +82,6 @@ export const NOVIDADES = [
     versao: 576, data: '2026-11-06', titulo: 'Os downloads no próprio celular, no app de Android',
     itens: [
       { tipo: 'novo', texto: 'No app de Android, as músicas e os videoclipes passam a ser baixados no próprio celular, sem o servidor: não precisa mais ligar o Codespace nem o servidor no computador para baixar. A mesma qualidade escolhida em Ajustes → Economia de dados e offline vale, e a porcentagem aparece como antes. Vem com a atualização do app (que fica um pouco maior). No navegador, nada muda.' },
-    ],
-  },
-  {
-    versao: 575, data: '2026-11-06', titulo: 'O app de Android sem a seleção de texto',
-    itens: [
-      { tipo: 'melhoria', texto: 'No app de Android, segurar o dedo num texto (um nome, um botão, a letra) não seleciona mais nem abre o "Copiar / Selecionar tudo" do navegador, em nenhuma tela: o app se comporta como app. Nos campos de digitar (a busca, os nomes, o editor da cifra), copiar e colar continuam funcionando. Para copiar a letra, use Copiar a letra nos ⋯ da música.' },
     ],
   },
 ];
