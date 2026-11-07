@@ -31,6 +31,7 @@ const direto = () => !NO_NAVEGADOR || Boolean(buscaNativa);
 async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } = {}) {
   const base = /^https?:\/\/[^/]+/i.exec(String(url))?.[0] || '';
   const piped = base && (PIPED.includes(base) || INVIDIOUS.includes(base));
+  if (piped) emVoo.set(base, (emVoo.get(base) || 0) + 1);
   try {
     let res;
     if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) res = await buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
@@ -39,11 +40,15 @@ async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } 
       const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
       try { res = await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal }); } finally { clearTimeout(t); }
     }
-    if (piped) marcarInstancia(base, res.ok || (res.status >= 400 && res.status < 429));
+    // (a instância que responde 403/404 com uma página em vez da API não está servindo: fica de fora como as fora do
+    // ar. Antes contava como viva, e cada busca baixava de novo a página de erro dela, de 57 kB)
+    if (piped) marcarInstancia(base, res.ok || (res.status >= 400 && res.status < 429 && !([403, 404].includes(res.status) && !/json/i.test(res.headers?.get?.('content-type') || ''))));
     return res;
   } catch (e) {
     if (piped) marcarInstancia(base, false);
     throw e;
+  } finally {
+    if (piped) { emVoo.set(base, Math.max(0, (emVoo.get(base) || 0) - 1)); queueMicrotask(avisarTeste); }
   }
 }
 
@@ -54,10 +59,17 @@ async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } 
 // que falhou há mais tempo
 const saudeInstancias = new Map(); // base → { ok: momento do último sucesso, falhou: momento da última falha }
 const FORA_POR = 10 * 60e3;
+// (a instância que ainda não respondeu nenhuma vez nesta abertura do app recebe um pedido de cada vez: é o teste dela.
+// Antes, ao abrir o app, as fotos de todos os artistas pediam ao mesmo tempo às 5 instâncias, e as fora do ar
+// recebiam umas 30 consultas cada uma antes de a primeira falha chegar)
+const emVoo = new Map();
 function marcarInstancia(base, ok) {
   const h = saudeInstancias.get(base) || { ok: 0, falhou: 0 };
   if (ok) { h.ok = Date.now(); h.falhou = 0; } else h.falhou = Date.now();
   saudeInstancias.set(base, h);
+  // (todas as do teste já responderam: acabou o teste)
+  for (const l of sondando.keys()) if (l.includes(base) && !l.some((b) => emVoo.get(b) > (b === base ? 1 : 0))) sondando.delete(l);
+  queueMicrotask(avisarTeste);
 }
 export function instanciasVivas(lista = PIPED, agora = Date.now()) {
   const h = (b) => saudeInstancias.get(b) || { ok: 0, falhou: 0 };
@@ -66,6 +78,33 @@ export function instanciasVivas(lista = PIPED, agora = Date.now()) {
   return [...lista].sort((a, b) => h(a).falhou - h(b).falhou).slice(0, 1);
 }
 export const esquecerSaudeDasInstancias = () => saudeInstancias.clear();
+// As instâncias para um pedido novo. Enquanto nenhuma respondeu ainda nesta abertura do app e o primeiro teste está a
+// caminho, espera por ele (no máximo 5 s): antes, ao abrir o app, as fotos de todos os artistas pediam ao mesmo tempo
+// às 5 instâncias, e as fora do ar recebiam umas 30 consultas cada uma antes de a primeira falha chegar
+const esperandoTeste = new Set();
+const sondando = new Map(); // lista → quando o teste dela começou
+function avisarTeste() { for (const ok of [...esperandoTeste]) ok(); }
+export function instanciasProntas(lista = PIPED) {
+  const nenhumaRespondeu = () => !lista.some((b) => saudeInstancias.get(b)?.ok);
+  const testando = () => nenhumaRespondeu() && (lista.some((b) => emVoo.get(b)) || (sondando.has(lista) && Date.now() - sondando.get(lista) < 8000));
+  // (a que ainda está no teste, sem ter respondido nenhuma vez, fica de fora enquanto há outra que já respondeu)
+  const escolher = () => {
+    const vivas = instanciasVivas(lista);
+    const sabidas = vivas.filter((b) => saudeInstancias.get(b)?.ok || !emVoo.get(b));
+    return sabidas.length ? sabidas : vivas;
+  };
+  if (!testando()) {
+    // (o primeiro pedido é o teste: marcado na hora, antes de sair, para os outros que chegarem junto esperarem por ele)
+    if (nenhumaRespondeu()) sondando.set(lista, Date.now());
+    return Promise.resolve(escolher());
+  }
+  return new Promise((pronto) => {
+    const fim = () => { clearTimeout(t); esperandoTeste.delete(conferir); pronto(escolher()); };
+    const conferir = () => { if (!testando()) fim(); };
+    const t = setTimeout(fim, 5000);
+    esperandoTeste.add(conferir);
+  });
+}
 
 // ------------------------------------------------------------------ Cifra Club: busca
 
@@ -1146,10 +1185,17 @@ export async function buscarYoutube(termo, { fetchImpl, instancias = PIPED, filt
     return lista;
   };
   let respondeu = false;
-  // (no APK, a página do YouTube lida direto entra na disputa: os servidores do Piped vivem fora do ar)
-  const naPagina = filtro === 'videos' && buscaNativa && (!fetchImpl || fetchImpl === fetch) ? [buscarDiretoNoYoutube(q)] : [];
+  // (no APK, a página do YouTube lida direto entra na disputa, mas só se o Piped não responder logo: ela tem uns 560 kB
+  // e cada música aberta faz várias buscas. Antes ia junto com o Piped toda vez, e uma busca na tela baixava dezenas de
+  // páginas dessas, que entupiam a fila dos pedidos e atrasavam a foto do artista, a cifra e a letra)
+  let acabou = false;
+  const piped = (await instanciasProntas(instancias)).map(uma);
+  const naPagina = filtro === 'videos' && buscaNativa && (!fetchImpl || fetchImpl === fetch)
+    ? [new Promise((ok) => { setTimeout(ok, ESPERA_PAGINA_YOUTUBE); Promise.allSettled(piped).then(ok); })
+      .then(() => (acabou ? Promise.reject(new Error('já respondeu')) : buscarDiretoNoYoutube(q)))]
+    : [];
   try {
-    return await Promise.any([...instanciasVivas(instancias).map(uma), ...naPagina]);
+    return await Promise.any([...piped, ...naPagina]);
   } catch {
     // O filtro music_songs nem sempre é implementado pelas instâncias Piped. Mesmo que elas respondam
     // sem faixas, tentamos a busca pública do YouTube para não perder a gravação oficial.
@@ -1158,8 +1204,12 @@ export async function buscarYoutube(termo, { fetchImpl, instancias = PIPED, filt
     const daPagina = await buscarNaPaginaDoYoutube(q, { fetchImpl }).catch(() => null);
     if (daPagina?.length) return daPagina;
     throw new Error('Busca de vídeos indisponível agora');
+  } finally {
+    acabou = true;
   }
 }
+// quanto a busca de vídeos espera o Piped antes de ler a página do YouTube
+const ESPERA_PAGINA_YOUTUBE = 1500;
 
 // o som de um vídeo do YouTube (o arquivo do áudio de menor qualidade, que basta para casar as duas versões da música),
 // pelo Piped, que entrega o áudio pelo proxy dele (com CORS); null se nenhuma instância entregar
@@ -1316,7 +1366,7 @@ export async function canalDoArtista(nome, { fetchImpl, instancias = PIPED } = {
     if (!canal?.foto) throw new Error('Canal válido não encontrado nesta instância');
     return canal;
   };
-  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => null);
+  return Promise.any((await instanciasProntas(instancias)).map(uma)).catch(() => null);
 }
 export const fotoDoCanal = (nome, opcoes) => canalDoArtista(nome, opcoes).then((c) => c?.foto || '');
 // quadros dos vídeos do próprio canal do artista (só os postados por ele): mais fotos dele cantando, para a tela
@@ -1331,7 +1381,7 @@ export async function fotosDosVideos(nome, canal, { fetchImpl, instancias = PIPE
     if (!ids.length) throw new Error('nenhum vídeo do canal');
     return [...new Set(ids)].slice(0, quantas).map((id) => `https://i.ytimg.com/vi/${id}/hq720.jpg`);
   };
-  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => []);
+  return Promise.any((await instanciasProntas(instancias)).map(uma)).catch(() => []);
 }
 // o artista na TheAudioDB (chave pública de teste "123"): os seguidores e a popularidade dele no Spotify, várias fotos
 // (a principal e as de fundo) e a biografia em português. Só vale o artista com o mesmo nome. null quando não acha

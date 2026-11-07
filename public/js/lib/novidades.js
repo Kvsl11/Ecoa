@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 595, data: '2026-11-07', titulo: 'A busca, a música e o artista abrindo bem mais rápido',
+    itens: [
+      { tipo: 'melhoria', texto: 'O app baixava muito mais do que precisava: só abrir o app e fazer uma busca puxava uns 57 MB da internet, em quase 500 pedidos (as páginas inteiras do Cifra Club de vários artistas só para pegar a foto deles, e páginas do YouTube de 560 kB para cada música da lista). No celular isso entupia a internet e tudo esperava na fila. Agora a mesma busca baixa uns 3 MB: os resultados aparecem em menos de 1 segundo (eram quase 4) e a música abre na metade do tempo.' },
+      { tipo: 'melhoria', texto: 'As fotos e as informações dos artistas (a apresentação, os fãs, o canal) já guardadas no aparelho valem por um dia sem perguntar à internet de novo: a biblioteca e o "Sobre o artista" abrem com tudo na hora.' },
+      { tipo: 'melhoria', texto: 'No "Sobre o artista", a apresentação embaixo do nome aparece assim que chega, sem esperar as outras fontes, e o "ver mais" aparece logo, mesmo com a internet lenta.' },
+      { tipo: 'correcao', texto: 'Tocar no + do player para salvar nas curtidas a música aberta da busca às vezes não salvava (dizia "Abra a música para salvar" ou só abria a página). Agora salva.' },
+      { tipo: 'melhoria', texto: 'As orações e o missal do dia (do Pocket Terço) já guardados no aparelho abrem na hora; a versão nova chega em segundo plano.' },
+    ],
+  },
+  {
     versao: 594, data: '2026-11-07', titulo: 'As fotos dos artistas que não carregavam',
     itens: [
       { tipo: 'correcao', texto: 'Na biblioteca, alguns artistas ficavam sem foto (só com o desenho) porque o site da foto recusava mostrá-la dentro do app, e a procura de novo trazia a mesma foto. Agora a foto é pedida sem dizer de qual site vem o pedido e, se ainda assim não carregar, o app tenta as outras fontes (YouTube, Cifra Club, Deezer e Wikipédia), uma depois da outra, até achar uma que carregue.' },
@@ -64,13 +74,6 @@ export const NOVIDADES = [
     versao: 586, data: '2026-11-07', titulo: 'O voltar do Android que não fecha o app',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o gesto de voltar (ou o botão) fechava o app inteiro. Agora ele volta como no navegador: fecha primeiro o que estiver aberto (uma janela, uma folha, o menu, a gaveta do perfil) e depois volta para a tela anterior. Na primeira tela, o app vai para o segundo plano, sem fechar, e a música continua tocando. Vem com a atualização do app.' },
-    ],
-  },
-  {
-    versao: 585, data: '2026-11-07', titulo: 'Adicionar à playlist: os botões no rodapé e só as músicas que faltam',
-    itens: [
-      { tipo: 'melhoria', texto: 'Em "Adicionar a esta playlist", as músicas que já estão na playlist não aparecem mais na lista: só as que dá para adicionar.' },
-      { tipo: 'correcao', texto: 'Em "Adicionar a esta playlist" (e ao escolher uma música), os botões Selecionar todas, Cancelar e Adicionar ficam sempre no rodapé, e a lista rola acima deles. Antes, com a folha puxada para cima, os botões ficavam no meio da tela, com um espaço vazio embaixo.' },
     ],
   },
 ];

@@ -40,7 +40,7 @@ import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
-import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotoDoCanal, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
+import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -3683,15 +3683,25 @@ const player = (() => {
     // (sem a da Wikipédia, a biografia da TheAudioDB; sem nenhuma, só o "ver mais", que abre as fotos e os números)
     // (o Deezer confirmado pela música: os fãs embaixo do nome, e a apresentação também pelo nome com que ele o conhece)
     const dzP = comInfo ? deezerDoArtista(nomeBusca, { titulo }) : Promise.resolve(null);
-    if (comInfo) Promise.all([dzP.then((d) => descricaoComNomeDoDeezer(nomeBusca, d)), audioDbGuardado(nomeBusca).catch(() => null)]).then(([info, adb]) => {
+    // (a apresentação entra assim que chega: a da Wikipédia não espera mais a TheAudioDB, que é só a reserva; e o "ver
+    // mais" aparece logo, mesmo com as duas ainda a caminho ou fora do ar — antes o cartão ficava sem nada embaixo)
+    if (comInfo) {
       const bio = $('.pl-extra .pl-artista-bio', el);
-      if (!bio || extraDe !== chave) return;
-      const texto = (info?.texto || adb?.bio || '').replace(/\s*\n+\s*/g, ' ');
-      $('p', bio).textContent = texto;
-      bio.classList.toggle('so-mais', !texto);
-      bio.hidden = false;
-      bio.onclick = (e) => { e.stopPropagation(); abrirSobreArtista({ nome: nomeBusca, slug, titulo }); };
-    }).catch(() => {});
+      const porNaTela = (texto) => {
+        if (!bio || extraDe !== chave || !bio.isConnected) return;
+        const t = String(texto || '').replace(/\s*\n+\s*/g, ' ');
+        if (t || !$('p', bio).textContent) $('p', bio).textContent = t;
+        bio.classList.toggle('so-mais', !$('p', bio).textContent);
+        bio.hidden = false;
+        bio.onclick = (e) => { e.stopPropagation(); abrirSobreArtista({ nome: nomeBusca, slug, titulo }); };
+      };
+      const daWiki = noMaximo(dzP.then((d) => descricaoComNomeDoDeezer(nomeBusca, d)), 15000, null).catch(() => null);
+      setTimeout(() => porNaTela(''), 2500);
+      daWiki.then((info) => {
+        if (info?.texto) { porNaTela(info.texto); return; }
+        return audioDbGuardado(nomeBusca).catch(() => null).then((adb) => porNaTela(adb?.bio || ''));
+      }).catch(() => {});
+    }
     // os números embaixo do nome (os fãs no Deezer ou os inscritos no canal) e o selo, quando o artista é com certeza
     // ele (confirmado pela música no Deezer, ou o canal verificado no YouTube)
     if (comInfo) Promise.all([dzP, canalGuardado(nomeBusca).catch(() => null)]).then(([dz, canal]) => {
@@ -6694,8 +6704,10 @@ const semLinhasDeAcordes = (sinc) => {
     // duas contam. Antes, no modo música, o + não fazia nada)
     const daPrevia = () => {
       if (!preview || !atual || !(atual.songId === 'previa' || atual.href === '#/musica/previa')) return false;
-      const yt = youtubeId(renderSong(preview.content).meta.youtube);
-      return !atual.youtube || [atual.youtube, atual.video, atual.audio].includes(yt);
+      // (a prévia ainda sem o vídeo escrito nela — ele chega depois — também é a que está tocando: antes o ✓ dizia "Abra a
+      // música para salvar", ou só abria a página, e a música não entrava nas curtidas)
+      const yt = youtubeId(renderSong(preview.content).meta.youtube) || preview.youtube || '';
+      return !atual.youtube || !yt || [atual.youtube, atual.video, atual.audio].includes(yt);
     };
     // salva a prévia na biblioteca e o player passa a ser da música salva
     const salvarDaPrevia = () => {
@@ -8391,11 +8403,14 @@ function trazerMusicaJa(dados) {
   return p;
 }
 const preparadas = new Set();
-function prepararDaBusca(dados) {
+// (completo: a música que o dedo tocou, prestes a abrir, prepara tudo. As três primeiras da lista, preparadas sozinhas,
+// só trazem a cifra, a letra e o vídeo: a procura do áudio oficial faz 5 buscas no YouTube por música, e as três juntas
+// ocupavam a internet do celular bem na hora em que a pessoa escolhia e abria a música)
+function prepararDaBusca(dados, { completo = true } = {}) {
   if (!dados?.titulo || !navigator.onLine) return;
   // (o vídeo solto da busca descobre a música ao abrir; e a que já está na biblioteca abre direto)
   if (dados.video && !dados.cifra && !dados.letra) return;
-  const k = chaveDaTrazida(dados);
+  const k = chaveDaTrazida(dados) + (completo ? '|tudo' : '');
   if (preparadas.has(k)) return;
   preparadas.add(k);
   setTimeout(() => preparadas.delete(k), 600e3);
@@ -8410,6 +8425,7 @@ function prepararDaBusca(dados) {
       void letraSincronizadaJa(titulo, artista).catch(() => null);
       void capaOficial(titulo, artista).catch(() => '');
     }
+    if (!completo) return;
     const vs = await r.video.catch(() => []);
     const youtube = youtubeId(m.youtube) || vs?.[0]?.id || '';
     if (!youtube) return;
@@ -8981,7 +8997,7 @@ function fontesDaFotoDoArtista(nome, slug = '') {
   return [
     () => fotoDoArtista(nome, slug),
     () => fotoDoCanalDeVerdade(nome),
-    () => (slug ? carregarArtista(slug, nome).principal.then((x) => x?.foto) : Promise.resolve('')),
+    () => (slug ? (dadosArtista.get(slug)?.principal || getArtistaCifraClub(slug)).then((x) => x?.foto) : Promise.resolve('')),
     () => buscarArtistasCifraClub(nome).then((l) => (slug ? l.find((a) => a.slug === slug) : artistaCerto(l, nome))?.capa || ''),
     () => fotoDeezer(nome),
     () => fotoWikipedia(nome),
@@ -9074,8 +9090,10 @@ function enriquecerTilesArtistas(container) {
 // com a última guardada, ou com o desenho, e entra sozinha quando chegar)
 async function prepararFotosArtistas(lista) {
   await Promise.all(lista.filter(Boolean).map(async (a) => {
-    const f = await fotoRapida(a.nome, a.slug || '');
-    if (f) a.fotoFinal = f;
+    // (a foto que a busca de artistas do Cifra Club já trouxe vale de reserva, sem esperar)
+    const reserva = fotoReal(a.capa) || '';
+    const f = reserva && !fotoConhecida(a.nome) ? await noMaximo(fotoDoArtista(a.nome, a.slug || ''), 700, reserva) : await fotoRapida(a.nome, a.slug || '');
+    if (f || reserva) a.fotoFinal = f || reserva;
   }));
   return lista;
 }
@@ -9365,8 +9383,24 @@ function artistasDasBaixadas() {
 // da próxima vez, sem aviso). Antes a tela esperava a internet toda vez (o canal do YouTube, o Cifra Club, o Deezer e
 // a Wikipédia, um depois do outro): a foto do artista, os fãs, a apresentação e as fotos dos créditos demoravam muito,
 // até nas músicas baixadas
+// (promessa pode ser uma função: com o guardado recente — de menos de um dia —, ela nem é chamada. Antes, cada vez que a
+// biblioteca, a busca ou a música abria, tudo o que já estava guardado era pedido de novo à internet, artista por
+// artista, e esses pedidos entupiam a fila e atrasavam o que a tela precisava agora)
+const GUARDADO_RECENTE = 24 * 3600e3;
+function guardadoRecente(tipo, nome) {
+  if (esperarValorNovo || !navigator.onLine) return undefined;
+  const g = artistasGuardados[`${tipo}:${normalizar(nome)}`];
+  if (!g || !(Date.now() - g.t < GUARDADO_RECENTE)) return undefined;
+  const v = tipo === 'foto' || tipo === 'capa' ? fotoReal(g.v) : g.v;
+  return v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length) ? undefined : v;
+}
 function comUltimoValor(tipo, nome, promessa) {
   const k = `${tipo}:${normalizar(nome)}`;
+  if (typeof promessa === 'function') {
+    const recente = guardadoRecente(tipo, nome);
+    if (recente !== undefined) return Promise.resolve(recente);
+    promessa = promessa();
+  }
   const atualizar = valorDaInternet(tipo, k, promessa);
   const g = artistasGuardados[k]?.v;
   const temGuardado = !(g === null || g === undefined || g === '' || (Array.isArray(g) && !g.length));
@@ -9395,9 +9429,18 @@ function valorDaInternet(tipo, k, promessa) {
   });
 }
 const ultimoValorDoArtista = (tipo, nome) => { const v = artistasGuardados[`${tipo}:${normalizar(nome)}`]?.v; return tipo === 'foto' || tipo === 'capa' ? fotoReal(v) : v; };
-const canalGuardado = (nome) => comUltimoValor('canal', nome, canalDoArtista(nome));
-const audioDbGuardado = (nome) => comUltimoValor('adb', nome, audioDbDoArtista(nome));
-const fotosDosVideosGuardadas = (nome, canal) => comUltimoValor('fotosvideos', nome, fotosDosVideos(nome, canal));
+// o canal do artista no YouTube, um pedido só por artista enquanto o app está aberto (a foto do canal e os inscritos
+// pediam o mesmo canal duas vezes, às 5 instâncias do Piped cada uma)
+const canaisDosArtistas = new Map();
+function canalDe(nome) {
+  const k = normalizar(nome);
+  if (!k) return Promise.resolve(null);
+  if (!canaisDosArtistas.has(k)) canaisDosArtistas.set(k, canalDoArtista(nome).catch(() => null).then((c) => { if (!c) canaisDosArtistas.delete(k); return c; }));
+  return canaisDosArtistas.get(k);
+}
+const canalGuardado = (nome) => comUltimoValor('canal', nome, () => canalDe(nome));
+const audioDbGuardado = (nome) => comUltimoValor('adb', nome, () => audioDbDoArtista(nome));
+const fotosDosVideosGuardadas = (nome, canal) => comUltimoValor('fotosvideos', nome, () => fotosDosVideos(nome, canal));
 // a foto de um artista pelo nome; guardada na sessão, para não buscar de novo a cada música
 const fotosArtistas = new Map();
 // (primeiro a do canal do artista no YouTube, a mais atual, só quando o canal é com certeza dele: verificado ou o
@@ -9408,12 +9451,19 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
   // Uma única resolução e uma única foto por artista, igual à versão web.
   // O título não cria uma foto por música: todas as faixas compartilham a mesma escolha.
   if (!k) return Promise.resolve('');
+  // (a foto guardada há menos de um dia vale sem perguntar à internet de novo)
+  const recente = !fotosArtistas.has(k) && guardadoRecente('foto', nome);
+  if (recente) return Promise.resolve(recente);
   if (!fotosArtistas.has(k)) {
+    // (no Cifra Club, primeiro a foto da busca de artistas, um pedido de 2 kB; só sem ela, a página do artista — e só
+    // ela. Antes era a página do artista com a discografia e a lista de todas as músicas, três páginas de ~500 kB por
+    // artista, só para pegar a foto: a fileira dos artistas católicos baixava uns 25 MB)
+    const daPagina = (s, n) => (dadosArtista.get(s)?.principal || getArtistaCifraClub(s)).then((x) => fotoReal(x?.foto)).catch(() => '');
     const cifraClub = slug
-      ? () => carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
-        .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
+      ? () => buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => '')
+        .then((f) => f || daPagina(slug, nome))
       : () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
-        || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
+        || (a?.slug ? daPagina(a.slug, a.nome || nome) : '')).catch(() => '');
     // (as três ao mesmo tempo, na mesma ordem de preferência; a Wikipédia só quando nenhuma tem). Sem foto guardada, a
     // primeira que chegar não espera muito pelas preferidas (a tela está sem foto); com uma guardada, que já aparece na
     // hora, a troca em segundo plano espera a preferida, para a foto não ficar trocando entre uma abertura e outra
@@ -9698,7 +9748,7 @@ function ehAvatarDeLetra(url) {
   return avataresDeLetra.get(pequena);
 }
 // a foto do canal do YouTube, sem o avatar de letra
-const fotoDoCanalDeVerdade = (nome) => fotoDoCanal(nome).then(async (f) => (f && !(await ehFotoGenerica(f)) ? f : ''));
+const fotoDoCanalDeVerdade = (nome) => canalDe(nome).then((c) => c?.foto || '').then(async (f) => (f && !(await ehFotoGenerica(f)) ? f : ''));
 function ehFotoVaziaDoDeezer(url) {
   if (!/dzcdn\.net\/images\/artist\//.test(url || '')) return Promise.resolve(false);
   const pequena = url.replace(/\/\d+x\d+-/, '/56x56-');
@@ -9730,9 +9780,12 @@ const descricoesArtistas = new Map();
 const MUSICO = /cantor|cantora|banda|m[uú]sic|grupo|dupla|compositor|compositora|rapper|instrumentista|\bdj\b|minist[eé]rio|cantautor|vocalista|coral|coro|orquestra|trio|duo\b|quarteto|sacerdote|padre|frei/i;
 function descricaoDoArtista(nome) {
   const k = normalizar(nome);
+  const recente = !descricoesArtistas.has(k) && guardadoRecente('wiki', nome);
+  if (recente) return Promise.resolve(recente);
   if (!descricoesArtistas.has(k)) {
     const url = `https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&generator=search&gsrlimit=5&gsrsearch=${encodeURIComponent(nome)}&prop=extracts|description|pageimages|info&exintro=1&explaintext=1&piprop=thumbnail&pithumbsize=900&inprop=url`;
-    descricoesArtistas.set(k, fetch(url).then((r) => r.json()).then((j) => {
+    // (com tempo limite: a Wikipédia lenta deixava a apresentação embaixo do nome do artista sem aparecer)
+    descricoesArtistas.set(k, fetch(url, { signal: AbortSignal.timeout?.(10000) }).then((r) => r.json()).then((j) => {
       const paginas = Object.values(j?.query?.pages || {}).sort((x, y) => (x.index || 0) - (y.index || 0));
       // (o nome escrito junto também: a página do "Jung Kook" é a "Jungkook")
       const certa = paginas.find((pg) => mesmoNomeDeArtista(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
@@ -9925,7 +9978,7 @@ async function fotosDaWikipedia(nome) {
   return [];
 }
 // (a chave nova: as guardadas antes podiam ser as do artigo de outra coisa com o mesmo nome, como as estátuas da Justiça)
-const fotosDaWikipediaGuardadas = (nome) => comUltimoValor('fotoswiki2', nome, fotosDaWikipedia(nome));
+const fotosDaWikipediaGuardadas = (nome) => comUltimoValor('fotoswiki2', nome, () => fotosDaWikipedia(nome));
 // As fotos em tela cheia (tocando numa foto do "Sobre o artista"), inteiras, no fundo preto: passam para o lado com o
 // dedo (celular e tablet) ou com as setas, na tela e no teclado (computador); puxar para baixo, o X, o Esc ou o voltar
 // fecham (o voltar fecha só as fotos)
@@ -10674,7 +10727,7 @@ function viewSearch() {
             // (o vídeo que é só a capa parada, sem dizer no nome: o ícone de vídeo sai assim que as imagens dele são vistas)
             lista.forEach((r, i) => { if (r.video?.id && $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)) void videoParado(r.video.id).then((p) => { if (p) $(`#mu-res [data-i="${i}"] [title="Tem vídeo"]`)?.remove(); }); });
             // as primeiras já vão sendo preparadas (sem a economia de dados ligada): abrem na hora
-            if (!db.prefs().economiaDados) lista.slice(0, 3).forEach((r) => prepararDaBusca(r));
+            if (!db.prefs().economiaDados) lista.slice(0, 3).forEach((r) => prepararDaBusca(r, { completo: false }));
           });
         };
         buscarTudo(term, filtro === 'musicas' ? 25 : 8, filtro === 'musicas' ? 15 : 6).then(mostrar)

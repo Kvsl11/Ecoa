@@ -145,9 +145,20 @@ export function buscarCindy(termo, { categoria } = {}) {
 
 // ------------------------------------------------------------------ orações e missal do dia (Pocket Terço) e fontes (Junior)
 // Copiados diariamente pelo GitHub Actions (scripts/liturgia-sync.mjs) para data/; guardados no aparelho para o offline.
-async function dadosLocais(chave, caminho) {
+// (o que já está guardado no aparelho aparece na hora e o arquivo novo só atualiza o guardado, em segundo plano. Antes,
+// cada abertura esperava a internet conferir o arquivo, mesmo com ele guardado, e as orações e o missal demoravam)
+const renovandoLocais = new Map();
+function dadosLocais(chave, caminho) {
+  const velho = lerCacheVelho(chave);
+  if (velho) {
+    if (!renovandoLocais.has(chave) && !lerCache(chave)) renovandoLocais.set(chave, baixarLocais(chave, caminho).catch(() => null).finally(() => renovandoLocais.delete(chave)));
+    return Promise.resolve(velho);
+  }
+  return baixarLocais(chave, caminho);
+}
+async function baixarLocais(chave, caminho) {
   try {
-    const res = await fetch(new URL(caminho, document.baseURI), { cache: 'no-cache' });
+    const res = await fetch(new URL(caminho, document.baseURI), { cache: 'no-cache', signal: AbortSignal.timeout?.(15000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const v = await res.json();
     gravarCache(chave, v);
