@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 599, data: '2026-11-07', titulo: 'Retorno ao aplicativo sem tela vazia e faixas de álbuns de versões com o nome correto',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao retornar ao aplicativo Android após longo período em segundo plano, a tela podia permanecer vazia indefinidamente. Quando o sistema encerra a página para liberar memória, ela é recarregada no retorno, e a folha de estilos das fontes (Google Fonts) era carregada de forma bloqueante: com a conexão ainda instável, a página não era desenhada e o aplicativo não iniciava. As fontes passaram a ser carregadas de forma assíncrona, com a fonte do sistema até a chegada delas. Além disso, a verificação executada no retorno passou a confirmar a inicialização completa do aplicativo e a recarregar a página quando ela não ocorre (no máximo duas vezes, seguidas da recriação da tela). Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'Em álbuns de versões, como o Reanimation do Linkin Park, o Cifra Club lista as faixas com o nome da música original e as associa à cifra da original ("My December" no lugar de "My<Dsmbr"); a faixa abria a cifra, a letra e o vídeo da música original. As faixas passaram a ser conferidas com o mesmo álbum no Deezer: a que tem outro nome lá recebe o nome correto, o remixador e as participações (por exemplo, "My<Dsmbr (Mickey P. Reanimation)", Linkin Park feat. Kelli Ali), e a cifra, a letra e o vídeo são procurados por esse nome. Diferenças apenas de pontuação e faixas bônus ao vivo ou demo não alteram a faixa.' },
+    ],
+  },
+  {
     versao: 598, data: '2026-11-07', titulo: 'Fotos de artistas no Android, transições sem sobreposição e indicador de progresso do karaokê',
     itens: [
       { tipo: 'correcao', texto: 'No aplicativo Android, a foto do artista não era exibida na página do artista, na seção "Sobre o artista" e nas listas, embora aparecesse na biblioteca. O servidor de imagens do Google, origem das fotos dos canais do YouTube, recusa (HTTP 429) as requisições cujo cabeçalho Referer indica "localhost", endereço da página dentro do aplicativo. As imagens passaram a ser solicitadas sem esse cabeçalho, e as utilizadas como fundo são obtidas da mesma forma e exibidas a partir de cópia local. Disponível mediante atualização do aplicativo.' },
@@ -74,13 +81,6 @@ export const NOVIDADES = [
     versao: 590, data: '2026-11-07', titulo: 'Reformulação visual das telas de partitura',
     itens: [
       { tipo: 'melhoria', texto: 'As telas de partitura receberam nova interface. Na listagem, a opção "Gerar com IA" passou a ter destaque, seguida de "Nova partitura" e do acervo, em cartões. Durante a geração, um indicador circular informa o progresso percentual e o tempo decorrido, e as etapas são apresentadas em linha do tempo. Na partitura concluída, as vozes (Coral, Coral do áudio e Melodia) ficam logo abaixo da prévia, e os botões Editar e Salvar permanecem fixos no rodapé.' },
-    ],
-  },
-  {
-    versao: 589, data: '2026-11-07', titulo: 'Correções ao salvar músicas pela busca e no histórico de reprodução',
-    itens: [
-      { tipo: 'correcao', texto: 'Na busca, o toque no botão de salvar podia ser interpretado como toque na linha da música, que era aberta em vez de salva, devido à área de toque reduzida do botão. A área de toque foi ampliada, os toques repetidos durante o salvamento deixaram de abrir a música, e o salvamento passou a reaproveitar os dados já em carregamento, o que o torna mais rápido. Em caso de falha, uma mensagem é exibida.' },
-      { tipo: 'correcao', texto: 'A seção "Tocou por último", na gaveta do perfil, passou a exibir também a música aberta pela busca que está em reprodução, ainda que não salva (antes era exibida a música anterior).' },
     ],
   },
 ];
