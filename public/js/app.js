@@ -10350,6 +10350,9 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   // a maior. O Michael Jackson vinha com a mesma foto três vezes)
   const vistas = new Set();
   const impressoes = new Map(); // a foto na tela → a impressão dela
+  // As imagens carregam em paralelo; serializa a comparação para duas cópias iguais não passarem juntas
+  // antes de a primeira impressão entrar no mapa.
+  let filaImpressoes = Promise.resolve();
   const caixaFotos = tela.querySelector('.sa-fotos');
   const naTela = () => caixaFotos.querySelectorAll('img').length;
   // a primeira é a do cartão (a que aparecia antes de abrir esta tela): ela fica sempre no começo, do jeito que estava
@@ -10387,21 +10390,26 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
         }
         const h = await impressaoDaFoto(u);
         if (!h || !img.isConnected) return;
-        for (const [outra, ho] of impressoes) {
-          if (outra === img || !outra.isConnected || distanciaDeImpressoes(h, ho) > 10) continue;
-          // a mesma foto: fica uma só, no lugar da que vem antes (a do cartão nunca sai nem troca de imagem; antes a que
-          // terminava de carregar por último saía, e às vezes era a do cartão: a segunda foto ficava no lugar dela).
-          // Nas outras, fica a imagem maior
-          const antes = outra.compareDocumentPosition(img) & Node.DOCUMENT_POSITION_FOLLOWING ? outra : img;
-          const fica = outra === principal ? outra : img === principal ? img : antes;
-          const sai = fica === img ? outra : img;
-          if (fica !== principal && sai.naturalWidth > fica.naturalWidth) fica.src = sai.currentSrc || sai.src;
-          sai.remove();
-          impressoes.delete(sai);
-          if (fica === img) impressoes.set(img, h);
-          return;
-        }
-        impressoes.set(img, h);
+        // Não comparar em paralelo: se duas fotos iguais terminarem juntas, a segunda também precisa
+        // enxergar a impressão já registrada pela primeira.
+        filaImpressoes = filaImpressoes.then(() => {
+          if (!img.isConnected) return;
+          for (const [outra, ho] of impressoes) {
+            if (outra === img || !outra.isConnected || distanciaDeImpressoes(h, ho) > 10) continue;
+            // a mesma foto: fica uma só, no lugar da que vem antes (a do cartão nunca sai nem troca de imagem).
+            // Nas outras, fica a imagem maior.
+            const antes = outra.compareDocumentPosition(img) & Node.DOCUMENT_POSITION_FOLLOWING ? outra : img;
+            const fica = outra === principal ? outra : img === principal ? img : antes;
+            const sai = fica === img ? outra : img;
+            if (fica !== principal && sai.naturalWidth > fica.naturalWidth) fica.src = sai.currentSrc || sai.src;
+            sai.remove();
+            impressoes.delete(sai);
+            if (fica === img) impressoes.set(img, h);
+            return;
+          }
+          impressoes.set(img, h);
+        });
+        await filaImpressoes;
       };
       img.src = u;
       caixaFotos.append(img);
