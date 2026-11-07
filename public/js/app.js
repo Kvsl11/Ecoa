@@ -9817,19 +9817,40 @@ function capasCandidatas(titulo, artista) {
       })), musica);
       // Prioriza a capa do iTunes quando ele identifica a mesma faixa/artista: artwork 1000×1000.
       // Deezer fica como reserva; ambas passam pelo filtro de título e artista para evitar capas de homônimos.
-      return itunes.length ? itunes : deezer;
+      // Não descartar o Deezer quando o iTunes devolve uma URL 1000x1000 que não abre.
+      // A escolha final é feita pela dimensão real carregada, não só pelo tamanho escrito na URL.
+      return [...itunes, ...deezer];
     })().catch(() => []);
     capasDaBusca.set(k, busca.then((l) => { if (!l.length) capasDaBusca.delete(k); return l; }));
   }
   return capasDaBusca.get(k);
 }
+async function maiorCapaDisponivel(candidatas) {
+  const testar = (c) => new Promise((resolve) => {
+    if (!c?.url) return resolve(null);
+    const img = imagemSemReferer();
+    let terminou = false;
+    const fim = (valor) => { if (terminou) return; terminou = true; resolve(valor); };
+    img.onload = () => fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
+      ? { ...c, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+    img.onerror = () => fim(null);
+    img.src = c.url;
+    if (img.complete) fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
+      ? { ...c, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+  });
+  // Testa algumas candidatas por fonte; não confia no "1000x1000" do endereço se o servidor entregar miniatura.
+  const validas = (await Promise.all(candidatas.slice(0, 10).map(testar))).filter(Boolean);
+  validas.sort((a, b) => (b.largura * b.altura) - (a.largura * a.altura) || (b.rank || 0) - (a.rank || 0));
+  return validas[0] || null;
+}
 function capaOficial(titulo, artista) {
   const k = chaveDaCapa(titulo, artista);
   if (!k) return Promise.resolve('');
   if (!capasOficiais.has(k)) {
-    const busca = capasCandidatas(titulo, artista).then((l) => {
-      if (l[0]) marcarExplicita(k, l[0].explicita); // ("cleaned", no iTunes: a versão limpa de uma explícita)
-      return l[0]?.url || '';
+    const busca = capasCandidatas(titulo, artista).then(async (l) => {
+      const melhor = await maiorCapaDisponivel(l);
+      if (melhor) marcarExplicita(k, melhor.explicita); // ("cleaned", no iTunes: a versão limpa de uma explícita)
+      return melhor?.url || '';
     });
     capasOficiais.set(k, busca.then((url) => {
       // Uma falha temporária não pode ficar memorizada como "sem capa" para sempre.
@@ -9837,7 +9858,10 @@ function capaOficial(titulo, artista) {
       return url;
     }));
   }
-  return comUltimoValor('capa', k, capasOficiais.get(k));
+  // Em vez de devolver imediatamente uma miniatura antiga, aguarda a consulta e grava a capa validada.
+  return navigator.onLine
+    ? valorDaInternet('capa', `capa:${normalizar(k)}`, capasOficiais.get(k))
+    : comUltimoValor('capa', k, capasOficiais.get(k));
 }
 // (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
 async function fotoDeezer(nome, titulo = '') {
