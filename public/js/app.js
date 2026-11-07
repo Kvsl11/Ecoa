@@ -868,7 +868,7 @@ function trocarCapaDaMusica(song, url, { escolhida } = {}) {
 // Todas as músicas da biblioteca ganham a capa oficial, aos poucos e em segundo plano (ao abrir o app e ao salvar uma
 // música nova): a página inicial, a biblioteca, as listas e os repertórios passam a mostrar a mesma capa do player.
 // A que não tem capa em lugar nenhum é tentada de novo depois de uma semana
-const CHAVE_SEM_CAPA = 'songbook.semCapaOficial';
+const CHAVE_SEM_CAPA = 'songbook.semCapaOficial.v2';
 let trocandoCapas = null;
 function atualizarCapasOficiais(ids = null) {
   if (trocandoCapas) return trocandoCapas;
