@@ -700,3 +700,29 @@ test('canalDoArtista: uma instância Piped sem canal não bloqueia outra que tem
   assert.equal(canal?.nome, 'Artista Teste');
   assert.equal(canal?.id, 'UCteste');
 });
+
+test('instâncias do Piped fora do ar ficam de fora por um tempo (não entopem a fila das consultas)', async () => {
+  const { canalDoArtista, instanciasVivas, esquecerSaudeDasInstancias, PIPED } = await import('../public/js/lib/web.js');
+  esquecerSaudeDasInstancias();
+  const pedidos = [];
+  const fetchImpl = async (url) => {
+    pedidos.push(url);
+    if (url.startsWith(PIPED[0])) throw new TypeError('Failed to fetch');
+    if (url.startsWith(PIPED[1])) return new Response('', { status: 502 });
+    return new Response(JSON.stringify({ items: [] }), { status: 200 });
+  };
+  await canalDoArtista('Ninguém', { fetchImpl });
+  assert.equal(pedidos.length, PIPED.length);
+  const vivas = instanciasVivas(PIPED);
+  assert.ok(!vivas.includes(PIPED[0]) && !vivas.includes(PIPED[1]), 'as que falharam saem');
+  assert.equal(vivas.length, PIPED.length - 2);
+  pedidos.length = 0;
+  await canalDoArtista('Ninguém', { fetchImpl });
+  assert.equal(pedidos.length, PIPED.length - 2, 'a segunda busca não pede às fora do ar');
+  // passados 10 minutos, voltam a ser tentadas
+  assert.equal(instanciasVivas(PIPED, Date.now() + 11 * 60e3).length, PIPED.length);
+  // todas fora: tenta só uma
+  for (const b of PIPED) { try { await canalDoArtista('x', { fetchImpl: async () => { throw new TypeError('x'); }, instancias: [b] }); } catch { /* */ } }
+  assert.equal(instanciasVivas(PIPED).length, 1);
+  esquecerSaudeDasInstancias();
+});

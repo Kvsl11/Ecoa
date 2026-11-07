@@ -29,15 +29,43 @@ const direto = () => !NO_NAVEGADOR || Boolean(buscaNativa);
 
 // fetch com tempo limite (proxies públicos às vezes ficam pendurados)
 async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } = {}) {
-  if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) return buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
-  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
+  const base = /^https?:\/\/[^/]+/i.exec(String(url))?.[0] || '';
+  const piped = base && (PIPED.includes(base) || INVIDIOUS.includes(base));
   try {
-    return await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal });
-  } finally {
-    clearTimeout(t);
+    let res;
+    if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) res = await buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
+    else {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
+      try { res = await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal }); } finally { clearTimeout(t); }
+    }
+    if (piped) marcarInstancia(base, res.ok || (res.status >= 400 && res.status < 429));
+    return res;
+  } catch (e) {
+    if (piped) marcarInstancia(base, false);
+    throw e;
   }
 }
+
+// As instâncias do Piped (o YouTube sem login) caem e voltam o tempo todo. A que falhou (fora do ar, tempo esgotado,
+// limite de pedidos) fica de fora por 10 minutos: antes cada foto de artista e cada busca de vídeo pedia às 5 ao mesmo
+// tempo e esperava as fora do ar até o tempo limite, e, no app de Android, esses pedidos parados ocupavam a fila da
+// parte nativa e atrasavam todas as outras consultas (o Deezer, o Cifra Club, as letras). Com todas fora, tenta só a
+// que falhou há mais tempo
+const saudeInstancias = new Map(); // base → { ok: momento do último sucesso, falhou: momento da última falha }
+const FORA_POR = 10 * 60e3;
+function marcarInstancia(base, ok) {
+  const h = saudeInstancias.get(base) || { ok: 0, falhou: 0 };
+  if (ok) { h.ok = Date.now(); h.falhou = 0; } else h.falhou = Date.now();
+  saudeInstancias.set(base, h);
+}
+export function instanciasVivas(lista = PIPED, agora = Date.now()) {
+  const h = (b) => saudeInstancias.get(b) || { ok: 0, falhou: 0 };
+  const vivas = lista.filter((b) => !(h(b).falhou > agora - FORA_POR)).sort((a, b) => h(b).ok - h(a).ok);
+  if (vivas.length) return vivas;
+  return [...lista].sort((a, b) => h(a).falhou - h(b).falhou).slice(0, 1);
+}
+export const esquecerSaudeDasInstancias = () => saudeInstancias.clear();
 
 // ------------------------------------------------------------------ Cifra Club: busca
 
@@ -1036,7 +1064,7 @@ export async function buscarYoutube(termo, { fetchImpl, instancias = PIPED, filt
   };
   let respondeu = false;
   try {
-    return await Promise.any(instancias.map(uma));
+    return await Promise.any(instanciasVivas(instancias).map(uma));
   } catch {
     // O filtro music_songs nem sempre é implementado pelas instâncias Piped. Mesmo que elas respondam
     // sem faixas, tentamos a busca pública do YouTube para não perder a gravação oficial.
@@ -1054,7 +1082,7 @@ export async function audioDoVideo(id, { fetchImpl, instancias = PIPED } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return null;
   // Consulta as instâncias em paralelo: algumas ficam lentas ou fora do ar. O áudio em si é baixado
   // de uma fonte por vez, para não multiplicar o consumo de dados no celular.
-  const fontes = await Promise.all(instancias.map(async (base) => {
+  const fontes = await Promise.all(instanciasVivas(instancias).map(async (base) => {
     try {
       const res = await buscar(base + '/streams/' + id, { fetchImpl, timeout: 12000 });
       if (!res.ok) return null;
@@ -1087,7 +1115,7 @@ export const INVIDIOUS = ['https://inv.nadeko.net', 'https://invidious.nerdvpn.d
 export async function audioPeloInvidious(id, { fetchImpl, instancias = INVIDIOUS } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return null;
   // (a primeira instância que responde à página do vídeo é a que entrega o áudio)
-  const viva = await Promise.any(instancias.map(async (base) => {
+  const viva = await Promise.any(instanciasVivas(instancias).map(async (base) => {
     const r = await buscar(`${base}/api/v1/videos/${id}?fields=lengthSeconds`, { fetchImpl, timeout: 10000 });
     if (!r.ok) throw new Error(String(r.status));
     return base;
@@ -1129,7 +1157,7 @@ export function lerVtt(vtt) {
 export async function legendasDoVideo(id, { fetchImpl, instancias = INVIDIOUS, idioma = '' } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return [];
   try {
-    return await Promise.any(instancias.map(async (base) => {
+    return await Promise.any(instanciasVivas(instancias).map(async (base) => {
       const r = await buscar(`${base}/api/v1/captions/${id}`, { fetchImpl, timeout: 10000 });
       if (!r.ok) throw new Error(String(r.status));
       const lista = (await r.json())?.captions || [];
@@ -1154,7 +1182,7 @@ export async function duracaoDoVideo(id, { fetchImpl, instancias = PIPED } = {})
   if (!/^[\w-]{11}$/.test(id || '')) return 0;
   const achado = (await buscarYoutube(id, { fetchImpl, instancias }).catch(() => [])).find((v) => v.id === id);
   if (achado?.segundos > 0) return achado.segundos;
-  for (const base of instancias) {
+  for (const base of instanciasVivas(instancias)) {
     try {
       const res = await buscar(`${base}/streams/${id}`, { fetchImpl, timeout: 12000 });
       if (!res.ok) continue;
@@ -1203,7 +1231,7 @@ export async function canalDoArtista(nome, { fetchImpl, instancias = PIPED } = {
     if (!canal?.foto) throw new Error('Canal válido não encontrado nesta instância');
     return canal;
   };
-  return Promise.any(instancias.map(uma)).catch(() => null);
+  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => null);
 }
 export const fotoDoCanal = (nome, opcoes) => canalDoArtista(nome, opcoes).then((c) => c?.foto || '');
 // quadros dos vídeos do próprio canal do artista (só os postados por ele): mais fotos dele cantando, para a tela
@@ -1218,7 +1246,7 @@ export async function fotosDosVideos(nome, canal, { fetchImpl, instancias = PIPE
     if (!ids.length) throw new Error('nenhum vídeo do canal');
     return [...new Set(ids)].slice(0, quantas).map((id) => `https://i.ytimg.com/vi/${id}/hq720.jpg`);
   };
-  return Promise.any(instancias.map(uma)).catch(() => []);
+  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => []);
 }
 // o artista na TheAudioDB (chave pública de teste "123"): os seguidores e a popularidade dele no Spotify, várias fotos
 // (a principal e as de fundo) e a biografia em português. Só vale o artista com o mesmo nome. null quando não acha

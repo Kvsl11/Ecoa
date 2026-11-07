@@ -557,8 +557,12 @@ public class EcoaPlugin extends Plugin {
         });
     }
 
-    // (várias ao mesmo tempo: a tela do artista pede muitas de uma vez)
-    private static final java.util.concurrent.ExecutorService lendoPaginas = Executors.newFixedThreadPool(6);
+    // (várias ao mesmo tempo: a tela do artista e a biblioteca pedem muitas de uma vez. Eram só 6: os pedidos parados
+    // num servidor fora do ar, esperando o tempo limite, ocupavam a fila, e a foto dos artistas, o Deezer, o Cifra Club e
+    // as letras esperavam atrás deles. As linhas que sobram são desfeitas depois de 30 s paradas)
+    private static final java.util.concurrent.ThreadPoolExecutor lendoPaginas = new java.util.concurrent.ThreadPoolExecutor(
+        24, 24, 30, java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.LinkedBlockingQueue<>());
+    static { lendoPaginas.allowCoreThreadTimeOut(true); }
 
     @PluginMethod
     public void buscarPagina(PluginCall call) {

@@ -4,6 +4,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 584, data: '2026-11-07', titulo: 'As fotos dos artistas na hora e o aviso de versão nova que chega',
+    itens: [
+      { tipo: 'melhoria', texto: 'As fotos dos artistas (na biblioteca, na busca, na música) chegam muito mais rápido: o app pergunta ao YouTube, ao Cifra Club e ao Deezer ao mesmo tempo, em vez de um depois do outro, e não espera mais os servidores do YouTube que estão fora do ar (eles ficam de fora por um tempo).' },
+      { tipo: 'correcao', texto: 'Na busca e na biblioteca, a fotinha do artista ao lado do nome podia ficar com o desenho de imagem quebrada. Agora, se a foto não carrega, volta o desenho do app e a foto é procurada de novo.' },
+      { tipo: 'melhoria', texto: 'No app de Android, as consultas à internet (o Cifra Club, as letras, o Deezer, o YouTube, a liturgia) não ficam mais numa fila de 6 de cada vez, que um servidor fora do ar travava: agora vão muitas ao mesmo tempo, e o servidor que não responde é deixado de lado em 6 segundos. Vem com a atualização do app.' },
+      { tipo: 'correcao', texto: 'No app de Android, o aviso de versão nova só aparecia ao abrir o app, e uma vez só: com o app aberto em segundo plano, a atualização não chegava. Agora ele confere também ao voltar para o app e, se você tocou em "Agora não", lembra de novo depois de 12 horas.' },
+    ],
+  },
+  {
     versao: 583, data: '2026-11-07', titulo: 'A barrinha da música acima do aviso de offline',
     itens: [
       { tipo: 'correcao', texto: 'No celular (e no app de Android), com o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" embaixo, o menu subia para dar lugar a ele, mas a barrinha da música ficava no mesmo lugar, por cima dos ícones do menu. Agora ela sobe junto.' },
@@ -69,12 +78,6 @@ export const NOVIDADES = [
     versao: 575, data: '2026-11-06', titulo: 'O app de Android sem a seleção de texto',
     itens: [
       { tipo: 'melhoria', texto: 'No app de Android, segurar o dedo num texto (um nome, um botão, a letra) não seleciona mais nem abre o "Copiar / Selecionar tudo" do navegador, em nenhuma tela: o app se comporta como app. Nos campos de digitar (a busca, os nomes, o editor da cifra), copiar e colar continuam funcionando. Para copiar a letra, use Copiar a letra nos ⋯ da música.' },
-    ],
-  },
-  {
-    versao: 574, data: '2026-11-06', titulo: 'As Novidades certas no app de Android',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, a tela Novidades mostrava os números de versão do site. Agora ela mostra a versão do app instalado, a data de cada novidade e marca as que chegam com a atualização do app.' },
     ],
   },
 ];
