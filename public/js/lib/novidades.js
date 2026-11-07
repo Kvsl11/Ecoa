@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 598, data: '2026-11-07', titulo: 'Fotos de artistas no Android, transições sem sobreposição e indicador de progresso do karaokê',
+    itens: [
+      { tipo: 'correcao', texto: 'No aplicativo Android, a foto do artista não era exibida na página do artista, na seção "Sobre o artista" e nas listas, embora aparecesse na biblioteca. O servidor de imagens do Google, origem das fotos dos canais do YouTube, recusa (HTTP 429) as requisições cujo cabeçalho Referer indica "localhost", endereço da página dentro do aplicativo. As imagens passaram a ser solicitadas sem esse cabeçalho, e as utilizadas como fundo são obtidas da mesma forma e exibidas a partir de cópia local. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'O indicador circular de progresso do karaokê e o do download deixaram de ser exibidos porque a variável --pct, compartilhada pelos dois, passou a ser registrada como porcentagem pela tela de partitura, o que invalidava os valores numéricos. Cada componente passou a usar uma variável própria. O indicador do karaokê foi redesenhado: anel de 3 px na borda do botão, com avanço contínuo; arco giratório enquanto a porcentagem ainda não é conhecida; e etiqueta discreta ao lado com a etapa e a porcentagem (por exemplo, "Tirando a voz · 42%").' },
+      { tipo: 'correcao', texto: 'O menu ⋮ e as demais folhas inferiores surgiam com transparência e deslocamento curto, sobrepondo momentaneamente o texto ao conteúdo de trás; passaram a deslizar a partir da borda inferior, opacas, com o fundo escurecido gradualmente, e a descer ao fechar (antes desapareciam de uma vez). A tela "Tocando agora" passou a abrir da mesma forma.' },
+      { tipo: 'correcao', texto: 'Ao fechar a tela "Tocando agora", a capa animada (quadros ou trechos do clipe) era desmontada e, ao reabrir, montada novamente, com cada imagem surgindo gradualmente a partir da cor de fundo. Ela passou a permanecer montada e oculta, com a animação pausada, e é retomada no mesmo ponto ao reabrir.' },
+    ],
+  },
+  {
     versao: 597, data: '2026-11-07', titulo: 'Salvamento direto pelo player, busca restrita a conteúdo externo e notas de versão em registro técnico',
     itens: [
       { tipo: 'correcao', texto: 'O botão de salvar do player, acionado sobre uma música aberta pela busca ou sobre um vídeo de "Vídeos relacionados", abria a página da música com a tela de carregamento e só então tentava salvar; quando a música aberta vinha associada a outro vídeo, a verificação falhava e nada era salvo. O salvamento passou a ser executado diretamente no player, sem navegação nem tela de carregamento, pelo mesmo procedimento do botão de salvar das listas: o botão exibe um indicador de progresso e passa a ✓ ao concluir. Aplica-se à versão web e ao aplicativo Android.' },
@@ -72,12 +81,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na busca, o toque no botão de salvar podia ser interpretado como toque na linha da música, que era aberta em vez de salva, devido à área de toque reduzida do botão. A área de toque foi ampliada, os toques repetidos durante o salvamento deixaram de abrir a música, e o salvamento passou a reaproveitar os dados já em carregamento, o que o torna mais rápido. Em caso de falha, uma mensagem é exibida.' },
       { tipo: 'correcao', texto: 'A seção "Tocou por último", na gaveta do perfil, passou a exibir também a música aberta pela busca que está em reprodução, ainda que não salva (antes era exibida a música anterior).' },
-    ],
-  },
-  {
-    versao: 588, data: '2026-11-07', titulo: 'Detecção de conexão lenta baseada em medição real',
-    itens: [
-      { tipo: 'correcao', texto: 'Em dados móveis, o aviso "Conexão lenta" era exibido continuamente mesmo com boa conexão, por se basear na estimativa de banda do sistema, que nessas redes tende a ser baixa e fixa. O aplicativo passou a confirmar a lentidão por medição efetiva (requisições leves cronometradas) e só exibe o aviso quando ela é constatada; o aviso é removido automaticamente quando a conexão se normaliza.' },
     ],
   },
 ];

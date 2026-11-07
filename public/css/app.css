@@ -1973,7 +1973,9 @@ label.check input[type="checkbox"]:focus-visible { outline: 2px solid var(--text
 .menu-mais.folha .menu-mais-titulo b { font-size: 16px; }
 .menu-mais.folha .menu-mais-titulo span { font-size: 13px; color: var(--muted); }
 .menu-mais.folha > a, .menu-mais.folha > button { padding: 15px 14px; font-size: 16px; gap: 16px; }
-@keyframes menu-subir { from { opacity: 0; transform: translateY(32px); } }
+/* (a folha sobe inteira do rodapé, sem transparência: antes ela aparecia meio transparente e subia só 32 px, e por um
+   instante o texto dela ficava por cima do que estava atrás, como se a tela "bugasse") */
+@keyframes menu-subir { from { transform: translateY(100%); } }
 @keyframes menu-fundo { from { opacity: 0; } }
 
 .song-toolbar { align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap; }
@@ -2931,7 +2933,13 @@ html.pp #player.modo-capa .pl-video.capa-yt { background-size: auto 134%; }
 /* modo música com vídeo: os quadros do clipe atrás de toda a parte de cima (do topo até o cartão da letra), como o Canvas
    do Spotify. z-index -1: fica sobre o fundo do painel e embaixo de tudo; some num degradê no fundo do painel (mask) e
    escurece um pouco em cima e embaixo, para os textos e os botões ficarem legíveis. O lugar da capa fica vazio */
-#player .pl-fundo { display: none; }
+/* (fechado o "Tocando agora", a capa animada continua montada, só escondida e com os quadros parados: ao abrir de novo ela
+   segue de onde estava. Com display: none, as animações recomeçavam do zero e o primeiro quadro surgia aos poucos da cor
+   de fundo, e antes disso ela era até desfeita e refeita) */
+#player .pl-fundo { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; visibility: hidden; pointer-events: none; }
+#player .pl-fundo .quadros img.q { animation-play-state: paused; }
+html.pp:not(.tablet) #player.modo-capa .pl-fundo:not([hidden]) { visibility: visible; width: auto; }
+html.pp:not(.tablet) #player.modo-capa .pl-fundo:not([hidden]) .quadros img.q, html.pp.tablet .pl-fundo .quadros img.q { animation-play-state: running; }
 html.pp:not(.tablet) #player.modo-capa .pl-fundo:not([hidden]) { display: block; position: absolute; z-index: -1; top: 0; left: 0; right: 0;
   width: auto !important; align-self: stretch !important; height: var(--fundo-h, 100%);
   overflow: hidden; pointer-events: none;
@@ -3262,10 +3270,27 @@ html.pp #player.letra-cheia .pl-karaoke[data-estado="ligado"]:not(.aberto) { bac
 @keyframes karaoke-estoura-1 { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: translate(-3px, -3px) scale(1.6); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes karaoke-estoura-2 { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: translate(-4px, 2px) scale(1.8); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes karaoke-estoura-3 { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: translate(3px, 3px) scale(1.7); opacity: 1; } 100% { transform: scale(1); } }
-/* preparando (o servidor separando a voz): um anel que se completa com a porcentagem, e o microfone pulsando */
-#player .pl-karaoke[data-estado="preparando"]::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; pointer-events: none;
-  background: conic-gradient(#fff calc(var(--pct, 0) * 1%), rgb(255 255 255 / 0.2) 0);
-  -webkit-mask: radial-gradient(circle, transparent 66%, #000 69%); mask: radial-gradient(circle, transparent 66%, #000 69%); }
+/* preparando (separando a voz da banda): um anel fino na borda do círculo, que se completa com a porcentagem (anda
+   suave, com um brilho leve na parte feita); no começo, sem porcentagem ainda, um arco curto gira. Antes o anel tinha
+   ~1,5 px e era branco sobre o vidro claro do botão: não se via */
+@property --kar-pct { syntax: '<number>'; inherits: true; initial-value: 0; }
+html.pp #player.letra-cheia .pl-karaoke[data-estado="preparando"] { transition: --kar-pct 0.9s ease, transform 0.18s; }
+#player .pl-karaoke[data-estado="preparando"]::after { content: ''; position: absolute; z-index: 3; inset: 0; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(rgb(255 255 255 / 0.95) calc(var(--kar-pct, 0) * 1%), rgb(255 255 255 / 0.16) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  filter: drop-shadow(0 0 2px rgb(255 255 255 / 0.55)); }
+#player .pl-karaoke[data-estado="preparando"].sem-pct::after { background: conic-gradient(rgb(255 255 255 / 0.9) 0 18%, rgb(255 255 255 / 0.16) 0);
+  animation: karaoke-gira 1.1s linear infinite; }
+@keyframes karaoke-gira { to { transform: rotate(1turn); } }
+/* a etapa e a porcentagem, numa etiqueta pequena e discreta à esquerda do microfone */
+.pl-karaoke-etapa { display: none; }
+html.pp #player.letra-cheia .pl-karaoke-etapa:not([hidden]) { display: block; position: absolute; z-index: 2; right: 60px; bottom: calc(100% + 27px);
+  max-width: calc(100% - 70px); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 16px; letter-spacing: 0.01em;
+  color: rgb(255 255 255 / 0.92); background: rgb(0 0 0 / 0.28); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; pointer-events: none; animation: etapa-entra 0.3s ease; }
+@keyframes etapa-entra { from { opacity: 0; transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { #player .pl-karaoke[data-estado="preparando"].sem-pct::after, html.pp #player.letra-cheia .pl-karaoke-etapa:not([hidden]) { animation: none; } }
 #player .pl-karaoke[data-estado="preparando"] .pl-karaoke-bt svg { animation: karaoke-pulsa 1.4s ease-in-out infinite; }
 #player .pl-karaoke[data-estado="preparando"] .mk-brilho { animation: karaoke-brilho 1s ease-in-out infinite; }
 #player .pl-karaoke[data-estado="preparando"] .mk-b2 { animation-delay: 0.33s; }
@@ -3378,7 +3403,10 @@ html.tablet #player .pl-pessoas .ref-roda b { max-width: 100%; }
 /* celular e computador: o "Tocando agora" é a tela toda, aberta pela barrinha do player (no celular, tocando nela; no
    computador, pelo botão do painel na barra), com o mesmo jeito do tablet. Fica dentro da coluna principal (no computador
    o menu da esquerda continua à vista, como no Spotify) */
-html.pp:not(.tablet) body.painel-cheio #player { position: absolute; inset: 0; z-index: 40; width: auto; height: auto; border-radius: 0; box-shadow: none; animation: subir-tela 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+html.pp:not(.tablet) body.painel-cheio #player { position: absolute; inset: 0; z-index: 40; width: auto; height: auto; border-radius: 0; box-shadow: none; animation: tela-subir 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+/* (o "Tocando agora" sobe inteiro, opaco, como no Spotify: antes ele surgia transparente por cima da tela de trás, e o
+   nome e os botões dele apareciam misturados com ela) */
+@keyframes tela-subir { from { transform: translateY(100%); } }
 html.pp:not(.tablet) body.painel-cheio #pl-tela:not(.no-palco):not(.na-telinha) { z-index: 41; }
 @keyframes subir-tela { from { transform: translateY(24px); opacity: 0; } }
 html.pp:not(.tablet) body.painel-cheio #player.sem-subir { animation: none; }
@@ -4746,7 +4774,9 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
    Um destaque só por tela (o "Gerar com IA" na lista; o anel do andamento ao gerar; o Salvar na partitura pronta), o
    resto em cartões claros e silenciosos, cantos mais redondos e mais ar entre as coisas */
 :root { --pt-raio: 20px; }
-@property --pct { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+/* (nome próprio: registrada como porcentagem com o nome --pct, ela invalidava o --pct de número do anel do download e do
+   karaokê, e esses anéis sumiram) */
+@property --pt-pct { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
 
 /* ---- a lista: os dois jeitos de começar, um embaixo do outro, como linhas grandes */
 .pt-topo { margin: 6px 0 20px; }
@@ -4791,9 +4821,9 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 /* ---- gerando: o anel com o andamento no meio e as etapas numa linha do tempo */
 .ia-etapas { justify-items: stretch; gap: 18px; padding: 26px 20px 18px; border-radius: 24px; text-align: left;
   background: radial-gradient(80% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%), var(--surface); }
-.ia-anel { --pct: 0%; position: relative; justify-self: center; width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center; transition: --pct 0.6s ease; }
+.ia-anel { --pt-pct: 0%; position: relative; justify-self: center; width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center; transition: --pt-pct 0.6s ease; }
 .ia-anel::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(var(--accent) var(--pct), color-mix(in srgb, var(--text) 9%, transparent) 0);
+  background: conic-gradient(var(--accent) var(--pt-pct), color-mix(in srgb, var(--text) 9%, transparent) 0);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); }
 /* (um brilho que gira devagar por cima do anel: está trabalhando, mesmo quando a porcentagem para um pouco) */
 .ia-anel::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 80%, color-mix(in srgb, var(--accent) 45%, transparent) 95%, transparent);
@@ -6018,3 +6048,15 @@ html.app-android :is(input, textarea, [contenteditable]:not([contenteditable="fa
   html:not(.tablet) #aviso-rede[hidden] { display: none; }
   body.performance #aviso-rede { display: none; }
 }
+
+/* As folhas e as janelas saem com animação (a folha desce, a janela some), em vez de sumir de uma vez; o fundo escurecido
+   entra e sai aos poucos. O app põe a classe "saindo" e só fecha a janela no fim (HTMLDialogElement.close, em app.js) */
+dialog[open]::backdrop { animation: menu-fundo 0.22s ease; }
+dialog[open].saindo { animation: pop-sai 0.16s ease forwards !important; }
+dialog.folha[open].saindo, dialog.lista-menu[open].saindo { animation: menu-descer 0.2s ease-in forwards !important; }
+@media (max-width: 699px) { dialog.lista-dlg[open].saindo { animation: menu-descer 0.2s ease-in forwards !important; } }
+dialog[open].saindo::backdrop { animation: menu-fundo-sai 0.2s ease forwards; }
+@keyframes menu-descer { to { transform: translateY(100%); } }
+@keyframes pop-sai { to { opacity: 0; transform: scale(0.97); } }
+@keyframes menu-fundo-sai { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { dialog[open]::backdrop, dialog[open].saindo, dialog[open].saindo::backdrop { animation: none !important; } }
