@@ -3626,16 +3626,36 @@ const player = (() => {
     // (a foto já guardada na música — ou a última do artista guardada no aparelho — entra na hora, sem esperar nada;
     // a da internet só troca se for outra)
     const fotoJa = (comInfo && (song?.fotoArtista || fotoConhecida(nomeBusca))) || '';
-    if (fotoJa) { const f = $('.pl-extra [data-foto]', el); if (f) { f.classList.add('com-foto'); f.style.backgroundImage = `url("${fotoJa}")`; } }
+    const fotoBox = $('.pl-extra [data-foto]', el);
+    let fotoAtiva = '';
+    const aplicarFotoArtista = (url, tentarDeNovo = true) => {
+      if (!url || !fotoBox || extraDe !== chave) return;
+      const img = new Image();
+      img.onload = () => {
+        if (!fotoBox.isConnected || extraDe !== chave) return;
+        fotoAtiva = url;
+        fotoBox.classList.add('com-foto');
+        fotoBox.style.backgroundImage = `url("${url}")`;
+      };
+      img.onerror = () => {
+        // Não esconder a foto anterior válida por causa de uma fonte que falhou.
+        if (fotoAtiva || !tentarDeNovo || extraDe !== chave) return;
+        fotoBox.classList.remove('com-foto');
+        fotoBox.style.backgroundImage = '';
+        esquecerFotoDoArtista(nomeBusca);
+        fotoDoArtista(nomeBusca, slug).then((nova) => {
+          if (nova && nova !== url) aplicarFotoArtista(nova, false);
+        }).catch(() => {});
+      };
+      img.src = url;
+    };
+    if (fotoJa) aplicarFotoArtista(fotoJa);
     // (a foto do artista principal pela página dele no Cifra Club, quando a música veio de lá; antes das bolinhas)
     if (comInfo) fotoDoArtista(nomeBusca, slug);
     porFotos(box, pessoas, { liturgia });
-    if (comInfo) fotoDoArtista(nomeBusca).then((url) => {
-      const f = $('.pl-extra [data-foto]', el);
-      if (!url || !f || extraDe !== chave || url === fotoJa) return;
-      const img = new Image();
-      img.onload = () => { f.classList.add('com-foto'); f.style.backgroundImage = `url("${url}")`; };
-      img.src = url;
+    if (comInfo) fotoDoArtista(nomeBusca, slug).then((url) => {
+      if (!url || extraDe !== chave || url === fotoJa) return;
+      aplicarFotoArtista(url);
     }).catch(() => {});
     // o cartão "Músicas de…": a foto do artista ou, sem ela (ou sem carregar), a capa da música
     if (comInfo) { const t = $('.pl-extra .pl-tile-artista', el); if (t) void fundoDoCartao(t, [() => fotoDoArtista(nomeBusca), capaCreditos], () => extraDe === chave); }
@@ -8953,6 +8973,21 @@ function enriquecerTilesArtistas(container) {
         delete box.dataset.mostrando;
         box.replaceChildren();
         box.insertAdjacentHTML('afterbegin', icon('mic', 40));
+        // Se o endereço guardado não abre no WebView, descarta-o e tenta outra fonte de foto.
+        if (box.dataset.refeita) return;
+        box.dataset.refeita = '1';
+        esquecerFotoDoArtista(nome);
+        fotoDoArtista(nome, slug).then((url) => {
+          if (!url || !box.isConnected) return;
+          const nova = new Image();
+          nova.alt = nome;
+          nova.onload = () => {
+            if (!box.isConnected) return;
+            box.dataset.mostrando = url;
+            box.replaceChildren(nova);
+          };
+          nova.src = url;
+        }).catch(() => {});
       };
       atual.addEventListener('error', falhou, { once: true });
       if (atual.complete && !atual.naturalWidth) falhou();
@@ -10073,6 +10108,7 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   const naTela = () => caixaFotos.querySelectorAll('img').length;
   // a primeira é a do cartão (a que aparecia antes de abrir esta tela): ela fica sempre no começo, do jeito que estava
   let principal = null;
+  let tentouRefazerPrincipal = false;
   const porFotos = (lista, { comPrincipal = false } = {}) => {
     caixaFotos.querySelector('.sa-sem-foto')?.remove();
     for (const [n, u] of lista.entries()) {
@@ -10087,6 +10123,14 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
       // (a que não abrir ou vier minúscula, a imagem cinza de "sem foto" do YouTube, sai; a do cartão só sai se não abrir)
       img.onerror = () => {
         img.remove();
+        // A foto principal guardada pode ter expirado. Descarta o endereço e tenta uma fonte nova uma vez.
+        if (u === foto && !tentouRefazerPrincipal) {
+          tentouRefazerPrincipal = true;
+          esquecerFotoDoArtista(nome);
+          fotoDoArtista(nome, slug).then((nova) => {
+            if (nova && nova !== u && tela.isConnected) porFotos([nova], { comPrincipal: true });
+          }).catch(() => {});
+        }
         if (!naTela()) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
       };
       img.onload = async () => {
