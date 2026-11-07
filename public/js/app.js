@@ -19,7 +19,7 @@ import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam, versaoDoAppDaNovidade } from './lib/novidades.js';
-import { editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
+import { apagarTudoDaConta, editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
 import { buscarNaWeb, buscarNaWikipedia, criarIndice as criarIndiceDuvidas, raizesDaPergunta, hifenizar, pedidoLiturgico, pedidoSugestao, dataDaPergunta, melhoresFrases, pedeCanto, palavras as palavrasDuvida, raiz as raizDuvida, semCifra as textoSemCifra } from './lib/duvidas.js';
 import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from './lib/transferir.js';
@@ -36,7 +36,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { ordenarCapas } from './lib/capas.js';
+import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
@@ -850,9 +850,16 @@ function capa(item = {}, { ic = 'music', cls = '' } = {}) {
   if (src) return `<div class="cover ${cls}"><img src="${esc(src)}" referrerpolicy="no-referrer" alt="${esc(titulo)}" loading="lazy"></div>`;
   return `<div class="cover gen ${cls}" style="--h:${hue(titulo)}">${icon(ic, 24)}</div>`;
 }
+// o selo de artista confirmado: a forma de borda ondulada (como a do Spotify e do Instagram), cheia de azul, com o ✓
+// branco no meio. Antes era um círculo azul
+const SELO_VERIFICADO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" fill="#3d91f4" stroke="#3d91f4" stroke-width="1.6" stroke-linejoin="round"/><path d="m8.6 12.2 2.3 2.3 4.5-4.6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // A capa que a capa oficial (a do álbum, capaOficial) substitui: nenhuma, o quadro do vídeo do YouTube ou a foto do
 // artista que vem com a cifra (Cifra Club, Letras). A escolhida pela pessoa (uma foto do aparelho, outro endereço) fica
 const capaTrocavel = (u) => !u || capaAutomatica(u) || /(^https?:\/\/(i\d?\.ytimg\.com|img\.youtube\.com)\/)|sscdn\.co\/letras\/[^/]+\/fotos\//.test(u);
+// a capa de espera: nenhuma, o quadro do vídeo ou a foto do artista da cifra. Só ela é trocada em segundo plano (ao
+// abrir o app, ao tocar, nas listas): a capa do álbum que a música já tem fica. Antes a automática era procurada de
+// novo a cada vez e trocada quando vinha outra, e a capa mudava sozinha de uma hora para outra
+const capaProvisoria = (u) => capaTrocavel(u) && !capaAutomatica(u);
 // a capa que o próprio app pôs (a oficial, do Deezer ou do iTunes)
 const capaAutomatica = (u) => /^https?:\/\/([^/]+\.)?(dzcdn\.net|mzstatic\.com)\//.test(u || '');
 // troca a capa da música (guardada na cifra, como as outras informações dela), na tela e no player. escolhida: a
@@ -877,13 +884,13 @@ function atualizarCapasOficiais(ids = null) {
     try { tentadas = JSON.parse(localStorage.getItem(CHAVE_SEM_CAPA) || '{}'); } catch { /* sem armazenamento */ }
     const semana = 7 * 864e5;
     let semLugar = false; // alguma capa nova sem a antiga na tela para trocar (ela não tinha carregado)
-    const fila = db.songs().filter((x) => (!ids || ids.includes(x.id)) && x.title && x.artist && capaTrocavel(x.cover) && !(tentadas[x.id] > Date.now() - semana));
+    const fila = db.songs().filter((x) => (!ids || ids.includes(x.id)) && x.title && x.artist && capaProvisoria(x.cover) && !(tentadas[x.id] > Date.now() - semana));
     for (const x of fila) {
       if (!navigator.onLine) break;
       const u = await capaOficial(x.title, x.artist).catch(() => '');
       const agora = db.song(x.id);
       if (!agora) continue;
-      if (u && capaTrocavel(agora.cover) && agora.cover !== u) {
+      if (u && capaProvisoria(agora.cover) && agora.cover !== u) {
         const antes = capa(agora).match(/src="([^"]+)"/)?.[1] || '';
         db.saveSong({ ...agora, content: definirMeta(agora.content, 'cover', u) });
         delete tentadas[x.id];
@@ -2251,6 +2258,10 @@ const REVISOES = [
   // v587: a escolha "O que baixar" (Só o áudio) saiu dos Ajustes, e o download é sempre o áudio e o clipe. As baixadas
   // só com o áudio baixam o clipe que falta
   { rev: 26, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
+  // v602: a capa escolhida entre as achadas era a maior e, no empate, a mais ouvida, e a coletânea mais ouvida passava à
+  // frente do single ("Aba", do Kemuel, com a capa de uma coletânea gospel). A capa automática que é de uma coletânea ou
+  // de outra gravação volta para a da música; a que está certa fica, e a escolhida pela pessoa não muda
+  { rev: 27, capa: true, quais: (s) => !s.capaEscolhida && capaAutomatica(s.cover) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2357,9 +2368,10 @@ async function revisarMusica(id, pendentes, chaves) {
   if (quer('capa') && s.title && s.artist) {
     if (!navigator.onLine) completa = false;
     else {
-      const u = await capaOficial(s.title, s.artist).catch(() => '');
+      const r = await conferirCapa(s).catch(() => null);
       s = db.song(id);
-      if (u && s && !s.capaEscolhida && capaAutomatica(s.cover) && u !== s.cover) trocarCapaDaMusica(s, u);
+      if (r === null) completa = false;
+      else if (r.trocar && s && !s.capaEscolhida && capaAutomatica(s.cover) && s.cover === r.antes) trocarCapaDaMusica(s, r.certa.url);
     }
     s = db.song(id);
   }
@@ -2554,7 +2566,7 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
   const s = db.song(id);
   if (!s) return [];
   const n = (x) => Number(x || 0).toLocaleString('pt-BR');
-  const antes = { sinc: JSON.stringify(s.sincronia || null), audio: versoesDe(s)?.audio || '', arquivos: Object.keys(s.baixado?.arquivos || {}).join(), rebaixar: Boolean(s.rebaixar) };
+  const antes = { capa: s.cover || '', sinc: JSON.stringify(s.sincronia || null), audio: versoesDe(s)?.audio || '', arquivos: Object.keys(s.baixado?.arquivos || {}).join(), rebaixar: Boolean(s.rebaixar) };
   const mudou = [];
   if (midiaDe(s) && navigator.onLine && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
     passo('Procurando a letra…');
@@ -2589,6 +2601,7 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     const audio = versoesDe(d)?.audio || '';
     if (audio !== antes.audio) mudou.push(audio ? 'O áudio oficial (o modo música) foi achado' : 'O áudio oficial errado saiu');
     if (Object.keys(d.baixado?.arquivos || {}).join() !== antes.arquivos || (d.rebaixar && !antes.rebaixar)) mudou.push('O download foi conferido e o que faltava voltou para baixar');
+    if ((d.cover || '') !== antes.capa) mudou.push('A capa era de uma coletânea ou de outra gravação: voltou a capa da música');
   }
   // ---- o que é do app de Android (o APK): o baixador do celular e o karaokê feito nele
   const nativo = baixadorDoAparelho();
@@ -3566,14 +3579,16 @@ const player = (() => {
   // que não tinha capa (a biblioteca também passa a mostrar ela)
   const buscarCapaOficial = () => {
     const a = atual;
-    if (!a || a.capaOficial !== undefined || !capaTrocavel(a.capa) || !a.titulo || !a.artista) return;
+    // (a música salva que já tem a capa do álbum fica com ela: o player não mostra outra)
+    const salva = a?.songId && a.songId !== 'previa' && db.song(a.songId);
+    if (!a || a.capaOficial !== undefined || !(salva ? capaProvisoria(salva.cover) : capaTrocavel(a.capa)) || !a.titulo || !a.artista) return;
     a.capaOficial = '';
     capaOficial(a.titulo, a.artista).then((u) => {
       if (!u) return;
       a.capaOficial = u;
       if (atual && atual.songId === a.songId && atual.titulo === a.titulo) { atual.capaOficial = u; mini.dataset.conteudo = ''; desenharCapa(); }
       const s = a.songId && a.songId !== 'previa' && db.song(a.songId);
-      if (s && capaTrocavel(s.cover) && s.cover !== u) {
+      if (s && capaProvisoria(s.cover) && s.cover !== u) {
         const antes = capa(s).match(/src="([^"]+)"/)?.[1] || '';
         db.saveSong({ ...s, content: definirMeta(s.content, 'cover', u) });
         trocarCapaNaTela(antes, u);
@@ -3683,7 +3698,7 @@ const player = (() => {
     const cartoes = [];
     if (principal) {
       cartoes.push(`<section class="pl-cartao pl-artista"><div class="pl-artista-foto" data-foto><span>${semFotoArtista(84)}</span><h4>Sobre o artista</h4></div>
-        <div class="pl-artista-pe"><span class="grow"><b><span class="pl-artista-nome">${esc(principal)}</span><span class="pl-selo" hidden title="Artista confirmado">${icon('check', 11)}</span></b><small class="pl-artista-num">${esc(pessoas[0]?.papeis.join(' • ') || 'Artista')}</small></span>
+        <div class="pl-artista-pe"><span class="grow"><b><span class="pl-artista-nome">${esc(principal)}</span><span class="pl-selo" hidden title="Artista confirmado" aria-label="Artista confirmado">${SELO_VERIFICADO}</span></b><small class="pl-artista-num">${esc(pessoas[0]?.papeis.join(' • ') || 'Artista')}</small></span>
         ${slug ? `<a class="ref-pilula" href="#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(principal)}">Ver artista</a>` : `<button class="ref-pilula" data-pl="artista" data-i="0">Ver artista</button>`}</div>
         <div class="pl-artista-bio" hidden><p></p><button class="pl-artista-mais">ver mais</button></div></section>`);
       if (comInfo) cartoes.push(`<section class="pl-cartao pl-videos" hidden><h4>Vídeos relacionados</h4><div class="pl-trilho"></div></section>`);
@@ -6287,6 +6302,26 @@ const semLinhasDeAcordes = (sinc) => {
         item('Pares (áudio→clipe)', curto, '', '', pares.join(' '));
       }
     } else item('Áudio oficial', 'nenhum guardado', song?.youtube && !song.audioProprio ? 'aviso' : '', song?.youtube && !song.audioProprio ? 'o áudio oficial (o modo música) não foi achado' : '');
+    // a capa: de onde veio e se é a da música (a de uma coletânea ou de outra gravação aparece como errada)
+    if (song && db.song(song.id)) {
+      secao('Capa');
+      const cv = song.cover || '';
+      if (song.capaEscolhida) item('Capa', 'escolhida por você (não muda sozinha)', 'ok');
+      else if (!cv || capaProvisoria(cv)) item('Capa', !cv ? 'nenhuma (o desenho do app)' : 'provisória (o quadro do vídeo ou a foto do artista)', 'aviso', 'a música está sem a capa do álbum');
+      else if (!capaAutomatica(cv)) item('Capa', 'foto própria', 'ok');
+      else if (!navigator.onLine) item('Capa', 'do álbum (sem internet: não deu para conferir)', 'aviso');
+      else {
+        const c = await conferirCapa(song).catch(() => null);
+        if (!c) item('Capa', 'o Deezer e o iTunes não responderam a tempo', 'aviso');
+        else {
+          const de = (x) => `${x.album ? `“${x.album}”` : 'álbum sem nome'} · ${x.fonte || '?'}`;
+          const nomes = { coletanea: 'é de uma coletânea, não do disco da música', outra: 'é de outra gravação (karaokê, cover, tributo…)', 'nao-achada': 'não aparece mais na busca do Deezer e do iTunes' };
+          item('Agora', c.atual ? de(c.atual) : 'não achada na busca de hoje', c.trocar ? 'erro' : c.problema ? 'aviso' : 'ok', c.trocar ? `a capa ${nomes[c.problema]}` : '');
+          if (c.certa) item('A certa', chaveDaImagem(c.certa.url) === chaveDaImagem(cv) ? 'é a de agora' : de(c.certa), c.trocar ? 'aviso' : 'ok');
+          else item('A certa', 'nenhuma capa achada no Deezer nem no iTunes', 'aviso');
+        }
+      }
+    }
     secao('Download');
     const arqs = Object.entries(song?.baixado?.arquivos || {});
     if (!arqs.length) item('Arquivos', song?.rebaixar ? 'nenhum (marcada para baixar de novo)' : 'não baixada', song?.rebaixar ? 'aviso' : '', song?.rebaixar ? 'o download está para ser refeito' : '');
@@ -7833,8 +7868,9 @@ function escolherCapaDaMusica(song) {
     <h3>Trocar a capa</h3>
     <p class="muted">${esc([song.title, song.artist].filter(Boolean).join(' · '))}</p>
     <div class="capas-grade" data-capas role="status" aria-label="Procurando as capas…">${'<i class="esq esq-quadrado"></i>'.repeat(6)}</div>
+    <div class="capa-achar" data-achado role="status" aria-live="polite" hidden></div>
     <input type="file" accept="image/*" data-arquivo hidden>
-    <div class="acts"><button class="btn ghost" data-foto>${icon('imagem', 16)} Foto do aparelho</button>${song.capaEscolhida ? `<button class="btn ghost" data-auto>${icon('refresh', 16)} Automática</button>` : ''}<span class="spacer"></span><button class="btn ghost" data-no>Cancelar</button></div>`,
+    <div class="acts"><button class="btn ghost" data-auto>${icon('search', 16)} Achar a capa certa</button><button class="btn ghost" data-foto>${icon('imagem', 16)} Foto do aparelho</button><span class="spacer"></span><button class="btn ghost" data-no>Fechar</button></div>`,
   (dlg, done) => {
     const grade = $('[data-capas]', dlg);
     const escolher = (url, escolhida) => { trocarCapaDaMusica(song, url, { escolhida }); toast('Capa trocada'); done(true); };
@@ -7843,7 +7879,7 @@ function escolherCapaDaMusica(song) {
       const opcoes = [...lista];
       if (atualUrl && !opcoes.some((c) => c.url === atualUrl) && /^https?:/.test(atualUrl)) opcoes.unshift({ url: atualUrl, album: 'A de agora' });
       grade.innerHTML = opcoes.length ? opcoes.slice(0, 12).map((c) => `<button class="capa-op${c.url === atualUrl ? ' atual' : ''}" data-url="${esc(c.url)}" aria-pressed="${c.url === atualUrl}" title="${esc(c.album || '')}">
-          <img src="${esc(c.url.replace(/1000x1000/, '500x500'))}" referrerpolicy="no-referrer" alt="" loading="lazy"><small>${esc(c.album || c.titulo || '')}</small></button>`).join('')
+          <img src="${esc(c.url.replace(/1000x1000/, '500x500'))}" referrerpolicy="no-referrer" alt="" loading="lazy"><small>${esc(c.album || c.titulo || '')}${c.fonte ? ` · ${esc(c.fonte)}` : ''}</small></button>`).join('')
         : '<p class="muted">Nenhuma capa achada no Deezer nem no iTunes. Escolha uma foto do aparelho.</p>';
     }) : (grade.innerHTML = '<p class="muted">Sem internet: escolha uma foto do aparelho.</p>');
     grade.addEventListener('click', (e) => { const b = e.target.closest('[data-url]'); if (b) escolher(b.dataset.url, true); });
@@ -7853,11 +7889,30 @@ function escolherCapaDaMusica(song) {
       if (!f) return;
       try { escolher(await capaDeArquivo(f), true); } catch { toast('Não foi possível abrir esta imagem'); }
     };
+    // "Achar a capa certa": procura no Deezer e no iTunes e diz, na própria janela, o que está fazendo e o que achou (a
+    // capa, o álbum e de onde veio). Achando outra, ela entra e fica automática (as revisões podem consertar depois);
+    // sem achar, a capa de agora fica (antes o botão não mostrava nada e, sem resposta, apagava a capa)
     const auto = $('[data-auto]', dlg);
-    if (auto) auto.onclick = async () => {
+    const achado = $('[data-achado]', dlg);
+    const mostrarAchado = (html) => { achado.innerHTML = html; achado.hidden = false; achado.scrollIntoView({ block: 'nearest' }); };
+    auto.onclick = async () => {
+      if (!navigator.onLine) { mostrarAchado(`<b>${icon('info', 16)} Sem internet</b><p class="muted">A busca da capa precisa da internet.</p>`); return; }
       auto.disabled = true;
-      const u = await capaOficial(song.title, song.artist).catch(() => '');
-      escolher(u, false);
+      auto.innerHTML = '<span class="spin"></span> Procurando…';
+      mostrarAchado(`<p class="muted"><span class="spin"></span> Procurando a capa de “${esc(song.title)}” no Deezer e no iTunes…</p>`);
+      const s = db.song(song.id) || song;
+      const r = await conferirCapa({ ...s, cover: s.capaEscolhida ? '' : s.cover }).catch(() => null);
+      auto.disabled = false;
+      auto.innerHTML = `${icon('search', 16)} Achar a capa certa`;
+      if (!dlg.isConnected) return;
+      if (!r) { mostrarAchado(`<b>${icon('alerta', 16)} Não deu para procurar</b><p class="muted">O Deezer e o iTunes não responderam. A capa de agora continua. Tente de novo daqui a pouco.</p>`); return; }
+      if (!r.certa) { mostrarAchado(`<b>${icon('info', 16)} Nenhuma capa achada</b><p class="muted">O Deezer e o iTunes não têm esta música com este artista. A capa de agora continua; você pode escolher uma foto do aparelho.</p>`); return; }
+      const de = `${r.certa.album ? `“${esc(r.certa.album)}”` : 'álbum sem nome'} · ${esc(r.certa.fonte || '')}${r.certa.largura ? ` · ${r.certa.largura}×${r.certa.altura}` : ''}`;
+      const igual = !s.capaEscolhida && chaveDaImagem(r.certa.url) === chaveDaImagem(s.cover);
+      if (!igual) trocarCapaDaMusica(s, r.certa.url, { escolhida: false });
+      grade.querySelectorAll('.capa-op').forEach((b) => { const sim = chaveDaImagem(b.dataset.url) === chaveDaImagem(r.certa.url); b.classList.toggle('atual', sim); b.setAttribute('aria-pressed', String(sim)); });
+      mostrarAchado(`<img src="${esc(r.certa.url.replace(/1000x1000/, '500x500'))}" referrerpolicy="no-referrer" alt="">
+        <div><b>${icon('check', 16)} ${igual ? 'A capa de agora já é a certa' : 'Capa trocada pela certa'}</b><p class="muted">${de}</p></div>`);
     };
     $('[data-no]', dlg).onclick = () => done(false);
   }, { folha: true });
@@ -9678,7 +9733,7 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     // Na biblioteca, respeita a capa escolhida manualmente pela pessoa.
     // O selo "E" vem na mesma busca da capa: na música com capa própria (que não troca), a busca é feita só para
     // saber se é explícita, e o selo entra na linha assim que chega (antes só aparecia ao abrir a música)
-    const trocaCapa = busca || capaTrocavel(item.cover || item.capa || '');
+    const trocaCapa = busca || capaProvisoria(item.cover || item.capa || '');
     if (!trocaCapa && explicitaGuardada(titulo, artista) === undefined) {
       capaOficial(titulo, artista).then(() => porSeloExplicita(linha, titulo, artista)).catch(() => {});
     }
@@ -9819,29 +9874,33 @@ function capasCandidatas(titulo, artista) {
       // Deezer fica como reserva; ambas passam pelo filtro de título e artista para evitar capas de homônimos.
       // Não descartar o Deezer quando o iTunes devolve uma URL 1000x1000 que não abre.
       // A escolha final é feita pela dimensão real carregada, não só pelo tamanho escrito na URL.
-      return [...itunes, ...deezer];
+      // (as que são a gravação da música, de qualquer das duas, antes das coletâneas e das outras gravações: o iTunes só
+      // com a coletânea não passa à frente do single do Deezer)
+      const peso = { '': 0, coletanea: 1, outra: 2 };
+      return [...itunes, ...deezer].map((c, i) => ({ c, i, p: peso[problemaDaCapa(c, musica)] ?? 0 }))
+        .sort((x, y) => x.p - y.p || x.i - y.i).map((x) => x.c);
     })().catch(() => []);
     capasDaBusca.set(k, busca.then((l) => { if (!l.length) capasDaBusca.delete(k); return l; }));
   }
   return capasDaBusca.get(k);
 }
 async function maiorCapaDisponivel(candidatas) {
-  const testar = (c) => new Promise((resolve) => {
+  const testar = (c, i) => new Promise((resolve) => {
     if (!c?.url) return resolve(null);
     const img = imagemSemReferer();
     let terminou = false;
     const fim = (valor) => { if (terminou) return; terminou = true; resolve(valor); };
     img.onload = () => fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
-      ? { ...c, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+      ? { ...c, i, largura: img.naturalWidth, altura: img.naturalHeight } : null);
     img.onerror = () => fim(null);
     img.src = c.url;
     if (img.complete) fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
-      ? { ...c, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+      ? { ...c, i, largura: img.naturalWidth, altura: img.naturalHeight } : null);
   });
   // Testa algumas candidatas por fonte; não confia no "1000x1000" do endereço se o servidor entregar miniatura.
+  // (a escolhida é a primeira da ordem que abre; o tamanho só desempata o mesmo álbum: lib/capas.js, escolherCapa)
   const validas = (await Promise.all(candidatas.slice(0, 10).map(testar))).filter(Boolean);
-  validas.sort((a, b) => (b.largura * b.altura) - (a.largura * a.altura) || (b.rank || 0) - (a.rank || 0));
-  return validas[0] || null;
+  return escolherCapa(validas);
 }
 function capaOficial(titulo, artista) {
   const k = chaveDaCapa(titulo, artista);
@@ -9862,6 +9921,24 @@ function capaOficial(titulo, artista) {
   return navigator.onLine
     ? valorDaInternet('capa', `capa:${normalizar(k)}`, capasOficiais.get(k))
     : comUltimoValor('capa', k, capasOficiais.get(k));
+}
+// Confere a capa da música salva: { antes (a de agora), atual (como ela está entre as achadas: { album, fonte } ou
+// null), problema ('coletanea' | 'outra' | 'nao-achada' | ''), certa (a capa da música: { url, album, fonte } ou null),
+// trocar (a de agora não serve e a certa é outra) }. A capa automática só é trocada com o problema provado (de uma
+// coletânea ou de outra gravação): a que não aparece na busca de hoje fica, para a capa não mudar à toa. null: sem
+// internet ou sem resposta (tenta outra vez)
+async function conferirCapa(song) {
+  if (!song?.title || !song?.artist || !navigator.onLine) return null;
+  const lista = await noMaximo(capasCandidatas(song.title, song.artist), 20000, null);
+  if (lista === null) return null;
+  const musica = { titulo: tituloLimpo(song.title), artista: artistaDaCapa(song.artist) };
+  const antes = song.cover || '';
+  const chave = chaveDaImagem(antes);
+  const atual = antes ? lista.find((c) => chaveDaImagem(c.url) === chave) || null : null;
+  const certa = lista.length ? await maiorCapaDisponivel(lista) : null;
+  const problema = !capaAutomatica(antes) ? '' : atual ? problemaDaCapa(atual, musica) : 'nao-achada';
+  const outra = Boolean(certa && chaveDaImagem(certa.url) !== chave);
+  return { antes, atual, problema, certa, trocar: outra && (problema === 'coletanea' || problema === 'outra') };
 }
 // (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
 async function fotoDeezer(nome, titulo = '') {
@@ -11695,9 +11772,10 @@ function htmlDaEstante(e, grade) {
   const cv = e.art ? `<div class="cover capa-artista" data-artista-foto data-nome="${esc(e.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 28)}</div>`
     : capaRepertorio(e.set);
   const sub = e.art ? 'Artista' : `${tipoDoSet(e.set)} • ${qtdMusicas(e.set.items.length)}`;
+  const pino = e.set?.fixada ? `<span class="pino">${icon('fixado', 13)}</span>` : '';
   const attrs = e.art ? `class="${grade ? 'bib-card' : 'track clickable'} bib-art" data-artista="${esc(e.nome)}"` : `class="${grade ? 'bib-card' : 'track clickable'} lib-item" data-k="${e.k}"`;
-  return grade ? `<li ${attrs}>${marca}${cv}<b>${esc(e.nome)}</b><small>${esc(sub)}</small></li>`
-    : `<li ${attrs}>${marca}${cv}<div class="info"><div class="t">${esc(e.nome)}</div><div class="s">${esc(sub)}</div></div><span class="acts"></span></li>`;
+  return grade ? `<li ${attrs}>${marca}${cv}<b>${esc(e.nome)}</b><small>${pino}${esc(sub)}</small></li>`
+    : `<li ${attrs}>${marca}${cv}<div class="info"><div class="t">${esc(e.nome)}</div><div class="s">${pino}${esc(sub)}</div></div><span class="acts"></span></li>`;
 }
 // o + do topo da biblioteca
 async function criarNaBiblioteca() {
@@ -11724,7 +11802,8 @@ function viewEstante(filtro = 'tudo', { selecionando = false, marcados = new Set
   const grade = prefBib('modo', 'grade') === 'grade';
   const ordem = ORDENS_ESTANTE.find(([k]) => k === prefBib('ordem', 'recentes'))?.[0] || 'recentes';
   const passa = { tudo: () => true, repertorios: (e) => e.tipo === 'repertorio', playlists: (e) => e.tipo === 'playlist', artistas: (e) => e.tipo === 'artista', baixados: (e) => e.set && setBaixado(e.set) }[filtro];
-  const itens = ordenarEstante(entradasDaEstante().filter(passa), ordem);
+  // (as fixadas pela pessoa vêm logo depois das Músicas curtidas e das Baixadas, na ordem escolhida entre elas)
+  const itens = ordenarEstante(entradasDaEstante().filter(passa), ordem).sort((a, b) => Number(Boolean(b.set?.fixada)) - Number(Boolean(a.set?.fixada)));
   const sets = itens.filter((e) => e.set);
   // as fixadas no topo (como as Músicas Curtidas do Spotify): abrem as músicas salvas e as baixadas
   const fixadas = [
@@ -11803,13 +11882,52 @@ function viewEstante(filtro = 'tudo', { selecionando = false, marcados = new Set
     redesenhar(false);
   };
   $('#sel-excluir').onclick = () => excluir([...marcados]);
-  // segurar o dedo num repertório entra no modo de seleção (para excluir)
+  // segurar o dedo numa playlist ou num repertório abre a folha de baixo (no celular e no tablet): fixar no topo,
+  // renomear, trocar a capa, excluir ou selecionar várias (para excluir de uma vez). Antes, segurar já entrava na
+  // seleção, sem as outras opções
+  const menuDoItem = async (id) => {
+    const set = db.set(id);
+    if (!set) return;
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch { /* sem vibração */ }
+    const tipo = tipoDoSet(set).toLowerCase();
+    const v = await escolherNaLista({ menu: true, cls: 'bib-folha', cabeca: `${capaRepertorio(set)}<span class="lista-txt"><b>${esc(set.name)}</b><small>${esc(tipoDoSet(set))} • ${qtdMusicas(set.items.length)}</small></span>`, opcoes: [
+      { valor: 'fixar', rotulo: set.fixada ? 'Desafixar' : 'Fixar no topo', ic: 'fixado' },
+      { valor: 'renomear', rotulo: 'Renomear', ic: 'edit' },
+      { valor: 'capa', rotulo: 'Trocar a capa', ic: 'imagem' },
+      set.capa && { valor: 'capa-auto', rotulo: 'Usar a capa automática', ic: 'refresh' },
+      { valor: 'selecionar', rotulo: 'Selecionar várias', ic: 'check' },
+      { valor: 'excluir', rotulo: `Excluir ${tipo}`, ic: 'trash' },
+    ].filter(Boolean) });
+    const atual = db.set(id);
+    if (!v || !atual) return;
+    if (v === 'fixar') {
+      if (atual.fixada) delete atual.fixada; else atual.fixada = true;
+      db.saveSet(atual);
+      desenharLateral();
+      toast(atual.fixada ? `“${atual.name}” no topo da biblioteca` : `“${atual.name}” saiu do topo`);
+      redesenhar(false);
+    }
+    if (v === 'renomear') {
+      const nome = await ask({ title: `Renomear ${tipo}`, value: atual.name, ok: 'Salvar' });
+      if (!nome || nome === atual.name) return;
+      db.saveSet({ ...db.set(id), name: nome });
+      desenharLateral();
+      toast('Nome trocado');
+      redesenhar(false);
+    }
+    if (v === 'capa') trocarCapaDoSet(atual, () => { toast('Capa trocada'); redesenhar(false); });
+    if (v === 'capa-auto') { delete atual.capa; db.saveSet(atual); desenharLateral(); redesenhar(false); }
+    if (v === 'selecionar') { marcados.add(id); redesenhar(true); }
+    if (v === 'excluir') excluir([id]);
+  };
   let segurar = null;
   lib.addEventListener('pointerdown', (e) => {
     const li = e.target.closest('.lib-item');
     if (!li || selecionando || e.target.closest('button, a')) return;
-    segurar = setTimeout(() => { segurar = 'feito'; marcados.add(li.dataset.k); redesenhar(true); }, 550);
+    segurar = setTimeout(() => { segurar = 'feito'; void menuDoItem(li.dataset.k); }, 550);
   });
+  // (o menu do toque longo do navegador, o "copiar" do celular, não abre por cima)
+  lib.addEventListener('contextmenu', (e) => { const li = e.target.closest('.lib-item'); if (!li || selecionando) return; e.preventDefault(); if (segurar !== 'feito') { const dedo = Boolean(segurar); clearTimeout(segurar); segurar = dedo ? 'feito' : null; void menuDoItem(li.dataset.k); } });
   const soltar = () => { if (segurar !== 'feito') clearTimeout(segurar); };
   lib.addEventListener('pointerup', soltar);
   lib.addEventListener('pointercancel', soltar);
@@ -16562,7 +16680,7 @@ function compartilharPlaylist(set) {
   compartilhar({ title: set.name, text: [set.name, set.descricao, '', ...linhas].filter((x) => x !== undefined).join('\n').trim() });
 }
 // escolhe uma foto do aparelho para a capa
-function trocarCapaDoSet(set) {
+function trocarCapaDoSet(set, depois = () => viewSet(set.id)) {
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'image/*';
@@ -16574,7 +16692,7 @@ function trocarCapaDoSet(set) {
       atual.capa = await capaDeArquivo(f);
       db.saveSet(atual);
       desenharLateral();
-      viewSet(set.id);
+      depois();
     } catch { toast('Não foi possível abrir esta imagem'); }
   };
   inp.click();
@@ -17821,7 +17939,7 @@ function viewSettings(topico) {
       <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>
     </div>`}
     <div class="settings-group">
-      <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Músicas, repertórios e ajustes deste aparelho</div></div><button class="btn small danger" id="clr">Apagar</button></div>
+      <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Limpa a conta: músicas, playlists, partituras, downloads, histórico e ajustes</div></div><button class="btn small danger" id="clr">Apagar</button></div>
     </div>`)}
 
     ${secao('Sobre', `
@@ -17936,16 +18054,36 @@ function viewSettings(topico) {
   aoSair(() => clearInterval(relogioResumo));
   $('#exp').onclick = () => download(`songbook-backup-${hojeISO()}.json`, db.exportAll(), 'application/json');
   $('#imp').onclick = openImport;
+  // Apagar tudo: limpa a conta inteira, e não só este aparelho. Antes ele saía da conta e apagava só o aparelho; como a
+  // conta é obrigatória, ao entrar de novo a nuvem trazia tudo de volta (as playlists, as músicas) e só os downloads
+  // tinham sumido. Agora: a nuvem primeiro (os outros aparelhos também ficam vazios); depois, neste aparelho, a
+  // biblioteca, os repertórios, os downloads, os karaokês, o que foi ouvido, os ajustes e o que ficou guardado. A
+  // pessoa continua na conta, vazia, e o app abre de novo do zero
   $('#clr').onclick = async () => {
     const naConta = Boolean(usuarioConta());
-    if (!(await ask({ title: 'Apagar tudo?', text: naConta ? 'Todas as músicas e repertórios deste aparelho serão removidos e a sua conta sai deste aparelho. A cópia na sua conta Google continua: é só entrar de novo para ela voltar.' : 'Todas as músicas e repertórios deste aparelho serão removidos. Faça um backup antes.', ok: 'Apagar tudo', danger: true }))) return;
-    // (com a conta: sai dela antes, senão o apagar iria para a nuvem e para os outros aparelhos)
-    if (naConta) await sairDaConta();
+    if (!(await ask({ title: 'Apagar tudo?', text: `Tudo será apagado${naConta ? ' da sua conta e deste aparelho' : ' deste aparelho'}: músicas, playlists e repertórios, partituras, downloads, karaokês, estatísticas, o histórico e os ajustes.${naConta ? ' Os outros aparelhos com a sua conta também ficam vazios.' : ''} Não dá para desfazer.`, ok: 'Apagar tudo', danger: true }))) return;
+    const botao = $('#clr');
+    botao.disabled = true;
+    botao.innerHTML = '<span class="spin"></span> Apagando…';
+    const falhou = (msg) => { botao.disabled = false; botao.textContent = 'Apagar'; void ask({ title: 'Nada foi apagado', text: msg, ok: 'Entendi', cancel: '' }); };
+    if (naConta) {
+      try { await apagarTudoDaConta(); } catch (e) { falhou(`${e?.message || 'A nuvem não respondeu.'} A sua conta e este aparelho continuam como estavam.`); return; }
+    }
+    try { player.fechar(); } catch { /* sem nada tocando */ }
+    await removerTodosDownloads().catch(() => {});
+    await limparAudios(new Set()).catch(() => {});
+    if ('caches' in window) await Promise.all([CACHE_BAIXADOS, CACHE_COMPARTILHADO, CACHE_LUMEN].map((c) => caches.delete(c).catch(() => {})));
+    // (os guardados do app; ficam só a conta, para continuar entrado, e a base dela, que acabou de ser zerada)
+    try {
+      const u = usuarioConta();
+      const ficam = new Set(['songbook.conta', u ? `songbook.conta.${u.uid}` : '']);
+      for (const k of Object.keys(localStorage)) if (k.startsWith('songbook.') && !ficam.has(k)) localStorage.removeItem(k);
+    } catch { /* sem armazenamento */ }
     db.clear();
-    applyTheme();
-    desenharLateral();
-    toast('Dados apagados');
-    viewSettings();
+    if (typeof indexedDB !== 'undefined') for (const b of ['songbook-copia', 'songbook-arquivos']) { try { indexedDB.deleteDatabase(b); } catch { /* fica */ } }
+    // (de novo do zero: o que estava na memória, como o que se ouviu, não volta a ser gravado)
+    location.hash = '#/';
+    location.reload();
   };
 }
 

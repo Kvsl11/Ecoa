@@ -141,6 +141,44 @@ export async function sairDaConta() {
   await ecoaNativo()?.sairDoGoogle().catch(() => {}); // (no Android: na próxima entrada, ele pergunta a conta de novo)
 }
 
+// Apagar tudo da conta: cada item da nuvem (músicas, repertórios, tocadas, o que se ouviu em cada aparelho) vira um item
+// apagado (sem dados), o mesmo sinal de uma exclusão comum: os outros aparelhos também apagam na próxima sincronia. A
+// pessoa continua na conta, com ela vazia. Devolve quantos itens foram apagados. Sem internet ou com a nuvem recusando,
+// dá erro e nada é apagado aqui (quem chama apaga o aparelho só depois)
+export async function apagarTudoDaConta() {
+  const u = usuarioConta();
+  if (!u) return 0;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Sem conexão com a internet: a conta só é limpa com internet.');
+  clearTimeout(relogio);
+  relogio = 0;
+  // (espera a sincronia que estiver no meio, para ela não subir de novo o que vai ser apagado)
+  for (let i = 0; rodando && i < 120; i++) await new Promise((ok) => setTimeout(ok, 500));
+  rodando = true;
+  try {
+    const { auth, fs, F } = await carregarSdk();
+    await auth.authStateReady();
+    if (auth.currentUser?.uid !== u.uid) throw new Error('A sessão da conta acabou: entre de novo e tente outra vez.');
+    const col = F.collection(fs, 'usuarios', u.uid, 'itens');
+    const snap = await comPrazo(F.getDocs(col), 30e3);
+    const ids = [];
+    snap.forEach((d) => { if (typeof d.data().dados === 'string') ids.push(d.id); });
+    for (let i = 0; i < ids.length; i += 400) {
+      const lote = F.writeBatch(fs);
+      for (const k of ids.slice(i, i + 400)) lote.set(F.doc(col, k), { dados: null, mod: F.serverTimestamp() });
+      await comPrazo(lote.commit(), 60e3);
+    }
+    // (a base fica vazia: daqui em diante o aparelho e a nuvem começam do zero)
+    estadoConta.ultima = Date.now();
+    gravarJSON(chaveBase(u.uid), { puxado: Date.now(), base: {}, ultima: estadoConta.ultima });
+    return ids.length;
+  } catch (e) {
+    throw new Error(mensagemDoErro(e), { cause: e });
+  } finally {
+    rodando = false;
+    pendente = false;
+  }
+}
+
 // o nome que aparece no perfil (Editar): fica na conta Google do app (vale nos outros aparelhos)
 export async function editarNomeDaConta(nome) {
   const u = usuarioConta();
