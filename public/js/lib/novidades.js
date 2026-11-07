@@ -4,9 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco e os downloads sempre com o vídeo',
+    versao: 588, data: '2026-11-07', titulo: 'O "Conexão lenta" só quando está mesmo lenta',
     itens: [
       { tipo: 'correcao', texto: 'Nos dados móveis, o aviso "Conexão lenta" aparecia o tempo todo, mesmo com a internet boa: ele vinha da estimativa de velocidade do celular, que nos dados móveis costuma ser baixa e fixa. Agora o app confirma com uma medida de verdade (pedidos pequenos à internet, cronometrados) e só avisa quando a conexão está mesmo lenta; quando melhora, o aviso sai sozinho.' },
+    ],
+  },
+  {
+    versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco e os downloads sempre com o vídeo',
+    itens: [
       { tipo: 'correcao', texto: 'No app de Android, a tela Ajustes → Avançado mostrava um pedaço de cartão vazio em cima do "Apagar tudo". Saiu.' },
       { tipo: 'melhoria', texto: 'Em Ajustes → Downloads, saiu a escolha "O que baixar": as músicas são baixadas sempre com o áudio e o clipe. Quem tinha escolhido "Só o áudio" recebe sozinho, em segundo plano, o clipe das músicas já baixadas.' },
       { tipo: 'melhoria', texto: 'Os avisos "Conexão lenta" e "Conectado novamente", embaixo do menu, aparecem em branco, como o "Você está offline" (antes eram laranja e verde).' },
@@ -74,13 +79,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No app de Android, as informações da música e do artista (a foto e o canal do artista, as cifras, as letras) são buscadas direto pelo próprio celular, sem os serviços intermediários que falhavam: o "Sobre o artista" e os créditos vêm mais completos. Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, o "Consertar agora" do diagnóstico ficava minutos girando, esperando um servidor que o app não usa mais. Agora ele termina logo e também conserta o que é do celular: atualiza o baixador quando falta baixar alguma parte e refaz o karaokê que sumiu do aparelho. O diagnóstico ganhou a parte "App de Android", que mostra se o baixador, a busca direta, o Lúmen e o karaokê do celular estão funcionando.' },
       { tipo: 'melhoria', texto: 'Na barrinha da música, arrastar o nome para o lado troca de música como no Spotify: o nome acompanha o dedo e a próxima entra pelo outro lado. Uma passada rápida, mesmo curta, já troca.' },
-    ],
-  },
-  {
-    versao: 578, data: '2026-11-06', titulo: 'A partitura no próprio celular e as Novidades certas no app de Android',
-    itens: [
-      { tipo: 'novo', texto: 'No app de Android, a partitura pelo vídeo da música é feita no próprio celular, sem o servidor: o app baixa o áudio (ou usa o já baixado) e escreve a partitura ali mesmo.' },
-      { tipo: 'correcao', texto: 'No app de Android, a tela Novidades passava da largura da tela (o texto era cortado à direita) e mostrava o número de versão do site. Agora cabe na tela e mostra a versão do app em que cada novidade chegou (quando o app sabe; senão, só a data).' },
     ],
   },
 ];
