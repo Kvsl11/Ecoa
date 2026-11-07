@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 605, data: '2026-11-07', titulo: 'Busca e ordenação de "Músicas curtidas" reformuladas',
+    itens: [
+      { tipo: 'melhoria', texto: 'Em "Músicas curtidas" (celular, tablet, web e aplicativo Android), a busca e o botão de ordem passaram a ficar acima do título, fora da área visível ao abrir a página; ambos aparecem ao puxar a página para baixo e desaparecem gradualmente ao rolar. O campo passou a se chamar "Buscar na playlist", com fundo translúcido sobre o degradê, e o botão de ordem passou a se chamar "Ordenar". Com poucas músicas, a página recebe a altura necessária para que a busca permaneça oculta ao abrir.' },
+      { tipo: 'novo', texto: 'Tocar no campo de busca abre o modo de busca: a seta de voltar e o campo ficam fixos no topo, seguidos dos filtros e da lista filtrada; o título, os botões e "Adicionar a esta playlist" são ocultados até a saída pela seta, que também limpa o texto digitado.' },
+      { tipo: 'novo', texto: '"Ordenar" passou a abrir a folha "Ordenar por", com as opções Título, Artista, Álbum e Adicionadas recentemente; a ordem em uso aparece em destaque, com o sinal de confirmação. Antes, o botão alternava apenas entre a ordem recente e a alfabética.' },
+    ],
+  },
+  {
     versao: 604, data: '2026-11-07', titulo: 'Indicadores de fixação e de download na biblioteca',
     itens: [
       { tipo: 'melhoria', texto: 'Na biblioteca (celular e tablet), o alfinete verde dos itens fixados foi ampliado de 13 px para 16 px (de 11 px para 15 px na grade do celular), alinhado à linha "Playlist • n músicas".' },
@@ -71,17 +79,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No aplicativo Android, todas as requisições externas eram encaminhadas à camada nativa e processadas em uma fila única, de modo que consultas leves aguardavam a conclusão de páginas extensas. Os serviços que admitem CORS (busca de artistas do Cifra Club, Piped, LRCLIB, Wikipédia, TheAudioDB, iTunes, MusicBrainz e oEmbed do YouTube) passaram a ser consultados diretamente pelo WebView, como na versão web. A camada nativa fica reservada às origens sem CORS (páginas do Cifra Club e do YouTube, Deezer) e atua como contingência. Em simulação, o volume na fila nativa caiu de cerca de 210 para 85 requisições, sem tempo de espera. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'A camada nativa deixou de encerrar a conexão HTTP após cada resposta: a conexão retorna ao pool e é reutilizada nas requisições seguintes à mesma origem, o que elimina um novo handshake TLS por requisição. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'No aplicativo Android, a validade do cache das páginas de artista do Cifra Club (página principal, discografia e lista completa, com cerca de 500 kB cada) foi ampliada de 5 minutos para 1 hora, evitando novo download a cada acesso.' },
-    ],
-  },
-  {
-    versao: 595, data: '2026-11-07', titulo: 'Redução do tráfego de rede na busca, na abertura de músicas e nos dados de artistas',
-    itens: [
-      { tipo: 'melhoria', texto: 'Foi identificado consumo excessivo de rede: abrir o aplicativo e realizar uma busca gerava cerca de 500 requisições e 57 MB de tráfego. As causas eram o download integral de três páginas do Cifra Club por artista apenas para obter a foto e o download da página de resultados do YouTube (cerca de 560 kB) em cada consulta de vídeo. A foto passou a ser obtida pelo índice de busca de artistas (cerca de 2 kB), com a página do artista como alternativa, e a página do YouTube passou a ser consultada somente quando o Piped não responde em 1,5 s. Instâncias do Piped indisponíveis ou com resposta inválida (403/404 em HTML) são excluídas após a primeira falha, e as requisições simultâneas aguardam a sondagem inicial. O mesmo fluxo passou a gerar cerca de 3 MB; o tempo até os resultados da busca caiu de 3,8 s para 0,8 s, e o de abertura da música, de 1,6 s para 0,9 s.' },
-      { tipo: 'melhoria', texto: 'A pré-carga automática dos três primeiros resultados da busca deixou de incluir a localização do áudio oficial (cinco consultas ao YouTube por música). A preparação completa ocorre apenas para a música selecionada.' },
-      { tipo: 'melhoria', texto: 'Os dados de artistas armazenados no aparelho (foto, apresentação, canal e dados da TheAudioDB) passaram a ter validade de 24 horas, sem nova consulta à rede nesse período. O canal do YouTube passou a ser consultado uma única vez por artista em cada sessão.' },
-      { tipo: 'melhoria', texto: 'Na seção "Sobre o artista", a apresentação é exibida assim que recebida, sem aguardar a fonte complementar (TheAudioDB). O acesso a "ver mais" é disponibilizado em até 2,5 s, e a consulta à Wikipédia passou a ter tempo limite.' },
-      { tipo: 'correcao', texto: 'O botão de salvar do player não reconhecia a música aberta pela busca enquanto o vídeo ainda não estava registrado na prévia, exibindo "Abra a música para salvar" ou apenas navegando até a página. A verificação foi corrigida, e a música passa a ser salva na biblioteca.' },
-      { tipo: 'melhoria', texto: 'As orações e o missal do dia (Pocket Terço) já armazenados no aparelho passaram a ser exibidos imediatamente, com a atualização do arquivo realizada em segundo plano.' },
     ],
   },
 ];
