@@ -4529,6 +4529,10 @@ dialog.folha.folha-cheia { height: 94dvh; max-height: 94dvh !important; }
 dialog.folha .folha-cab { position: sticky; top: 0; z-index: 2; height: 22px; background: var(--surface); touch-action: none; cursor: grab; user-select: none; }
 dialog.folha .folha-cab + .dlg { padding-top: 6px; }
 dialog.folha .dlg .acts { position: sticky; bottom: calc(-1 * env(safe-area-inset-bottom)); margin: 0 -22px -22px; padding: 12px 22px 18px; background: var(--surface); border-top: 1px solid var(--border); }
+/* o rodapé é só o da janela: o espaço dos botões de cada linha das listas (também .acts) ganhava a linha, o fundo e as
+   margens do rodapé, e aparecia um traço solto em cima de cada "Escolher" */
+dialog .dlg .track .acts { position: static; margin: 0; padding: 0; background: none; border: 0; flex-wrap: nowrap; justify-content: flex-start; }
+.dlg .track .acts .btn { flex: none; }
 dialog.lista-dlg.folha .lista-cab.menu-cab { padding-top: 22px; border-bottom: 0; touch-action: none; cursor: grab; }
 dialog.lista-dlg.folha .lista-cab h3 { flex: 1; min-width: 0; }
 /* (o menu ⋯ da música e o calendário, no celular, também com a alça: puxar para baixo fecha) */
@@ -6037,3 +6041,49 @@ dialog[open].saindo::backdrop { animation: menu-fundo-sai 0.2s ease forwards; }
 @keyframes pop-sai { to { opacity: 0; transform: scale(0.97); } }
 @keyframes menu-fundo-sai { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { dialog[open]::backdrop, dialog[open].saindo, dialog[open].saindo::backdrop { animation: none !important; } }
+
+/* ---- a janela de trocar o vídeo ou a música (áudio): o título e de que música é; a lista em linhas soltas (o fundo só
+   ao passar o dedo, sem traços entre elas), a miniatura maior com a duração, o nome em até duas linhas, a versão de agora
+   marcada; o link colado numa linha que abre; embaixo, Remover à esquerda e Cancelar à direita. Celular e tablet */
+dialog.yt-dlg .dlg { gap: 12px; }
+.yt-cab { display: grid; gap: 2px; margin-bottom: -4px; }
+.yt-cab p { margin: 0; }
+.yt-cab p { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+dialog.yt-dlg .lista-videos { margin: 0 -8px; padding: 0 2px; overscroll-behavior: contain; }
+dialog.yt-dlg .lista-videos .track { gap: 14px; padding: 8px; margin: 0; border-radius: 12px; }
+dialog.yt-dlg .lista-videos .track.atual { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+dialog.yt-dlg .video-thumb { width: 112px !important; height: 63px !important; border-radius: 8px !important; overflow: hidden; flex: none; }
+dialog.yt-dlg .video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+dialog.yt-dlg .video-thumb .dur { right: 4px; bottom: 4px; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+dialog.yt-dlg .lista-videos .track .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; font-size: 15px; }
+dialog.yt-dlg .lista-videos .track .s { margin-top: 3px; }
+.video-atual { flex: none; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--on-accent, #001318); font-size: 11px; font-weight: 800; }
+.video-escolher { border-radius: 999px; padding: 0 16px; background: var(--surface-2); border: 0; font-weight: 700; }
+.video-escolher:hover { background: var(--surface-3); }
+.video-em-uso { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px 0 4px; color: var(--accent-ink); font-size: 13px; font-weight: 700; white-space: nowrap; }
+dialog.yt-dlg .video-inline { padding: 4px 0 10px; }
+dialog.yt-dlg .video-inline .video-embed { border-radius: 12px; overflow: hidden; }
+/* o link colado: uma linha com o ícone, que abre o campo */
+dialog.yt-dlg .colar-link { border-radius: 12px; background: var(--surface-2); }
+dialog.yt-dlg .colar-link summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; list-style: none; color: var(--text); font-size: 15px; font-weight: 700; }
+dialog.yt-dlg .colar-link summary::-webkit-details-marker { display: none; }
+dialog.yt-dlg .colar-link .colar-ic { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--surface-3); color: var(--accent-ink); flex: none; }
+dialog.yt-dlg .colar-link summary .grow { flex: 1; min-width: 0; }
+dialog.yt-dlg .colar-link .colar-seta { display: inline-grid; color: var(--muted); transition: transform 0.2s; }
+dialog.yt-dlg .colar-link[open] .colar-seta { transform: rotate(180deg); }
+dialog.yt-dlg .colar-link > :not(summary) { margin-left: 14px; margin-right: 14px; }
+dialog.yt-dlg .colar-link .input-btn { margin-top: 0; }
+dialog.yt-dlg .colar-link > :last-child { margin-bottom: 14px; }
+/* o rodapé: o Remover discreto, em vermelho, à esquerda; o Cancelar à direita */
+dialog.yt-dlg .yt-acts { align-items: center; flex-wrap: nowrap; }
+dialog.yt-dlg .yt-acts .btn { flex: none; min-width: 120px; border-radius: 999px; }
+dialog.yt-dlg .yt-acts [data-rm] { min-width: 0; padding: 0 14px; gap: 8px; }
+@media (max-width: 600px) {
+  dialog.yt-dlg .video-thumb { width: 96px !important; height: 54px !important; }
+  dialog.yt-dlg .lista-videos .track .t { font-size: 14.5px; }
+  dialog.yt-dlg .video-escolher { padding: 0 12px; }
+}
+@media (min-width: 700px) {
+  /* (no tablet e no computador: as duas colunas de antes, com a mesma linha) */
+  dialog.yt-dlg .lista-videos { gap: 4px 10px; }
+}
