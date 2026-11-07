@@ -727,6 +727,26 @@ test('instâncias do Piped fora do ar ficam de fora por um tempo (não entopem a
   esquecerSaudeDasInstancias();
 });
 
+test('Piped: a instância que devolve uma página de erro (404 em HTML) sai, e as buscas juntas esperam o primeiro teste', async () => {
+  const { canalDoArtista, instanciasVivas, esquecerSaudeDasInstancias, PIPED } = await import('../public/js/lib/web.js');
+  esquecerSaudeDasInstancias();
+  const pedidos = [];
+  const fetchImpl = async (url) => {
+    pedidos.push(url);
+    await new Promise((ok) => setTimeout(ok, 5));
+    if (url.startsWith(PIPED[0])) return new Response('<html>não achei</html>', { status: 404, headers: { 'content-type': 'text/html' } });
+    if (url.startsWith(PIPED[1])) return new Response('', { status: 502 });
+    return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  // dez artistas ao mesmo tempo (a biblioteca abrindo): só o primeiro testa as fora do ar
+  await Promise.all(Array.from({ length: 10 }, (_, i) => canalDoArtista(`Artista ${i}`, { fetchImpl })));
+  const nas = (b) => pedidos.filter((u) => u.startsWith(b)).length;
+  assert.equal(nas(PIPED[0]), 1, 'a do 404 em HTML recebe só o teste');
+  assert.equal(nas(PIPED[1]), 1, 'a fora do ar recebe só o teste');
+  assert.ok(!instanciasVivas(PIPED).includes(PIPED[0]), 'a do 404 em HTML fica de fora');
+  esquecerSaudeDasInstancias();
+});
+
 test('corridaEscalonada: a lenta não segura as outras, e a primeira que dá certo vale', async () => {
   const { corridaEscalonada } = await import('../public/js/lib/web.js');
   const depois = (ms, v, erro = false) => () => new Promise((ok, falha) => setTimeout(() => (erro ? falha(new Error(v)) : ok(v)), ms));
