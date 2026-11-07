@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 601, data: '2026-11-07', titulo: 'Tela de entrada redesenhada',
+    itens: [
+      { tipo: 'melhoria', texto: 'A tela de entrada foi simplificada. Foram removidos o mural animado de quadros de clipes ao fundo, o indicador de música em reprodução no canto superior, as etiquetas de recursos e o título em duas cores. A tela passou a exibir, centralizados sobre fundo escuro liso com brilho suave na cor do aplicativo, o logotipo com três anéis concêntricos que se expandem lentamente a partir dele, o título em cor única, a descrição e o botão "Entrar com o Google". O mesmo layout é aplicado ao celular, ao tablet e ao computador. Com a remoção do mural, a tela deixou de baixar cerca de 45 imagens do YouTube ao abrir. Aplica-se à versão web e ao aplicativo Android.' },
+    ],
+  },
+  {
     versao: 600, data: '2026-11-07', titulo: 'Cabeçalho do tablet afastado da barra de status do Android',
     itens: [
       { tipo: 'correcao', texto: 'No tablet, em orientação retrato e paisagem, a foto do perfil e os botões do cabeçalho, bem como o topo do painel "Tocando agora" (o título, o botão de recolher e o menu ⋮), ficavam sobrepostos à hora e aos ícones de rede da barra de status do Android. A regra de estilo específica do tablet definia um espaçamento superior fixo de 12 px, que substituía o espaçamento da área segura (env(safe-area-inset-top)) aplicado nos demais aparelhos; o painel "Tocando agora" não reservava essa área. O espaçamento superior passou a somar a altura da barra de status no cabeçalho, no painel lateral, na tela cheia e na barra fixa exibida ao rolar o painel.' },
@@ -74,13 +80,6 @@ export const NOVIDADES = [
     versao: 592, data: '2026-11-07', titulo: 'Android: geração de partitura exclusivamente por IA no aparelho',
     itens: [
       { tipo: 'melhoria', texto: 'No aplicativo Android, a geração de partitura deixou de solicitar a seleção de um arquivo de áudio: o modelo de IA executado no aparelho utiliza sempre o áudio da própria música. Em caso de falha (por exemplo, música sem vídeo), são oferecidas as opções de nova tentativa ou de criação manual no editor. A opção "Abrir MusicXML" foi removida da tela inicial do editor no aplicativo.' },
-    ],
-  },
-  {
-    versao: 591, data: '2026-11-07', titulo: 'Desempenho na geração de partituras e de karaokê',
-    itens: [
-      { tipo: 'melhoria', texto: 'A transcrição de partituras no aparelho passou a utilizar um motor de inferência mais eficiente, com resultado idêntico: em teste, 15 segundos de áudio foram processados em 2 segundos (antes, 28). A memória de cada segmento passou a ser liberada após o processamento, o que elimina a degradação progressiva de desempenho, e as músicas longas deixaram de exceder o limite de memória da GPU.' },
-      { tipo: 'melhoria', texto: 'No aplicativo Android, a separação de voz para o karaokê passou a operar em pipeline: enquanto o modelo processa um segmento, o seguinte é preparado e o anterior é gravado (antes, as etapas eram sequenciais). Os dois canais estéreo passaram a ser processados em conjunto, e o modelo permanece carregado entre uma música e outra. O resultado sonoro é o mesmo. Disponível mediante atualização do aplicativo.' },
     ],
   },
 ];

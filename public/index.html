@@ -64,20 +64,14 @@
 </head>
 <body>
   <section id="entrada" class="entrada" aria-labelledby="entrada-titulo">
-    <!-- o fundo: um mural de quadros de clipes famosos, passando devagar (montado pelo script logo abaixo) -->
-    <div class="entrada-mural" id="entrada-mural" aria-hidden="true"></div>
-    <div class="entrada-veu" aria-hidden="true"></div>
+    <!-- o fundo: escuro e liso, com um brilho suave na cor do app e as ondas do eco saindo do logo (só CSS) -->
+    <div class="entrada-luz" aria-hidden="true"></div>
     <div class="entrada-conteudo">
-      <div class="entrada-marca"><img class="entrada-logo" src="icon.svg" alt="" width="56" height="56"><span>Ecoa</span></div>
-      <h1 id="entrada-titulo">Ouça.<br><em>Cante.</em><br>Ecoe.</h1>
-      <p class="entrada-frase">Músicas com cifra, letra sincronizada e clipe, os seus repertórios e a liturgia do dia, num app só.</p>
-      <ul class="entrada-lista">
-        <li>Cifra e letra</li>
-        <li>Clipes</li>
-        <li>Karaokê</li>
-        <li>Missa do dia</li>
-        <li>Partituras</li>
-      </ul>
+      <div class="entrada-eco" aria-hidden="true"><i></i><i></i><i></i></div>
+      <img class="entrada-logo" src="icon.svg" alt="" width="72" height="72">
+      <p class="entrada-marca">Ecoa</p>
+      <h1 id="entrada-titulo">Ouça, cante<br>e ecoe.</h1>
+      <p class="entrada-frase">Cifra, letra sincronizada e clipe, os seus repertórios e a liturgia do dia, num app só.</p>
       <button class="entrada-google" id="entrada-google" type="button">
         <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
         <span id="entrada-rotulo">Entrar com o Google</span>
@@ -85,60 +79,7 @@
       <p class="entrada-erro" id="entrada-erro" role="alert"></p>
       <p class="entrada-nota">Você entra uma vez e continua entrado neste aparelho até tocar em Sair.</p>
     </div>
-    <p class="entrada-tocando" id="entrada-tocando" aria-hidden="true"></p>
   </section>
-  <script>
-    // O mural da tela de entrada: quadros (os que o YouTube tira de cada clipe) de clipes famosos, em fileiras
-    // inclinadas que passam devagar, umas para cada lado. Só é montado quando a tela de entrada aparece (quem já entrou
-    // não baixa nada). O app chama de novo ao sair da conta
-    window.__montarMural = function () {
-      var mural = document.getElementById('entrada-mural');
-      if (!mural || mural.childElementCount) return;
-      // [vídeo, música, artista, quadros com imagem: 1, 2 e 3 = de 1/4, 1/2 e 3/4 do clipe; d = a capa do vídeo]
-      // (ficam só os quadros em que o artista aparece; os pretos ou escuros demais e as capas com letreiros grandes ficam
-      // de fora: no Billie Jean, os três quadros são pretos; no Thriller, fica o Michael de monstro, de olhos amarelos)
-      var clipes = [
-        ['Zi_XLOBDo_Y', 'Billie Jean', 'Michael Jackson', 'd'], ['kPa7bsKwL-c', 'Die With A Smile', 'Lady Gaga e Bruno Mars', '123'],
-        ['kffacxfA7G4', 'Baby', 'Justin Bieber', 'd23'], ['A_MjCqQoLLA', 'Hey Jude', 'The Beatles', '123'],
-        ['eVli-tstM5E', 'Espresso', 'Sabrina Carpenter', '123'], ['sOnqjkJTMaA', 'Thriller', 'Michael Jackson', '3'],
-        ['UqyT8IEBkvY', '24K Magic', 'Bruno Mars', '23d'], ['qrO4YZeyl0I', 'Bad Romance', 'Lady Gaga', '12d'],
-        ['KQetemT1sWc', 'Here Comes The Sun', 'The Beatles', '2'], ['tQ0yjYUFKAE', 'Peaches', 'Justin Bieber', '1d'],
-        ['fJ9rUzIMcZQ', 'Bohemian Rhapsody', 'Queen', 'd12'], ['cF1Na4AIecM', 'Please Please Please', 'Sabrina Carpenter', '12'],
-        ['oRdxUFDoQe0', 'Beat It', 'Michael Jackson', '2'], ['OPf0YbXqDm0', 'Uptown Funk', 'Mark Ronson e Bruno Mars', 'd1'],
-        ['bESGLojNYSo', 'Poker Face', 'Lady Gaga', '123d'], ['DK_0jXPuIr0', 'What Do You Mean?', 'Justin Bieber', 'd2'],
-        ['UelDrZ1aFeY', 'Something', 'The Beatles', '13'], ['PMivT7MJ41M', 'That’s What I Like', 'Bruno Mars', '3'],
-        ['TUVcZfQe-Kw', 'Levitating', 'Dua Lipa', '13'], ['79fzeNUqQbQ', 'Like A Prayer', 'Madonna', 'd12'],
-        ['nfWlot6h_JM', 'Shake It Off', 'Taylor Swift', '12'], ['eH3giaIzONA', 'I Wanna Dance With Somebody', 'Whitney Houston', '123'],
-        ['JGwWNGJdvx8', 'Shape of You', 'Ed Sheeran', 'd'], ['CevxZvSJLk8', 'Roar', 'Katy Perry', '123d'],
-      ];
-      var FILAS = 5, POR_FILA = 9, k = 0;
-      for (var f = 0; f < FILAS; f++) {
-        var fila = document.createElement('div');
-        fila.className = 'em-fila';
-        fila.style.setProperty('--dur', (70 + f * 13) + 's');
-        if (f % 2) fila.classList.add('volta');
-        var html = '';
-        for (var i = 0; i < POR_FILA; i++, k++) {
-          var c = clipes[(k * 5) % clipes.length];
-          var q = c[3].charAt(Math.floor(k / clipes.length) % c[3].length); // (a cada volta na lista, outro quadro do clipe)
-          html += '<figure class="em-quadro"><img src="https://i.ytimg.com/vi/' + c[0] + '/' + (q === 'd' ? 'hqdefault' : 'hq' + q) + '.jpg" alt="" decoding="async" referrerpolicy="no-referrer"><figcaption><b>' + c[2] + '</b>' + c[1] + '</figcaption></figure>';
-        }
-        fila.innerHTML = '<div class="em-trilho">' + html + html + '</div>'; // (duas vezes: a fileira dá a volta sem emenda)
-        mural.appendChild(fila);
-      }
-      // embaixo, o nome de um dos clipes do mural, trocando de tempos em tempos
-      var tocando = document.getElementById('entrada-tocando'), n = 0;
-      var mostrar = function () {
-        if (!document.documentElement.classList.contains('sem-conta')) return;
-        var c = clipes[n++ % clipes.length];
-        tocando.classList.remove('vis');
-        setTimeout(function () { tocando.innerHTML = '<span class="eq"><i></i><i></i><i></i></span><b>' + c[2] + '</b><span class="m">' + c[1] + '</span>'; tocando.classList.add('vis'); }, 400);
-      };
-      mostrar();
-      setInterval(mostrar, 4500);
-    };
-    if (document.documentElement.classList.contains('sem-conta')) window.__montarMural();
-  </script>
   <div class="shell">
     <aside class="side">
       <div class="brand-row">
