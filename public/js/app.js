@@ -21256,7 +21256,7 @@ if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
   // (as páginas da internet lidas pela parte nativa, direto: sem a trava de CORS e sem depender dos serviços públicos
   // que abrem a página por nós — as informações do artista e da música vinham faltando no app)
-  if ((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina')) {
+  if (typeof ecoaNativo.buscarPagina === 'function') {
     usarBuscaNativa(async (url, { headers = {}, timeout = 12000 } = {}) => {
       const r = await ecoaNativo.buscarPagina({ url, cabecalhos: headers, tempo: timeout });
       if (!r?.status) throw new TypeError(r?.texto || 'Failed to fetch');
