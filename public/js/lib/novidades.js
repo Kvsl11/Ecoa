@@ -8,7 +8,8 @@ export const NOVIDADES = [
     versao: 604, data: '2026-11-07', titulo: 'Indicadores de fixação e de download na biblioteca',
     itens: [
       { tipo: 'melhoria', texto: 'Na biblioteca (celular e tablet), o alfinete verde dos itens fixados foi ampliado de 13 px para 16 px (de 11 px para 15 px na grade do celular), alinhado à linha "Playlist • n músicas".' },
-      { tipo: 'novo', texto: 'Playlists e repertórios cujas músicas com áudio ou vídeo estão todas baixadas no aparelho passaram a exibir, ao lado do alfinete, o círculo verde com a seta de download, no mesmo tamanho. O indicador também aparece em "Músicas curtidas", quando todas estão baixadas, e em "Baixadas".' },
+      { tipo: 'novo', texto: 'Playlists e repertórios cujas músicas com áudio ou vídeo estão todas baixadas no aparelho passaram a exibir, ao lado do alfinete, o círculo verde com a seta de download, no mesmo tamanho. O indicador também aparece em "Músicas curtidas", quando todas estão baixadas.' },
+      { tipo: 'melhoria', texto: 'O cartão fixo "Baixadas" foi removido da biblioteca (celular, tablet, web e aplicativo Android), por repetir as músicas já reunidas em "Músicas curtidas", que passou a indicar quando estão todas baixadas. A lista das músicas baixadas continua acessível em Configurações → Músicas baixadas; o filtro "Baixadas" da biblioteca passou a listar apenas as playlists e os repertórios inteiramente baixados.' },
     ],
   },
   {

@@ -4370,12 +4370,10 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .pino { display: inline-grid; place-items: center; color: #1ed760; flex: none; margin-right: 5px; vertical-align: -3px; }
 .pino-baixada .ic { --on-accent: #000; }
 .bib-card .pino { margin-right: 4px; }
-/* a capa do coração (as músicas curtidas) e a das baixadas */
+/* a capa do coração (as músicas curtidas) */
 .capa-curtidas { display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #450af5 0%, #8e8ee5 60%, #c4efd9 100%); }
 .capa-curtidas .ic { fill: currentColor; width: 38%; height: 38%; }
-.capa-baixadas { display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #0d5c3a, #1ed760); }
-.capa-baixadas .ic { width: 38%; height: 38%; }
-.track > .capa-curtidas .ic, .track > .capa-baixadas .ic { width: 50%; height: 50%; }
+.track > .capa-curtidas .ic { width: 50%; height: 50%; }
 /* selecionar na grade: a bolinha no canto da capa */
 .bib-card .marca-sel { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgb(0 0 0 / 0.45); }
 #lib.selecionando .bib-card.bib-fixa { opacity: 0.4; pointer-events: none; }
