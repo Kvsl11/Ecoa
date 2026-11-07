@@ -10395,7 +10395,7 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
         filaImpressoes = filaImpressoes.then(() => {
           if (!img.isConnected) return;
           for (const [outra, ho] of impressoes) {
-            if (outra === img || !outra.isConnected || distanciaDeImpressoes(h, ho) > 10) continue;
+            if (outra === img || !outra.isConnected || distanciaDeImpressoes(h, ho) > 16) continue;
             // a mesma foto: fica uma só, no lugar da que vem antes (a do cartão nunca sai nem troca de imagem).
             // Nas outras, fica a imagem maior.
             const antes = outra.compareDocumentPosition(img) & Node.DOCUMENT_POSITION_FOLLOWING ? outra : img;
