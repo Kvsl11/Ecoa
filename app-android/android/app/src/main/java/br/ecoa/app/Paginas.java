@@ -62,6 +62,10 @@ final class Paginas {
                 r.tipo = c.getContentType() == null ? "" : c.getContentType();
                 InputStream in = st >= 400 ? c.getErrorStream() : c.getInputStream();
                 r.texto = ler(in, charset(r.tipo));
+                // (a resposta lida inteira e fechada devolve a conexão ao Android, que a usa de novo no próximo pedido ao
+                // mesmo site. O disconnect() fechava a conexão: cada pedido abria outra, com uma nova negociação segura,
+                // o que no 4G custa quase meio segundo por pedido)
+                c = null;
                 return r;
             }
             throw new IllegalStateException("redirecionamentos demais");

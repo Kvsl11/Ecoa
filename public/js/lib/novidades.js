@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 596, data: '2026-11-07', titulo: 'No app de Android, os pedidos à internet sem fila',
+    itens: [
+      { tipo: 'melhoria', texto: 'No app de Android, tudo o que vinha da internet (a busca do Cifra Club, os vídeos, as letras, as fotos e as informações dos artistas) passava, um pedido de cada vez, por uma fila só da parte do Android, e o que a tela precisava esperava atrás de páginas grandes. Agora os serviços que deixam são pedidos direto, como no site, e a fila fica só para as páginas que precisam dela (o Cifra Club, o YouTube, o Deezer). O Android também passou a reaproveitar a conexão com cada site, em vez de abrir uma nova a cada pedido. Vem com a atualização do app.' },
+      { tipo: 'melhoria', texto: 'No app de Android, as páginas dos artistas do Cifra Club (a principal, a discografia e todas as músicas) ficam guardadas por 1 hora, em vez de 5 minutos: abrir o artista ou a música de novo não baixa tudo outra vez.' },
+    ],
+  },
+  {
     versao: 595, data: '2026-11-07', titulo: 'A busca, a música e o artista abrindo bem mais rápido',
     itens: [
       { tipo: 'melhoria', texto: 'O app baixava muito mais do que precisava: só abrir o app e fazer uma busca puxava uns 57 MB da internet, em quase 500 pedidos (as páginas inteiras do Cifra Club de vários artistas só para pegar a foto deles, e páginas do YouTube de 560 kB para cada música da lista). No celular isso entupia a internet e tudo esperava na fila. Agora a mesma busca baixa uns 3 MB: os resultados aparecem em menos de 1 segundo (eram quase 4) e a música abre na metade do tempo.' },
@@ -68,12 +75,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No app de Android, a tela Ajustes → Avançado mostrava um pedaço de cartão vazio em cima do "Apagar tudo". Saiu.' },
       { tipo: 'melhoria', texto: 'Em Ajustes → Downloads, saiu a escolha "O que baixar": as músicas são baixadas sempre com o áudio e o clipe. Quem tinha escolhido "Só o áudio" recebe sozinho, em segundo plano, o clipe das músicas já baixadas.' },
       { tipo: 'melhoria', texto: 'Os avisos "Conexão lenta" e "Conectado novamente", embaixo do menu, aparecem em branco, como o "Você está offline" (antes eram laranja e verde).' },
-    ],
-  },
-  {
-    versao: 586, data: '2026-11-07', titulo: 'O voltar do Android que não fecha o app',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, o gesto de voltar (ou o botão) fechava o app inteiro. Agora ele volta como no navegador: fecha primeiro o que estiver aberto (uma janela, uma folha, o menu, a gaveta do perfil) e depois volta para a tela anterior. Na primeira tela, o app vai para o segundo plano, sem fechar, e a música continua tocando. Vem com a atualização do app.' },
     ],
   },
 ];
