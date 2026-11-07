@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 594, data: '2026-11-07', titulo: 'As fotos dos artistas que não carregavam',
+    itens: [
+      { tipo: 'correcao', texto: 'Na biblioteca, alguns artistas ficavam sem foto (só com o desenho) porque o site da foto recusava mostrá-la dentro do app, e a procura de novo trazia a mesma foto. Agora a foto é pedida sem dizer de qual site vem o pedido e, se ainda assim não carregar, o app tenta as outras fontes (YouTube, Cifra Club, Deezer e Wikipédia), uma depois da outra, até achar uma que carregue.' },
+      { tipo: 'correcao', texto: 'O artista sem foto mostra só o desenho do artista, sem a nota da música junto ou no lugar dele. Se ainda aparecer a nota e o microfone juntos, é a versão antiga: feche e abra o app para ele se atualizar.' },
+    ],
+  },
+  {
     versao: 593, data: '2026-11-07', titulo: 'Downloads na qualidade de verdade, até 4K, e as fotos dos artistas',
     itens: [
       { tipo: 'correcao', texto: 'O vídeo baixado podia vir em 360p mesmo com a "Muito alta" escolhida: quando o YouTube não dava a imagem boa por um caminho, o app aceitava a de 360p calado. Agora ele tenta pelos outros caminhos do YouTube e fica com a maior imagem que o vídeo tem. Os vídeos já baixados em 360p são baixados de novo sozinhos. Vem com a atualização do app.' },
@@ -64,18 +71,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Em "Adicionar a esta playlist", as músicas que já estão na playlist não aparecem mais na lista: só as que dá para adicionar.' },
       { tipo: 'correcao', texto: 'Em "Adicionar a esta playlist" (e ao escolher uma música), os botões Selecionar todas, Cancelar e Adicionar ficam sempre no rodapé, e a lista rola acima deles. Antes, com a folha puxada para cima, os botões ficavam no meio da tela, com um espaço vazio embaixo.' },
-    ],
-  },
-  {
-    versao: 584, data: '2026-11-07', titulo: 'Tudo mais rápido: as fotos, a música da busca, os artistas e os álbuns',
-    itens: [
-      { tipo: 'melhoria', texto: 'As fotos dos artistas (na biblioteca, na busca, na música) chegam muito mais rápido: o app pergunta ao YouTube, ao Cifra Club e ao Deezer ao mesmo tempo, em vez de um depois do outro, e não espera mais os servidores do YouTube que estão fora do ar (eles ficam de fora por um tempo).' },
-      { tipo: 'correcao', texto: 'Na busca e na biblioteca, a fotinha do artista ao lado do nome podia ficar com o desenho de imagem quebrada. Agora, se a foto não carrega, volta o desenho do app e a foto é procurada de novo.' },
-      { tipo: 'melhoria', texto: 'No app de Android, as consultas à internet (o Cifra Club, as letras, o Deezer, o YouTube, a liturgia) não ficam mais numa fila de 6 de cada vez, que um servidor fora do ar travava: agora vão muitas ao mesmo tempo, e o servidor que não responde é deixado de lado em 6 segundos. Vem com a atualização do app.' },
-      { tipo: 'melhoria', texto: 'A música aberta pela busca aparece em poucos segundos: antes ela esperava a letra sincronizada (até 25 s), o áudio e o clipe (até 15 s) e o vídeo, um depois do outro. Agora abre logo, e o que ainda não chegou (a letra sincronizada, o áudio, o clipe, o vídeo) entra sozinho em seguida.' },
-      { tipo: 'melhoria', texto: 'As páginas dos artistas e dos álbuns abrem mais rápido: o que já foi visto aparece na hora (e é atualizado em segundo plano), as páginas do Cifra Club não esperam mais um leitor lento antes de tentar outro, e, no app de Android, as músicas, os álbuns e a lista completa do artista vêm juntos.' },
-      { tipo: 'melhoria', texto: 'No app de Android, a busca de vídeos lê a página do próprio YouTube, sem depender dos servidores públicos que vivem fora do ar. Vem com a atualização do app.' },
-      { tipo: 'correcao', texto: 'No app de Android, o aviso de versão nova só aparecia ao abrir o app, e uma vez só: com o app aberto em segundo plano, a atualização não chegava. Agora ele confere também ao voltar para o app e, se você tocou em "Agora não", lembra de novo depois de 12 horas.' },
     ],
   },
 ];
