@@ -435,11 +435,11 @@ test('fotoDosCanais: canal verificado ou Tópico do artista, nunca o de fã', as
   const canal = (name, verified, id) => ({ type: 'channel', name, verified, thumbnail: foto(id) });
   // o verificado com o nome dele, com a foto direto do YouTube e maior
   assert.equal(fotoDosCanais({ items: [canal('Justice', false, 'fa'), canal('Justice', true, 'ok'), canal('Just!ce', true, 'x')] }, 'Justice'),
-    'https://yt3.ggpht.com/ok=s480-c-k-c0x00ffffff-no-rw-mo');
+    'https://yt3.ggpht.com/ok=s1000-c-k-c0x00ffffff-no-rw-mo');
   // sem verificado com o nome: o Tópico; "Fulano Oficial" sem o selo (de fã) não vale
   assert.equal(fotoDosCanais({ items: [canal('Pe Marcelo Rossi', true, 'a'), canal('Padre Marcelo Rossi - Topic', false, 'top'), canal('Padre Marcelo Rossi Oficial', false, 'fa')] }, 'Padre Marcelo Rossi'),
-    'https://yt3.ggpht.com/top=s480-c-k-c0x00ffffff-no-rw-mo');
-  assert.equal(fotoDosCanais({ items: [canal('Aline Barros Oficial', true, 'ab')] }, 'Aline Barros'), 'https://yt3.ggpht.com/ab=s480-c-k-c0x00ffffff-no-rw-mo');
+    'https://yt3.ggpht.com/top=s1000-c-k-c0x00ffffff-no-rw-mo');
+  assert.equal(fotoDosCanais({ items: [canal('Aline Barros Oficial', true, 'ab')] }, 'Aline Barros'), 'https://yt3.ggpht.com/ab=s1000-c-k-c0x00ffffff-no-rw-mo');
   // nada certo: fica a foto de antes
   assert.equal(fotoDosCanais({ items: [canal('Padre Marcelo Rossi Oficial', false, 'fa'), canal('Músicas do Padre Marcelo Rossi', true, 'm')] }, 'Padre Marcelo Rossi'), '');
   assert.equal(fotoDosCanais({ items: [canal('Justice - Topic', false, 'a'), canal('Justice - Topic', false, 'b')] }, 'Justice'), '');
@@ -627,7 +627,7 @@ test('página do artista no Cifra Club: a imagem padrão do site não é a foto 
   assert.ok(ehImagemPadrao('https://e-cdns-images.dzcdn.net/images/artist//250x250-000000-80-0-0.jpg'));
   assert.ok(!ehImagemPadrao('https://akamai.sscdn.co/letras/250x250/fotos/7/6/4/6/abc.jpg'));
   assert.ok(!ehImagemPadrao('https://cdn-images.dzcdn.net/images/artist/2a93a1d9b3b61e2cc823e4dea33667f9/250x250-000000-80-0-0.jpg'));
-  assert.ok(!ehImagemPadrao('https://yt3.ggpht.com/abc=s480-c-k-c0x00ffffff-no-rj'));
+  assert.ok(!ehImagemPadrao('https://yt3.ggpht.com/abc=s1000-c-k-c0x00ffffff-no-rj'));
   assert.ok(!ehImagemPadrao(''));
 });
 
