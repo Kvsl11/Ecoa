@@ -9837,11 +9837,7 @@ function capaOficial(titulo, artista) {
       return url;
     }));
   }
-  // Capas automáticas antigas podem ser miniaturas; com internet, espera a nova consulta antes de devolver a guardada.
-  // Assim a atualização em segundo plano consegue substituir também URLs antigas do Deezer/iTunes.
-  return navigator.onLine
-    ? valorDaInternet('capa', `capa:${normalizar(k)}`, capasOficiais.get(k))
-    : comUltimoValor('capa', k, capasOficiais.get(k));
+  return comUltimoValor('capa', k, capasOficiais.get(k));
 }
 // (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
 async function fotoDeezer(nome, titulo = '') {
