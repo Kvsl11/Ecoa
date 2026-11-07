@@ -4778,6 +4778,8 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 .ia-fontes { gap: 12px; }
 .ia-opcao { padding: 14px 16px; border-radius: var(--pt-raio); background: var(--surface); }
 .ia-opcao-ic { width: 42px; height: 42px; border-radius: 50%; }
+/* (a opção de reserva — o "Criar do zero" quando dá para gerar — com o ícone neutro: o destaque fica para a IA) */
+.ia-opcao-sec .ia-opcao-ic { background: var(--surface-2); color: var(--text); }
 /* o aviso, discreto: o fundo do cartão e o texto apagado (antes uma caixa colorida com texto grande) */
 .ia-aviso { border-radius: var(--pt-raio); background: var(--surface); border-color: var(--pt-linha); color: var(--muted); font-size: 13px; }
 .ia-solte { gap: 8px; padding: 40px 20px; border-radius: var(--pt-raio); border: 1.5px dashed color-mix(in srgb, var(--text) 16%, transparent);

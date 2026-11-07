@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 592, data: '2026-11-07', titulo: 'No app de Android, a partitura é sempre gerada pela IA',
+    itens: [
+      { tipo: 'melhoria', texto: 'No app de Android, gerar a partitura não pede mais para escolher um arquivo de áudio: a IA do próprio celular gera sempre com o áudio da música. Quando ela não consegue (a música sem vídeo, por exemplo), as opções são tentar de novo ou criar do zero, no editor. O "Abrir MusicXML" também saiu do começo do editor no app.' },
+    ],
+  },
+  {
     versao: 591, data: '2026-11-07', titulo: 'A partitura e o karaokê feitos mais rápido, com a mesma qualidade',
     itens: [
       { tipo: 'melhoria', texto: 'A partitura gerada no aparelho sai bem mais rápido, com as mesmas notas: a IA passou a fazer as contas num motor muito mais rápido (no teste, 15 segundos de música em 2 segundos, contra 28 antes), solta a memória de cada trecho (o celular não vai mais ficando lento até o fim da música) e, nas músicas mais longas, não passa mais do limite da placa de vídeo.' },
@@ -66,12 +72,6 @@ export const NOVIDADES = [
     versao: 583, data: '2026-11-07', titulo: 'A barrinha da música acima do aviso de offline',
     itens: [
       { tipo: 'correcao', texto: 'No celular (e no app de Android), com o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" embaixo, o menu subia para dar lugar a ele, mas a barrinha da música ficava no mesmo lugar, por cima dos ícones do menu. Agora ela sobe junto.' },
-    ],
-  },
-  {
-    versao: 582, data: '2026-11-06', titulo: 'O karaokê que você pede passa na frente',
-    itens: [
-      { tipo: 'correcao', texto: 'No app de Android, o karaokê pedido no microfone podia ficar parado no começo: ele esperava, numa fila só, os karaokês que o app faz sozinho em segundo plano (os das músicas baixadas). Agora o que você pede passa na frente, e os outros esperam. O áudio também vai para a separação em partes (um arquivo grande travava), e, se algo der errado, o motivo aparece na tela. E, no Wi-Fi, o modelo do karaokê (59 MB) já é baixado de antemão. Vem com a atualização do app.' },
     ],
   },
 ];

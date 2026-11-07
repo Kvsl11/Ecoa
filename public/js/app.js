@@ -12475,7 +12475,7 @@ async function comecarPartitura(song, titulo) {
         <div class="seg" id="ini-compasso">${[[2, 4], [3, 4], [4, 4], [6, 8]].map(([a, b]) => `<button data-c="${a}/${b}" aria-pressed="${a === 4 && b === 4}">${a}/${b}</button>`).join('')}</div></div>
     </div>
     <div class="cp-tipos">${tipos.map(([k, n, d]) => `<button class="cp-tipo" data-tipo="${k}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
-    <button class="btn small ghost cp-ini-arquivo" id="ini-arquivo">${icon('upload', 15)} Abrir MusicXML</button>
+    ${noApk() ? '' : `<button class="btn small ghost cp-ini-arquivo" id="ini-arquivo">${icon('upload', 15)} Abrir MusicXML</button>`}
     </div>`;
   if (mxl) fetch(mxl, { method: 'HEAD' }).then((r) => { if (r.ok && $('#ini-desenhada')) $('#ini-desenhada').hidden = false; }).catch(() => {});
   const guardar = (modelo) => {
@@ -12504,7 +12504,7 @@ async function comecarPartitura(song, titulo) {
     } catch (e) { toast('Não consegui ler: ' + e.message); }
   };
   $('#ini-desenhada')?.addEventListener('click', () => importar(mxl));
-  $('#ini-arquivo').onclick = async () => { const f = await escolherArquivoMusicXML(); if (f) importar(f); };
+  if ($('#ini-arquivo')) $('#ini-arquivo').onclick = async () => { const f = await escolherArquivoMusicXML(); if (f) importar(f); };
 }
 
 // apagar a partitura feita no app (a música continua); devolve true se apagou
@@ -13501,8 +13501,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   const sozinha = temServidor && Boolean(fonte);
   // visual limpo: a capa pequena, o selo, o nome e uma frase só (o resto a própria tela vai mostrando)
   view.innerHTML = `<div class="ia">
-    <header class="ia-cab">${capa(song)}<div class="ia-cab-txt"><span class="ia-selo">${icon(sozinha ? 'sparkles' : 'upload', 13)} ${sozinha ? 'Gerar com IA' : 'Importar o áudio'}</span><h2>${esc(titulo)}</h2>
-      <p>${sozinha ? `Melodia ou coral a 4 vozes, pelo ${fonte.arquivo ? 'seu áudio' : 'áudio do vídeo'}` : noPc ? 'Melodia ou coral a 4 vozes, no servidor do seu computador' : 'Melodia ou coral a 4 vozes, aqui no aparelho'}</p></div></header>
+    <header class="ia-cab">${capa(song)}<div class="ia-cab-txt"><span class="ia-selo">${icon(sozinha || noCelular ? 'sparkles' : 'upload', 13)} ${sozinha || noCelular ? 'Gerar com IA' : 'Importar o áudio'}</span><h2>${esc(titulo)}</h2>
+      <p>${sozinha ? `Melodia ou coral a 4 vozes, pelo ${fonte.arquivo ? 'seu áudio' : 'áudio do vídeo'}` : noCelular ? 'Melodia ou coral a 4 vozes, pela IA do celular' : noPc ? 'Melodia ou coral a 4 vozes, no servidor do seu computador' : 'Melodia ou coral a 4 vozes, aqui no aparelho'}</p></div></header>
     <div id="ia-passo"></div></div>`;
   const passo = $('#ia-passo');
 
@@ -13510,6 +13510,20 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   // o começo: escolher o arquivo de áudio da música (ou arrastar para cá, no computador)
   function telaFontes(motivo = '') {
     passo.onclick = null;
+    // No app de Android, a partitura é sempre gerada pela IA, no próprio celular, com o áudio da música: sem escolher
+    // arquivo. Quando a IA não consegue, as opções são tentar de novo ou criar do zero (no editor, nota por nota)
+    if (noCelular) {
+      // (as mensagens de erro, sem as frases que mandavam escolher um arquivo)
+      const aviso = String(motivo || '').split(/(?<=[.:])\s+/).filter((f) => f && !/arquivo/i.test(f)).join(' ').replace(/:\s*$/, '.');
+      const linha = (id, ic, nome, sub, principal = false) => `<button class="ia-opcao${principal ? '' : ' ia-opcao-sec'}" id="${id}"><span class="ia-opcao-ic">${icon(ic, 18)}</span><span class="ia-opcao-txt"><b>${nome}</b><small>${sub}</small></span>${icon('next', 16)}</button>`;
+      passo.innerHTML = `<div class="ia-fontes">
+        ${aviso ? `<div class="ia-aviso">${icon('info', 18)}<span>${esc(aviso)}</span></div>` : ''}
+        ${fonte ? linha('ia-auto', aviso ? 'refresh' : 'sparkles', aviso ? 'Tentar de novo' : 'Gerar com IA', fonte.arquivo ? 'Com o seu áudio desta música' : 'Com o áudio do vídeo da música', true) : ''}
+        ${linha('ia-zero', 'edit', 'Criar do zero', 'Escreva nota por nota, no editor', !fonte)}</div>`;
+      $('#ia-auto')?.addEventListener('click', () => gerarSozinha());
+      $('#ia-zero').addEventListener('click', () => { location.hash = `#/musica/${id}/compor`; });
+      return;
+    }
     // o começo, enxuto: o aviso (se houver), as opções em linhas e a área de soltar o arquivo; as dicas numa linha só
     const opcao = (id, ic, nome, sub) => `<button class="ia-opcao" id="${id}"><span class="ia-opcao-ic">${icon(ic, 18)}</span><span class="ia-opcao-txt"><b>${nome}</b><small>${sub}</small></span>${icon('next', 16)}</button>`;
     passo.innerHTML = `<div class="ia-fontes">
