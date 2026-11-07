@@ -24,3 +24,16 @@ def test_som_normal_alto_e_muito_alto():
 def test_qualidade_desconhecida_fica_na_alta():
     assert youtube.formato_video("xyz") == youtube.formato_video("alta")
     assert youtube.formato_audio("") == youtube.formato_audio("alta")
+
+
+def test_2k_e_4k_pedem_a_altura_deles_em_vp9_e_o_360p_fica_por_ultimo():
+    assert youtube.formato_video("4k").startswith("bestvideo[height<=2160][vcodec^=vp09]+bestaudio[ext=m4a]")
+    assert "height<=1440" in youtube.formato_video("2k")
+    # (qualquer imagem até a altura antes do MP4 pronto de 360p, que fazia o vídeo sair em 360p)
+    for q in ("alta", "muito-alta", "4k"):
+        f = youtube.formato_video(q)
+        assert f.index("bestvideo[height<=") < f.index("/18/")
+
+
+def test_audio_maximo():
+    assert youtube.formato_audio("maxima").startswith("bestaudio[ext=m4a][abr>=200]/")

@@ -4,6 +4,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 593, data: '2026-11-07', titulo: 'Downloads na qualidade de verdade, até 4K, e as fotos dos artistas',
+    itens: [
+      { tipo: 'correcao', texto: 'O vídeo baixado podia vir em 360p mesmo com a "Muito alta" escolhida: quando o YouTube não dava a imagem boa por um caminho, o app aceitava a de 360p calado. Agora ele tenta pelos outros caminhos do YouTube e fica com a maior imagem que o vídeo tem. Os vídeos já baixados em 360p são baixados de novo sozinhos. Vem com a atualização do app.' },
+      { tipo: 'novo', texto: 'Em Ajustes → Qualidade de mídia, o vídeo vai agora até 4K: Normal (480p), Alta (720p), Muito alta (1080p), 2K (1440p) e 4K (2160p). No áudio, com os valores de verdade: Normal (AAC 48 kb/s), Alta (AAC 128 kb/s), Muito alta (Opus 160 kb/s, a melhor que o YouTube costuma ter) e Máxima (AAC 256 kb/s, quando o vídeo tem).' },
+      { tipo: 'melhoria', texto: 'Trocar a qualidade baixa de novo, sozinho, as músicas já baixadas em outra (maior ou menor), sem precisar tocar em "Atualizar". Cada uma continua tocando sem internet até a nova chegar.' },
+      { tipo: 'correcao', texto: 'Na biblioteca, o artista cuja foto não carregava ficava com a nota e o microfone um em cima do outro, ou com a nota no lugar da foto. Agora aparece só o desenho do artista, a foto quebrada é esquecida e outra é procurada.' },
+      { tipo: 'melhoria', texto: 'As prévias das playlists começam com a imagem do vídeo em HD (antes era uma imagem pequena esticada na tela, borrada) e pedem o vídeo em HD ao YouTube.' },
+    ],
+  },
+  {
     versao: 592, data: '2026-11-07', titulo: 'No app de Android, a partitura é sempre gerada pela IA',
     itens: [
       { tipo: 'melhoria', texto: 'No app de Android, gerar a partitura não pede mais para escolher um arquivo de áudio: a IA do próprio celular gera sempre com o áudio da música. Quando ela não consegue (a música sem vídeo, por exemplo), as opções são tentar de novo ou criar do zero, no editor. O "Abrir MusicXML" também saiu do começo do editor no app.' },
@@ -66,12 +76,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'As páginas dos artistas e dos álbuns abrem mais rápido: o que já foi visto aparece na hora (e é atualizado em segundo plano), as páginas do Cifra Club não esperam mais um leitor lento antes de tentar outro, e, no app de Android, as músicas, os álbuns e a lista completa do artista vêm juntos.' },
       { tipo: 'melhoria', texto: 'No app de Android, a busca de vídeos lê a página do próprio YouTube, sem depender dos servidores públicos que vivem fora do ar. Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, o aviso de versão nova só aparecia ao abrir o app, e uma vez só: com o app aberto em segundo plano, a atualização não chegava. Agora ele confere também ao voltar para o app e, se você tocou em "Agora não", lembra de novo depois de 12 horas.' },
-    ],
-  },
-  {
-    versao: 583, data: '2026-11-07', titulo: 'A barrinha da música acima do aviso de offline',
-    itens: [
-      { tipo: 'correcao', texto: 'No celular (e no app de Android), com o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" embaixo, o menu subia para dar lugar a ele, mas a barrinha da música ficava no mesmo lugar, por cima dos ícones do menu. Agora ela sobe junto.' },
     ],
   },
 ];

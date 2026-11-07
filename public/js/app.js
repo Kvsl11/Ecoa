@@ -287,7 +287,9 @@ topbar.append(topoProg);
 // imagens de capa que falharem viram capa gerada
 document.addEventListener('error', (e) => {
   const img = e.target;
-  if (img.tagName !== 'IMG' || !img.closest('.cover')) return;
+  // (a foto de artista tem o tratamento dela, em enriquecerTilesArtistas: o desenho do artista, e não o da música. Os
+  // dois juntos deixavam a nota e o microfone um em cima do outro)
+  if (img.tagName !== 'IMG' || !img.closest('.cover') || img.closest('[data-artista-foto]')) return;
   const box = img.closest('.cover');
   box.classList.add('gen');
   box.style.setProperty('--h', hue(img.alt || img.src));
@@ -1069,21 +1071,37 @@ function precisaBaixar(song) {
 // O arquivo baixado numa qualidade menor que a escolhida nos Ajustes (o YouTube não entregou a escolhida na hora e o app
 // aceitou uma menor, para a música não ficar sem o clipe; ou a pessoa mudou a qualidade depois): ele continua valendo
 // (a música toca sem internet), e é baixado de novo na escolhida, sozinho, trocando o arquivo só quando o novo chegar
-const ORDEM_QUALIDADE = { normal: 0, alta: 1, 'muito-alta': 2 };
-const abaixoDaQualidade = (arquivo, video) => Boolean(arquivo) && (ORDEM_QUALIDADE[arquivo.qualidade] ?? 2) < ORDEM_QUALIDADE[qualidadeDoDownload(video)];
+const ORDEM_QUALIDADE = { normal: 0, alta: 1, 'muito-alta': 2, '2k': 3, maxima: 3, '4k': 4 };
+// a altura de cada qualidade do vídeo (a mesma do Baixador.java e do servidor)
+const ALTURA_DA_QUALIDADE = { normal: 480, alta: 720, 'muito-alta': 1080, '2k': 1440, '4k': 2160 };
+// O vídeo marcado numa qualidade, mas que veio numa imagem bem menor (antes desta versão, o YouTube às vezes não dava
+// os formatos bons e vinha o MP4 de 360p, marcado com a qualidade pedida): também conta como abaixo, para ser baixado
+// de novo. Os baixados daqui em diante já vêm com a altura conferida (o celular tentou os outros jeitos e ficou com a
+// maior imagem que o vídeo tem): esses valem como estão
+const imagemAbaixo = (arquivo, q) => Boolean(arquivo?.altura) && !arquivo.alturaConferida && String(arquivo.tipo || '').startsWith('video')
+  && arquivo.altura < Math.min(ALTURA_DA_QUALIDADE[q] || 1080, 720) * 0.9;
+const abaixoDaQualidade = (arquivo, video) => Boolean(arquivo) && ((ORDEM_QUALIDADE[arquivo.qualidade] ?? 2) < ORDEM_QUALIDADE[qualidadeDoDownload(video)]
+  || (video && imagemAbaixo(arquivo, qualidadeDoDownload(video))));
 // (todas: também a baixada numa qualidade maior — a pessoa escolheu uma menor, para ocupar menos espaço —, pelo
 // "Atualizar os downloads" dos Ajustes)
-const foraDaQualidade = (arquivo, video, todas = false) => Boolean(arquivo) && (todas ? (arquivo.qualidade || '') !== qualidadeDoDownload(video) : abaixoDaQualidade(arquivo, video));
+const foraDaQualidade = (arquivo, video, todas = false) => Boolean(arquivo) && (abaixoDaQualidade(arquivo, video) || (todas && (arquivo.qualidade || '') !== qualidadeDoDownload(video)));
 const precisaMelhorar = (song, todas = false) => Boolean(song?.baixado) && arquivosParaBaixar(song).some(({ yt, video }) => foraDaQualidade(song.baixado.arquivos?.[yt], video, todas));
 // a qualidade dos downloads, como no Spotify (Ajustes → Economia de dados e offline): normal, alta ou muito alta, uma
 // para o áudio e outra para o vídeo; vale para todos os downloads dali em diante. Sem escolher, a muito alta (o vídeo
 // em até 1080p). No iPhone o áudio fica no máximo na alta: o muito alto vem em Opus, que o Safari não toca
-const QUALIDADES = [['normal', 'Normal'], ['alta', 'Alta'], ['muito-alta', 'Muito alta']];
-const QUALIDADE_DESC = { audio: { normal: '48 kb/s, gasta pouco espaço', alta: '128 kb/s', 'muito-alta': 'a melhor do YouTube (até 160 kb/s)' }, video: { normal: 'até 480p', alta: 'até 720p (HD)', 'muito-alta': 'até 1080p (Full HD)' } };
+// (os valores de verdade de cada uma: a altura da imagem e o som que o YouTube tem. O áudio do YouTube vai, na prática,
+// até uns 160 kb/s; o de 256 kb/s só existe em alguns vídeos, e a "Máxima" fica com ele quando tem)
+const QUALIDADES_VIDEO = [['normal', 'Normal', 'até 480p'], ['alta', 'Alta', 'até 720p (HD)'], ['muito-alta', 'Muito alta', 'até 1080p (Full HD)'],
+  ['2k', '2K', 'até 1440p (Quad HD)'], ['4k', '4K', 'até 2160p (Ultra HD) · ocupa bem mais espaço']];
+const QUALIDADES_AUDIO = [['normal', 'Normal', 'AAC 48 kb/s, gasta pouco espaço'], ['alta', 'Alta', 'AAC 128 kb/s'],
+  ['muito-alta', 'Muito alta', 'Opus 160 kb/s, a melhor que o YouTube costuma ter'], ['maxima', 'Máxima', 'AAC 256 kb/s quando o vídeo tem; senão, a melhor que houver']];
+const QUALIDADES = [...QUALIDADES_VIDEO, ...QUALIDADES_AUDIO.filter(([k]) => k === 'maxima')];
+const listaDeQualidades = (video) => (video ? QUALIDADES_VIDEO : QUALIDADES_AUDIO);
+const nomeDaQualidade = (video) => listaDeQualidades(video).find(([k]) => k === qualidadeDoDownload(video))?.[1] || '';
 function qualidadeDoDownload(video) {
   const q = db.prefs()[video ? 'qualidadeVideo' : 'qualidadeAudio'];
-  const v = QUALIDADES.some(([k]) => k === q) ? q : 'muito-alta';
-  return !video && v === 'muito-alta' && ehIOS() ? 'alta' : v;
+  const v = listaDeQualidades(video).some(([k]) => k === q) ? q : 'muito-alta';
+  return !video && (v === 'muito-alta' || v === 'maxima') && ehIOS() ? 'alta' : v;
 }
 // sem Wi-Fi (no Android o navegador diz): pergunta antes, como no Spotify (uma vez, ao baixar várias)
 const podeBaixarAgora = async () => navigator.connection?.type !== 'cellular' || db.prefs().baixarDadosMoveis
@@ -1361,7 +1379,7 @@ async function garantirClipe(id) {
 // áudio, de novo na mesma. Entre uma e outra, uma espera curta (o servidor pode estar ligando)
 // (a qualidade escolhida nos Ajustes vale: o vídeo tenta duas vezes nela e só depois aceita uma menor, para a música não
 // ficar sem o clipe; o arquivo menor fica marcado e é baixado de novo na escolhida depois: precisaMelhorar)
-const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'] };
+const QUALIDADES_ABAIXO = { 'muito-alta': ['alta', 'normal'], alta: ['normal', 'normal'], normal: ['normal', 'normal'], '2k': ['muito-alta', 'alta'], '4k': ['2k', 'muito-alta'], maxima: ['muito-alta', 'alta'] };
 // devolve { r, cfg }: a resposta do servidor e o servidor que baixou (o arquivo fica nele). Se o servidor cai no meio
 // (o Codespace dormiu, reiniciou), procura outro na hora e continua nele, em vez de gastar as tentativas no que caiu
 async function tentarBaixar(cfg, yt, video, aoProgresso, aoRecomecar, sinal) {
@@ -1488,7 +1506,9 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       if (video && !String(r.tipo || blob.type).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
       atualizarProgresso(yt, 0.99);
       await guardarAudio(chaveBaixada(yt), blob);
-      arquivos[yt] = { tipo: r.tipo || blob.type, tamanho: blob.size, ...(r.qualidade ? { qualidade: r.qualidade } : {}), ...(r.altura ? { altura: r.altura } : {}) };
+      // (alturaConferida: o celular e o servidor já tentam os outros jeitos quando a imagem vem menor que a pedida, e
+      // ficam com a maior que o vídeo tem: a altura que veio é a de verdade dele)
+      arquivos[yt] = { tipo: r.tipo || blob.type, tamanho: blob.size, ...(r.qualidade ? { qualidade: r.qualidade } : {}), ...(r.altura ? { altura: r.altura, alturaConferida: true } : {}) };
       atualizarProgresso(yt, 1);
     } catch (e) {
       // (o arquivo de antes, numa qualidade menor, continua valendo: a música não fica sem ele)
@@ -6018,7 +6038,7 @@ const semLinhasDeAcordes = (sinc) => {
       void mostrarAparelho();
       const musica = esc([atual?.titulo, atual?.artista].filter(Boolean).join(' – '));
       // (a qualidade: a do arquivo baixado que toca, ou a da internet)
-      const qual = local ? (QUALIDADES.find(([k]) => k === qualidadeDoDownload(Boolean(local.video)))?.[1] || 'Baixada') : navigator.onLine ? 'Pela internet' : '';
+      const qual = local ? (nomeDaQualidade(Boolean(local.video)) || 'Baixada') : navigator.onLine ? 'Pela internet' : '';
       const tocando = estado === 'tocando';
       // como o "Conectar" do Spotify: em cima, o aparelho que toca (o fone, com a qualidade, "└ ᛒ Este celular" e a
       // música, na cor do app); embaixo, este celular (no app de Android, com o nome dele, ex. "POCO X6 Pro 5G")
@@ -8957,56 +8977,64 @@ function porFotos(box, pessoas, { liturgia = false } = {}) {
 }
 function enriquecerTilesArtistas(container) {
   if (!container) return;
+  // sem foto: só o desenho do artista (o microfone), e nada mais na caixa
+  const semFoto = (box) => {
+    delete box.dataset.mostrando;
+    box.classList.remove('gen');
+    box.replaceChildren(document.createRange().createContextualFragment(icon('mic', 40)));
+  };
+  // a foto que chegou entra só depois de carregar (sem piscar nem deixar um endereço quebrado na tela); falhando, o
+  // desenho, e a foto é procurada de novo (uma vez): a guardada sai, e vem a de outra fonte
+  const mostrar = (box, nome, slug, url, refazer = true) => {
+    const img = new Image();
+    img.alt = nome;
+    img.onload = () => {
+      if (!box.isConnected) return;
+      box.dataset.mostrando = url;
+      box.classList.remove('gen');
+      box.replaceChildren(img);
+    };
+    img.onerror = () => {
+      if (!box.isConnected) return;
+      // (só sai a foto da caixa se ela também não estiver aparecendo: a que já está boa na tela fica)
+      const naTela = box.querySelector('img');
+      if (!naTela || !naTela.naturalWidth) semFoto(box);
+      if (refazer) procurarDeNovo(box, nome, slug, url);
+    };
+    img.src = url;
+  };
+  const procurarDeNovo = (box, nome, slug, quebrada) => {
+    if (box.dataset.refeita) return;
+    box.dataset.refeita = '1';
+    if (fotoConhecida(nome) === quebrada) esquecerFotoDoArtista(nome);
+    fotoDoArtista(nome, slug).then((url) => {
+      if (url && url !== quebrada && box.isConnected) mostrar(box, nome, slug, url, false);
+    }).catch(() => {});
+  };
   container.querySelectorAll('[data-artista-foto]').forEach((box) => {
     const nome = box.dataset.nome || '';
     const slug = box.dataset.slug || '';
-    if (!nome || (!noApk() && box.dataset.mostrando)) return;
-    // Uma foto antiga não pode impedir a atualização; e uma imagem quebrada deve voltar ao desenho padrão.
+    if (!nome) return;
+    // Uma foto antiga não pode impedir a atualização; e uma imagem quebrada volta ao desenho e é procurada de novo
+    // (também no site, onde a foto já mostrada não é procurada de novo: a quebrada é)
     const atual = box.querySelector('img');
     if (atual && !atual.dataset.falhaTratada) {
       atual.dataset.falhaTratada = '1';
       const falhou = () => {
         if (!box.isConnected || box.querySelector('img') !== atual) return;
-        delete box.dataset.mostrando;
-        box.replaceChildren();
-        box.insertAdjacentHTML('afterbegin', icon('mic', 40));
-        // Se o endereço guardado não abre no WebView, descarta-o e tenta outra fonte de foto.
-        if (box.dataset.refeita) return;
-        box.dataset.refeita = '1';
-        esquecerFotoDoArtista(nome);
-        fotoDoArtista(nome, slug).then((url) => {
-          if (!url || !box.isConnected) return;
-          const nova = new Image();
-          nova.alt = nome;
-          nova.onload = () => {
-            if (!box.isConnected) return;
-            box.dataset.mostrando = url;
-            box.replaceChildren(nova);
-          };
-          nova.src = url;
-        }).catch(() => {});
+        const quebrada = atual.getAttribute('src') || '';
+        semFoto(box);
+        procurarDeNovo(box, nome, slug, quebrada);
       };
       atual.addEventListener('error', falhou, { once: true });
       if (atual.complete && !atual.naturalWidth) falhou();
     }
+    if (!noApk() && box.dataset.mostrando) return;
     const exibida = box.dataset.mostrando || atual?.getAttribute('src') || '';
     fotoDoArtista(nome, slug).then((url) => {
       if (!url || !box.isConnected) return;
       if (url === exibida && atual?.naturalWidth) return;
-      // A nova foto só substitui a atual depois de carregar, sem piscar nem deixar um endereço quebrado na tela.
-      const img = new Image();
-      img.alt = nome;
-      img.onload = () => {
-        if (!box.isConnected) return;
-        box.dataset.mostrando = url;
-        box.replaceChildren(img);
-      };
-      img.onerror = () => {
-        if (!box.isConnected || box.querySelector('img')) return;
-        delete box.dataset.mostrando;
-        box.insertAdjacentHTML('afterbegin', icon('mic', 40));
-      };
-      img.src = url;
+      mostrar(box, nome, slug, url);
     }).catch(() => {});
   });
 }
@@ -16060,7 +16088,7 @@ function previaDaPlaylist(set, inicio = 0) {
     <div class="pv-feed">${faixas.map(({ s }, k) => {
       const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
       return `<section class="pv-slide" data-k="${k}">
-      <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hqdefault.jpg" alt=""></div><div class="pv-sombra"></div>
+      <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
         <div class="pv-meta">
           <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
@@ -16160,7 +16188,9 @@ function previaDaPlaylist(set, inicio = 0) {
     } else {
       faixasNoYoutube(s.youtube).then(zoom);
       const f = document.createElement('iframe');
-      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true, semConta: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0`;
+      // (vq: pede o HD logo de começo; o player embutido começa baixo e vai subindo, e numa prévia de segundos ficava
+      // borrado. O YouTube nem sempre atende, mas não custa)
+      f.src = `${ytEmbed(s.youtube, { inicio: m.tVideo, mudo: true, semConta: true })}&controls=0&disablekb=1&iv_load_policy=3&fs=0&vq=hd1080`;
       f.allow = 'autoplay; encrypted-media';
       f.title = s.title;
       f.tabIndex = -1;
@@ -16181,6 +16211,18 @@ function previaDaPlaylist(set, inicio = 0) {
   const irPara = (k) => slides[k]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const obs = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) ativar(Number(e.target.dataset.k)); }, { root: feed, threshold: 0.6 });
   slides.forEach((x) => obs.observe(x));
+  // A imagem de fundo de cada prévia (a que aparece antes do vídeo): a de 1280×720 do YouTube; o vídeo que não tem
+  // ela fica com a maior que tiver. Antes era sempre a de 480×360, esticada na tela inteira (borrada)
+  dlg.querySelectorAll('img.pv-fundo[data-yt]').forEach((img) => {
+    const ordem = ['hq720.jpg', 'maxresdefault.jpg', 'sddefault.jpg', 'hqdefault.jpg'];
+    // (o YouTube devolve uma imagem cinza de 120×90 no lugar da que não existe, em vez de dar erro)
+    const proxima = () => {
+      const i = ordem.indexOf(img.src.split('/').pop()) + 1;
+      if (i > 0 && i < ordem.length) img.src = `https://i.ytimg.com/vi/${img.dataset.yt}/${ordem[i]}`;
+    };
+    img.addEventListener('error', proxima);
+    img.addEventListener('load', () => { if (img.naturalWidth <= 120) proxima(); });
+  });
   enriquecerTilesArtistas(dlg);
   const fechar = () => dlg.close();
   dlg.addEventListener('close', () => {
@@ -17240,7 +17282,7 @@ function viewTopicosAjustes() {
   setTint('#333');
   setHeader('Ajustes', { back: '#/' });
   const resumo = (t) => {
-    if (t.id === 'qualidade') return `Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}`;
+    if (t.id === 'qualidade') return `Áudio: ${nomeDaQualidade(false)} · Vídeo: ${nomeDaQualidade(true)}`;
     if (t.id === 'permissoes') return `Notificações: ${ROTULO_PERMISSAO[estadoDasNotificacoes()]} · Microfone`;
     if (t.id === 'conta') { const u = usuarioConta(); if (u) return `${u.email || u.nome} · ${estadoConta.erro ? 'sem sincronizar' : 'sincronizada'}`; }
     if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Armazenamento · Cache`; }
@@ -17350,10 +17392,10 @@ function viewQualidade() {
   const lista = (tipo, titulo, sub) => {
     const pref = db.prefs()[tipo === 'video' ? 'qualidadeVideo' : 'qualidadeAudio'] || 'muito-alta';
     return `<section class="aj-sec"><h3 class="aj-titulo">${titulo}</h3><p class="aj-nota">${sub}</p><div class="settings-group aj-radios" data-qtipo="${tipo}">
-      ${QUALIDADES.map(([k, rot]) => `<label class="setting aj-radio"><div class="grow"><div class="t">${rot}</div><div class="s">${QUALIDADE_DESC[tipo][k]}${tipo === 'audio' && k === 'muito-alta' && ehIOS() ? ' · no iPhone fica na alta' : ''}</div></div><input type="radio" name="q-${tipo}" value="${k}"${k === pref ? ' checked' : ''}></label>`).join('')}
+      ${listaDeQualidades(tipo === 'video').map(([k, rot, desc]) => `<label class="setting aj-radio"><div class="grow"><div class="t">${rot}</div><div class="s">${desc}${tipo === 'audio' && (k === 'muito-alta' || k === 'maxima') && ehIOS() ? ' · no iPhone fica na alta' : ''}</div></div><input type="radio" name="q-${tipo}" value="${k}"${k === pref ? ' checked' : ''}></label>`).join('')}
     </div></section>`;
   };
-  const desatualizadas = () => db.songs().filter((s) => s.baixado && Object.values(s.baixado.arquivos || {}).some((a) => (a.qualidade || '') !== qualidadeDoDownload(String(a.tipo).startsWith('video'))));
+  const desatualizadas = () => db.songs().filter((s) => s.baixado && Object.values(s.baixado.arquivos || {}).some((a) => foraDaQualidade(a, String(a.tipo).startsWith('video'), true)));
   const desenharAtualizar = () => {
     const n = desatualizadas().length;
     $('#q-atualizar-s').textContent = n ? `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} em outra qualidade` : 'Todos os downloads já estão na qualidade escolhida';
@@ -17361,24 +17403,39 @@ function viewQualidade() {
   };
   view.innerHTML = `<div class="ajustes qualidade">
     <h2 class="aj-pagina">Qualidade de mídia</h2>
-    <p class="aj-nota aj-nota-topo">${icon('info', 15)}<span>Qualidade mais alta ocupa mais espaço no aparelho. Ao mudar, vale para os próximos downloads.</span></p>
+    <p class="aj-nota aj-nota-topo">${icon('info', 15)}<span>Qualidade mais alta ocupa mais espaço no aparelho. Ao mudar, as músicas já baixadas são baixadas de novo na qualidade escolhida, sozinhas (cada uma continua tocando até a nova chegar).</span></p>
     ${lista('audio', 'Qualidade do download de áudio', 'O som das músicas baixadas (o áudio oficial)')}
-    ${lista('video', 'Qualidade do download de vídeo', 'O clipe das músicas baixadas com “Áudio e vídeo”')}
+    ${lista('video', 'Qualidade do download de vídeo', 'O clipe das músicas baixadas')}
     <section class="aj-sec"><div class="settings-group">
       <div class="setting"><span class="ico">${icon('refresh', 18)}</span><div class="grow"><div class="t">Atualizar os downloads</div><div class="s" id="q-atualizar-s"></div></div><button class="btn small" id="q-atualizar">Atualizar</button></div>
     </div>
     <p class="aj-nota">Ouvindo pela internet, quem escolhe a qualidade é o player do YouTube (ele não deixa outro app escolher); as músicas baixadas tocam na qualidade daqui.</p></section>
   </div>`;
   desenharAtualizar();
+  // Trocou a qualidade: as baixadas em outra (maior ou menor) entram na fila para baixar de novo nela, sozinhas, depois
+  // de um instante (para quem está passando pelas opções não começar um download a cada toque). Antes só valia para os
+  // próximos downloads, e era preciso tocar em "Atualizar"
+  let espera = 0;
+  const rebaixar = async () => {
+    const velhas = desatualizadas();
+    if (!velhas.length || !(await temServidorParaBaixar())) return;
+    if (!(await podeBaixarAgora())) return;
+    for (const s of velhas) await baixarMusica(db.song(s.id), { perguntou: true, qualidade: 'todas' });
+    toast(`${velhas.length} música${velhas.length > 1 ? 's' : ''} na fila para baixar de novo na qualidade escolhida`);
+    if ($('#q-atualizar-s')) desenharAtualizar();
+  };
   const aoEscolher = (e) => {
     const r = e.target.closest('[data-qtipo] input[type="radio"]');
     if (!r) return;
     const tipo = r.closest('[data-qtipo]').dataset.qtipo;
     db.setPref(tipo === 'video' ? 'qualidadeVideo' : 'qualidadeAudio', r.value);
     desenharAtualizar();
+    clearTimeout(espera);
+    espera = setTimeout(() => { espera = 0; void rebaixar(); }, 2500);
   };
   view.addEventListener('change', aoEscolher);
-  aoSair(() => view.removeEventListener('change', aoEscolher));
+  // (saindo da tela antes do instante passar: a troca vale do mesmo jeito)
+  aoSair(() => { view.removeEventListener('change', aoEscolher); if (espera) { clearTimeout(espera); void rebaixar(); } });
   $('#q-atualizar').onclick = async () => {
     const velhas = desatualizadas();
     if (!velhas.length) return;
@@ -21682,7 +21739,7 @@ function viewOffline() {
         ${chave('of-economia', 'gauge', 'Economia de dados', 'Desliga a capa animada e, nas músicas baixadas, toca sempre o arquivo do aparelho (até no modo vídeo), sem gastar internet', p.economiaDados)}
       </div></section>
       <section class="aj-sec"><h3 class="aj-titulo">Downloads</h3><div class="settings-group">
-        <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}</div></div>${icon('next', 18)}</a>
+        <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${nomeDaQualidade(false)} · Vídeo: ${nomeDaQualidade(true)}</div></div>${icon('next', 18)}</a>
         ${chave('of-ao-salvar', 'baixar', 'Baixar ao salvar', 'A música salva na biblioteca já é baixada para tocar sem internet', p.baixarAoSalvar !== false)}
         ${chave('of-karaoke', 'mic', 'Baixar também o karaokê', 'Nas músicas com a letra sincronizada, o servidor já separa a voz da banda ao baixar: o microfone da letra liga na hora, até sem internet', p.baixarKaraoke !== false)}
         ${chave('of-moveis', 'aparelhos', 'Baixar com os dados móveis', 'Sem isso, fora do Wi-Fi o app pergunta antes de baixar', p.baixarDadosMoveis)}
