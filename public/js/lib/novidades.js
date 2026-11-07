@@ -4,8 +4,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco',
+    versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco e os downloads sempre com o vídeo',
     itens: [
+      { tipo: 'correcao', texto: 'No app de Android, a tela Ajustes → Avançado mostrava um pedaço de cartão vazio em cima do "Apagar tudo". Saiu.' },
+      { tipo: 'melhoria', texto: 'Em Ajustes → Downloads, saiu a escolha "O que baixar": as músicas são baixadas sempre com o áudio e o clipe. Quem tinha escolhido "Só o áudio" recebe sozinho, em segundo plano, o clipe das músicas já baixadas.' },
       { tipo: 'melhoria', texto: 'Os avisos "Conexão lenta" e "Conectado novamente", embaixo do menu, aparecem em branco, como o "Você está offline" (antes eram laranja e verde).' },
     ],
   },
