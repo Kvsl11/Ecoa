@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
@@ -47,6 +48,31 @@ public class MainActivity extends BridgeActivity {
         // app tudo ficava maior, com textos quebrados, sobrepostos e telas espremidas (o site é feito para o tamanho normal)
         if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
         protegerDaTelaCinza();
+        tratarOVoltar();
+    }
+
+    // ---- o voltar do Android (o gesto de arrastar da borda ou o botão)
+    // Sem isto, o voltar fechava o app inteiro, em qualquer tela. Agora ele faz o que faz no navegador: a página fecha
+    // primeiro o que estiver aberto por cima (uma janela, uma folha, o menu: window.ecoaVoltar), senão volta para a tela
+    // anterior do app (o histórico do WebView: as telas cheias, como o Tocando agora, também saem assim). Na primeira
+    // tela, o app vai para o segundo plano, sem fechar (a música continua tocando)
+    private void tratarOVoltar() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView w = getBridge() == null ? null : getBridge().getWebView();
+                if (w == null) { moveTaskToBack(true); return; }
+                try {
+                    w.evaluateJavascript("(function(){try{return window.ecoaVoltar?String(window.ecoaVoltar()):'false'}catch(e){return 'false'}})()", (r) -> {
+                        if (r != null && r.contains("true")) return; // (a página fechou o que estava aberto)
+                        if (w.canGoBack()) w.goBack();
+                        else moveTaskToBack(true);
+                    });
+                } catch (Exception e) {
+                    if (w.canGoBack()) w.goBack(); else moveTaskToBack(true);
+                }
+            }
+        });
     }
 
     // ---- a tela cinza ao voltar ao app

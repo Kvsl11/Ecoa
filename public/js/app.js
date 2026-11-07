@@ -21153,6 +21153,21 @@ const ecoaNativo = (() => {
   const C = window.Capacitor;
   return C?.isNativePlatform?.() && C.Plugins?.Ecoa ? C.Plugins.Ecoa : null;
 })();
+// O voltar do Android (o gesto ou o botão): a parte nativa pergunta aqui antes de voltar de tela. Fecha o que estiver
+// aberto por cima (a janela ou a folha de baixo, o menu ⋯, a gaveta do perfil, o calendário, a música chegando) e
+// devolve true; sem nada aberto, false, e o app volta para a tela anterior (ou, na primeira, vai para o segundo plano).
+// (se o mesmo não fechar, no segundo voltar seguido ele não segura mais: o voltar nunca fica preso)
+let voltouEm = { el: null, t: 0 };
+window.ecoaVoltar = () => {
+  const dlg = [...document.querySelectorAll('dialog[open]')].pop();
+  const aberto = dlg || document.querySelector('.menu-mais:not([hidden]), .perfil-gaveta, .cal, .chegando');
+  if (!aberto) return false;
+  if (voltouEm.el === aberto && Date.now() - voltouEm.t < 1500) return false;
+  voltouEm = { el: aberto, t: Date.now() };
+  if (dlg) dlg.close();
+  else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  return true;
+};
 if (ecoaNativo) {
   document.documentElement.classList.add('app-android');
   // (as páginas da internet lidas pela parte nativa, direto: sem a trava de CORS e sem depender dos serviços públicos
