@@ -284,6 +284,58 @@ topoProg.className = 'topo-prog';
 topoProg.innerHTML = '<b></b>';
 topbar.append(topoProg);
 
+// As fotos sem dizer de onde vem o pedido (o cabeçalho Referer). No APK a página vem de https://localhost, e o servidor
+// de imagens do Google — as fotos dos canais do YouTube, a foto preferida dos artistas — recusa (erro 429) o pedido que
+// diz vir de "localhost": a foto do artista aparecia na biblioteca (que já pedia assim) e faltava na página do artista,
+// no "Sobre o artista" e nas listas. As <img> dos modelos levam referrerpolicy="no-referrer"; as que vão de fundo (CSS,
+// que não deixa escolher) vêm por fotoParaFundo
+function imagemSemReferer() {
+  const img = new Image();
+  img.referrerPolicy = 'no-referrer';
+  return img;
+}
+const DO_GOOGLE = /^https:\/\/[^/]*\.(ggpht|googleusercontent)\.com\//i;
+const fotosDeFundo = new Map();
+// a foto do Google baixada sem o Referer e mostrada pelo endereço local dela (blob:); as outras, como estão
+function fotoParaFundo(url) {
+  if (!url || !DO_GOOGLE.test(url) || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return Promise.resolve(url || '');
+  if (!fotosDeFundo.has(url)) {
+    fotosDeFundo.set(url, fetch(url, { referrerPolicy: 'no-referrer', credentials: 'omit' })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((b) => URL.createObjectURL(b))
+      .catch(() => { fotosDeFundo.delete(url); return url; }));
+    if (fotosDeFundo.size > 150) {
+      const [velha, p] = fotosDeFundo.entries().next().value;
+      fotosDeFundo.delete(velha);
+      p.then((u) => { if (u.startsWith('blob:')) URL.revokeObjectURL(u); });
+    }
+  }
+  return fotosDeFundo.get(url);
+}
+
+// As janelas e as folhas saem com animação: a folha desce e a janela some aos poucos (o CSS de dialog.saindo), e só no
+// fim ela fecha de verdade. Antes elas sumiam de uma vez, e a tela de trás aparecia num salto
+{
+  const fecharDialogo = HTMLDialogElement.prototype.close;
+  const semMovimento = matchMedia('(prefers-reduced-motion: reduce)');
+  HTMLDialogElement.prototype.close = function fecharComAnimacao(valor) {
+    if (!this.open || !this.isConnected || this.classList.contains('saindo') || semMovimento.matches) { fecharDialogo.call(this, valor); return; }
+    this.classList.add('saindo');
+    let feito = false;
+    const fim = () => {
+      if (feito) return;
+      feito = true;
+      this.removeEventListener('animationend', aoAcabar);
+      this.classList.remove('saindo');
+      if (this.open) fecharDialogo.call(this, valor);
+    };
+    // (só a animação da própria janela: as de dentro dela, como o círculo girando, não contam)
+    const aoAcabar = (e) => { if (e.target === this) fim(); };
+    this.addEventListener('animationend', aoAcabar);
+    setTimeout(fim, 280);
+  };
+}
+
 // imagens de capa que falharem viram capa gerada
 document.addEventListener('error', (e) => {
   const img = e.target;
@@ -314,7 +366,7 @@ document.addEventListener('error', (e) => {
   if (fotoConhecida(guardadoComo) === src) esquecerFotoDoArtista(guardadoComo);
   fotoDaPessoa(nome, { liturgia }).then((url) => {
     if (!url || url === src || !mini.isConnected) return;
-    const nova = new Image();
+    const nova = imagemSemReferer();
     nova.alt = '';
     nova.onload = () => { if (mini.isConnected) { mini.replaceChildren(nova); mini.classList.add('com-foto'); } };
     nova.src = url;
@@ -794,7 +846,7 @@ const ytBusca = (t) => `https://www.youtube.com/results?search_query=${encodeURI
 function capa(item = {}, { ic = 'music', cls = '' } = {}) {
   const titulo = item.title || item.titulo || '';
   const src = item.cover || item.capa || (item.youtube ? `https://i.ytimg.com/vi/${item.youtube}/mqdefault.jpg` : '');
-  if (src) return `<div class="cover ${cls}"><img src="${esc(src)}" alt="${esc(titulo)}" loading="lazy"></div>`;
+  if (src) return `<div class="cover ${cls}"><img src="${esc(src)}" referrerpolicy="no-referrer" alt="${esc(titulo)}" loading="lazy"></div>`;
   return `<div class="cover gen ${cls}" style="--h:${hue(titulo)}">${icon(ic, 24)}</div>`;
 }
 // A capa que a capa oficial (a do álbum, capaOficial) substitui: nenhuma, o quadro do vídeo do YouTube ou a foto do
@@ -854,7 +906,7 @@ function trocarCapaNaTela(antes, depois) {
 setTimeout(() => atualizarCapasOficiais(), 5000);
 window.addEventListener('songbook:nova-musica', (e) => setTimeout(() => atualizarCapasOficiais([e.detail.id]), 3000));
 function capaRepertorio(set, cls = '') {
-  if (set.capa) return `<div class="cover ${cls}"><img src="${esc(set.capa)}" alt="${esc(set.name)}"></div>`;
+  if (set.capa) return `<div class="cover ${cls}"><img src="${esc(set.capa)}" referrerpolicy="no-referrer" alt="${esc(set.name)}"></div>`;
   const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
   const comImg = [...new Map(songs.filter((s) => s.cover || s.youtube).map((s) => [s.cover || s.youtube, s])).values()];
   if (comImg.length >= 4) return `<div class="cover mosaic ${cls}">${comImg.slice(0, 4).map((s) => capa(s)).join('')}</div>`;
@@ -1747,6 +1799,18 @@ function karaokeDoDownload(id) {
 }
 const preparandoKaraoke = new Map(); // fonte → { pct, etapa, promessa }
 const avisarKaraoke = () => window.dispatchEvent(new CustomEvent('songbook:karaoke'));
+// a etapa do karaokê em poucas palavras, para a etiqueta ao lado do microfone
+function etapaCurtaDoKaraoke(etapa = '') {
+  const e = String(etapa);
+  if (/modelo/i.test(e)) return 'Baixando o modelo';
+  if (/separando|atualizando/i.test(e)) return 'Tirando a voz';
+  if (/baixando/i.test(e)) return 'Baixando a música';
+  if (/enviando/i.test(e)) return 'Enviando';
+  if (/abrindo/i.test(e)) return 'Abrindo a música';
+  if (/esperando/i.test(e)) return 'Na fila';
+  if (/quase/i.test(e)) return 'Quase pronto';
+  return 'Preparando';
+}
 // o karaokê da música: o já pronto ou, se não houver, o servidor separa agora (de 1 a 3 minutos, com a porcentagem)
 // prioridade: a pessoa tocou no microfone (no celular, passa na frente dos feitos em segundo plano)
 function prepararKaraoke(song, { prioridade = false } = {}) {
@@ -2610,7 +2674,7 @@ function infoDoVideo(id) {
 // faixas pretas em cima e embaixo (o CSS corta). O tipo é descoberto uma vez e fica salvo na música.
 const QUADROS = { hd: ['maxres1', 'maxres2', 'maxres3', 'maxresdefault'], sd: ['sd1', 'sd2', 'sd3', 'hqdefault'] };
 function htmlQuadros(id, tipo = 'sd') {
-  return QUADROS[tipo].map((q, n) => `<img class="q" style="--n:${n}" src="https://i.ytimg.com/vi/${esc(id)}/${q}.jpg" alt="" ${n ? 'loading="lazy"' : ''}>`).join('');
+  return QUADROS[tipo].map((q, n) => `<img class="q" style="--n:${n}" src="https://i.ytimg.com/vi/${esc(id)}/${q}.jpg" referrerpolicy="no-referrer" alt="" ${n ? 'loading="lazy"' : ''}>`).join('');
 }
 // As faixas pretas dos quadros do clipe (em cima e embaixo): as das miniaturas 4:3 do YouTube (os vídeos 16:9 vêm com
 // faixas) e as do próprio clipe (os filmados como cinema). Cada imagem é medida quando chega e esticada só o
@@ -2652,7 +2716,7 @@ function cortarFaixas(img) {
   if (!ja) {
     // a medida é numa cópia pedida com CORS (o i.ytimg.com libera), num endereço só dela: a imagem da tela pode ter
     // vindo guardada do modo offline, que não deixa ler os pixels
-    const copia = new Image();
+    const copia = imagemSemReferer();
     copia.crossOrigin = 'anonymous';
     const medida = new Promise((ok) => {
       copia.onload = () => { try { ok(medirFaixasDaImagem(copia)); } catch { ok(faixasPadrao(src)); } };
@@ -2683,7 +2747,7 @@ document.addEventListener('error', (e) => { if (e.target?.matches?.('.quadros im
 // tem quadros em alta? (quando não tem, o YouTube devolve uma imagem cinza de 120x90)
 function tipoDosQuadros(id) {
   return new Promise((ok) => {
-    const img = new Image();
+    const img = imagemSemReferer();
     img.onload = () => ok(img.naturalWidth >= 640 ? 'hd' : 'sd');
     img.onerror = () => ok('sd');
     img.src = `https://i.ytimg.com/vi/${id}/maxres1.jpg`;
@@ -2693,7 +2757,7 @@ function tipoDosQuadros(id) {
 // linha de um vídeo do YouTube (busca no app)
 const linhaVideo = (v, i, extra = '') => `
   <li class="track clickable video-item" data-video="${i}" style="grid-template-columns:auto 1fr auto">
-    <div class="cover video-thumb"><img src="${esc(v.capa)}" alt="" loading="lazy">${v.duracao ? `<span class="dur">${esc(v.duracao)}</span>` : ''}</div>
+    <div class="cover video-thumb"><img src="${esc(v.capa)}" referrerpolicy="no-referrer" alt="" loading="lazy">${v.duracao ? `<span class="dur">${esc(v.duracao)}</span>` : ''}</div>
     <div class="info"><div class="t">${esc(v.titulo)}</div><div class="s">${esc(v.canal)}</div></div><span class="acts">${extra}</span></li>`;
 
 // Escolhe o vídeo do YouTube de uma música: busca aqui dentro ou link colado.
@@ -2937,7 +3001,7 @@ const player = (() => {
       <span class="pl-ferr-g"><button data-pl="fonte-" aria-label="Letra menor" title="Letra menor"><span class="a-menor">A</span></button><button data-pl="fonte+" aria-label="Letra maior" title="Letra maior"><span class="a-maior">A</span></button></span>
       <button class="pl-ferr-rolar so-cifra" data-pl="rolar" aria-pressed="false" aria-label="Rolagem automática" title="Rolagem automática">${icon('down', 16)}<span>Rolar</span></button>
       <button class="pl-ferr-acordes so-cifra" data-pl="acordes" aria-pressed="false" aria-label="Diagrama dos acordes" title="Diagrama dos acordes">${icon('diagrama', 18)}</button></div><div class="pl-acordes" hidden></div><div class="pl-cifra"></div><div class="pl-linhas"></div>
-      <div class="pl-letra-pe"><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><span class="pl-karaoke-pct" aria-hidden="true"><b></b>${icon('up', 14)}</span><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
+      <div class="pl-letra-pe"><span class="pl-karaoke-etapa" aria-hidden="true" hidden></span><div class="pl-karaoke" data-estado="desligado" hidden><div class="pl-karaoke-trilho" role="slider" aria-label="Volume da voz" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1"><i class="pl-karaoke-nivel"></i></div><span class="pl-karaoke-pct" aria-hidden="true"><b></b>${icon('up', 14)}</span><button type="button" class="pl-karaoke-bt" aria-pressed="false" aria-label="Karaokê: tirar a voz" title="Karaokê: tirar a voz">${MICROFONE_KARAOKE}</button></div><div class="pl-letra-bts2"><button class="icon-btn" data-pl="compartilhar-letra" aria-label="Compartilhar a letra" title="Compartilhar a letra">${icon('share', 22)}</button><span class="grow"></span><button class="icon-btn pl-mais" data-pl="menu" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button></div>
         <div class="pl-tempo"><span class="pl-t0"></span><div class="pl-prog" role="slider" tabindex="0" aria-label="Tempo da música" title="Ir para este ponto"><i></i></div><span class="pl-t1"></span></div>
         <button class="icon-btn pl-play" data-pl="play" aria-label="Tocar/pausar">${icon('play', 20)}</button></div></section>
     <div class="pl-extra" hidden></div>`;
@@ -3207,6 +3271,9 @@ const player = (() => {
   // só o da música). É o clipe baixado (o arquivo do aparelho) andando junto com a música (o mesmo ponto cantado, pelos
   // pares das duas versões). Sem o download, fica a capa da música: o player do YouTube mudo, usado antes, mostrava os
   // botões dele por cima ao pausar e vinha em resolução baixa
+  // a capa animada está à vista (com o "Tocando agora" fechado ela fica montada, mas escondida: o vídeo dela para)
+  const fundoNaTela = () => !fundo.hidden && !el.hidden && !el.classList.contains('letra-cheia') && fundo.getClientRects().length > 0
+    && getComputedStyle(fundo).visibility !== 'hidden';
   const canvas = (() => {
     let de = '';
     let caixa = null; // vídeo visível
@@ -3329,7 +3396,7 @@ const player = (() => {
       caixaDoFundo().append(f);
       relogio = setInterval(() => {
         if (!yt || !atual) return;
-        const visivel = !fundo.hidden && !el.hidden && !el.classList.contains('letra-cheia') && fundo.getClientRects().length > 0;
+        const visivel = fundoNaTela();
         const tocar = visivel;
         if (tocar && yt.estado !== 1 && yt.estado !== 3) { ytCmd('mute'); ytCmd('playVideo'); }
         if (!tocar && yt.estado === 1) ytCmd('pauseVideo');
@@ -3426,7 +3493,7 @@ const player = (() => {
     };
     const acompanhar = () => {
       if (!caixa || !atual) return;
-      const visivel = !fundo.hidden && !el.hidden && !el.classList.contains('letra-cheia') && fundo.getClientRects().length > 0;
+      const visivel = fundoNaTela();
       // (como o Canvas do Spotify: continua andando com a música pausada; só para fora da tela)
       const tocar = visivel;
       if (tocar && caixa.paused) caixa.play().catch(() => {});
@@ -3534,7 +3601,10 @@ const player = (() => {
     // cima ao pausar; sem o download, fica a capa da música, parada, como no Spotify sem Canvas)
     // (com o clipe baixado, passam trechos do próprio arquivo; sem o download, os quadros que o YouTube publica do
     // clipe, passando com zoom lento: a capa animada funciona nas duas)
-    const q = capa && !atual?.semVideo && !atual?.soMusica && doYt && db.prefs().videoFundo !== false ? doYt : '';
+    // (no celular, a capa animada continua montada com o "Tocando agora" fechado, só escondida: antes ela era desfeita ao
+    // fechar e refeita ao abrir de novo, e cada quadro surgia aos poucos da cor de fundo — a tela parecia "bugar")
+    const capaGuardada = capa || ((comCapa || Boolean(atual?.soMusica)) && !document.documentElement.classList.contains('pp'));
+    const q = capaGuardada && !atual?.semVideo && !atual?.soMusica && doYt && db.prefs().videoFundo !== false ? doYt : '';
     const barra = capaNaBarra();
     el.classList.toggle('capa-na-barra', barra);
     mini.style.backgroundImage = (capa || barra) && url ? `url("${url}")` : ''; // (com os quadros no fundo, o CSS a esconde)
@@ -3647,12 +3717,15 @@ const player = (() => {
     let fotoAtiva = '';
     const aplicarFotoArtista = (url, tentarDeNovo = true) => {
       if (!url || !fotoBox || extraDe !== chave) return;
-      const img = new Image();
+      const img = imagemSemReferer();
       img.onload = () => {
         if (!fotoBox.isConnected || extraDe !== chave) return;
         fotoAtiva = url;
-        fotoBox.classList.add('com-foto');
-        fotoBox.style.backgroundImage = `url("${url}")`;
+        fotoParaFundo(url).then((u) => {
+          if (!fotoBox.isConnected || extraDe !== chave || fotoAtiva !== url) return;
+          fotoBox.classList.add('com-foto');
+          fotoBox.style.backgroundImage = `url("${u}")`;
+        });
       };
       img.onerror = () => {
         // Não esconder a foto anterior válida por causa de uma fonte que falhou.
@@ -4865,7 +4938,16 @@ const semLinhasDeAcordes = (sinc) => {
     const est = !karaokeLigado ? 'desligado' : prep ? 'preparando' : karaokeDe(fonte) ? 'ligado' : 'preparando';
     kEl.hidden = !fonte;
     kEl.dataset.estado = est;
-    kEl.style.setProperty('--pct', String(prep?.pct || 0));
+    kEl.style.setProperty('--kar-pct', String(prep?.pct || 0));
+    // preparando: o anel em volta do microfone se completa com a porcentagem (no começo, sem porcentagem ainda, um arco
+    // pequeno gira) e, ao lado, a etapa em que está, curta, e a porcentagem
+    kEl.classList.toggle('sem-pct', est === 'preparando' && !(prep?.pct > 0));
+    const etapaEl = $('.pl-karaoke-etapa', el);
+    if (etapaEl) {
+      const mostrar = est === 'preparando' && Boolean(fonte);
+      etapaEl.hidden = !mostrar;
+      if (mostrar) etapaEl.textContent = [etapaCurtaDoKaraoke(prep?.etapa), prep?.pct > 0 ? `${prep.pct}%` : ''].filter(Boolean).join(' · ');
+    }
     kEl.style.setProperty('--nivel', String(nivelVoz));
     // (o microfone fica escuro quando o branco do volume passa por baixo dele)
     // (o controle aberto tem 168 px: o meio do microfone fica a 25 px do fundo e o do número, a 18 px do alto. Cada um
@@ -7021,15 +7103,18 @@ function arrastarFolha(dlg, fechar = () => dlg.close()) {
     const { h } = ini;
     ini = null;
     dlg.classList.remove('folha-arrastando');
+    const cheia = dlg.classList.contains('folha-cheia');
+    // (fechando, a folha desce a partir de onde o dedo a deixou, sem voltar ao lugar antes)
+    if (Math.abs(dy) >= 8 && dy > Math.max(90, h * 0.35) && !(cheia && dy < h * 0.5)) { dlg.style.height = dlg.style.maxHeight = ''; fechar(); return; }
     dlg.style.transform = dlg.style.height = dlg.style.maxHeight = '';
     if (Math.abs(dy) < 8) return; // um toque, não um arraste
-    const cheia = dlg.classList.contains('folha-cheia');
     if (dy < -50) dlg.classList.add('folha-cheia');
-    else if (dy > Math.max(90, h * 0.35) && !(cheia && dy < h * 0.5)) fechar();
     else if (dy > 50 && cheia) dlg.classList.remove('folha-cheia');
   };
   cab.addEventListener('pointerup', soltar);
   cab.addEventListener('pointercancel', soltar);
+  // (a posição de onde ela desceu não fica para a próxima vez que a janela abrir)
+  dlg.addEventListener('close', () => { dlg.style.transform = ''; });
 }
 
 function escolherNaLista({ titulo, opcoes, atual, menu = false, cabeca = '', cls = '', folha = true }) {
@@ -7304,7 +7389,7 @@ function indicadores(s) {
 
 const linhaMusica = (s, extra = '') => `
   <li class="track clickable" data-id="${s.id}" style="grid-template-columns:auto 1fr auto">
-    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${fotoReal(s.fotoArtista) ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(primeiroArtistaDe(s.artist || ''))}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${fotoReal(s.fotoArtista) ? `<img src="${esc(s.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
+    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${fotoReal(s.fotoArtista) ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(primeiroArtistaDe(s.artist || ''))}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${fotoReal(s.fotoArtista) ? `<img src="${esc(s.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
 
 // Escolhe uma música: da biblioteca ou procurando na internet (Cifra Club, cantos da missa, letras,
 // vídeos do YouTube). O que vem da internet é salvo na biblioteca. Devolve o id, 'nova' ou null.
@@ -7757,7 +7842,7 @@ function escolherCapaDaMusica(song) {
       const opcoes = [...lista];
       if (atualUrl && !opcoes.some((c) => c.url === atualUrl) && /^https?:/.test(atualUrl)) opcoes.unshift({ url: atualUrl, album: 'A de agora' });
       grade.innerHTML = opcoes.length ? opcoes.slice(0, 12).map((c) => `<button class="capa-op${c.url === atualUrl ? ' atual' : ''}" data-url="${esc(c.url)}" aria-pressed="${c.url === atualUrl}" title="${esc(c.album || '')}">
-          <img src="${esc(c.url.replace(/1000x1000/, '500x500'))}" alt="" loading="lazy"><small>${esc(c.album || c.titulo || '')}</small></button>`).join('')
+          <img src="${esc(c.url.replace(/1000x1000/, '500x500'))}" referrerpolicy="no-referrer" alt="" loading="lazy"><small>${esc(c.album || c.titulo || '')}</small></button>`).join('')
         : '<p class="muted">Nenhuma capa achada no Deezer nem no iTunes. Escolha uma foto do aparelho.</p>';
     }) : (grade.innerHTML = '<p class="muted">Sem internet: escolha uma foto do aparelho.</p>');
     grade.addEventListener('click', (e) => { const b = e.target.closest('[data-url]'); if (b) escolher(b.dataset.url, true); });
@@ -8539,7 +8624,7 @@ function telaChegando(dados) {
   el.style.setProperty('--cor', corDaMusica(titulo));
   el.innerHTML = `<div class="ch-topo"><button class="icon-btn" data-fechar aria-label="Voltar">${icon('down', 24)}</button>
       <span class="grow"><b>${esc(titulo)}</b><small>${esc(dados.artista || '')}</small></span><span class="ch-vago"></span></div>
-    <div class="ch-capa">${img ? `<img src="${esc(img)}" alt="">` : icon('music', 56)}</div>
+    <div class="ch-capa">${img ? `<img src="${esc(img)}" referrerpolicy="no-referrer" alt="">` : icon('music', 56)}</div>
     <div class="ch-letra" aria-hidden="true">${[78, 62, 84, 55, 70, 88, 60, 74].map((w) => `<i class="esq" style="width:${w}%"></i>`).join('')}</div>`;
   el.setAttribute('role', 'status');
   el.setAttribute('aria-label', `Abrindo ${titulo}`);
@@ -8710,7 +8795,7 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
       const box = $('#view .song-hero > .cover');
       if (box) {
         box.classList.remove('gen');
-        box.innerHTML = `<img src="${esc(url)}" alt="${esc(novo.title)}" loading="eager">`;
+        box.innerHTML = `<img src="${esc(url)}" referrerpolicy="no-referrer" alt="${esc(novo.title)}" loading="eager">`;
       }
     }
   };
@@ -9024,8 +9109,8 @@ const soNosCreditos = (p) => !p.papeis.some((x) => x === 'Artista principal' || 
 function porFotos(box, pessoas, { liturgia = false } = {}) {
   pessoas.forEach((p, i) => (soNosCreditos(p) && !liturgia ? fotoDeCreditado(p.nome) : fotoDaPessoa(p.nome, { liturgia })).then((url) => {
     if (!url || !box.isConnected) return;
-    const img = new Image();
-    img.onload = () => box.querySelectorAll(`[data-foto="${i}"]`).forEach((av) => { av.textContent = ''; av.classList.remove('sem-foto'); av.classList.add('com-foto'); av.style.backgroundImage = `url("${url}")`; });
+    const img = imagemSemReferer();
+    img.onload = () => fotoParaFundo(url).then((u) => box.querySelectorAll(`[data-foto="${i}"]`).forEach((av) => { av.textContent = ''; av.classList.remove('sem-foto'); av.classList.add('com-foto'); av.style.backgroundImage = `url("${u}")`; }));
     img.src = url;
   }).catch(() => {}));
 }
@@ -9044,7 +9129,7 @@ function fontesDaFotoDoArtista(nome, slug = '') {
 // se a imagem carrega mesmo (sem mandar de onde veio o pedido: alguns sites recusam a foto pedida por outro site)
 function fotoCarrega(url, ms = 8000) {
   return new Promise((ok) => {
-    const img = new Image();
+    const img = imagemSemReferer();
     const fim = (v) => { clearTimeout(t); img.onload = img.onerror = null; ok(v); };
     const t = setTimeout(() => fim(false), ms);
     img.referrerPolicy = 'no-referrer';
@@ -9064,7 +9149,7 @@ function enriquecerTilesArtistas(container) {
   // a foto que chegou entra só depois de carregar (sem piscar nem deixar um endereço quebrado na tela); falhando, o
   // desenho, e a foto é procurada de novo (uma vez): a guardada sai, e vem a de outra fonte
   const mostrar = (box, nome, slug, url, refazer = true) => {
-    const img = new Image();
+    const img = imagemSemReferer();
     img.alt = nome;
     img.referrerPolicy = 'no-referrer';
     img.onload = () => {
@@ -9581,7 +9666,7 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
       const fotoExibida = item.fotoArtista || '';
       fotoDaPessoa(artista, { liturgia: ehDaLiturgia(item), slug: item.slug || '', titulo }).then((url) => {
         if (!url || url === fotoExibida || !avatar.isConnected) return;
-        const img = new Image();
+        const img = imagemSemReferer();
         img.alt = '';
         img.loading = 'lazy';
         img.onload = () => { if (avatar.isConnected) { avatar.replaceChildren(img); avatar.classList.add('com-foto'); item.fotoArtista = url; if (item.id && db.song(item.id)?.fotoArtista !== url) db.updateSong(item.id, { fotoArtista: url }); } };
@@ -9765,7 +9850,7 @@ function ehAvatarDeLetra(url) {
   const pequena = url.replace(/=s\d+-/, '=s64-');
   if (!avataresDeLetra.has(pequena)) {
     avataresDeLetra.set(pequena, (async () => {
-      const img = new Image();
+      const img = imagemSemReferer();
       img.crossOrigin = 'anonymous';
       img.src = pequena;
       await img.decode();
@@ -9792,7 +9877,7 @@ function ehFotoVaziaDoDeezer(url) {
   const pequena = url.replace(/\/\d+x\d+-/, '/56x56-');
   if (!fotosVaziasDeezer.has(pequena)) {
     fotosVaziasDeezer.set(pequena, (async () => {
-      const img = new Image();
+      const img = imagemSemReferer();
       img.crossOrigin = 'anonymous';
       img.src = pequena;
       await img.decode();
@@ -10028,7 +10113,7 @@ function verFotos(urls, inicio = 0) {
   v.className = 'ver-fotos';
   v.setAttribute('role', 'dialog');
   v.setAttribute('aria-label', 'Fotos');
-  v.innerHTML = `<div class="vf-trilho">${urls.map((u) => `<div class="vf-foto"><img src="${esc(u)}" alt="" draggable="false"></div>`).join('')}</div>
+  v.innerHTML = `<div class="vf-trilho">${urls.map((u) => `<div class="vf-foto"><img src="${esc(u)}" referrerpolicy="no-referrer" alt="" draggable="false"></div>`).join('')}</div>
     <button class="icon-btn vf-fechar" data-vf="fechar" aria-label="Fechar" title="Fechar">${icon('x', 24)}</button>
     ${urls.length > 1 ? `<button class="icon-btn vf-seta vf-ant" data-vf="ant" aria-label="Foto anterior" title="Anterior (←)">${icon('back', 26)}</button>
     <button class="icon-btn vf-seta vf-prox" data-vf="prox" aria-label="Próxima foto" title="Próxima (→)">${icon('next', 26)}</button>
@@ -10264,7 +10349,7 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
       // (o quadro de um vídeo do YouTube não é foto do artista)
       if (!k || vistas.has(k) || naTela() >= 12 || /ytimg\.com\/vi(_webp)?\//.test(u)) continue;
       vistas.add(k);
-      const img = new Image();
+      const img = imagemSemReferer();
       img.alt = '';
       img.decoding = 'async';
       if (comPrincipal && n === 0) principal = img;
@@ -10396,7 +10481,7 @@ function musicaSalva({ titulo = '', artista = '', cifra = '', letra = '' } = {})
 // verdade; as que falham (ou não têm foto) passam para a próxima. ainda() diz se o cartão ainda está na tela
 const imagemCarrega = (url) => new Promise((ok) => {
   if (!url) { ok(false); return; }
-  const img = new Image();
+  const img = imagemSemReferer();
   const fim = (r) => { clearTimeout(t); ok(r && img.naturalWidth > 1); };
   const t = setTimeout(() => fim(false), 8000);
   img.onload = () => fim(true);
@@ -10408,7 +10493,8 @@ async function fundoDoCartao(el, fontes, ainda = () => true) {
     const url = typeof f === 'function' ? await Promise.resolve().then(f).catch(() => '') : f;
     if (!ainda()) return;
     if (url && await imagemCarrega(url)) {
-      if (ainda()) el.style.backgroundImage = `url("${url}")`;
+      const u = await fotoParaFundo(url);
+      if (ainda()) el.style.backgroundImage = `url("${u}")`;
       return;
     }
   }
@@ -10480,7 +10566,7 @@ const indicadoresWeb = (r) => {
 };
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
-    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
+    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
     <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
@@ -10531,14 +10617,14 @@ const CORES_CARDS = ['#27856a', '#1e3264', '#8d67ab', '#e8115b', '#148a08', '#e1
 const cartaoNavegar = ({ href, nome, cor, ic = 'music', artista = '' }) => {
   const foto = artista ? fotoConhecida(artista) : '';
   return `<a class="nav-card" href="${href}" style="--cor:${cor}"><b>${esc(nome)}</b>
-    <span class="nav-card-arte${foto ? ' com-foto' : ''}"${artista ? ` data-nav-artista="${esc(artista)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon(ic, 40)}</span></a>`;
+    <span class="nav-card-arte${foto ? ' com-foto' : ''}"${artista ? ` data-nav-artista="${esc(artista)}"` : ''}>${foto ? `<img src="${esc(foto)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon(ic, 40)}</span></a>`;
 };
 // as fotos dos artistas nos cards (as que ainda não estão guardadas chegam aos poucos)
 function fotosDosCards(box) {
   box?.querySelectorAll('[data-nav-artista]:not(.com-foto)').forEach((el) => {
     fotoRapida(el.dataset.navArtista).then((url) => {
       if (!url || !el.isConnected) return;
-      const img = new Image();
+      const img = imagemSemReferer();
       img.alt = '';
       img.onload = () => { if (el.isConnected) { el.replaceChildren(img); el.classList.add('com-foto'); } };
       img.src = url;
@@ -10845,7 +10931,7 @@ async function viewArtista(slug, nome) {
   const chaveAba = 'artAba:' + slug;
   let aba = sessionStorage.getItem(chaveAba) || 'top';
   view.innerHTML = `
-    <section class="page-hero artista-hero"><div class="cover" id="art-foto">${fotoConhecida(nome) ? `<img src="${esc(fotoConhecida(nome))}" alt="">` : icon('mic', 48)}</div>
+    <section class="page-hero artista-hero"><div class="cover" id="art-foto" data-artista-foto>${fotoConhecida(nome) ? `<img src="${esc(fotoConhecida(nome))}" referrerpolicy="no-referrer" alt="">` : icon('mic', 48)}</div>
       <div><div class="kind">Artista</div><h2>${esc(nome || slug)}</h2><div class="meta" id="art-meta">Do <a href="https://www.cifraclub.com.br/${esc(slug)}/" target="_blank" rel="noopener">Cifra Club</a></div></div></section>
     <label class="field">${icon('search', 18)}<input class="search" id="art-busca" type="search" placeholder="Buscar nas músicas de ${esc(nome || 'artista')}"></label>
     <div class="chips" id="art-abas" style="margin:12px 0 4px">
@@ -10910,7 +10996,7 @@ async function viewArtista(slug, nome) {
         m.video = v;
         m.capa = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
         const capaEl = minha === vez && $(`#art-conteudo li[data-i="${i}"] .cover`);
-        if (capaEl) { capaEl.classList.remove('gen'); capaEl.innerHTML = `<img src="${esc(m.capa)}" alt="" loading="lazy">`; }
+        if (capaEl) { capaEl.classList.remove('gen'); capaEl.innerHTML = `<img src="${esc(m.capa)}" referrerpolicy="no-referrer" alt="" loading="lazy">`; }
       }
       return proximo();
     };
@@ -10937,8 +11023,9 @@ async function viewArtista(slug, nome) {
     if (!f) return;
     foto = f;
     const box = $('#art-foto');
-    if (!box || f === fotoAgora) return;
-    const img = new Image();
+    // (a mesma de agora só não entra de novo se ela já está aparecendo: a que não carregou é tentada outra vez)
+    if (!box || (f === fotoAgora && box.querySelector('img')?.naturalWidth)) return;
+    const img = imagemSemReferer();
     img.alt = '';
     img.onload = () => { if (box.isConnected) box.replaceChildren(img); };
     img.src = f;
@@ -11056,7 +11143,7 @@ async function viewAlbum(slug, nome, albumUrl) {
   const tipo = [/\b(ao vivo|live)\b/i.test(al.titulo) ? 'Álbum ao vivo' : COLETANEA.test(al.titulo) ? 'Coletânea' : TIPO_ALBUM[al.tipo] || 'Álbum'];
   const nFaixas = `${al.faixas.length} ${al.faixas.length === 1 ? 'faixa' : 'faixas'}`;
   view.innerHTML = `
-    <section class="page-hero album-hero"><div class="cover">${al.capaGrande ? `<img src="${esc(al.capaGrande)}" alt="">` : icon('disc', 48)}</div>
+    <section class="page-hero album-hero"><div class="cover">${al.capaGrande ? `<img src="${esc(al.capaGrande)}" referrerpolicy="no-referrer" alt="">` : icon('disc', 48)}</div>
       <div><div class="kind">${esc(tipo[0])}</div><h2>${esc(al.titulo.trim())}</h2>
       <div class="meta"><a href="${voltar}"><b>${esc(nome)}</b></a>${al.ano ? ` · ${esc(al.ano)}` : ''} · ${nFaixas}${comCifra < al.faixas.length ? ` (${comCifra} com cifra)` : ''}</div>
       ${al.ano ? `<div class="album-dados"><span>${icon('calendar', 14)} Lançado em ${esc(al.ano)}</span><span>${icon('list', 14)} ${nFaixas}</span>${comCifra ? `<span>${icon('chord', 14)} ${comCifra} com cifra</span>` : ''}</div>` : ''}</div></section>
@@ -11734,7 +11821,7 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
     const nomeArtista = primeiroArtistaDe(s.artist || '');
     const foto = fotoReal(s.fotoArtista);
     return `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capa(s)}
-        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${foto ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(nomeArtista)}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
+        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${foto ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(nomeArtista)}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${foto ? `<img src="${esc(foto)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
         <span class="acts">${s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}</span></li>`;
   };
   const vazio = !todas.length ? `<div class="empty"><div class="bubble">${icon('music', 32)}</div><h3>Sua biblioteca está vazia</h3>
@@ -13808,7 +13895,7 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     const pct = agora?.classList.contains('com-pct') ? (parseInt(agora.querySelector('.ia-etapa-st').textContent, 10) || 0) / 100 : agora ? 0.4 : 0;
     const total = Math.round(Math.min(1, (feitas + pct) / itens.length) * 100);
     const geral = $('#ia-geral');
-    geral?.style.setProperty('--pct', `${total}%`);
+    geral?.style.setProperty('--pt-pct', `${total}%`);
     geral?.setAttribute('aria-valuenow', String(total));
     const pctEl = $('#ia-pct');
     if (pctEl) pctEl.textContent = `${total}%`;
@@ -14320,7 +14407,7 @@ async function viewPartitura(id) {
     </div>
     <div id="part-desenhada" class="osmd-box"></div>
     <div class="ensaio so-desenhada" id="ensaio" hidden></div>
-    <div class="partitura-paginas" id="part-original">${paginas.length ? paginas.map((src, i) => `<img src="${esc(src)}" alt="Página ${i + 1} da partitura" loading="${i ? 'lazy' : 'eager'}" onerror="this.remove()">`).join('') : `<div class="empty"><h3>Sem partitura ainda</h3><p>Escreva a partitura aqui no app, nota por nota, com letra, cifras e várias vozes.</p><a class="btn primary" href="#/musica/${id}/compor">${icon('edit', 16)} Criar partitura</a></div>`}</div>
+    <div class="partitura-paginas" id="part-original">${paginas.length ? paginas.map((src, i) => `<img src="${esc(src)}" referrerpolicy="no-referrer" alt="Página ${i + 1} da partitura" loading="${i ? 'lazy' : 'eager'}" onerror="this.remove()">`).join('') : `<div class="empty"><h3>Sem partitura ainda</h3><p>Escreva a partitura aqui no app, nota por nota, com letra, cifras e várias vozes.</p><a class="btn primary" href="#/musica/${id}/compor">${icon('edit', 16)} Criar partitura</a></div>`}</div>
     <p class="fonte" id="part-aviso"></p></div>`;
   let osmd = null;
   let ensaio = null;
@@ -14480,7 +14567,7 @@ function viewSong(id, ctx = {}) {
   view.innerHTML = `
     ${ctx.set ? `<div class="set-progress"><i style="width:${((ctx.index + 1) / ctx.set.items.length) * 100}%"></i></div>` : ''}
     ${canvas ? '<div class="song-topo canvas-on">' : ''}
-    ${canvas ? `<div class="canvas-fundo quadros" aria-hidden="true"><img class="canvas-img" src="https://i.ytimg.com/vi/${esc(song.youtube)}/hqdefault.jpg" alt="">${htmlQuadros(song.youtube, tipoQuadros || 'sd')}</div>` : ''}
+    ${canvas ? `<div class="canvas-fundo quadros" aria-hidden="true"><img class="canvas-img" src="https://i.ytimg.com/vi/${esc(song.youtube)}/hqdefault.jpg" referrerpolicy="no-referrer" alt="">${htmlQuadros(song.youtube, tipoQuadros || 'sd')}</div>` : ''}
     <section class="page-hero song-hero">${capa(song)}
       <div class="hero-txt">${ctx.set ? `<button class="kind kind-btn" id="btn-parte" title="Trocar a parte da missa desta música no repertório">${esc(ctx.set.items[ctx.index]?.label || 'Definir a parte da missa')} ${icon('edit', 12)}</button>` : kind ? `<div class="kind">${esc(kind)}</div>` : ''}<h2 id="song-title">${esc(song.title)}</h2>
         <div class="meta" id="song-meta"></div><div class="sinc-estado" id="sinc-estado" hidden></div></div></section>
@@ -14786,7 +14873,7 @@ function viewSong(id, ctx = {}) {
   const duracaoVideo = song.duracao > 0 ? fmtTempo(song.duracao) : '';
   const video = song.youtube ? `
     <section class="ref-cartao ref-video" id="ref-video"><h3 class="ref-cab">Vídeo de referência</h3>
-      <div class="video-ref" id="video-box"><button class="video-card" id="video-ref" aria-label="Tocar o vídeo aqui"><img src="https://i.ytimg.com/vi/${esc(song.youtube)}/hqdefault.jpg" alt="" loading="lazy">
+      <div class="video-ref" id="video-box"><button class="video-card" id="video-ref" aria-label="Tocar o vídeo aqui"><img src="https://i.ytimg.com/vi/${esc(song.youtube)}/hqdefault.jpg" referrerpolicy="no-referrer" alt="" loading="lazy">
         <span class="vplay"><span>${icon('play', 22)}</span></span>${duracaoVideo ? `<span class="vdur">${duracaoVideo}</span>` : ''}</button></div>
       <div class="ref-video-info">
         <div class="grow"><b id="ref-video-titulo">${esc(song.title)}</b><small id="ref-video-canal">YouTube${duracaoVideo ? ' · ' + duracaoVideo : ''}</small></div>
@@ -15869,7 +15956,7 @@ function tocarDaPlaylist(set, i) {
 }
 function linhaDaPlaylist(set, it, i, comVideo) {
   const s = db.song(it.songId);
-  const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" alt="" loading="lazy"></div>` : capa(s || {});
+  const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="" loading="lazy"></div>` : capa(s || {});
   return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
     <div class="info"><div class="t">${esc(s?.title || '(música removida)')}</div>
       <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${esc(s?.artist || '')}</div></div>
@@ -16048,7 +16135,7 @@ function faixasNoYoutube(yt) {
   const k = 'yt:' + yt;
   if (!faixasDoClipe.has(k)) {
     const medir = (q) => new Promise((ok) => {
-      const img = new Image();
+      const img = imagemSemReferer();
       img.crossOrigin = 'anonymous';
       img.onload = () => { try { ok(medirFaixasDaImagem(img)); } catch { ok(null); } };
       img.onerror = () => ok(null);
@@ -16129,7 +16216,7 @@ async function conferirClipesDaPlaylist(set) {
 }
 function htmlDaCapinha(set, entrando) {
   const yt = set.items.map((it) => db.song(it.songId)).find(comClipeDeVerdade)?.youtube;
-  const tela = yt ? `<img class="pl-mini-anim pl-mini-ini on" src="https://i.ytimg.com/vi/${esc(yt)}/mqdefault.jpg" alt="">` : capaRepertorio(set);
+  const tela = yt ? `<img class="pl-mini-anim pl-mini-ini on" src="https://i.ytimg.com/vi/${esc(yt)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="">` : capaRepertorio(set);
   return `<button class="pl-mini${entrando ? ' entrando' : ''}" id="pl-mini" aria-label="Prévia da playlist" title="Prévia: os clipes das músicas, um de cada vez">
     <span class="pl-mini-atras" aria-hidden="true"></span><span class="pl-mini-tela">${tela}</span>
     <svg class="pl-mini-borda" viewBox="0 0 30 42" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="28" height="40" rx="5" pathLength="100"/></svg></button>`;
@@ -16210,7 +16297,7 @@ function previaDaPlaylist(set, inicio = 0) {
     <div class="pv-feed">${faixas.map(({ s }, k) => {
       const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
       return `<section class="pv-slide" data-k="${k}">
-      <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
+      <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" referrerpolicy="no-referrer" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
         <div class="pv-meta">
           <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>
@@ -16877,7 +16964,7 @@ async function videosDaPlaylist(set, aoAchar) {
 // imagem escolhida → capa quadrada (recortada no centro), pequena o bastante para guardar no aparelho
 function capaDeArquivo(file, lado = 400) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = imagemSemReferer();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const c = document.createElement('canvas');
@@ -17110,7 +17197,7 @@ async function viewLiturgia(data) {
   const passoHTML = (p, num) => {
     if (LEITURAS.includes(p.chave)) return `<span class="step leitura">${icon('book', 18)}</span>`;
     const c = cantoEscolhido(p);
-    if (c?.capa) return `<span class="step"><img src="${esc(c.capa)}" alt="" loading="lazy"><em>${num}</em></span>`;
+    if (c?.capa) return `<span class="step"><img src="${esc(c.capa)}" referrerpolicy="no-referrer" alt="" loading="lazy"><em>${num}</em></span>`;
     // (o canto escolhido sem capa: o número, e a imagem do vídeo dele quando chegar)
     return c ? `<span class="step" data-canto-capa data-titulo="${esc(c.titulo)}" data-artista="${esc(c.artista || '')}" data-fonte="${esc(c.url || '')}">${num}</span>` : `<span class="step">${num}</span>`;
   };
@@ -17296,7 +17383,7 @@ function porCapasDosCantos(raiz) {
     el.dataset.procurada = '1';
     capaDoVideoDoCanto(el.dataset.titulo, el.dataset.artista, el.dataset.fonte).then((url) => {
       if (!url || !el.isConnected) return;
-      const img = new Image();
+      const img = imagemSemReferer();
       img.alt = '';
       img.onload = () => {
         if (!el.isConnected) return;
@@ -18097,7 +18184,7 @@ function viewConta() {
       </section>` : ''}
       ${artistas.length ? `
       <section class="perfil-sec"><div class="perfil-sec-cab"><h3>Artistas tocados recentemente</h3></div>
-        <div id="pf-artistas">${artistas.map((a, i) => `<a class="perfil-linha"${i >= 3 ? ' hidden' : ''} href="#/artista-pelo-nome/${encodeURIComponent(a.nome)}"><span class="perfil-artista" style="--h:${hue(a.nome)}">${a.foto ? `<img src="${esc(a.foto)}" alt="" loading="lazy" onerror="this.remove()">` : icon('artistaSemFoto', 22)}</span><span class="grow"><b>${esc(a.nome)}</b><small>${a.n} música${a.n === 1 ? '' : 's'} na biblioteca</small></span></a>`).join('')}</div>
+        <div id="pf-artistas">${artistas.map((a, i) => `<a class="perfil-linha"${i >= 3 ? ' hidden' : ''} href="#/artista-pelo-nome/${encodeURIComponent(a.nome)}"><span class="perfil-artista" style="--h:${hue(a.nome)}">${a.foto ? `<img src="${esc(a.foto)}" referrerpolicy="no-referrer" alt="" loading="lazy" onerror="this.remove()">` : icon('artistaSemFoto', 22)}</span><span class="grow"><b>${esc(a.nome)}</b><small>${a.n} música${a.n === 1 ? '' : 's'} na biblioteca</small></span></a>`).join('')}</div>
         ${artistas.length > 3 ? '<button class="btn small perfil-pilula perfil-ver" id="pf-todos-artistas">Ver todos os artistas</button>' : ''}
       </section>` : ''}`;
     const todos = $('#pf-todos-artistas');
@@ -21234,13 +21321,13 @@ function viewEstatisticas(sub) {
       <b class="est-num">${fmtMin(r.segundos)}</b>
       <small>${!r.segundos ? 'Toque uma música e volte aqui' : !anterior.segundos ? 'A primeira semana com o registro' : diferenca === 0 ? 'O mesmo que na semana passada' : `${plural(Math.abs(diferenca), 'minuto', 'minutos')} a ${diferenca > 0 ? 'mais' : 'menos'} que na semana passada`}</small></a>
     ${art ? `<a class="est-card" href="#/estatisticas/artistas"><span class="est-rot">Artista mais ouvido ${seta}</span><b class="est-nome">${esc(art.nome)}</b>
-      <span class="est-foto redonda" style="--h:${hue(art.nome)}">${fotoDoArtistaOuvido(art) ? `<img src="${esc(fotoDoArtistaOuvido(art))}" alt="" loading="lazy">` : icon('pessoa', 40)}</span></a>` : ''}
+      <span class="est-foto redonda" style="--h:${hue(art.nome)}">${fotoDoArtistaOuvido(art) ? `<img src="${esc(fotoDoArtistaOuvido(art))}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon('pessoa', 40)}</span></a>` : ''}
     ${mus ? `<a class="est-card" href="#/estatisticas/musicas"><span class="est-rot">Música mais ouvida ${seta}</span><b class="est-nome">${esc(mus.t)}</b>
-      <span class="est-foto" style="--h:${hue(mus.t)}">${capaOuvida(mus) ? `<img src="${esc(capaOuvida(mus))}" alt="" loading="lazy">` : icon('music', 40)}</span></a>` : ''}
+      <span class="est-foto" style="--h:${hue(mus.t)}">${capaOuvida(mus) ? `<img src="${esc(capaOuvida(mus))}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon('music', 40)}</span></a>` : ''}
     ${meses.length ? `<h3 class="est-sub">Seus últimos destaques</h3>
     <div class="shelf est-destaques">${meses.map((m) => `<div class="est-destaque" style="--h:${hue(m.musica?.t || m.nome)}">
       <span class="est-marca" aria-hidden="true">${esc(String(minutos(m.segundos)))}</span>
-      ${m.musica && capaOuvida(m.musica) ? `<img class="est-destaque-capa" src="${esc(capaOuvida(m.musica))}" alt="" loading="lazy">` : ''}
+      ${m.musica && capaOuvida(m.musica) ? `<img class="est-destaque-capa" src="${esc(capaOuvida(m.musica))}" referrerpolicy="no-referrer" alt="" loading="lazy">` : ''}
       <p>Você ouviu por ${plural(minutos(m.segundos), 'minuto', 'minutos')} em ${esc(m.nome)}</p>
       ${m.artista ? `<small>Mais ouvido: ${esc(m.artista.nome)}</small>` : ''}</div>`).join('')}</div>` : ''}
     ${db.prefs().sessaoPrivada ? `<p class="est-aviso">${icon('lock', 15)}<span>A sessão privada está ligada: o que você ouve agora não entra aqui. <a href="#/ajustes">Ajustes</a></span></p>` : ''}
@@ -21260,7 +21347,7 @@ function viewMinutosOuvidos(reg, periodo, r) {
     <div class="est-grafico" role="img" aria-label="Minutos ouvidos em cada dia da semana">${dias.map((d, i) => `<div class="est-dia${d.dia === hoje ? ' hoje' : ''}${d.dia > hoje ? ' futuro' : ''}">
       <small>${d.s >= 60 ? fmtMin(d.s) : ''}</small><span style="--v:${d.s / max}"></span><b>${letras[i]}</b></div>`).join('')}</div>
     <ol class="est-lista">${r.musicas.slice(0, 5).map((m, i) => `<li><a href="${linkDaOuvida(m)}"><span class="est-pos">${i + 1}</span>
-      <span class="est-mini" style="--h:${hue(m.t)}">${capaOuvida(m) ? `<img src="${esc(capaOuvida(m))}" alt="" loading="lazy">` : icon('music', 20)}</span>
+      <span class="est-mini" style="--h:${hue(m.t)}">${capaOuvida(m) ? `<img src="${esc(capaOuvida(m))}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon('music', 20)}</span>
       <span class="grow"><b>${esc(m.t)}</b>${m.a ? `<small>${esc(m.a)}</small>` : ''}</span><span class="est-min">${fmtMin(m.s)} min</span></a></li>`).join('')}</ol>
   </div>`;
 }
@@ -21277,7 +21364,7 @@ function viewMaisOuvidas(sub, periodo, r) {
       const nome = artistas ? x.nome : x.t;
       const href = artistas ? `#/artista-pelo-nome/${encodeURIComponent(x.nome)}` : linkDaOuvida(x);
       return `<li><a href="${href}"><span class="est-pos">${i + 1}</span>
-        <span class="est-mini${artistas ? ' redonda' : ''}" style="--h:${hue(nome)}">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : icon(artistas ? 'pessoa' : 'music', 22)}</span>
+        <span class="est-mini${artistas ? ' redonda' : ''}" style="--h:${hue(nome)}">${img ? `<img src="${esc(img)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon(artistas ? 'pessoa' : 'music', 22)}</span>
         <span class="grow"><b>${esc(nome)}</b><small>${artistas ? plural(x.musicas.length, 'música', 'músicas') : esc(x.a || '')}</small></span><span class="est-min">${fmtMin(x.s)} min</span></a></li>`;
     }).join('')}</ol>
   </div>`;
@@ -21298,7 +21385,7 @@ function viewRecentes(filtro = '') {
     const set = it.tipo === 'repertorio' ? db.set(it.id) : null;
     const song = it.tipo === 'musica' && it.id ? db.song(it.id) : null;
     const href = set ? `#/repertorio/${encodeURIComponent(set.id)}` : song ? `#/musica/${encodeURIComponent(song.id)}` : linkDaOuvida({ t: it.t, a: it.a });
-    const img = set ? capaRepertorio(set, 'rc-capa') : `<span class="cover rc-capa" style="--h:${hue(it.t)}">${it.c ? `<img src="${esc(it.c)}" alt="" loading="lazy">` : icon('music', 22)}</span>`;
+    const img = set ? capaRepertorio(set, 'rc-capa') : `<span class="cover rc-capa" style="--h:${hue(it.t)}">${it.c ? `<img src="${esc(it.c)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : icon('music', 22)}</span>`;
     const sub = it.tipo === 'repertorio'
       ? `${plural(it.quantas, 'música tocada', 'músicas tocadas')} · Repertório`
       : `Música${it.a ? ` · ${esc(it.a)}` : ''}`;
