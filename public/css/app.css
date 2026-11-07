@@ -4456,11 +4456,27 @@ dialog.bib-folha .lista-op[aria-selected="true"] { background: none; }
 .spot-add-ic { width: 48px; height: 48px; border-radius: 4px; display: grid; place-items: center; background: rgb(255 255 255 / 0.1); flex: none; }
 :root[data-theme="light"] .spot-add-ic { background: rgb(0 0 0 / 0.06); }
 /* Músicas curtidas: a busca e a ordem no alto; o nome e a quantidade no degradê azul */
-/* (a busca fica no alto, mas rola junto com a página e some, como no Spotify; não fica presa no topo) */
-.curtidas-busca { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; }
-.curtidas-busca .bib-busca { display: flex; margin: 0; }
-.curtidas-busca .bib-busca { flex: 1; }
-.spot-ordenar { flex: none; }
+/* (como no Spotify: o campo "Buscar na playlist" e o "Ordenar", translúcidos sobre o degradê, ficam acima do nome e
+   fora da tela ao abrir; aparecem ao puxar a página para baixo e somem aos poucos ao rolar) */
+.curtidas-busca { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.curtidas-campo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 6px; background: rgb(255 255 255 / 0.14); color: var(--text); cursor: text; }
+.curtidas-campo .ic { flex: none; opacity: 0.9; }
+.curtidas-campo input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 14px; font-weight: 600; outline: none; -webkit-appearance: none; appearance: none; }
+.curtidas-campo input::placeholder { color: var(--text); opacity: 0.85; }
+.curtidas-campo input::-webkit-search-decoration { display: none; }
+.curtidas-ordenar { flex: none; height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: rgb(255 255 255 / 0.14); color: var(--text); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.curtidas-ordenar:active { opacity: 0.7; }
+:root[data-theme="light"] .curtidas-campo, :root[data-theme="light"] .curtidas-ordenar { background: rgb(0 0 0 / 0.07); }
+.curtidas-busca-voltar { display: none; flex: none; color: var(--text); margin-left: -8px; }
+/* o modo de busca: a seta e o campo presos no alto (sem a faixa do app), os filtros e a lista; o resto sai */
+#view.curtidas-buscando { padding-top: 0; }
+.main-col:has(#view.curtidas-buscando) .topbar { display: none; }
+#view.curtidas-buscando .curtidas-busca { position: sticky; top: 0; z-index: 15; margin: 0 calc(-1 * var(--gutter)) 10px; padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 10px; background: color-mix(in srgb, var(--tint) 35%, var(--bg)); }
+#view.curtidas-buscando .curtidas-busca-voltar { display: grid; }
+#view.curtidas-buscando .curtidas-ordenar, #view.curtidas-buscando .curtidas-topo, #view.curtidas-buscando .spot-acoes,
+#view.curtidas-buscando .spot-add, #view.curtidas-buscando ~ .fab, #view.curtidas-buscando .fab { display: none; }
+/* a folha "Ordenar por": a ordem em uso em verde, com o visto */
+dialog.curtidas-folha .lista-op[aria-selected="true"] b { color: var(--accent-ink); }
 .curtidas-topo { padding: 18px 0 2px; }
 .curtidas-topo h2 { margin: 0 0 6px; font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
 .curtidas-topo p { margin: 0; color: var(--muted); font-size: 14px; }

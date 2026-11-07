@@ -12007,7 +12007,8 @@ function viewBuscaBiblioteca() {
 }
 
 // as músicas curtidas (o coração da estante): todas as músicas salvas, com os filtros delas
-function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set() } = {}) {
+const ORDENS_CURTIDAS = [['titulo', 'Título'], ['artista', 'Artista'], ['album', 'Álbum'], ['recentes', 'Adicionadas recentemente']];
+function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set(), rolagem = null } = {}) {
   if (!FILTROS_MUSICAS.includes(filtro)) return viewEstante(filtro, { selecionando, marcados });
   setTab('biblioteca');
   setTint('#2d46b9');
@@ -12020,13 +12021,19 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   // os filtros das músicas curtidas, cada um com quantas músicas tem
   const FILTROS = [['musicas', 'Todas', todas.length], ['video', 'Com vídeo', todas.filter((x) => x.youtube).length], ['partitura', 'Com partitura', todas.filter(temPartitura).length],
     ['proprias', 'Cifras próprias', todas.filter(ehPropria).length], ['baixadas', 'Baixadas', nBaixadas]];
-  const ordemMus = prefBib('ordemMus', 'recentes'); // as salvas por último primeiro, ou A–Z
+  // a ordem (o "Ordenar" ao lado da busca, como no Spotify): título, artista, álbum ou as salvas por último primeiro
+  const ordemMus = ORDENS_CURTIDAS.find(([k]) => k === ({ az: 'titulo' }[prefBib('ordemMus', 'recentes')] || prefBib('ordemMus', 'recentes')))?.[0] || 'recentes';
   let itens = todas;
   if (filtro === 'video') itens = itens.filter((s) => s.youtube);
   if (filtro === 'proprias') itens = itens.filter(ehPropria);
   if (filtro === 'partitura') itens = itens.filter(temPartitura);
   if (filtro === 'baixadas') itens = itens.filter((x) => x.baixado && !precisaBaixar(x));
+  const pt = (a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' });
+  const album = (x) => /\{\s*album\s*:\s*([^}]*)\}/i.exec(x.content || '')?.[1].trim() || '';
   if (ordemMus === 'recentes') itens.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (ordemMus === 'titulo') itens.sort((a, b) => pt(a.title, b.title));
+  if (ordemMus === 'artista') itens.sort((a, b) => pt(a.artist, b.artist) || pt(a.title, b.title));
+  if (ordemMus === 'album') itens.sort((a, b) => Number(!album(a)) - Number(!album(b)) || pt(album(a), album(b)) || pt(a.title, b.title));
   const marca = () => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const linha = (s) => {
     const nomeArtista = primeiroArtistaDe(s.artist || '');
@@ -12044,8 +12051,9 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   const busca = sessionStorage.getItem('buscaBib') || '';
   view.innerHTML = `
     <div class="curtidas-busca">
-      <label class="field bib-busca">${icon('search', 18)}<input class="search" id="bib-busca" type="search" placeholder="Buscar nas músicas curtidas" value="${esc(busca)}" autocomplete="off"></label>
-      <button class="btn small spot-ordenar" id="bib-ordenar-mus" title="Mudar a ordem">${ordemMus === 'az' ? 'A–Z' : 'Recentes'}</button>
+      <button class="icon-btn curtidas-busca-voltar" id="bib-busca-sair" aria-label="Fechar a busca" title="Voltar">${icon('back', 22)}</button>
+      <label class="curtidas-campo">${icon('search', 16)}<input id="bib-busca" type="search" placeholder="Buscar na playlist" value="${esc(busca)}" autocomplete="off" enterkeyhint="search"></label>
+      <button class="curtidas-ordenar" id="bib-ordenar-mus" title="Ordenar por">Ordenar</button>
     </div>
     <section class="curtidas-topo"><h2>Músicas curtidas</h2><p>${todas.length} ${todas.length === 1 ? 'música' : 'músicas'}</p></section>
     <div class="spot-acoes">
@@ -12067,7 +12075,13 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   const lib = $('#lib');
   lib.querySelectorAll('.lib-item').forEach((li, i) => { li.dataset.midiaIndex = String(i); });
   enriquecerLinhasMusicais(lib, itens, { busca: false });
-  $('#bib-ordenar-mus')?.addEventListener('click', () => { guardarPrefBib('ordemMus', ordemMus === 'az' ? 'recentes' : 'az'); viewLibrary(filtro); });
+  $('#bib-ordenar-mus')?.addEventListener('click', async () => {
+    const v = await escolherNaLista({ menu: true, titulo: 'Ordenar por', cls: 'bib-folha curtidas-folha', atual: ordemMus, opcoes: ORDENS_CURTIDAS.map(([valor, rotulo]) => ({ valor, rotulo })) });
+    if (!v || v === ordemMus) return;
+    guardarPrefBib('ordemMus', v);
+    const y = view.scrollTop;
+    viewLibrary(filtro, { selecionando, marcados, rolagem: y });
+  });
   // aleatório e play das músicas curtidas (o play começa pela primeira com vídeo; com o aleatório, por uma qualquer)
   $('#mus-aleat')?.addEventListener('click', (e) => {
     const v = !player.aleatorio();
@@ -12098,8 +12112,50 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   };
   $('#bib-busca')?.addEventListener('input', (e) => { sessionStorage.setItem('buscaBib', e.target.value); filtrarBusca(e.target.value); });
   if (busca) filtrarBusca(busca);
+  // como no Spotify: a busca e o Ordenar ficam acima do nome, fora da tela ao abrir, e aparecem ao puxar a página
+  // para baixo (somem aos poucos ao rolar). Tocar na busca abre o modo de busca: a seta de voltar e o campo no alto, os
+  // filtros e a lista; o nome, os botões e o "Adicionar" saem até voltar
+  const barra = $('.curtidas-busca');
+  const campoBusca = $('#bib-busca');
+  const altBarra = () => barra.offsetHeight + parseFloat(getComputedStyle(barra).marginBottom || 0);
+  const esmaecer = () => {
+    if (view.classList.contains('curtidas-buscando')) { barra.style.opacity = ''; return; }
+    const o = Math.max(0, 1 - view.scrollTop / Math.max(1, altBarra()));
+    barra.style.opacity = o.toFixed(3);
+    barra.style.pointerEvents = o < 0.3 ? 'none' : '';
+  };
+  view.addEventListener('scroll', esmaecer, { passive: true });
+  aoSair(() => { view.removeEventListener('scroll', esmaecer); view.classList.remove('curtidas-buscando'); });
+  // (a página precisa rolar a altura da barra para escondê-la, mesmo com poucas músicas)
+  const esconderBarra = () => {
+    const topoLib = lib.getBoundingClientRect().top - view.getBoundingClientRect().top + view.scrollTop;
+    const pe = parseFloat(getComputedStyle(view).paddingBottom) || 0;
+    lib.style.minHeight = `${Math.max(0, Math.ceil(view.clientHeight + altBarra() - topoLib - pe))}px`;
+    view.scrollTop = altBarra();
+    esmaecer();
+  };
+  const entrarNaBusca = () => {
+    if (view.classList.contains('curtidas-buscando')) return;
+    view.classList.add('curtidas-buscando');
+    lib.style.minHeight = '';
+    view.scrollTop = 0;
+    esmaecer();
+  };
+  const sairDaBusca = () => {
+    view.classList.remove('curtidas-buscando');
+    campoBusca.value = '';
+    sessionStorage.removeItem('buscaBib');
+    filtrarBusca('');
+    campoBusca.blur();
+    requestAnimationFrame(esconderBarra);
+  };
+  campoBusca.addEventListener('focus', entrarNaBusca);
+  $('#bib-busca-sair').onclick = sairDaBusca;
+  campoBusca.addEventListener('keydown', (e) => { if (e.key === 'Escape') sairDaBusca(); if (e.key === 'Enter') campoBusca.blur(); });
+  if (busca) entrarNaBusca();
+  else if (rolagem != null) { view.scrollTop = rolagem; esmaecer(); } else requestAnimationFrame(esconderBarra);
   $('#imp')?.addEventListener('click', openImport);
-  const redesenhar = (sel = selecionando) => viewLibrary(filtro, { selecionando: sel, marcados: sel ? marcados : new Set() });
+  const redesenhar = (sel = selecionando) => viewLibrary(filtro, { selecionando: sel, marcados: sel ? marcados : new Set(), rolagem: view.scrollTop });
   const atualizarSel = () => {
     lib.querySelectorAll('.lib-item').forEach((li) => li.classList.toggle('marcado', marcados.has(li.dataset.k)));
     const n = marcados.size;
