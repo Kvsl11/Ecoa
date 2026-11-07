@@ -3495,20 +3495,9 @@ html.tablet body.na-musica { --rodape: env(safe-area-inset-bottom); }
    a letra nunca passa por baixo da barrinha (antes ela ficava por cima da letra, no canto, e a letra piscava atrás) */
 html.tablet body.na-musica.com-player.painel-recolhido #player { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; }
 html.tablet body.na-musica.com-player.painel-recolhido .main-col { margin-bottom: calc(var(--nav-alt) + 8px + env(safe-area-inset-bottom)); }
-/* em pé a linha é estreita: o menu fica mais junto. O mini player fica um pouco mais largo (46% da linha, o menu com
-   54%) e o vídeo continua colado na borda e com a altura toda do cartão, mas mais estreito (4:3 em vez de 16:9): o
-   clipe é cortado nas laterais, sem diminuir nem ganhar faixas pretas. Antes o vídeo ocupava uns 140 px dos 340 do
-   cartão e sobravam uns 65 px para o nome ("Ne…"), que não dava para ler */
+/* em pé a linha é estreita: o menu fica mais junto */
 @media (orientation: portrait) {
   html.tablet body.com-player.painel-recolhido .nav { padding: 0 4px; }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) .nav { width: calc(var(--linha-w) * 0.54); }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #player { width: calc(var(--linha-w) * 0.46); gap: 8px; }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #player:not(.sem-video):not(.capa-na-barra):not(.modo-capa):not(.mini-1):not(.grande) .pl-video { aspect-ratio: 4 / 3; }
-  /* (o clipe dentro do espaço mais estreito: da altura toda, no centro, com as laterais cortadas) */
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #pl-tela:not(.no-palco) :is(iframe, video.pl-local) { position: absolute; top: 0; bottom: auto; left: 50%; right: auto; width: auto; height: 100%; aspect-ratio: 16 / 9; transform: translateX(-50%); object-fit: cover; }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #player .pl-txt b { font-size: 17px; }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #player .pl-txt small { font-size: 14.5px; }
-  html.tablet body.com-player.painel-recolhido:not(.na-musica) #player .pl-salva { margin-right: 2px; }
 }
 /* deitado o mini player tem a largura e a borda direita do painel "Tocando agora" aberto: abrir (tocando ou puxando)
    só faz ele subir, sem encurtar para o lado antes (antes ele ocupava 40% da linha, mais largo que o painel); o menu

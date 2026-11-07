@@ -5,11 +5,10 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 603, data: '2026-11-07', titulo: 'Janela de troca de vídeo e de áudio reformulada e mini player do tablet em retrato',
+    versao: 603, data: '2026-11-07', titulo: 'Janela de troca de vídeo e de áudio reformulada',
     itens: [
       { tipo: 'correcao', texto: 'Nas janelas que sobem do rodapé com lista (como a de trocar o vídeo ou a música), um traço horizontal aparecia sobre cada botão "Escolher". A regra de estilo do rodapé da janela (fixo, com linha superior, fundo e margens) também se aplicava ao espaço dos botões de cada linha da lista, que usa a mesma classe. A regra passou a valer apenas para o rodapé da janela.' },
       { tipo: 'melhoria', texto: 'A janela de trocar o vídeo ou a música (áudio) foi reformulada, no celular e no tablet: o título indica a ação ("Trocar o vídeo", "Trocar a música (áudio)") e a música a que se refere; as linhas da lista passaram a ter miniatura maior, com a duração, e o nome em até duas linhas; a versão em uso aparece primeiro, destacada, com a etiqueta "Atual" e a indicação "Em uso" no lugar do botão; "Tenho o link do vídeo" passou a ser uma linha com ícone, que se expande; no rodapé, "Remover" fica à esquerda, em vermelho e com ícone, e "Cancelar" à direita.' },
-      { tipo: 'correcao', texto: 'No tablet em orientação retrato, com o vídeo ativo, o mini player ocupava 40% da linha e o vídeo, ajustado à altura total do cartão, consumia cerca de 140 dos 340 px disponíveis, restando cerca de 65 px para o nome da música, que se tornava ilegível. Em retrato, o mini player passou a ocupar 46% da linha (o menu, 54%) e o vídeo, mantida a altura total do cartão, passou da proporção 16:9 para 4:3, com o clipe recortado nas laterais, sem redução nem faixas pretas; a área do nome passou de cerca de 65 px para cerca de 161 px. A orientação paisagem não foi alterada.' },
     ],
   },
   {
