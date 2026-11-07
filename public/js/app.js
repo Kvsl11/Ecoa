@@ -8032,7 +8032,7 @@ function artistasDaBiblioteca(n = 12) {
 const tileArtistaInicio = (a) => {
   const foto = a.foto || fotoConhecida(a.nome);
   return `<a class="tile tile-artista" href="#/artista-pelo-nome/${encodeURIComponent(a.nome)}">
-  <div class="cover" data-artista-foto data-nome="${esc(a.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
+  <div class="cover" data-artista-foto data-nome="${esc(a.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
 };
 
 function viewHome() {
@@ -8849,7 +8849,7 @@ const buscarTudo = (termo, nMusicas = 8, nVideos = 6) => {
 const tileArtista = (a) => {
   const foto = a.fotoFinal !== undefined ? a.fotoFinal : fotoConhecida(a.nome);
   return `<a class="tile tile-artista" href="#/artista/${encodeURIComponent(a.slug)}/${encodeURIComponent(a.nome)}">
-  <div class="cover" data-artista-foto data-nome="${esc(a.nome)}" data-slug="${esc(a.slug)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
+  <div class="cover" data-artista-foto data-nome="${esc(a.nome)}" data-slug="${esc(a.slug)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
 };
 // O artista certo numa busca do Cifra Club: primeiro o de nome igual (a busca por "Justice" traz a "Victoria Justice"
 // antes do Justice). Um nome dentro do outro só vale quando a diferença é um título ("Gilson" e "Frei Gilson") ou
@@ -8975,6 +8975,30 @@ function porFotos(box, pessoas, { liturgia = false } = {}) {
     img.src = url;
   }).catch(() => {}));
 }
+// As fontes da foto do artista, na ordem de preferência (a mesma de fotoDoArtista), para tentar uma depois da outra
+// quando a foto escolhida não carrega no aparelho
+function fontesDaFotoDoArtista(nome, slug = '') {
+  return [
+    () => fotoDoArtista(nome, slug),
+    () => fotoDoCanalDeVerdade(nome),
+    () => (slug ? carregarArtista(slug, nome).principal.then((x) => x?.foto) : Promise.resolve('')),
+    () => buscarArtistasCifraClub(nome).then((l) => (slug ? l.find((a) => a.slug === slug) : artistaCerto(l, nome))?.capa || ''),
+    () => fotoDeezer(nome),
+    () => fotoWikipedia(nome),
+  ];
+}
+// se a imagem carrega mesmo (sem mandar de onde veio o pedido: alguns sites recusam a foto pedida por outro site)
+function fotoCarrega(url, ms = 8000) {
+  return new Promise((ok) => {
+    const img = new Image();
+    const fim = (v) => { clearTimeout(t); img.onload = img.onerror = null; ok(v); };
+    const t = setTimeout(() => fim(false), ms);
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => fim(img.naturalWidth > 0);
+    img.onerror = () => fim(false);
+    img.src = url;
+  });
+}
 function enriquecerTilesArtistas(container) {
   if (!container) return;
   // sem foto: só o desenho do artista (o microfone), e nada mais na caixa
@@ -8988,6 +9012,7 @@ function enriquecerTilesArtistas(container) {
   const mostrar = (box, nome, slug, url, refazer = true) => {
     const img = new Image();
     img.alt = nome;
+    img.referrerPolicy = 'no-referrer';
     img.onload = () => {
       if (!box.isConnected) return;
       box.dataset.mostrando = url;
@@ -9003,13 +9028,20 @@ function enriquecerTilesArtistas(container) {
     };
     img.src = url;
   };
-  const procurarDeNovo = (box, nome, slug, quebrada) => {
+  // (a procura de novo passa por todas as fontes, uma de cada vez, até uma foto carregar: antes vinha de novo a mesma
+  // fonte, com a mesma foto que não carrega, e o artista ficava sem foto)
+  const procurarDeNovo = async (box, nome, slug, quebrada) => {
     if (box.dataset.refeita) return;
     box.dataset.refeita = '1';
     if (fotoConhecida(nome) === quebrada) esquecerFotoDoArtista(nome);
-    fotoDoArtista(nome, slug).then((url) => {
-      if (url && url !== quebrada && box.isConnected) mostrar(box, nome, slug, url, false);
-    }).catch(() => {});
+    const tentadas = new Set([quebrada]);
+    for (const fonte of fontesDaFotoDoArtista(nome, slug)) {
+      if (!box.isConnected || box.querySelector('img')?.naturalWidth) return;
+      const url = fotoReal(await fonte().catch(() => '')) || '';
+      if (!url || tentadas.has(url)) continue;
+      tentadas.add(url);
+      if (await fotoCarrega(url) && box.isConnected) { mostrar(box, nome, slug, url, false); return; }
+    }
   };
   container.querySelectorAll('[data-artista-foto]').forEach((box) => {
     const nome = box.dataset.nome || '';
@@ -11401,7 +11433,7 @@ function ordenarEstante(lista, ordem) {
 function htmlDaEstante(e, grade) {
   const marca = e.art ? '' : `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const foto = e.art && (e.art.foto || fotoConhecida(e.nome));
-  const cv = e.art ? `<div class="cover capa-artista" data-artista-foto data-nome="${esc(e.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : icon('mic', 28)}</div>`
+  const cv = e.art ? `<div class="cover capa-artista" data-artista-foto data-nome="${esc(e.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 28)}</div>`
     : capaRepertorio(e.set);
   const sub = e.art ? 'Artista' : `${tipoDoSet(e.set)} • ${qtdMusicas(e.set.items.length)}`;
   const attrs = e.art ? `class="${grade ? 'bib-card' : 'track clickable'} bib-art" data-artista="${esc(e.nome)}"` : `class="${grade ? 'bib-card' : 'track clickable'} lib-item" data-k="${e.k}"`;
@@ -16091,7 +16123,7 @@ function previaDaPlaylist(set, inicio = 0) {
       <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
         <div class="pv-meta">
-          <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="">` : icon('mic', 16)}</span>
+          <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>
             <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><small class="pv-seg" hidden></small></span>` : ''}</div>
           <button class="icon-btn pv-compartilhar" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
           <div class="pv-tags" hidden></div>
