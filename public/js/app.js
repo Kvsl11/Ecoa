@@ -9121,9 +9121,9 @@ function fontesDaFotoDoArtista(nome, slug = '') {
   return [
     () => fotoDoArtista(nome, slug),
     () => fotoDoCanalDeVerdade(nome),
+    () => fotoDeezer(nome),
     () => (slug ? (dadosArtista.get(slug)?.principal || getArtistaCifraClub(slug)).then((x) => x?.foto) : Promise.resolve('')),
     () => buscarArtistasCifraClub(nome).then((l) => (slug ? l.find((a) => a.slug === slug) : artistaCerto(l, nome))?.capa || ''),
-    () => fotoDeezer(nome),
     () => fotoWikipedia(nome),
   ];
 }
@@ -9283,21 +9283,21 @@ function videosDoArtista(nome, fora = []) {
 const parecidosBuscados = new Map();
 function parecidosNoDeezer(id) {
   // (a lista vazia, o Deezer sem responder, não fica guardada: na próxima vez, procura de novo)
-  if (!parecidosBuscados.has(id)) parecidosBuscados.set(id, jsonp(`https://api.deezer.com/artist/${id}/related?limit=20`).then((r) => (r?.data || []).map((a) => ({ nome: a.name, foto: a.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '', fas: a.nb_fan || 0 }))).catch(() => [])
+  if (!parecidosBuscados.has(id)) parecidosBuscados.set(id, jsonp(`https://api.deezer.com/artist/${id}/related?limit=20`).then((r) => (r?.data || []).map((a) => ({ nome: a.name, foto: [a.picture_xl, a.picture_big, a.picture_medium].find((u) => u && !/\/artist\/\//.test(u)) || '', fas: a.nb_fan || 0 }))).catch(() => [])
     .then((l) => { if (!l.length) parecidosBuscados.delete(id); return l; }));
   return parecidosBuscados.get(id);
 }
 // as músicas parecidas (a "rádio" do artista no Deezer: músicas dele e de artistas parecidos): [{ titulo, artista, capa }]
 const parecidasBuscadas = new Map();
 function musicasParecidasNoDeezer(id) {
-  if (!parecidasBuscadas.has(id)) parecidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/radio?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => [])
+  if (!parecidasBuscadas.has(id)) parecidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/radio?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_xl || x.album?.cover_big || x.album?.cover_medium || '' }))).catch(() => [])
     .then((l) => { if (!l.length) parecidasBuscadas.delete(id); return l; }));
   return parecidasBuscadas.get(id);
 }
 // as mais ouvidas do artista no Deezer: [{ titulo, artista, capa }]
 const maisOuvidasBuscadas = new Map();
 function maisOuvidasNoDeezer(id) {
-  if (!maisOuvidasBuscadas.has(id)) maisOuvidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/top?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }))).catch(() => [])
+  if (!maisOuvidasBuscadas.has(id)) maisOuvidasBuscadas.set(id, jsonp(`https://api.deezer.com/artist/${id}/top?limit=25`).then((r) => (r?.data || []).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_xl || x.album?.cover_big || x.album?.cover_medium || '' }))).catch(() => [])
     .then((l) => { if (!l.length) maisOuvidasBuscadas.delete(id); return l; }));
   return maisOuvidasBuscadas.get(id);
 }
@@ -9311,7 +9311,7 @@ async function versoesDeOutros(titulo, artista) {
   return (r?.data || []).filter((x) => normalizar(tituloLimpo(x.title)) === t && !mesmoNomeDeArtista(x.artist?.name, artista))
     .sort((x, y) => (y.rank || 0) - (x.rank || 0))
     .filter((x) => { const k = nomeJunto(x.artist?.name); if (vistos.has(k)) return false; vistos.add(k); return true; })
-    .slice(0, 8).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_medium || '' }));
+    .slice(0, 8).map((x) => ({ titulo: x.title, artista: x.artist?.name || '', capa: x.album?.cover_xl || x.album?.cover_big || x.album?.cover_medium || '' }));
 }
 // abre uma música da lista (dos parecidos, das versões): pela busca do app, com a cifra e o vídeo
 const abrirMusicaPeloNome = (m) => abrirMusica({ titulo: m.titulo, artista: m.artista }, location.hash);
@@ -9592,7 +9592,7 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
     // primeira que chegar não espera muito pelas preferidas (a tela está sem foto); com uma guardada, que já aparece na
     // hora, a troca em segundo plano espera a preferida, para a foto não ficar trocando entre uma abertura e outra
     const estrita = Boolean(fotoConhecida(nome));
-    const resolucao = primeiraPorPreferencia([() => fotoDoCanalDeVerdade(nome), cifraClub, () => fotoDeezer(nome, titulo)], { folga: estrita ? 0 : 1200 })
+    const resolucao = primeiraPorPreferencia([() => fotoDoCanalDeVerdade(nome), () => fotoDeezer(nome, titulo), cifraClub], { folga: estrita ? 0 : 1200 })
       .then((f) => f || fotoWikipedia(nome).catch(() => ''))
       .then((f) => { if (!f) fotosArtistas.delete(k); return f || ''; });
     fotosArtistas.set(k, resolucao);
@@ -9804,7 +9804,7 @@ function capasCandidatas(titulo, artista) {
       const it = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(`${a} ${musica.titulo}`)}&entity=song&limit=25`);
       // (o iTunes não diz quantas vezes foi ouvida: vale a ordem dele, a mais relevante primeiro)
       const res = it?.results || [];
-      return ordenarCapas(res.map((x, i) => ({ url: x.artworkUrl100 ? x.artworkUrl100.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, '/600x600bb.jpg') : '', album: x.collectionName || '', titulo: x.trackName, artista: x.artistName,
+      return ordenarCapas(res.map((x, i) => ({ url: x.artworkUrl100 ? x.artworkUrl100.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, '/1000x1000bb.jpg') : '', album: x.collectionName || '', titulo: x.trackName, artista: x.artistName,
         rank: res.length - i, fonte: 'iTunes', explicita: ['explicit', 'cleaned'].includes(x.trackExplicitness) })), musica);
     })().catch(() => []);
     capasDaBusca.set(k, busca.then((l) => { if (!l.length) capasDaBusca.delete(k); return l; }));
@@ -9833,7 +9833,7 @@ async function fotoDeezer(nome, titulo = '') {
   // A busca só pelo nome é reserva: nomes iguais não podem escolher a foto de um xará.
   const a = await artistaDoDeezer(nome, titulo ? { titulo } : {});
   // sem foto, o Deezer devolve uma imagem genérica (o endereço fica com "/artist//")
-  const foto = a?.picture_medium && !/\/artist\/\//.test(a.picture_medium) ? a.picture_big || a.picture_medium : '';
+  const foto = [a?.picture_xl, a?.picture_big, a?.picture_medium].find((u) => u && !/\/artist\/\//.test(u)) || '';
   return foto && !(await ehFotoVaziaDoDeezer(foto)) ? foto : '';
 }
 // As fotos que não são foto: para o artista sem foto, o Deezer devolve um endereço com cara de foto de verdade, mas a
@@ -10448,7 +10448,7 @@ function paginaDoMusico(nome, lingua) {
     const palavras = String(nome).trim().split(/\s+/);
     const junto = palavras.length > 1 && palavras.length <= 3 ? palavras.join('').replace(/^(.)(.*)$/, (_, a, b) => a.toUpperCase() + b.toLowerCase()) : '';
     const titulos = [nome, ...VARIANTES_MUSICO[lingua].map((v) => `${nome} (${v})`), ...(junto && junto !== nome ? [junto] : [])];
-    paginasDeMusico.set(k, fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titulos.join('|'))}&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&format=json&origin=*`)
+    paginasDeMusico.set(k, fetch(`https://${lingua}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titulos.join('|'))}&redirects=1&prop=pageimages|description&piprop=thumbnail&pithumbsize=1000&format=json&origin=*`)
       .then((x) => x.json()).then((r) => {
         const q = r?.query || {};
         // (o título pedido → o da página, passando pelos redirecionamentos)
