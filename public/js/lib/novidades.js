@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 607, data: '2026-11-07', titulo: 'Tema automático passou a seguir o modo do aparelho no Android',
+    itens: [
+      { tipo: 'correcao', texto: 'No aplicativo Android, o tema "Automático" exibia o tema claro mesmo com o aparelho no modo escuro. O navegador interno do Android (WebView) informa à página o modo claro ou escuro a partir do tema declarado no aplicativo, e não a partir da configuração do aparelho; além disso, a tela não era recriada quando o modo do sistema mudava, de modo que a troca não era percebida. O aplicativo passou a informar à página o modo real do aparelho ao abrir, ao voltar do segundo plano e no momento em que o modo do sistema muda, e o último valor informado é usado desde o início da próxima abertura, sem alternância visível entre os temas. A escolha manual de Escuro ou Claro não foi alterada. Disponível mediante atualização do aplicativo.' },
+    ],
+  },
+  {
     versao: 606, data: '2026-11-07', titulo: 'Ajustes reorganizados, com ícones revistos e sem opções repetidas',
     itens: [
       { tipo: 'melhoria', texto: 'Os tópicos dos Ajustes passaram a ter ícones correspondentes ao conteúdo: Avançado deixou de usar o ícone de banco de dados (semelhante a uma memória) e passou a usar uma chave de ferramenta; Backup, que usava a seta de envio, passou a usar uma caixa de arquivo; Permissões passou a usar um escudo; PowerPoint, um quadro de apresentação; e Música e cifra, uma nota musical no lugar do sinal "#".' },
@@ -72,14 +78,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O indicador circular de progresso do karaokê e o do download deixaram de ser exibidos porque a variável --pct, compartilhada pelos dois, passou a ser registrada como porcentagem pela tela de partitura, o que invalidava os valores numéricos. Cada componente passou a usar uma variável própria. O indicador do karaokê foi redesenhado: anel de 3 px na borda do botão, com avanço contínuo; arco giratório enquanto a porcentagem ainda não é conhecida; e etiqueta discreta ao lado com a etapa e a porcentagem (por exemplo, "Tirando a voz · 42%").' },
       { tipo: 'correcao', texto: 'O menu ⋮ e as demais folhas inferiores surgiam com transparência e deslocamento curto, sobrepondo momentaneamente o texto ao conteúdo de trás; passaram a deslizar a partir da borda inferior, opacas, com o fundo escurecido gradualmente, e a descer ao fechar (antes desapareciam de uma vez). A tela "Tocando agora" passou a abrir da mesma forma.' },
       { tipo: 'correcao', texto: 'Ao fechar a tela "Tocando agora", a capa animada (quadros ou trechos do clipe) era desmontada e, ao reabrir, montada novamente, com cada imagem surgindo gradualmente a partir da cor de fundo. Ela passou a permanecer montada e oculta, com a animação pausada, e é retomada no mesmo ponto ao reabrir.' },
-    ],
-  },
-  {
-    versao: 597, data: '2026-11-07', titulo: 'Salvamento direto pelo player, busca restrita a conteúdo externo e notas de versão em registro técnico',
-    itens: [
-      { tipo: 'correcao', texto: 'O botão de salvar do player, acionado sobre uma música aberta pela busca ou sobre um vídeo de "Vídeos relacionados", abria a página da música com a tela de carregamento e só então tentava salvar; quando a música aberta vinha associada a outro vídeo, a verificação falhava e nada era salvo. O salvamento passou a ser executado diretamente no player, sem navegação nem tela de carregamento, pelo mesmo procedimento do botão de salvar das listas: o botão exibe um indicador de progresso e passa a ✓ ao concluir. Aplica-se à versão web e ao aplicativo Android.' },
-      { tipo: 'melhoria', texto: 'A tela Buscar deixou de exibir a seção "Na sua biblioteca" e o filtro Biblioteca: os resultados passam a se limitar a conteúdo externo (músicas, artistas e acervo litúrgico), e a consulta ao conteúdo já salvo permanece disponível na busca da própria Biblioteca. Aplica-se à versão web e ao aplicativo Android.' },
-      { tipo: 'melhoria', texto: 'As notas de versão exibidas em Novidades passaram a adotar registro técnico e formal, com a descrição objetiva da causa, da alteração implementada e do efeito obtido. As entradas das nove versões anteriores foram revisadas segundo o mesmo padrão.' },
     ],
   },
 ];

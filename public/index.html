@@ -6,7 +6,9 @@
     // aplica tema e cor salvos antes de desenhar a página (evita "piscar")
     try {
       var p = (JSON.parse(localStorage.getItem('songbook.v1') || '{}').prefs) || {};
-      var t = p.theme === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : (p.theme || 'dark');
+      // (no app de Android, o modo do aparelho é o último que o Android informou: o WebView responde pelo tema do app)
+      var ts = /EcoaAndroid/.test(navigator.userAgent) ? localStorage.getItem('songbook.temaSistema') : '';
+      var t = p.theme === 'auto' ? (ts === 'dark' || ts === 'light' ? ts : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) : (p.theme || 'dark');
       document.documentElement.dataset.theme = t;
       if (p.sideCollapsed) document.documentElement.classList.add('side-collapsed');
     } catch (e) {}
