@@ -852,7 +852,7 @@ function capa(item = {}, { ic = 'music', cls = '' } = {}) {
 }
 // A capa que a capa oficial (a do álbum, capaOficial) substitui: nenhuma, o quadro do vídeo do YouTube ou a foto do
 // artista que vem com a cifra (Cifra Club, Letras). A escolhida pela pessoa (uma foto do aparelho, outro endereço) fica
-const capaTrocavel = (u) => !u || /(^https?:\/\/(i\d?\.ytimg\.com|img\.youtube\.com)\/)|sscdn\.co\/letras\/[^/]+\/fotos\//.test(u);
+const capaTrocavel = (u) => !u || capaAutomatica(u) || /(^https?:\/\/(i\d?\.ytimg\.com|img\.youtube\.com)\/)|sscdn\.co\/letras\/[^/]+\/fotos\//.test(u);
 // a capa que o próprio app pôs (a oficial, do Deezer ou do iTunes)
 const capaAutomatica = (u) => /^https?:\/\/([^/]+\.)?(dzcdn\.net|mzstatic\.com)\//.test(u || '');
 // troca a capa da música (guardada na cifra, como as outras informações dela), na tela e no player. escolhida: a
@@ -9837,7 +9837,11 @@ function capaOficial(titulo, artista) {
       return url;
     }));
   }
-  return comUltimoValor('capa', k, capasOficiais.get(k));
+  // Capas automáticas antigas podem ser miniaturas; com internet, espera a nova consulta antes de devolver a guardada.
+  // Assim a atualização em segundo plano consegue substituir também URLs antigas do Deezer/iTunes.
+  return navigator.onLine
+    ? valorDaInternet('capa', `capa:${normalizar(k)}`, capasOficiais.get(k))
+    : comUltimoValor('capa', k, capasOficiais.get(k));
 }
 // (o artista do Deezer com o nome pedido: lib/artistas.js, artistaDeezerCerto)
 async function fotoDeezer(nome, titulo = '') {
