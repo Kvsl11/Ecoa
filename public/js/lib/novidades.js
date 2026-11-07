@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 602, data: '2026-11-07', titulo: 'Capas estáveis, conta limpa por completo, menu das playlists por toque longo e novo selo de artista confirmado',
+    itens: [
+      { tipo: 'correcao', texto: 'A capa das músicas salvas podia mudar sozinha: ao abrir o aplicativo, ao tocar a música e ao exibir a biblioteca, a capa do álbum era procurada de novo e substituída sempre que a busca devolvia outra. Além disso, a escolha entre as capas encontradas ordenava as opções pela adequação à música (single e álbum à frente de coletâneas e de outras gravações), mas em seguida selecionava a de maior resolução e, no empate, a mais ouvida, de modo que uma coletânea gospel substituía a capa do single de "Aba", do Kemuel. A escolha passou a respeitar a ordem de adequação, considerando as duas fontes (Deezer e iTunes) em conjunto, e a resolução só desempata o mesmo álbum. A busca em segundo plano passou a preencher apenas a capa provisória (nenhuma, o quadro do vídeo ou a foto do artista): a capa do álbum já atribuída não é mais substituída. As capas salvas que forem de coletânea ou de outra gravação são corrigidas uma única vez, em segundo plano; as corretas e as escolhidas manualmente são mantidas.' },
+      { tipo: 'melhoria', texto: 'Em "Trocar a capa", o botão "Automática", que não indicava atividade e, sem resposta da busca, removia a capa, foi substituído por "Achar a capa certa": durante a busca, a janela informa que o Deezer e o iTunes estão sendo consultados; ao final, exibe a capa encontrada, o álbum, a fonte e a resolução, e informa se a capa foi trocada, se a atual já era a correta ou se nada foi encontrado (nesse caso, a capa atual é mantida). Cada opção da grade passou a indicar a fonte. O Diagnóstico da música ganhou a seção "Capa", que identifica a capa de coletânea ou de outra gravação, e "Consertar agora" passou a informar quando a capa é corrigida.' },
+      { tipo: 'correcao', texto: '"Apagar tudo", nas configurações, saía da conta e apagava apenas os dados do aparelho; como a conta é obrigatória, ao entrar novamente a nuvem restaurava músicas, playlists e repertórios, e na prática só os downloads eram removidos. O botão passou a limpar a conta: primeiro todos os itens da nuvem são marcados como apagados (os demais aparelhos da conta também são esvaziados na sincronização seguinte) e, em seguida, são removidos do aparelho a biblioteca, as playlists, os repertórios, os downloads, os karaokês, as estatísticas, o histórico e os ajustes. A sessão da conta é mantida. Sem internet ou sem resposta da nuvem, nada é apagado e o motivo é informado.' },
+      { tipo: 'novo', texto: 'Na biblioteca, manter o dedo sobre uma playlist ou um repertório abre o menu inferior (celular e tablet) com as opções Fixar no topo (ou Desafixar), Renomear, Trocar a capa, Usar a capa automática, Selecionar várias e Excluir. Os itens fixados aparecem logo após "Músicas curtidas" e "Baixadas", com o ícone de alfinete, e a fixação é sincronizada pela conta. Antes, o toque longo apenas iniciava a seleção para exclusão.' },
+      { tipo: 'melhoria', texto: 'O selo de artista confirmado, na seção "Sobre o artista", passou de um círculo azul para o formato de borda ondulada, preenchido em azul, com o sinal de confirmação em branco.' },
+    ],
+  },
+  {
     versao: 601, data: '2026-11-07', titulo: 'Tela de entrada redesenhada',
     itens: [
       { tipo: 'melhoria', texto: 'A tela de entrada foi simplificada. Foram removidos o mural animado de quadros de clipes ao fundo, o indicador de música em reprodução no canto superior, as etiquetas de recursos e o título em duas cores. A tela passou a exibir, centralizados sobre fundo escuro liso com brilho suave na cor do aplicativo, o logotipo com três anéis concêntricos que se expandem lentamente a partir dele, o título em cor única, a descrição e o botão "Entrar com o Google". O mesmo layout é aplicado ao celular, ao tablet e ao computador. Com a remoção do mural, a tela deixou de baixar cerca de 45 imagens do YouTube ao abrir. Aplica-se à versão web e ao aplicativo Android.' },
@@ -74,12 +84,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A alteração da qualidade configurada passou a disparar automaticamente um novo download das músicas já baixadas em outra qualidade, superior ou inferior, sem necessidade de acionar "Atualizar". Cada música permanece disponível offline até a conclusão da nova versão.' },
       { tipo: 'correcao', texto: 'Na biblioteca, artistas cuja foto falhava ao carregar exibiam os ícones de música e de microfone sobrepostos, ou o ícone de música no lugar da foto. Passou a ser exibido apenas o ícone de artista; o endereço inválido é descartado e uma nova foto é buscada.' },
       { tipo: 'melhoria', texto: 'As prévias das playlists passaram a iniciar com a miniatura do vídeo em alta definição (antes, uma imagem de baixa resolução ampliada) e a solicitar ao YouTube a reprodução em HD.' },
-    ],
-  },
-  {
-    versao: 592, data: '2026-11-07', titulo: 'Android: geração de partitura exclusivamente por IA no aparelho',
-    itens: [
-      { tipo: 'melhoria', texto: 'No aplicativo Android, a geração de partitura deixou de solicitar a seleção de um arquivo de áudio: o modelo de IA executado no aparelho utiliza sempre o áudio da própria música. Em caso de falha (por exemplo, música sem vídeo), são oferecidas as opções de nova tentativa ou de criação manual no editor. A opção "Abrir MusicXML" foi removida da tela inicial do editor no aplicativo.' },
     ],
   },
 ];

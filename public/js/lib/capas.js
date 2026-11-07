@@ -69,3 +69,31 @@ export function ordenarCapas(itens, musica) {
     .map((x) => x.c)
     .filter((c) => !vistas.has(c.url) && vistas.add(c.url));
 }
+
+// A mesma imagem em outro tamanho é a mesma capa: o Deezer e o iTunes trocam só o fim do endereço
+// (".../1000x1000-000000-80-0-0.jpg", ".../1000x1000bb.jpg")
+export const chaveDaImagem = (u) => String(u || '').replace(/^https?:\/\/[^/]+/, '').replace(/\/\d+x\d+[^/]*$/, '');
+
+// O que a capa tem de errado para a música: 'coletanea' (o álbum que junta músicas de vários discos, quando não é o
+// nome da música), 'outra' (karaokê, cover, tributo, versão infantil…) ou '' (é a da música)
+export function problemaDaCapa(c, musica) {
+  const { nivel } = avaliar(c, musica);
+  if (nivel === 1) return 'outra';
+  const album = norm(c?.album);
+  const t = base(musica?.titulo) || norm(musica?.titulo);
+  if (nivel && COLETANEA.test(album) && !` ${album} `.includes(` ${t} `)) return 'coletanea';
+  return '';
+}
+
+// Entre as capas que abrem (na ordem da melhor para a pior, a de ordenarCapas), a escolhida é a primeira: a ordem diz
+// qual é a da música. O tamanho só desempata a mesma capa (o mesmo álbum) vinda das duas fontes. Antes valia a maior e,
+// entre as do mesmo tamanho, a mais ouvida, e a coletânea mais ouvida passava à frente do single ("Aba", do Kemuel)
+// validas: [{ ...capa, i (a posição na ordem), largura, altura }]
+export function escolherCapa(validas) {
+  if (!validas?.length) return null;
+  const ordem = [...validas].sort((a, b) => a.i - b.i);
+  const melhor = ordem[0];
+  const album = norm(melhor.album);
+  const mesmas = album ? ordem.filter((c) => norm(c.album) === album) : [melhor];
+  return mesmas.sort((a, b) => (b.largura * b.altura) - (a.largura * a.altura) || a.i - b.i)[0];
+}
