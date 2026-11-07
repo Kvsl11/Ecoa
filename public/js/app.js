@@ -9787,25 +9787,37 @@ function capasCandidatas(titulo, artista) {
     const a = musica.artista;
     const busca = (async () => {
       // (a busca simples: a com artist:"" track:"" às vezes volta vazia para a música que existe)
-      const dz = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`${a} ${musica.titulo}`)}&limit=25`);
-      const doDeezer = (x, extra = {}) => ({ url: x.album?.cover_xl || '', album: x.album?.title || '', titulo: x.title, artista: x.artist?.name || '', rank: x.rank, fonte: 'Deezer', explicita: Boolean(x.explicit_lyrics), ...extra });
-      let lista = ordenarCapas((dz?.data || []).map((x) => doDeezer(x)), musica);
-      // o artista daqui só como convidado (o Deezer não põe o "feat." no título): as músicas com o mesmo título, vendo
-      // quem canta nelas (as 3 primeiras)
-      if (!lista.length) {
+      // Busca nas duas fontes: o Cifra Club costuma entregar miniaturas de 250 px; Deezer e iTunes
+      // oferecem capas maiores. Não parar no Deezer: uma capa válida de lá não significa que seja a maior.
+      const [dz, it] = await Promise.all([
+        jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`${a} ${musica.titulo}`)}&limit=25`).catch(() => null),
+        jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(`${a} ${musica.titulo}`)}&entity=song&limit=25`).catch(() => null),
+      ]);
+      const doDeezer = (x, extra = {}) => ({
+        url: x.album?.cover_xl || x.album?.cover_big || x.album?.cover_medium || '',
+        album: x.album?.title || '', titulo: x.title, artista: x.artist?.name || '',
+        rank: x.rank, fonte: 'Deezer', explicita: Boolean(x.explicit_lyrics), ...extra,
+      });
+      const deezer = ordenarCapas((dz?.data || []).map((x) => doDeezer(x)), musica);
+      // O Deezer pode não incluir o artista principal nos resultados quando ele participa como convidado.
+      // Confere os créditos da faixa antes de aceitar uma capa assim.
+      if (!deezer.length) {
         const t = normalizar(musica.titulo);
-        for (const x of (dz?.data || []).filter((y) => normalizar(tituloLimpo(y.title)) === t && y.album?.cover_xl).slice(0, 3)) {
-          const faixa = await jsonp(`https://api.deezer.com/track/${x.id}`);
-          if ((faixa?.contributors || []).some((c) => mesmoNome(c.name || '', a))) lista.push(doDeezer(x, { comoConvidado: true }));
+        for (const x of (dz?.data || []).filter((y) => normalizar(tituloLimpo(y.title)) === t && (y.album?.cover_xl || y.album?.cover_big)).slice(0, 3)) {
+          const faixa = await jsonp(`https://api.deezer.com/track/${x.id}`).catch(() => null);
+          if ((faixa?.contributors || []).some((c) => mesmoNome(c.name || '', a))) deezer.push(doDeezer(x, { comoConvidado: true }));
         }
-        lista = ordenarCapas(lista, musica);
       }
-      if (lista.length) return lista;
-      const it = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(`${a} ${musica.titulo}`)}&entity=song&limit=25`);
-      // (o iTunes não diz quantas vezes foi ouvida: vale a ordem dele, a mais relevante primeiro)
       const res = it?.results || [];
-      return ordenarCapas(res.map((x, i) => ({ url: x.artworkUrl100 ? x.artworkUrl100.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, '/1000x1000bb.jpg') : '', album: x.collectionName || '', titulo: x.trackName, artista: x.artistName,
-        rank: res.length - i, fonte: 'iTunes', explicita: ['explicit', 'cleaned'].includes(x.trackExplicitness) })), musica);
+      const itunes = ordenarCapas(res.map((x, i) => ({
+        url: x.artworkUrl100 ? x.artworkUrl100.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, '/1000x1000bb.jpg') : '',
+        album: x.collectionName || '', titulo: x.trackName, artista: x.artistName,
+        rank: res.length - i, fonte: 'iTunes',
+        explicita: ['explicit', 'cleaned'].includes(x.trackExplicitness),
+      })), musica);
+      // Prioriza a capa do iTunes quando ele identifica a mesma faixa/artista: artwork 1000×1000.
+      // Deezer fica como reserva; ambas passam pelo filtro de título e artista para evitar capas de homônimos.
+      return itunes.length ? itunes : deezer;
     })().catch(() => []);
     capasDaBusca.set(k, busca.then((l) => { if (!l.length) capasDaBusca.delete(k); return l; }));
   }
