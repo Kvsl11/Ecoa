@@ -2879,7 +2879,9 @@ html.tablet .nav a.active { color: var(--text); }
 html.tablet .nav a.active span, html.tablet .nav a:hover span { color: inherit; }
 /* e sem o fundo cinza em volta da aba ativa (a mesma regra do menu lateral): só o ícone preenchido, em branco */
 html.tablet .nav a.active, html.tablet .nav a:hover { background: none; }
-html.tablet .topbar { padding: 12px 24px; }
+/* (o espaço da barra de status do Android fica por cima: antes o padding fixo de 12px apagava o env() e a foto e os
+   botões encostavam na hora e nos ícones de rede, em pé e deitado) */
+html.tablet .topbar { padding: calc(12px + env(safe-area-inset-top)) 24px 12px; }
 /* no tablet a tela fica mais longe dos olhos: botões, filtros, listas e textos um pouco maiores (como no Spotify) */
 html.tablet .chip { height: 40px; padding: 0 17px; font-size: 15.5px; gap: 8px; }
 html.tablet .chip.sm { height: 28px; padding: 0 11px; font-size: 13.5px; }
@@ -3362,9 +3364,9 @@ html.tablet body.painel-cheio #player .pl-extra { grid-template-columns: minmax(
 #player .pl-fixo { display: none; }
 html.tablet body:not(.painel-recolhido) #player:not(.letra-cheia) .pl-fixo { display: block; order: -1; position: sticky; top: 0; z-index: 6; height: 0; margin-bottom: -14px; align-self: stretch; width: auto; }
 /* (no painel do lado: um pouco mais alta e o nome afastado da borda; antes o L encostava no canto) */
-html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: -16px; left: -18px; right: -18px; padding: 10px 14px 10px 18px; }
+html.tablet body:not(.painel-recolhido) #player .pl-fixo-barra { position: absolute; top: calc(-16px - env(safe-area-inset-top)); left: -18px; right: -18px; padding: calc(10px + env(safe-area-inset-top)) 14px 10px 18px; }
 html.tablet body.painel-cheio #player:not(.letra-cheia) .pl-fixo { margin-bottom: -16px; }
-html.tablet body.painel-cheio #player .pl-fixo-barra { left: -28px; right: -28px; padding: 12px 28px; }
+html.tablet body.painel-cheio #player .pl-fixo-barra { left: -28px; right: -28px; padding: calc(12px + env(safe-area-inset-top)) 28px 12px; }
 /* no celular e no computador, a mesma barrinha no Tocando agora na tela toda (colada no topo da tela, por cima da
    margem de cima e da área do relógio) */
 html.pp:not(.tablet) body.painel-cheio #player:not(.letra-cheia) .pl-fixo { display: block; order: -1; position: sticky; top: 0; z-index: 6; height: 0; margin-bottom: -14px; align-self: stretch; width: auto; }
@@ -4505,6 +4507,9 @@ html.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido) .mai
 /* "Tocando agora" na tela toda, no tablet: de ponta a ponta, sem a margem em volta (em qualquer tema); o vídeo de fundo,
    que fica numa camada fora do painel (.pl-fundo-casa), vai junto */
 html.pp.tablet body.painel-cheio #player { inset: 0; border-radius: 0; }
+/* (o topo do painel do Tocando agora, ao lado e na tela toda, abaixo da barra de status do Android: antes o "Tocando
+   agora", o recolher e os ⋮ ficavam por cima da hora e dos ícones) */
+html.pp.tablet body:not(.painel-recolhido) #player { padding-top: calc(16px + env(safe-area-inset-top)); }
 html.pp.tablet body.com-player.painel-cheio:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { inset: 0; width: auto; border-radius: 0; }
 /* (tema claro, o painel aberto ao lado: o fundo dele também encosta na borda) */
 html.pp.tablet:root[data-theme="light"] body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo { top: 0; right: 0; bottom: 0; border-radius: 0; }
