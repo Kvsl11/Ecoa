@@ -1362,7 +1362,7 @@ export function canalDosResultados(json, nome) {
   try { const u = new URL(url); const host = u.searchParams.get('host'); if (host && /(^|\.)(ggpht|googleusercontent)\.com$/.test(host)) url = `https://${host}${u.pathname}`; } catch { return null; }
   if (url.startsWith('//')) url = 'https:' + url;
   const id = /\/channel\/([\w-]+)/.exec(c.url || '')?.[1] || '';
-  return { foto: /^https:/.test(url) ? url.replace(/=s\d+-/, '=s480-') : '', id, nome: c.name, inscritos: c.subscribers > 0 && c === verificado ? c.subscribers : 0 };
+  return { foto: /^https:/.test(url) ? url.replace(/=s\d+-/, '=s1000-') : '', id, nome: c.name, inscritos: c.subscribers > 0 && c === verificado ? c.subscribers : 0 };
 }
 export const fotoDosCanais = (json, nome) => canalDosResultados(json, nome)?.foto || '';
 export async function canalDoArtista(nome, { fetchImpl, instancias = PIPED } = {}) {
