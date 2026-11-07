@@ -13312,14 +13312,28 @@ function escolherMusica(titulo) {
 const BASIC_PITCH = 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1';
 // (a mesma do Basic Pitch: o import dele é este endereço, então é a mesma cópia do TensorFlow, com o mesmo motor)
 const TFJS = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.19.0';
+const TFJS_WASM = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@3.19.0';
 const LIB_TRANSCRICAO = new URL('./lib/transcricao.js', import.meta.url).href;
 const SR_IA = 22050; // o modelo ouve em 22050 Hz, mono
 // A IA roda num Worker (outra linha de execução): analisar o áudio é pesado e, na mesma linha da tela, o app travava
 const CODIGO_IA = `
 import * as bp from '${BASIC_PITCH}/+esm';
 import * as tf from '${TFJS}/+esm';
+import * as wasm from '${TFJS_WASM}/+esm';
 import * as tr from '${LIB_TRANSCRICAO}';
 let modelo = null;
+// O motor das contas: o WebAssembly (com SIMD) primeiro. No teste com 15 s de áudio ele fez em 2,1 s o que o modo só
+// processador (o que valia no celular quando o Worker não tinha a placa de vídeo) fazia em 28 s, com as mesmas notas
+// e diferença de 0,0003 nos valores; a placa de vídeo arredonda mais (até 0,3). Sem WebAssembly, a placa de vídeo;
+// sem ela, o processador
+wasm.setWasmPaths('${TFJS_WASM}/dist/');
+let motor = null;
+async function prepararMotor() {
+  if (motor) return;
+  for (const nome of ['wasm', 'webgl', 'cpu']) {
+    try { if (await tf.setBackend(nome)) { await tf.ready(); motor = nome; return; } } catch { /* o próximo */ }
+  }
+}
 // O mesmo que o evaluateModel do Basic Pitch, mais rápido e sem mudar o resultado: as janelas de 2 s (com a mesma
 // sobreposição e o mesmo silêncio no começo e no fim) são montadas aqui, e não numa matriz só da música inteira (que na
 // placa de vídeo passava do tamanho máximo a partir de uns 40 s de música); vão ao modelo uma de cada vez (LOTE: com
@@ -13360,6 +13374,7 @@ async function avaliar(amostras, aoQuadro, avisar) {
 // sílabas na mesma altura). Começo de nota no padrão do modelo (0,5: mais baixo, o vibrato vira começos) e nota
 // mínima de 5 quadros (58 ms: a sílaba rápida)
 async function ouvir(amostras, fonte, avisar) {
+  await prepararMotor();
   modelo ||= new bp.BasicPitch('${BASIC_PITCH}/model/model.json');
   const f = [], o = [];
   await avaliar(amostras, (a, b) => { for (const x of a) f.push(x); for (const x of b) o.push(x); }, avisar);

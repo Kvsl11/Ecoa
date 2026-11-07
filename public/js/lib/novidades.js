@@ -6,7 +6,7 @@ export const NOVIDADES = [
   {
     versao: 591, data: '2026-11-07', titulo: 'A partitura e o karaokê feitos mais rápido, com a mesma qualidade',
     itens: [
-      { tipo: 'melhoria', texto: 'A partitura gerada no aparelho sai mais rápido, com o mesmo resultado: a IA ouve vários trechos da música de uma vez, em vez de um por um, e solta a memória de cada trecho (o celular não vai mais ficando lento até o fim da música). Nas músicas mais longas, ela também não cai mais para o modo lento por passar do limite da placa de vídeo.' },
+      { tipo: 'melhoria', texto: 'A partitura gerada no aparelho sai bem mais rápido, com as mesmas notas: a IA passou a fazer as contas num motor muito mais rápido (no teste, 15 segundos de música em 2 segundos, contra 28 antes), solta a memória de cada trecho (o celular não vai mais ficando lento até o fim da música) e, nas músicas mais longas, não passa mais do limite da placa de vídeo.' },
       { tipo: 'melhoria', texto: 'No app de Android, o karaokê feito no celular sai mais rápido, com o mesmo som: enquanto o modelo separa a voz de um trecho, o celular já prepara o próximo e grava o anterior (antes era um de cada vez); as contas dos dois lados do estéreo são feitas juntas; e o modelo fica carregado entre uma música e outra. Vem com a atualização do app.' },
     ],
   },
