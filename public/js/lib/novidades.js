@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 606, data: '2026-11-07', titulo: 'Ajustes reorganizados, com ícones revistos e sem opções repetidas',
+    itens: [
+      { tipo: 'melhoria', texto: 'Os tópicos dos Ajustes passaram a ter ícones correspondentes ao conteúdo: Avançado deixou de usar o ícone de banco de dados (semelhante a uma memória) e passou a usar uma chave de ferramenta; Backup, que usava a seta de envio, passou a usar uma caixa de arquivo; Permissões passou a usar um escudo; PowerPoint, um quadro de apresentação; e Música e cifra, uma nota musical no lugar do sinal "#".' },
+      { tipo: 'melhoria', texto: 'As opções repetidas foram unificadas. A exportação e a importação dos downloads, que ficavam em Downloads, passaram para Backup, que agora reúne a cópia da biblioteca e a dos downloads, cada uma com a sua explicação. O tópico Qualidade de mídia, que repetia a linha "Qualidade dos downloads" da página de Downloads, foi retirado da lista; a opção continua dentro de Downloads e internet. Os três atalhos do alto dos Ajustes (Economia de dados, Sessão privada e Capa animada) foram removidos, pois repetiam opções das páginas.' },
+      { tipo: 'melhoria', texto: 'Música e cifra passou a ser dividida em Cifra (destaque e diagrama dos acordes), Reprodução (transição entre as músicas e capa animada) e Privacidade (sessão privada). Downloads e economia de dados passou a se chamar Downloads e internet, com a economia de dados e o download com dados móveis na seção Internet; a descrição da economia de dados passou a dizer o que ela faz: desliga a capa animada, toca do aparelho as músicas baixadas, até no modo vídeo, e evita que a busca carregue as músicas antes do toque.' },
+      { tipo: 'correcao', texto: 'A sessão privada não registrava as músicas tocadas, mas abrir a página de uma música ainda a colocava nos Recentes; isso foi corrigido. Como a sessão não dava nenhum sinal de estar ligada, passou a ser indicada em Recentes, nas Estatísticas e no menu do perfil, com um atalho para desligá-la, e a opção passou a explicar o seu efeito.' },
+    ],
+  },
+  {
     versao: 605, data: '2026-11-07', titulo: 'Busca e ordenação de "Músicas curtidas" reformuladas',
     itens: [
       { tipo: 'melhoria', texto: 'Em "Músicas curtidas" (celular, tablet, web e aplicativo Android), a busca e o botão de ordem passaram a ficar acima do título, fora da área visível ao abrir a página; ambos aparecem ao puxar a página para baixo e desaparecem gradualmente ao rolar. O campo passou a se chamar "Buscar na playlist", com fundo translúcido sobre o degradê, e o botão de ordem passou a se chamar "Ordenar". Com poucas músicas, a página recebe a altura necessária para que a busca permaneça oculta ao abrir.' },
@@ -71,14 +80,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O botão de salvar do player, acionado sobre uma música aberta pela busca ou sobre um vídeo de "Vídeos relacionados", abria a página da música com a tela de carregamento e só então tentava salvar; quando a música aberta vinha associada a outro vídeo, a verificação falhava e nada era salvo. O salvamento passou a ser executado diretamente no player, sem navegação nem tela de carregamento, pelo mesmo procedimento do botão de salvar das listas: o botão exibe um indicador de progresso e passa a ✓ ao concluir. Aplica-se à versão web e ao aplicativo Android.' },
       { tipo: 'melhoria', texto: 'A tela Buscar deixou de exibir a seção "Na sua biblioteca" e o filtro Biblioteca: os resultados passam a se limitar a conteúdo externo (músicas, artistas e acervo litúrgico), e a consulta ao conteúdo já salvo permanece disponível na busca da própria Biblioteca. Aplica-se à versão web e ao aplicativo Android.' },
       { tipo: 'melhoria', texto: 'As notas de versão exibidas em Novidades passaram a adotar registro técnico e formal, com a descrição objetiva da causa, da alteração implementada e do efeito obtido. As entradas das nove versões anteriores foram revisadas segundo o mesmo padrão.' },
-    ],
-  },
-  {
-    versao: 596, data: '2026-11-07', titulo: 'Android: requisições de rede fora da fila nativa e reutilização de conexões',
-    itens: [
-      { tipo: 'melhoria', texto: 'No aplicativo Android, todas as requisições externas eram encaminhadas à camada nativa e processadas em uma fila única, de modo que consultas leves aguardavam a conclusão de páginas extensas. Os serviços que admitem CORS (busca de artistas do Cifra Club, Piped, LRCLIB, Wikipédia, TheAudioDB, iTunes, MusicBrainz e oEmbed do YouTube) passaram a ser consultados diretamente pelo WebView, como na versão web. A camada nativa fica reservada às origens sem CORS (páginas do Cifra Club e do YouTube, Deezer) e atua como contingência. Em simulação, o volume na fila nativa caiu de cerca de 210 para 85 requisições, sem tempo de espera. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'A camada nativa deixou de encerrar a conexão HTTP após cada resposta: a conexão retorna ao pool e é reutilizada nas requisições seguintes à mesma origem, o que elimina um novo handshake TLS por requisição. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'No aplicativo Android, a validade do cache das páginas de artista do Cifra Club (página principal, discografia e lista completa, com cerca de 500 kB cada) foi ampliada de 5 minutos para 1 hora, evitando novo download a cada acesso.' },
     ],
   },
 ];
