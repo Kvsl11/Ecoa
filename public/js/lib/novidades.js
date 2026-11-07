@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 583, data: '2026-11-07', titulo: 'A barrinha da música acima do aviso de offline',
+    itens: [
+      { tipo: 'correcao', texto: 'No celular (e no app de Android), com o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" embaixo, o menu subia para dar lugar a ele, mas a barrinha da música ficava no mesmo lugar, por cima dos ícones do menu. Agora ela sobe junto.' },
+    ],
+  },
+  {
     versao: 582, data: '2026-11-06', titulo: 'O karaokê que você pede passa na frente',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o karaokê pedido no microfone podia ficar parado no começo: ele esperava, numa fila só, os karaokês que o app faz sozinho em segundo plano (os das músicas baixadas). Agora o que você pede passa na frente, e os outros esperam. O áudio também vai para a separação em partes (um arquivo grande travava), e, se algo der errado, o motivo aparece na tela. E, no Wi-Fi, o modelo do karaokê (59 MB) já é baixado de antemão. Vem com a atualização do app.' },
@@ -69,13 +75,6 @@ export const NOVIDADES = [
     versao: 574, data: '2026-11-06', titulo: 'As Novidades certas no app de Android',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, a tela Novidades mostrava os números de versão do site. Agora ela mostra a versão do app instalado, a data de cada novidade e marca as que chegam com a atualização do app.' },
-    ],
-  },
-  {
-    versao: 573, data: '2026-11-06', titulo: 'O play no meio do círculo e o aviso de versão nova do app',
-    itens: [
-      { tipo: 'correcao', texto: 'O triângulo do play parecia torto, puxado para a direita dentro do círculo (no Tocando agora, na barrinha, nas listas e no widget do Android). Agora ele fica no meio, só com o pequeno ajuste para a direita que faz ele parecer centralizado (como no Spotify). No widget, com a atualização do app.' },
-      { tipo: 'melhoria', texto: 'O aviso de versão nova do app de Android ficou mais claro: o ícone do Ecoa, a versão de agora e a nova (1.27 → 1.29), o que vem com ela e, ao tocar em Atualizar, a barra do download ali mesmo, até abrir o instalador do Android.' },
     ],
   },
 ];

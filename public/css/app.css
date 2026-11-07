@@ -1300,7 +1300,7 @@ body.performance .convite-instalar { display: none; }
 
 /* ============================================================ mini player (fixo acima do menu) */
 #player {
-  position: absolute; z-index: 25; left: 8px; right: 8px; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 6px);
+  position: absolute; z-index: 25; left: 8px; right: 8px; bottom: calc(var(--nav-h) + var(--aviso-rede) + env(safe-area-inset-bottom) + 6px);
   border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--cor-musica, var(--tint)) 75%, #000); color: #fff; transition: background 0.4s;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.5); animation: surgir 0.3s both;
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center;
@@ -5843,7 +5843,8 @@ html.app-android, html.app-android body, html.app-android .shell { background: v
    o menu é mais transparente (o conteúdo aparece por trás dele, escurecendo até o pé) e um degradê sobe por trás da
    barrinha (sem a "emenda" entre ela e o menu). Os ícones e os nomes do menu um pouco maiores */
 @media (max-width: 899px) {
-  html:not(.tablet):not(.pp) #player { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+  /* (+ a faixa do aviso da conexão: com ela, o menu sobe e a barrinha sobe junto, sem ficar por cima do menu) */
+  html:not(.tablet):not(.pp) #player { bottom: calc(var(--nav-h) + var(--aviso-rede) + env(safe-area-inset-bottom)); }
   html:not(.tablet) .nav { background: linear-gradient(180deg, rgb(0 0 0 / 0.64) 0%, rgb(0 0 0 / 0.84) 45%, rgb(0 0 0 / 0.95) 100%); }
   :root[data-theme="light"]:not(.tablet) .nav { background: linear-gradient(180deg, rgb(255 255 255 / 0.68) 0%, rgb(255 255 255 / 0.88) 45%, rgb(255 255 255 / 0.97) 100%); }
   html:not(.tablet):not(.pp):not(.sem-conta) body::after { content: ""; position: fixed; left: 0; right: 0; z-index: 24; pointer-events: none;
