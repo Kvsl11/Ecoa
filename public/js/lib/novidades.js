@@ -4,6 +4,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 591, data: '2026-11-07', titulo: 'A partitura e o karaokê feitos mais rápido, com a mesma qualidade',
+    itens: [
+      { tipo: 'melhoria', texto: 'A partitura gerada no aparelho sai mais rápido, com o mesmo resultado: a IA ouve vários trechos da música de uma vez, em vez de um por um, e solta a memória de cada trecho (o celular não vai mais ficando lento até o fim da música). Nas músicas mais longas, ela também não cai mais para o modo lento por passar do limite da placa de vídeo.' },
+      { tipo: 'melhoria', texto: 'No app de Android, o karaokê feito no celular sai mais rápido, com o mesmo som: enquanto o modelo separa a voz de um trecho, o celular já prepara o próximo e grava o anterior (antes era um de cada vez); as contas dos dois lados do estéreo são feitas juntas; e o modelo fica carregado entre uma música e outra. Vem com a atualização do app.' },
+    ],
+  },
+  {
     versao: 590, data: '2026-11-07', titulo: 'As telas de partitura repaginadas',
     itens: [
       { tipo: 'melhoria', texto: 'As telas de partitura ganharam um visual mais moderno e limpo. Na lista, o "Gerar com IA" vem em destaque, com a "Nova partitura" e o acervo em cartões logo abaixo. Ao gerar, um anel mostra o andamento em porcentagem e o tempo, e as etapas aparecem numa linha do tempo. Na partitura pronta, as vozes (Coral, Coral do áudio, Melodia) ficam logo embaixo da prévia, e os botões Editar e Salvar ficam presos no pé da tela.' },
@@ -65,16 +72,6 @@ export const NOVIDADES = [
     versao: 582, data: '2026-11-06', titulo: 'O karaokê que você pede passa na frente',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o karaokê pedido no microfone podia ficar parado no começo: ele esperava, numa fila só, os karaokês que o app faz sozinho em segundo plano (os das músicas baixadas). Agora o que você pede passa na frente, e os outros esperam. O áudio também vai para a separação em partes (um arquivo grande travava), e, se algo der errado, o motivo aparece na tela. E, no Wi-Fi, o modelo do karaokê (59 MB) já é baixado de antemão. Vem com a atualização do app.' },
-    ],
-  },
-  {
-    versao: 581, data: '2026-11-06', titulo: 'Os dados do artista na hora e a notificação de download que não some',
-    itens: [
-      { tipo: 'melhoria', texto: 'A foto do artista, os fãs, a apresentação ("Sobre o artista") e as fotos dos créditos aparecem na hora ao abrir a música: o app mostra o que já tem guardado e atualiza pela internet em segundo plano, sem aviso (antes esperava a internet toda vez e demorava muito). As músicas baixadas guardam também as fotos dos créditos, e os dados delas são atualizados sozinhos uma vez por dia.' },
-      { tipo: 'melhoria', texto: 'No app de Android, a notificação do download fica presa enquanto há música baixando ou esperando na fila (não sai mais sem querer ao arrastar), com a barra do andamento; o download continua mesmo com o app minimizado. Quando a fila acaba, ela vira uma notificação comum. Vem com a atualização do app.' },
-      { tipo: 'correcao', texto: 'No app de Android, o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" não aparecia: a página do app nem sempre fica sabendo quando a internet cai. Agora quem avisa é o próprio Android, que também mede a velocidade da rede para o "Conexão lenta". Vem com a atualização do app.' },
-      { tipo: 'correcao', texto: 'No app de Android, voltar ao app depois de minimizado às vezes deixava a tela cinza, sem sair dela: o Android tinha fechado a parte que desenha a página, para liberar memória. Agora o app refaz a tela sozinho quando isso acontece (ou quando a página não responde), e essa parte fica com prioridade, para o Android só fechá-la em último caso. Vem com a atualização do app.' },
-      { tipo: 'correcao', texto: 'No app de Android, ao atualizar o app (em Ajustes → Sobre ou no aviso de versão nova), a porcentagem do download pulava e voltava (10, 20 e pouco, 5…): cada toque em Atualizar começava outro download, e os dois se misturavam. Agora é um download só, que os dois lugares acompanham, e a barra só anda para a frente. Vem com a atualização do app.' },
     ],
   },
 ];

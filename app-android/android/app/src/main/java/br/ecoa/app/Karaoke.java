@@ -2,6 +2,8 @@ package br.ecoa.app;
 
 import android.content.Context;
 
+import java.util.concurrent.Executors;
+
 import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtSession;
@@ -257,6 +259,115 @@ final class Karaoke {
         return out;
     }
 
+    // Os dois lados do estéreo numa FFT só: o sinal é real, então a esquerda vai na parte real e a direita na
+    // imaginária, e os dois espectros se separam pela simetria (X[f] e o conjugado de X[n−f]). A mesma conta da stft()
+    // feita duas vezes, na metade do tempo
+    static void stftEstereo(float[] e, float[] d, float[] entrada) {
+        double[] re = new double[NFFT], im = new double[NFFT];
+        int meio = NFFT / 2, n = e.length;
+        for (int t = 0; t < DT; t++) {
+            int ini = t * HOP - meio;
+            for (int i = 0; i < NFFT; i++) {
+                int p = ini + i;
+                if (p < 0) p = -p;
+                else if (p >= n) p = 2 * (n - 1) - p;
+                re[i] = e[p] * JANELA[i];
+                im[i] = d[p] * JANELA[i];
+            }
+            fft(re, im, false);
+            for (int f = 0; f < DF; f++) {
+                int g = f == 0 ? 0 : NFFT - f;
+                entrada[(0 * DF + f) * DT + t] = (float) ((re[f] + re[g]) / 2);
+                entrada[(1 * DF + f) * DT + t] = (float) ((im[f] - im[g]) / 2);
+                entrada[(2 * DF + f) * DT + t] = (float) ((im[f] + im[g]) / 2);
+                entrada[(3 * DF + f) * DT + t] = (float) ((re[g] - re[f]) / 2);
+            }
+        }
+    }
+
+    // a volta ao som dos dois lados numa FFT inversa só: Z = esquerda + i·direita (os dois espectros de sinais reais,
+    // completados pela simetria) → a esquerda sai na parte real e a direita na imaginária. A mesma conta da istft()
+    static float[][] istftEstereo(float[] saida) {
+        int total = NFFT + HOP * (DT - 1);
+        double[] somE = new double[total], somD = new double[total], peso = new double[total];
+        double[] re = new double[NFFT], im = new double[NFFT];
+        for (int t = 0; t < DT; t++) {
+            java.util.Arrays.fill(re, 0);
+            java.util.Arrays.fill(im, 0);
+            for (int f = 0; f < DF; f++) {
+                double ar = saida[(0 * DF + f) * DT + t], ai = f == 0 ? 0 : saida[(1 * DF + f) * DT + t];
+                double br = saida[(2 * DF + f) * DT + t], bi = f == 0 ? 0 : saida[(3 * DF + f) * DT + t];
+                // Z[f] = A[f] + i·B[f]; Z[n−f] = conj(A[f]) + i·conj(B[f])
+                re[f] = ar - bi;
+                im[f] = ai + br;
+                if (f > 0) { re[NFFT - f] = ar + bi; im[NFFT - f] = br - ai; }
+            }
+            fft(re, im, true);
+            int ini = t * HOP;
+            for (int i = 0; i < NFFT; i++) {
+                somE[ini + i] += re[i] / NFFT * JANELA[i];
+                somD[ini + i] += im[i] / NFFT * JANELA[i];
+                peso[ini + i] += JANELA[i] * JANELA[i];
+            }
+        }
+        float[] e = new float[CHUNK], d = new float[CHUNK];
+        int meio = NFFT / 2;
+        for (int i = 0; i < CHUNK; i++) {
+            double w = peso[meio + i];
+            e[i] = (float) (w > 1e-8 ? somE[meio + i] / w : 0);
+            d[i] = (float) (w > 1e-8 ? somD[meio + i] / w : 0);
+        }
+        return new float[][] { e, d };
+    }
+
+    static final class Pedaco {
+        final float[] esquerda = new float[CHUNK], direita = new float[CHUNK];
+        final float[] espectro = new float[4 * DF * DT];
+    }
+
+    // A sessão do modelo (os 59 MB carregados e otimizados, o que leva alguns segundos) fica pronta entre um karaokê e
+    // outro: os das músicas baixadas, feitos em fila, não carregam o modelo de novo a cada música. Solta a memória 2
+    // minutos depois do último uso
+    private static OrtSession sessaoGuardada;
+    private static final java.util.concurrent.atomic.AtomicInteger USANDO = new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.ScheduledExecutorService RELOGIO = Executors.newSingleThreadScheduledExecutor((r) -> { Thread t = new Thread(r, "karaoke-relogio"); t.setDaemon(true); return t; });
+    private static java.util.concurrent.ScheduledFuture<?> fechar;
+
+    static synchronized OrtSession sessao(OrtEnvironment env, File arqModelo) throws Exception {
+        if (fechar != null) { fechar.cancel(false); fechar = null; }
+        if (sessaoGuardada != null) return sessaoGuardada;
+        int linhas = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors()));
+        // (o XNNPACK, quando o aparelho tem: as convoluções do modelo bem mais rápidas no processador do celular)
+        try {
+            OrtSession.SessionOptions rapido = new OrtSession.SessionOptions();
+            rapido.setIntraOpNumThreads(1);
+            rapido.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+            java.util.Map<String, String> xnn = new java.util.HashMap<>();
+            xnn.put("intra_op_num_threads", String.valueOf(linhas));
+            rapido.addXnnpack(xnn);
+            sessaoGuardada = env.createSession(arqModelo.getAbsolutePath(), rapido);
+        } catch (Throwable semXnnpack) {
+            OrtSession.SessionOptions op = new OrtSession.SessionOptions();
+            op.setIntraOpNumThreads(linhas);
+            op.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+            sessaoGuardada = env.createSession(arqModelo.getAbsolutePath(), op);
+        }
+        return sessaoGuardada;
+    }
+
+    static synchronized void soltarSessao() {
+        if (USANDO.decrementAndGet() > 0) return;
+        if (fechar != null) fechar.cancel(false);
+        fechar = RELOGIO.schedule(() -> {
+            synchronized (Karaoke.class) {
+                if (USANDO.get() > 0 || sessaoGuardada == null) return;
+                try { sessaoGuardada.close(); } catch (Exception e) { /* já fechada */ }
+                sessaoGuardada = null;
+                fechar = null;
+            }
+        }, 2, java.util.concurrent.TimeUnit.MINUTES);
+    }
+
     static final class Resultado {
         double duracao;
         long tamanho;
@@ -294,72 +405,79 @@ final class Karaoke {
             .redirectErrorStream(true).redirectOutput(erroGravar).start();
 
         OrtEnvironment env = OrtEnvironment.getEnvironment();
-        OrtSession.SessionOptions op = new OrtSession.SessionOptions();
-        op.setIntraOpNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors())));
-        op.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-        // (o XNNPACK, quando o aparelho tem: as convoluções do modelo bem mais rápidas no processador do celular)
-        OrtSession sessaoCriada;
-        try {
-            OrtSession.SessionOptions rapido = new OrtSession.SessionOptions();
-            rapido.setIntraOpNumThreads(1);
-            rapido.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-            java.util.Map<String, String> xnn = new java.util.HashMap<>();
-            xnn.put("intra_op_num_threads", String.valueOf(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors()))));
-            rapido.addXnnpack(xnn);
-            sessaoCriada = env.createSession(arqModelo.getAbsolutePath(), rapido);
-        } catch (Throwable semXnnpack) {
-            sessaoCriada = env.createSession(arqModelo.getAbsolutePath(), op);
-        }
-        try (OrtSession sessao = sessaoCriada;
-             RandomAccessFile musica = new RandomAccessFile(pcm, "r");
+        OrtSession sessao = sessao(env, arqModelo);
+        // Em linha de montagem: enquanto o modelo separa um pedaço, outra linha já lê e prepara o espectro do próximo, e
+        // uma terceira volta o anterior para som e manda para o gravador. As contas são as mesmas, na mesma ordem; só
+        // deixam de esperar umas pelas outras (antes, o modelo ficava parado enquanto o celular fazia as FFTs)
+        java.util.concurrent.ExecutorService preparo = Executors.newSingleThreadExecutor();
+        java.util.concurrent.ExecutorService volta = Executors.newSingleThreadExecutor();
+        USANDO.incrementAndGet();
+        try (RandomAccessFile musica = new RandomAccessFile(pcm, "r");
              OutputStream out = new BufferedOutputStream(gravar.getOutputStream(), 1 << 20)) {
             String nomeEntrada = sessao.getInputNames().iterator().next();
-            float[] esquerda = new float[CHUNK], direita = new float[CHUNK];
-            float[] espectro = new float[4 * DF * DT];
             byte[] bruto = new byte[CHUNK * 4];
-            ByteBuffer saidaBytes = ByteBuffer.allocate(GEN * 16).order(ByteOrder.LITTLE_ENDIAN);
+            final long total = n;
+            // o pedaço k: a música com a sobra de cada lado (antes do começo e depois do fim: silêncio) e o espectro dela
+            java.util.function.LongFunction<Pedaco> preparar = (k) -> {
+                Pedaco pd = new Pedaco();
+                long inicio = k * GEN - TRIM;
+                long de = Math.max(0, inicio), ate = Math.min(total, inicio + CHUNK);
+                try {
+                    if (ate > de) {
+                        musica.seek(de * 4);
+                        int bytes = (int) ((ate - de) * 4);
+                        musica.readFully(bruto, 0, bytes);
+                        ByteBuffer bb = ByteBuffer.wrap(bruto, 0, bytes).order(ByteOrder.LITTLE_ENDIAN);
+                        for (int i = 0; i < ate - de; i++) {
+                            pd.esquerda[(int) (de - inicio) + i] = bb.getShort() / 32768f;
+                            pd.direita[(int) (de - inicio) + i] = bb.getShort() / 32768f;
+                        }
+                    }
+                } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+                stftEstereo(pd.esquerda, pd.direita, pd.espectro);
+                return pd;
+            };
             andamento.em("separando", 0);
+            java.util.concurrent.Future<Pedaco> proximo = preparo.submit(() -> preparar.apply(0));
+            java.util.concurrent.Future<?> gravando = null;
             for (long k = 0; k < pedacos; k++) {
                 esperarAVez(prioridade, andamento);
-                // o pedaço da música com a sobra de cada lado (antes do começo e depois do fim: silêncio)
-                long inicio = k * GEN - TRIM;
-                java.util.Arrays.fill(esquerda, 0);
-                java.util.Arrays.fill(direita, 0);
-                long de = Math.max(0, inicio), ate = Math.min(n, inicio + CHUNK);
-                if (ate > de) {
-                    musica.seek(de * 4);
-                    int bytes = (int) ((ate - de) * 4);
-                    musica.readFully(bruto, 0, bytes);
-                    ByteBuffer bb = ByteBuffer.wrap(bruto, 0, bytes).order(ByteOrder.LITTLE_ENDIAN);
-                    for (int i = 0; i < ate - de; i++) {
-                        esquerda[(int) (de - inicio) + i] = bb.getShort() / 32768f;
-                        direita[(int) (de - inicio) + i] = bb.getShort() / 32768f;
-                    }
-                }
-                stft(esquerda, espectro, 0);
-                stft(direita, espectro, 2);
+                Pedaco pd = proximo.get();
+                final long seguinte = k + 1;
+                if (seguinte < pedacos) proximo = preparo.submit(() -> preparar.apply(seguinte));
                 float[] banda;
-                try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(espectro), new long[] { 1, 4, DF, DT });
+                try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(pd.espectro), new long[] { 1, 4, DF, DT });
                      OrtSession.Result r = sessao.run(Collections.singletonMap(nomeEntrada, t))) {
                     FloatBuffer fb = ((OnnxTensor) r.get(0)).getFloatBuffer();
                     banda = new float[fb.remaining()];
                     fb.get(banda);
                 }
-                // (o modelo devolve a banda; a voz é a gravação menos a banda: banda + voz = a gravação)
-                float[] bandaE = istft(banda, 0), bandaD = istft(banda, 2);
-                // o que este pedaço entrega: GEN amostras do meio (no último, só até o fim da música)
-                int quantas = (int) Math.min(GEN, n - k * GEN);
-                saidaBytes.clear();
-                for (int i = 0; i < quantas; i++) {
-                    float be = bandaE[TRIM + i], bd = bandaD[TRIM + i];
-                    saidaBytes.putFloat(be).putFloat(bd).putFloat(esquerda[TRIM + i] - be).putFloat(direita[TRIM + i] - bd);
-                }
-                out.write(saidaBytes.array(), 0, quantas * 16);
-                andamento.em("separando", (k + 1) / (float) pedacos);
+                // (a volta do pedaço anterior tem de ter terminado: os pedaços vão para o gravador na ordem)
+                if (gravando != null) gravando.get();
+                final float[] bandaPd = banda;
+                final int quantas = (int) Math.min(GEN, total - k * GEN);
+                final long feito = k + 1;
+                gravando = volta.submit(() -> {
+                    // (o modelo devolve a banda; a voz é a gravação menos a banda: banda + voz = a gravação)
+                    float[][] b = istftEstereo(bandaPd);
+                    ByteBuffer saidaBytes = ByteBuffer.allocate(quantas * 16).order(ByteOrder.LITTLE_ENDIAN);
+                    for (int i = 0; i < quantas; i++) {
+                        float be = b[0][TRIM + i], bd = b[1][TRIM + i];
+                        saidaBytes.putFloat(be).putFloat(bd).putFloat(pd.esquerda[TRIM + i] - be).putFloat(pd.direita[TRIM + i] - bd);
+                    }
+                    out.write(saidaBytes.array(), 0, quantas * 16);
+                    andamento.em("separando", feito / (float) pedacos);
+                    return null;
+                });
             }
+            if (gravando != null) gravando.get();
         } catch (Exception e) {
             gravar.destroy();
-            throw e;
+            throw e instanceof java.util.concurrent.ExecutionException && e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
+        } finally {
+            preparo.shutdownNow();
+            volta.shutdownNow();
+            soltarSessao();
         }
         andamento.em("gravando", 1);
         if (gravar.waitFor() != 0 || !saida.isFile() || saida.length() < 10000) {

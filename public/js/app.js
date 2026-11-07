@@ -13310,20 +13310,59 @@ function escolherMusica(titulo) {
 // é separada da banda pelo estéreo (o meio e os lados), a afinação da voz é conferida (YIN) e as notas são limpas (o eco
 // do grave, o vibrato que partia a nota, os estalos). O app escolhe a melodia, acha tom e andamento e põe no compasso.
 const BASIC_PITCH = 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1';
+// (a mesma do Basic Pitch: o import dele é este endereço, então é a mesma cópia do TensorFlow, com o mesmo motor)
+const TFJS = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.19.0';
 const LIB_TRANSCRICAO = new URL('./lib/transcricao.js', import.meta.url).href;
 const SR_IA = 22050; // o modelo ouve em 22050 Hz, mono
 // A IA roda num Worker (outra linha de execução): analisar o áudio é pesado e, na mesma linha da tela, o app travava
 const CODIGO_IA = `
 import * as bp from '${BASIC_PITCH}/+esm';
+import * as tf from '${TFJS}/+esm';
 import * as tr from '${LIB_TRANSCRICAO}';
 let modelo = null;
+// O mesmo que o evaluateModel do Basic Pitch, mais rápido e sem mudar o resultado: as janelas de 2 s (com a mesma
+// sobreposição e o mesmo silêncio no começo e no fim) são montadas aqui, e não numa matriz só da música inteira (que na
+// placa de vídeo passava do tamanho máximo a partir de uns 40 s de música); vão ao modelo uma de cada vez (LOTE: com
+// mais de uma, a placa de vídeo ficou mais lenta e, com 8, passou do limite dela); a memória de cada uma é solta logo
+// (antes ficava tudo, e o celular ia ficando lento até o fim da música); e só os dois resultados que o app usa (as
+// notas e os começos de nota) são lidos de volta
+const JANELA = 43844, PASSO = 36164, COMECO = 3840, BORDA = 15, LOTE = 1;
+async function avaliar(amostras, aoQuadro, avisar) {
+  const m = await modelo.model;
+  const sinal = new Float32Array(COMECO + amostras.length);
+  sinal.set(amostras, COMECO);
+  const inicios = [];
+  let ini = 0;
+  while (ini + JANELA <= sinal.length) { inicios.push(ini); ini += PASSO; }
+  while (ini < sinal.length) { inicios.push(ini); ini += PASSO; }
+  const total = Math.floor(amostras.length * (Math.floor(22050 / 256) / 22050));
+  let feitas = 0;
+  for (let f = 0; f < inicios.length && feitas < total; f += LOTE) {
+    avisar(f / inicios.length);
+    const k = Math.min(LOTE, inicios.length - f);
+    const buf = new Float32Array(k * JANELA);
+    for (let i = 0; i < k; i++) buf.set(sinal.subarray(inicios[f + i], Math.min(inicios[f + i] + JANELA, sinal.length)), i * JANELA);
+    let saidas = tf.tidy(() => m.execute(tf.tensor3d(buf, [k, JANELA, 1]), ['Identity_1', 'Identity_2', 'Identity'])
+      .map((t) => t.slice([0, BORDA, 0], [-1, t.shape[1] - 2 * BORDA, -1]).reshape([-1, t.shape[2]])));
+    if (saidas[0].shape[0] + feitas > total) {
+      const cortadas = tf.tidy(() => saidas.map((t) => t.slice([0, 0], [total - feitas, -1])));
+      tf.dispose(saidas);
+      saidas = cortadas;
+    }
+    feitas += saidas[0].shape[0];
+    const [quadros, comecos] = await Promise.all(saidas.slice(0, 2).map((t) => t.array()));
+    tf.dispose(saidas);
+    aoQuadro(quadros, comecos);
+  }
+  avisar(1);
+}
 // as notas de um canal (o meio ou o lado do estéreo) e onde o modelo ouviu começo de nota (para não juntar duas
 // sílabas na mesma altura). Começo de nota no padrão do modelo (0,5: mais baixo, o vibrato vira começos) e nota
 // mínima de 5 quadros (58 ms: a sílaba rápida)
 async function ouvir(amostras, fonte, avisar) {
   modelo ||= new bp.BasicPitch('${BASIC_PITCH}/model/model.json');
   const f = [], o = [];
-  await modelo.evaluateModel(amostras, (a, b) => { f.push(...a); o.push(...b); }, avisar);
+  await avaliar(amostras, (a, b) => { for (const x of a) f.push(x); for (const x of b) o.push(x); }, avisar);
   const notas = bp.noteFramesToTime(bp.outputToNotesPoly(f, o, 0.5, 0.3, 5, true, 2100, 40, true));
   return { notas: tr.deBasicPitch(notas, fonte), quebra: tr.rearticulacoes(o) };
 }
