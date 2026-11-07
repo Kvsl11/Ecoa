@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 600, data: '2026-11-07', titulo: 'Cabeçalho do tablet afastado da barra de status do Android',
+    itens: [
+      { tipo: 'correcao', texto: 'No tablet, em orientação retrato e paisagem, a foto do perfil e os botões do cabeçalho, bem como o topo do painel "Tocando agora" (o título, o botão de recolher e o menu ⋮), ficavam sobrepostos à hora e aos ícones de rede da barra de status do Android. A regra de estilo específica do tablet definia um espaçamento superior fixo de 12 px, que substituía o espaçamento da área segura (env(safe-area-inset-top)) aplicado nos demais aparelhos; o painel "Tocando agora" não reservava essa área. O espaçamento superior passou a somar a altura da barra de status no cabeçalho, no painel lateral, na tela cheia e na barra fixa exibida ao rolar o painel.' },
+    ],
+  },
+  {
     versao: 599, data: '2026-11-07', titulo: 'Retorno ao aplicativo sem tela vazia e faixas de álbuns de versões com o nome correto',
     itens: [
       { tipo: 'correcao', texto: 'Ao retornar ao aplicativo Android após longo período em segundo plano, a tela podia permanecer vazia indefinidamente. Quando o sistema encerra a página para liberar memória, ela é recarregada no retorno, e a folha de estilos das fontes (Google Fonts) era carregada de forma bloqueante: com a conexão ainda instável, a página não era desenhada e o aplicativo não iniciava. As fontes passaram a ser carregadas de forma assíncrona, com a fonte do sistema até a chegada delas. Além disso, a verificação executada no retorno passou a confirmar a inicialização completa do aplicativo e a recarregar a página quando ela não ocorre (no máximo duas vezes, seguidas da recriação da tela). Disponível mediante atualização do aplicativo.' },
@@ -75,12 +81,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'A transcrição de partituras no aparelho passou a utilizar um motor de inferência mais eficiente, com resultado idêntico: em teste, 15 segundos de áudio foram processados em 2 segundos (antes, 28). A memória de cada segmento passou a ser liberada após o processamento, o que elimina a degradação progressiva de desempenho, e as músicas longas deixaram de exceder o limite de memória da GPU.' },
       { tipo: 'melhoria', texto: 'No aplicativo Android, a separação de voz para o karaokê passou a operar em pipeline: enquanto o modelo processa um segmento, o seguinte é preparado e o anterior é gravado (antes, as etapas eram sequenciais). Os dois canais estéreo passaram a ser processados em conjunto, e o modelo permanece carregado entre uma música e outra. O resultado sonoro é o mesmo. Disponível mediante atualização do aplicativo.' },
-    ],
-  },
-  {
-    versao: 590, data: '2026-11-07', titulo: 'Reformulação visual das telas de partitura',
-    itens: [
-      { tipo: 'melhoria', texto: 'As telas de partitura receberam nova interface. Na listagem, a opção "Gerar com IA" passou a ter destaque, seguida de "Nova partitura" e do acervo, em cartões. Durante a geração, um indicador circular informa o progresso percentual e o tempo decorrido, e as etapas são apresentadas em linha do tempo. Na partitura concluída, as vozes (Coral, Coral do áudio e Melodia) ficam logo abaixo da prévia, e os botões Editar e Salvar permanecem fixos no rodapé.' },
     ],
   },
 ];
