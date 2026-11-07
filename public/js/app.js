@@ -11721,7 +11721,7 @@ async function viewBuscaAcervo(termo) {
 // busca na biblioteca, numa tela própria: #/biblioteca/busca) e o + (criar repertório, playlist, música ou importar).
 // Embaixo, os chips que rolam de lado (Repertórios, Playlists, Artistas, Baixadas: tocar num deixa só ele, com o X para
 // voltar a tudo), a ordem (Recentes, Adicionados recentemente, Ordem alfabética, Criador, numa folha que sobe) e o
-// botão grade/lista. Na grade, três por linha no celular: as fixadas primeiro (Músicas curtidas e Baixadas), depois os
+// botão grade/lista. Na grade, três por linha no celular: as fixadas primeiro (Músicas curtidas), depois os
 // repertórios, as playlists e os artistas (redondos), misturados na ordem escolhida. As músicas salvas não ficam
 // soltas na estante: abrem pelo coração (#/biblioteca/musicas e os filtros dela)
 const FILTROS_MUSICAS = ['musicas', 'video', 'partitura', 'proprias', 'baixadas'];
@@ -11730,7 +11730,6 @@ const ORDENS_ESTANTE = [['recentes', 'Recentes'], ['adicionados', 'Adicionados r
 const prefBib = (k, padrao) => { try { return localStorage.getItem('songbook.bib.' + k) || padrao; } catch { return padrao; } };
 const guardarPrefBib = (k, v) => { try { localStorage.setItem('songbook.bib.' + k, v); } catch { /* sem armazenamento */ } };
 const capaCurtidas = (cls = '') => `<div class="cover capa-curtidas ${cls}">${icon('coracao', 40)}</div>`;
-const capaBaixadas = (cls = '') => `<div class="cover capa-baixadas ${cls}">${icon('download', 40)}</div>`;
 const qtdMusicas = (n) => `${n} ${n === 1 ? 'música' : 'músicas'}`;
 // quando cada repertório, playlist e artista foi aberto pela última vez (a ordem "Recentes"; só neste aparelho)
 const ABERTOS_BIB = 'songbook.bib.abertos';
@@ -11747,6 +11746,10 @@ const setBaixado = (set) => {
   const ss = set.items.map((it) => db.song(it.songId)).filter((x) => x && midiaDe(x));
   return ss.length > 0 && ss.every((x) => x.baixado && !precisaBaixar(x));
 };
+// os selos antes do tipo, como no Spotify: o alfinete verde das fixadas e o círculo verde com a seta quando tudo
+// já está no aparelho
+const selosDaEstante = (fixada, baixada) => (fixada ? `<span class="pino">${icon('fixado', 16)}</span>` : '')
+  + (baixada ? `<span class="pino pino-baixada" title="Tudo baixado">${icon('baixada', 16)}</span>` : '');
 // o que fica na estante: os repertórios, as playlists e os artistas, com o nome, o "criador" e as datas para a ordem
 function entradasDaEstante() {
   const abertos = abertosBib();
@@ -11780,7 +11783,7 @@ function htmlDaEstante(e, grade) {
   const cv = e.art ? `<div class="cover capa-artista" data-artista-foto data-nome="${esc(e.nome)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 28)}</div>`
     : capaRepertorio(e.set);
   const sub = e.art ? 'Artista' : `${tipoDoSet(e.set)} • ${qtdMusicas(e.set.items.length)}`;
-  const pino = e.set?.fixada ? `<span class="pino">${icon('fixado', 13)}</span>` : '';
+  const pino = e.set ? selosDaEstante(e.set.fixada, setBaixado(e.set)) : '';
   const attrs = e.art ? `class="${grade ? 'bib-card' : 'track clickable'} bib-art" data-artista="${esc(e.nome)}"` : `class="${grade ? 'bib-card' : 'track clickable'} lib-item" data-k="${e.k}"`;
   return grade ? `<li ${attrs}>${marca}${cv}<b>${esc(e.nome)}</b><small>${pino}${esc(sub)}</small></li>`
     : `<li ${attrs}>${marca}${cv}<div class="info"><div class="t">${esc(e.nome)}</div><div class="s">${pino}${esc(sub)}</div></div><span class="acts"></span></li>`;
@@ -11806,21 +11809,21 @@ function viewEstante(filtro = 'tudo', { selecionando = false, marcados = new Set
   setTint('#2b3d4f');
   setHeader('Sua biblioteca');
   const todas = db.songs().filter((x) => !x.soNoRepertorio);
-  const nBaixadas = todas.filter((x) => x.baixado && !precisaBaixar(x)).length;
+  const tocam = todas.filter((x) => midiaDe(x));
+  const curtidasBaixadas = tocam.length > 0 && tocam.every((x) => x.baixado && !precisaBaixar(x));
   const grade = prefBib('modo', 'grade') === 'grade';
   const ordem = ORDENS_ESTANTE.find(([k]) => k === prefBib('ordem', 'recentes'))?.[0] || 'recentes';
   const passa = { tudo: () => true, repertorios: (e) => e.tipo === 'repertorio', playlists: (e) => e.tipo === 'playlist', artistas: (e) => e.tipo === 'artista', baixados: (e) => e.set && setBaixado(e.set) }[filtro];
-  // (as fixadas pela pessoa vêm logo depois das Músicas curtidas e das Baixadas, na ordem escolhida entre elas)
+  // (as fixadas pela pessoa vêm logo depois das Músicas curtidas, na ordem escolhida entre elas)
   const itens = ordenarEstante(entradasDaEstante().filter(passa), ordem).sort((a, b) => Number(Boolean(b.set?.fixada)) - Number(Boolean(a.set?.fixada)));
   const sets = itens.filter((e) => e.set);
   // as fixadas no topo (como as Músicas Curtidas do Spotify): abrem as músicas salvas e as baixadas
   const fixadas = [
-    filtro === 'tudo' && { ir: '#/biblioteca/musicas', capa: capaCurtidas(), nome: 'Músicas curtidas', sub: `Playlist • ${qtdMusicas(todas.length)}` },
-    ['tudo', 'baixados'].includes(filtro) && nBaixadas && { ir: '#/biblioteca/baixadas', capa: capaBaixadas(), nome: 'Baixadas', sub: `Playlist • ${qtdMusicas(nBaixadas)}` },
+    filtro === 'tudo' && { ir: '#/biblioteca/musicas', capa: capaCurtidas(), nome: 'Músicas curtidas', sub: `Playlist • ${qtdMusicas(todas.length)}`, baixada: curtidasBaixadas },
   ].filter(Boolean);
   const htmlFixadas = fixadas.map((f) => (grade
-    ? `<li class="bib-card bib-fixa" data-bib-ir="${f.ir}">${f.capa}<b>${esc(f.nome)}</b><small><span class="pino">${icon('fixado', 13)}</span>${esc(f.sub)}</small></li>`
-    : `<li class="track clickable bib-fixa" data-bib-ir="${f.ir}">${f.capa}<div class="info"><div class="t">${esc(f.nome)}</div><div class="s"><span class="pino">${icon('fixado', 13)}</span>${esc(f.sub)}</div></div><span class="acts"></span></li>`)).join('');
+    ? `<li class="bib-card bib-fixa" data-bib-ir="${f.ir}">${f.capa}<b>${esc(f.nome)}</b><small>${selosDaEstante(true, f.baixada)}${esc(f.sub)}</small></li>`
+    : `<li class="track clickable bib-fixa" data-bib-ir="${f.ir}">${f.capa}<div class="info"><div class="t">${esc(f.nome)}</div><div class="s">${selosDaEstante(true, f.baixada)}${esc(f.sub)}</div></div><span class="acts"></span></li>`)).join('');
   const vazio = {
     artistas: `<div class="empty"><div class="bubble">${icon('mic', 32)}</div><h3>Nenhum artista ainda</h3><p>Os artistas das músicas que você salva aparecem aqui.</p><div class="row"><a class="btn primary" href="#/buscar">Buscar músicas</a></div></div>`,
     playlists: `<div class="empty"><div class="bubble">${icon('disc', 32)}</div><h3>Crie sua primeira playlist</h3><p>Playlists são para ouvir: as músicas tocam uma atrás da outra no player. Em Buscar → Missas completas, crie a da missa de hoje.</p>

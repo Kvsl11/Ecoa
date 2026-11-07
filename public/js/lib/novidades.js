@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 604, data: '2026-11-07', titulo: 'Indicadores de fixação e de download na biblioteca',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na biblioteca (celular e tablet), o alfinete verde dos itens fixados foi ampliado de 13 px para 16 px (de 11 px para 15 px na grade do celular), alinhado à linha "Playlist • n músicas".' },
+      { tipo: 'novo', texto: 'Playlists e repertórios cujas músicas com áudio ou vídeo estão todas baixadas no aparelho passaram a exibir, ao lado do alfinete, o círculo verde com a seta de download, no mesmo tamanho. O indicador também aparece em "Músicas curtidas", quando todas estão baixadas.' },
+      { tipo: 'melhoria', texto: 'O cartão fixo "Baixadas" foi removido da biblioteca (celular, tablet, web e aplicativo Android), por repetir as músicas já reunidas em "Músicas curtidas", que passou a indicar quando estão todas baixadas. A lista das músicas baixadas continua acessível em Configurações → Músicas baixadas; o filtro "Baixadas" da biblioteca passou a listar apenas as playlists e os repertórios inteiramente baixados.' },
+    ],
+  },
+  {
     versao: 603, data: '2026-11-07', titulo: 'Janela de troca de vídeo e de áudio reformulada',
     itens: [
       { tipo: 'correcao', texto: 'Nas janelas que sobem do rodapé com lista (como a de trocar o vídeo ou a música), um traço horizontal aparecia sobre cada botão "Escolher". A regra de estilo do rodapé da janela (fixo, com linha superior, fundo e margens) também se aplicava ao espaço dos botões de cada linha da lista, que usa a mesma classe. A regra passou a valer apenas para o rodapé da janela.' },
@@ -74,13 +82,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na seção "Sobre o artista", a apresentação é exibida assim que recebida, sem aguardar a fonte complementar (TheAudioDB). O acesso a "ver mais" é disponibilizado em até 2,5 s, e a consulta à Wikipédia passou a ter tempo limite.' },
       { tipo: 'correcao', texto: 'O botão de salvar do player não reconhecia a música aberta pela busca enquanto o vídeo ainda não estava registrado na prévia, exibindo "Abra a música para salvar" ou apenas navegando até a página. A verificação foi corrigida, e a música passa a ser salva na biblioteca.' },
       { tipo: 'melhoria', texto: 'As orações e o missal do dia (Pocket Terço) já armazenados no aparelho passaram a ser exibidos imediatamente, com a atualização do arquivo realizada em segundo plano.' },
-    ],
-  },
-  {
-    versao: 594, data: '2026-11-07', titulo: 'Correção no carregamento de fotos de artistas',
-    itens: [
-      { tipo: 'correcao', texto: 'Algumas fotos de artistas não eram exibidas na biblioteca, e a nova tentativa retornava o mesmo endereço inválido. As imagens passaram a ser solicitadas sem o cabeçalho Referer (referrerpolicy="no-referrer"), o que contorna a proteção contra hotlink de alguns servidores. Em caso de falha, as fontes alternativas (YouTube, Cifra Club, Deezer e Wikipédia) são consultadas sequencialmente até que uma imagem seja carregada com sucesso.' },
-      { tipo: 'correcao', texto: 'Artistas sem foto exibem exclusivamente o ícone de artista, sem sobreposição com o ícone de música. Instalações que ainda apresentem os dois ícones sobrepostos estão em versão anterior e são atualizadas ao reiniciar o aplicativo.' },
     ],
   },
 ];

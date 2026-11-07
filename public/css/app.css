@@ -4366,14 +4366,14 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 @media (hover: hover) { .bib-card:hover > .cover { filter: brightness(1.08); } }
 .bib-card:active { transform: scale(0.98); opacity: 0.85; }
 /* o alfinete verde das fixadas (como o das Músicas Curtidas) */
-.pino { display: inline-grid; place-items: center; color: #1ed760; flex: none; margin-right: 4px; vertical-align: -2px; }
-.bib-card .pino { margin-right: 3px; }
-/* a capa do coração (as músicas curtidas) e a das baixadas */
+/* (e, com tudo no aparelho, o círculo verde com a seta, do mesmo tamanho) */
+.pino { display: inline-grid; place-items: center; color: #1ed760; flex: none; margin-right: 5px; vertical-align: -3px; }
+.pino-baixada .ic { --on-accent: #000; }
+.bib-card .pino { margin-right: 4px; }
+/* a capa do coração (as músicas curtidas) */
 .capa-curtidas { display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #450af5 0%, #8e8ee5 60%, #c4efd9 100%); }
 .capa-curtidas .ic { fill: currentColor; width: 38%; height: 38%; }
-.capa-baixadas { display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #0d5c3a, #1ed760); }
-.capa-baixadas .ic { width: 38%; height: 38%; }
-.track > .capa-curtidas .ic, .track > .capa-baixadas .ic { width: 50%; height: 50%; }
+.track > .capa-curtidas .ic { width: 50%; height: 50%; }
 /* selecionar na grade: a bolinha no canto da capa */
 .bib-card .marca-sel { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgb(0 0 0 / 0.45); }
 #lib.selecionando .bib-card.bib-fixa { opacity: 0.4; pointer-events: none; }
@@ -4410,7 +4410,8 @@ dialog.bib-folha .lista-op[aria-selected="true"] { background: none; }
   .bib-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
   .bib-card b { margin-top: 8px; font-size: 13.5px; font-weight: 500; }
   .bib-card small { font-size: 12px; gap: 3px; }
-  .bib-card .pino svg { width: 11px; height: 11px; }
+  .bib-card .pino svg { width: 15px; height: 15px; }
+  .bib-card .pino { margin-right: 3px; vertical-align: -3px; }
   .bib-card .marca-sel { top: 5px; left: 5px; }
 }
 /* a busca da biblioteca (a lupa): o campo no topo e, sem nada digitado, o "Encontre suas favoritas" no meio */
