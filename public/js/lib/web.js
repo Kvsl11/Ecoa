@@ -27,6 +27,15 @@ export function usarBuscaNativa(fn) { buscaNativa = typeof fn === 'function' ? f
 // (dá para ler a página direto: fora do navegador, ou no APK)
 const direto = () => !NO_NAVEGADOR || Boolean(buscaNativa);
 
+// os serviços que respondem com CORS liberado (o site já os lê direto do navegador)
+const CORS_LIVRE = /^https:\/\/(solr\.sscdn\.co|lrclib\.net|itunes\.apple\.com|www\.theaudiodb\.com|musicbrainz\.org|[a-z-]+\.wikipedia\.org|commons\.wikimedia\.org|kvsl11\.github\.io)\/|^https:\/\/www\.youtube\.com\/oembed\?/i;
+export const peloWebView = (url) => CORS_LIVRE.test(String(url)) || PIPED.some((b) => String(url).startsWith(`${b}/`));
+async function comTempoLimite(fetchImpl, url, headers, timeout) {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
+  try { return await fetchImpl(url, { headers, signal: ctrl?.signal }); } finally { clearTimeout(t); }
+}
+
 // fetch com tempo limite (proxies públicos às vezes ficam pendurados)
 async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } = {}) {
   const base = /^https?:\/\/[^/]+/i.exec(String(url))?.[0] || '';
@@ -34,12 +43,13 @@ async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } 
   if (piped) emVoo.set(base, (emVoo.get(base) || 0) + 1);
   try {
     let res;
-    if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) res = await buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
-    else {
-      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
-      try { res = await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal }); } finally { clearTimeout(t); }
-    }
+    if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) {
+      // (no APK, os serviços que deixam a página ler a resposta vão pelo próprio WebView, como no site: sem a ponte do
+      // Android, com o cache e as conexões do navegador. Antes tudo ia pela fila da parte nativa, e a busca do Cifra
+      // Club, o Piped e a letra esperavam atrás das páginas grandes. Se o WebView não conseguir ler, vai pela nativa)
+      if (peloWebView(url)) res = await comTempoLimite(fetch, url, headers, timeout).catch((e) => { if (e?.name === 'AbortError') throw e; return null; });
+      if (!res) res = await buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
+    } else res = await comTempoLimite(fetchImpl, url, { ...UA, ...headers }, timeout);
     // (a instância que responde 403/404 com uma página em vez da API não está servindo: fica de fora como as fora do
     // ar. Antes contava como viva, e cada busca baixava de novo a página de erro dela, de 57 kB)
     if (piped) marcarInstancia(base, res.ok || (res.status >= 400 && res.status < 429 && !([403, 404].includes(res.status) && !/json/i.test(res.headers?.get?.('content-type') || ''))));

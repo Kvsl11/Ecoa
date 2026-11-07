@@ -747,6 +747,32 @@ test('Piped: a instância que devolve uma página de erro (404 em HTML) sai, e a
   esquecerSaudeDasInstancias();
 });
 
+test('APK: os serviços com CORS vão pelo WebView (como no site); sem conseguir ler, pela parte nativa; o Cifra Club, pela nativa', async () => {
+  const { usarBuscaNativa, buscarArtistasCifraClub, peloWebView, PIPED } = await import('../public/js/lib/web.js');
+  const original = globalThis.fetch;
+  const nativos = [];
+  const doWebView = [];
+  const resposta = () => new Response('({"response":{"docs":[{"t":"1","d":"artista","m":"Artista","i":"foto-tb.jpg"}]}})');
+  try {
+    globalThis.fetch = async (url) => { doWebView.push(String(url)); return resposta(); };
+    usarBuscaNativa(async (url) => { nativos.push(url); return resposta(); });
+    const l = await buscarArtistasCifraClub('Artista');
+    assert.equal(l[0].slug, 'artista');
+    assert.equal(doWebView.length, 1, 'a busca de artistas do Cifra Club (CORS liberado) vai pelo WebView');
+    assert.equal(nativos.length, 0, 'e não ocupa a fila da parte nativa');
+    globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+    await buscarArtistasCifraClub('Outro');
+    assert.equal(nativos.length, 1, 'o WebView não leu: vai pela parte nativa');
+    assert.ok(peloWebView('https://lrclib.net/api/search?q=x'));
+    assert.ok(peloWebView(`${PIPED[0]}/search?filter=videos&q=x`));
+    assert.ok(!peloWebView('https://www.cifraclub.com.br/artista/'), 'a página do Cifra Club (sem CORS) continua pela nativa');
+    assert.ok(!peloWebView('https://www.youtube.com/results?search_query=x'));
+  } finally {
+    globalThis.fetch = original;
+    usarBuscaNativa(null);
+  }
+});
+
 test('corridaEscalonada: a lenta não segura as outras, e a primeira que dá certo vale', async () => {
   const { corridaEscalonada } = await import('../public/js/lib/web.js');
   const depois = (ms, v, erro = false) => () => new Promise((ok, falha) => setTimeout(() => (erro ? falha(new Error(v)) : ok(v)), ms));

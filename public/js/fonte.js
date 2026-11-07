@@ -19,7 +19,12 @@ const VALIDADE_LITURGIA = NO_APK ? 6 * 3600e3 : 5 * 864e5;
 const MAX_ITENS = 320;
 // missa sem o repertório da Cindy (ainda não publicado, ou não achado por versões antigas do app): vale só 12 h,
 // para buscar de novo
-const validade = (chave, v) => (/^(missa|lit):/.test(chave) && !(chave.startsWith('missa:') && !v?.repertorio) ? VALIDADE_LITURGIA : VALIDADE);
+// (as páginas do artista no Cifra Club — a principal, a discografia e todas as músicas, ~500 kB cada — valem 1 h no
+// APK: com 5 min, cada visita ao artista ou à música baixava as três de novo, em segundo plano, e ocupava a internet
+// do celular)
+const VALIDADE_ARTISTA = NO_APK ? 3600e3 : VALIDADE;
+const validade = (chave, v) => (/^(missa|lit):/.test(chave) && !(chave.startsWith('missa:') && !v?.repertorio) ? VALIDADE_LITURGIA
+  : /^(ccart2|ccdisc|cctodas):/.test(chave) ? VALIDADE_ARTISTA : VALIDADE);
 
 function lerCache(chave) {
   try {
