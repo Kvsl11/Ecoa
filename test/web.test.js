@@ -726,3 +726,24 @@ test('instâncias do Piped fora do ar ficam de fora por um tempo (não entopem a
   assert.equal(instanciasVivas(PIPED).length, 1);
   esquecerSaudeDasInstancias();
 });
+
+test('corridaEscalonada: a lenta não segura as outras, e a primeira que dá certo vale', async () => {
+  const { corridaEscalonada } = await import('../public/js/lib/web.js');
+  const depois = (ms, v, erro = false) => () => new Promise((ok, falha) => setTimeout(() => (erro ? falha(new Error(v)) : ok(v)), ms));
+  const comecou = [];
+  const marcada = (nome, f) => () => { comecou.push(nome); return f(); };
+  // a primeira responde rápido: as outras nem começam
+  assert.equal(await corridaEscalonada([marcada('a', depois(5, 'A')), marcada('b', depois(5, 'B'))], { atraso: 200 }), 'A');
+  assert.deepEqual(comecou, ['a']);
+  // a primeira está pendurada: depois do atraso, a segunda começa e vence
+  let ini = Date.now();
+  assert.equal(await corridaEscalonada([depois(5000, 'lenta'), depois(5, 'rápida')], { atraso: 30 }), 'rápida');
+  assert.ok(Date.now() - ini < 1000);
+  // a que falha passa a vez na hora, sem esperar o atraso
+  ini = Date.now();
+  assert.equal(await corridaEscalonada([depois(5, 'HTTP 403', true), depois(5, 'B')], { atraso: 5000 }), 'B');
+  assert.ok(Date.now() - ini < 1000);
+  // todas falham: o erro de verdade, e não o de tempo esgotado
+  await assert.rejects(corridaEscalonada([depois(5, 'timeout', true), depois(5, 'HTTP 404', true)], { atraso: 10 }), /HTTP 404/);
+  await assert.rejects(corridaEscalonada([], { nome: 'o Cifra Club' }), /Sem acesso a o Cifra Club/);
+});

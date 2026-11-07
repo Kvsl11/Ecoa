@@ -4,11 +4,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 584, data: '2026-11-07', titulo: 'As fotos dos artistas na hora e o aviso de versão nova que chega',
+    versao: 584, data: '2026-11-07', titulo: 'Tudo mais rápido: as fotos, a música da busca, os artistas e os álbuns',
     itens: [
       { tipo: 'melhoria', texto: 'As fotos dos artistas (na biblioteca, na busca, na música) chegam muito mais rápido: o app pergunta ao YouTube, ao Cifra Club e ao Deezer ao mesmo tempo, em vez de um depois do outro, e não espera mais os servidores do YouTube que estão fora do ar (eles ficam de fora por um tempo).' },
       { tipo: 'correcao', texto: 'Na busca e na biblioteca, a fotinha do artista ao lado do nome podia ficar com o desenho de imagem quebrada. Agora, se a foto não carrega, volta o desenho do app e a foto é procurada de novo.' },
       { tipo: 'melhoria', texto: 'No app de Android, as consultas à internet (o Cifra Club, as letras, o Deezer, o YouTube, a liturgia) não ficam mais numa fila de 6 de cada vez, que um servidor fora do ar travava: agora vão muitas ao mesmo tempo, e o servidor que não responde é deixado de lado em 6 segundos. Vem com a atualização do app.' },
+      { tipo: 'melhoria', texto: 'A música aberta pela busca aparece em poucos segundos: antes ela esperava a letra sincronizada (até 25 s), o áudio e o clipe (até 15 s) e o vídeo, um depois do outro. Agora abre logo, e o que ainda não chegou (a letra sincronizada, o áudio, o clipe, o vídeo) entra sozinho em seguida.' },
+      { tipo: 'melhoria', texto: 'As páginas dos artistas e dos álbuns abrem mais rápido: o que já foi visto aparece na hora (e é atualizado em segundo plano), as páginas do Cifra Club não esperam mais um leitor lento antes de tentar outro, e, no app de Android, as músicas, os álbuns e a lista completa do artista vêm juntos.' },
+      { tipo: 'melhoria', texto: 'No app de Android, a busca de vídeos lê a página do próprio YouTube, sem depender dos servidores públicos que vivem fora do ar. Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, o aviso de versão nova só aparecia ao abrir o app, e uma vez só: com o app aberto em segundo plano, a atualização não chegava. Agora ele confere também ao voltar para o app e, se você tocou em "Agora não", lembra de novo depois de 12 horas.' },
     ],
   },

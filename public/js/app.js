@@ -8542,10 +8542,23 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
     const busca = (videoJa
       ? videoJa.then((vs) => vs?.[0] || videoDaMusica(m.title, m.artist, source))
       : videoDaMusica(m.title, m.artist, source)).catch(() => null);
-    const v = await busca;
-    if (v?.url) novo.content = definirMeta(novo.content, 'youtube', v.url);
-    else novo.semVideo = true;
+    // (espera o vídeo só um pouco: a busca do YouTube às vezes leva muitos segundos, e a música esperava por ela antes
+    // de abrir. Passando disso, abre sem ele, e o vídeo entra sozinho quando chegar, com o áudio e a letra dele)
+    const ATRASOU = {};
+    const v = await noMaximo(busca, 4000, ATRASOU);
     novo.videoProcurado = true;
+    if (v === ATRASOU) {
+      void busca.then((tarde) => {
+        if (preview !== novo || novo.youtube) return;
+        if (!tarde?.url) { novo.semVideo = true; return; }
+        novo.content = definirMeta(novo.content, 'youtube', tarde.url);
+        novo.youtube = youtubeId(tarde.url) || '';
+        novo.semVideo = false;
+        void prepararMusicaAoAbrir(novo).catch(() => null);
+        if (location.hash === '#/musica/previa') route();
+      });
+    } else if (v?.url) novo.content = definirMeta(novo.content, 'youtube', v.url);
+    else novo.semVideo = true;
   }
 
   // A prévia também precisa ter os metadados explícitos: sem title/artist/youtube,
@@ -8562,8 +8575,8 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   // oficial; sem clipe oficial, a música abre só como música (o vídeo continua sendo o som dela). Venha o vídeo da
   // busca ou da página da cifra. Com limite de tempo: passando, abre como está
   if (novo.youtube && !String(source || '').startsWith('cnbb:')) {
-    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 3000, true))) {
-      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 5000, null);
+    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 2000, true))) {
+      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 3000, null);
       if (clipe) {
         novo.content = definirMeta(novo.content, 'youtube', `https://www.youtube.com/watch?v=${clipe.id}`);
         novo.youtube = clipe.id;
@@ -8626,7 +8639,10 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   const versoesProntas = novo.youtube ? descobrirVersoes(novo).catch(() => null) : Promise.resolve(null);
   aoPreparar?.('Procurando a música, o clipe e a letra sincronizada…');
   void versoesProntas.then(() => { if (preview === novo && !novo.sincronia) aoPreparar?.('Sincronizando a letra…'); });
-  await Promise.all([noMaximo(preparo, 25000, 'demorou'), noMaximo(versoesProntas, 15000, null), noMaximo(buscaCapaDaPrevia, 2000, '').then(aplicarCapaDaPrevia)]);
+  // (com limite curto: a pessoa quer a música na hora. A letra sincronizada, o áudio oficial e o clipe que chegarem
+  // depois entram sozinhos, sem precisar abrir de novo: songbook:sincronia e o casamento das versões em segundo plano.
+  // Antes eram até 25 s esperando a letra e 15 s o áudio, e a música da busca demorava muito para abrir)
+  await Promise.all([noMaximo(preparo, 3500, 'demorou'), noMaximo(versoesProntas, 3500, null), noMaximo(buscaCapaDaPrevia, 1500, '').then(aplicarCapaDaPrevia)]);
   if (preview !== novo) return;
   // (a pessoa desistiu enquanto a música chegava: voltou ou abriu outra tela)
   if (vez && vez !== abrindoDaBusca) return;
@@ -10582,9 +10598,11 @@ function carregarArtista(slug, nome) {
       const foto = (await buscarArtistasCifraClub(nome || slug).catch(() => [])).find((x) => x.slug === slug)?.capa || '';
       return { nome, foto, slug, musicas: lista.map((r) => ({ titulo: r.titulo, url: r.url, tom: '', capa: r.capa })), parcial: true };
     });
-    // a discografia e a lista completa vêm depois da principal (o leitor de páginas atende uma de cada vez melhor)
-    const disc = principal.then(() => getDiscografiaCifraClub(slug)).catch(() => []);
-    const todas = disc.then(() => getTodasMusicasCifraClub(slug)).catch(() => []);
+    // a discografia e a lista completa: no app de Android, as três páginas ao mesmo tempo (ele lê o Cifra Club direto);
+    // no navegador, depois da principal (o leitor de páginas público atende uma de cada vez melhor)
+    const juntas = noApk();
+    const disc = (juntas ? getDiscografiaCifraClub(slug) : principal.then(() => getDiscografiaCifraClub(slug))).catch(() => []);
+    const todas = (juntas ? getTodasMusicasCifraClub(slug) : disc.then(() => getTodasMusicasCifraClub(slug))).catch(() => []);
     dadosArtista.set(slug, { principal, disc, todas });
   }
   return dadosArtista.get(slug);
@@ -10811,7 +10829,8 @@ async function viewAlbum(slug, nome, albumUrl) {
   const al = disc.find((x) => x.url === albumUrl);
   if (!al) { location.hash = voltar; return; }
   // faixa sem cifra neste álbum (ex.: versão ao vivo só com a letra): a mesma música com cifra, de outro álbum
-  const comCifraDoArtista = await todasDoArtista(carregarArtista(slug, nome)).catch(() => []);
+  // (só se as outras páginas do artista chegarem logo: o álbum não espera por elas)
+  const comCifraDoArtista = al.faixas.some((f) => !f.url) ? await noMaximo(todasDoArtista(carregarArtista(slug, nome)), 1500, []) : [];
   for (const f of al.faixas) {
     if (f.url) continue;
     const igual = comCifraDoArtista.find((m) => normalizar(tituloLimpo(m.titulo)) === normalizar(tituloLimpo(f.titulo)));
