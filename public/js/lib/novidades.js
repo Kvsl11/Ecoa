@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 603, data: '2026-11-07', titulo: 'Janela de troca de vídeo e de áudio reformulada e mini player do tablet em retrato',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas janelas que sobem do rodapé com lista (como a de trocar o vídeo ou a música), um traço horizontal aparecia sobre cada botão "Escolher". A regra de estilo do rodapé da janela (fixo, com linha superior, fundo e margens) também se aplicava ao espaço dos botões de cada linha da lista, que usa a mesma classe. A regra passou a valer apenas para o rodapé da janela.' },
+      { tipo: 'melhoria', texto: 'A janela de trocar o vídeo ou a música (áudio) foi reformulada, no celular e no tablet: o título indica a ação ("Trocar o vídeo", "Trocar a música (áudio)") e a música a que se refere; as linhas da lista passaram a ter miniatura maior, com a duração, e o nome em até duas linhas; a versão em uso aparece primeiro, destacada, com a etiqueta "Atual" e a indicação "Em uso" no lugar do botão; "Tenho o link do vídeo" passou a ser uma linha com ícone, que se expande; no rodapé, "Remover" fica à esquerda, em vermelho e com ícone, e "Cancelar" à direita.' },
+      { tipo: 'correcao', texto: 'No tablet em orientação retrato, com o vídeo ativo, o mini player ocupava 40% da linha e o vídeo, ajustado à altura total do cartão, consumia cerca de 140 dos 340 px disponíveis, restando cerca de 65 px para o nome da música, que se tornava ilegível. Em retrato, o mini player passou a ocupar 46% da linha (o menu, 54%) e o vídeo passou a ter 54 px de altura, com margem; a área do nome passou de cerca de 65 px para cerca de 164 px. A orientação paisagem não foi alterada.' },
+    ],
+  },
+  {
     versao: 602, data: '2026-11-07', titulo: 'Capas estáveis, conta limpa por completo, menu das playlists por toque longo e novo selo de artista confirmado',
     itens: [
       { tipo: 'correcao', texto: 'A capa das músicas salvas podia mudar sozinha: ao abrir o aplicativo, ao tocar a música e ao exibir a biblioteca, a capa do álbum era procurada de novo e substituída sempre que a busca devolvia outra. Além disso, a escolha entre as capas encontradas ordenava as opções pela adequação à música (single e álbum à frente de coletâneas e de outras gravações), mas em seguida selecionava a de maior resolução e, no empate, a mais ouvida, de modo que uma coletânea gospel substituía a capa do single de "Aba", do Kemuel. A escolha passou a respeitar a ordem de adequação, considerando as duas fontes (Deezer e iTunes) em conjunto, e a resolução só desempata o mesmo álbum. A busca em segundo plano passou a preencher apenas a capa provisória (nenhuma, o quadro do vídeo ou a foto do artista): a capa do álbum já atribuída não é mais substituída. As capas salvas que forem de coletânea ou de outra gravação são corrigidas uma única vez, em segundo plano; as corretas e as escolhidas manualmente são mantidas.' },
@@ -74,16 +82,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Algumas fotos de artistas não eram exibidas na biblioteca, e a nova tentativa retornava o mesmo endereço inválido. As imagens passaram a ser solicitadas sem o cabeçalho Referer (referrerpolicy="no-referrer"), o que contorna a proteção contra hotlink de alguns servidores. Em caso de falha, as fontes alternativas (YouTube, Cifra Club, Deezer e Wikipédia) são consultadas sequencialmente até que uma imagem seja carregada com sucesso.' },
       { tipo: 'correcao', texto: 'Artistas sem foto exibem exclusivamente o ícone de artista, sem sobreposição com o ícone de música. Instalações que ainda apresentem os dois ícones sobrepostos estão em versão anterior e são atualizadas ao reiniciar o aplicativo.' },
-    ],
-  },
-  {
-    versao: 593, data: '2026-11-07', titulo: 'Downloads na resolução configurada (até 4K), fotos de artistas e prévias em HD',
-    itens: [
-      { tipo: 'correcao', texto: 'Downloads de vídeo podiam ser concluídos em 360p mesmo com a qualidade "Muito alta" selecionada: quando um cliente do YouTube não disponibilizava a resolução solicitada, o formato de 360p era aceito sem aviso. O downloader passou a consultar os demais clientes do YouTube e a selecionar a maior resolução disponível. Vídeos já baixados em 360p são baixados novamente de forma automática. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'novo', texto: 'Em Ajustes → Qualidade de mídia, as opções de vídeo foram ampliadas até 4K: Normal (480p), Alta (720p), Muito alta (1080p), 2K (1440p) e 4K (2160p). As opções de áudio passaram a indicar os parâmetros reais: Normal (AAC 48 kb/s), Alta (AAC 128 kb/s), Muito alta (Opus 160 kb/s, a maior taxa usual no YouTube) e Máxima (AAC 256 kb/s, quando disponível).' },
-      { tipo: 'melhoria', texto: 'A alteração da qualidade configurada passou a disparar automaticamente um novo download das músicas já baixadas em outra qualidade, superior ou inferior, sem necessidade de acionar "Atualizar". Cada música permanece disponível offline até a conclusão da nova versão.' },
-      { tipo: 'correcao', texto: 'Na biblioteca, artistas cuja foto falhava ao carregar exibiam os ícones de música e de microfone sobrepostos, ou o ícone de música no lugar da foto. Passou a ser exibido apenas o ícone de artista; o endereço inválido é descartado e uma nova foto é buscada.' },
-      { tipo: 'melhoria', texto: 'As prévias das playlists passaram a iniciar com a miniatura do vídeo em alta definição (antes, uma imagem de baixa resolução ampliada) e a solicitar ao YouTube a reprodução em HD.' },
     ],
   },
 ];

@@ -2769,10 +2769,10 @@ function tipoDosQuadros(id) {
 }
 
 // linha de um vídeo do YouTube (busca no app)
-const linhaVideo = (v, i, extra = '') => `
-  <li class="track clickable video-item" data-video="${i}" style="grid-template-columns:auto 1fr auto">
+const linhaVideo = (v, i, extra = '', { atual = false } = {}) => `
+  <li class="track clickable video-item${atual ? ' atual' : ''}" data-video="${i}" style="grid-template-columns:auto 1fr auto">
     <div class="cover video-thumb"><img src="${esc(v.capa)}" referrerpolicy="no-referrer" alt="" loading="lazy">${v.duracao ? `<span class="dur">${esc(v.duracao)}</span>` : ''}</div>
-    <div class="info"><div class="t">${esc(v.titulo)}</div><div class="s">${esc(v.canal)}</div></div><span class="acts">${extra}</span></li>`;
+    <div class="info"><div class="t">${esc(v.titulo)}</div><div class="s">${atual ? '<span class="video-atual">Atual</span>' : ''}${esc(v.canal)}</div></div><span class="acts">${extra}</span></li>`;
 
 // Escolhe o vídeo do YouTube de uma música: busca aqui dentro ou link colado.
 // Devolve o link, '' para remover, ou null se cancelou.
@@ -2874,18 +2874,22 @@ function trocarAudioDaMusica(song, url) {
 function escolherVideo(song, tipo = 'video') {
   const termo = [song.title, song.artist].filter(Boolean).join(' ');
   const atualId = tipo === 'audio' ? versoesDe(song)?.audio : song.youtube;
-  const tituloDialogo = tipo === 'audio' ? 'Música (áudio)' : 'Vídeo do YouTube';
+  const tituloDialogo = tipo === 'audio' ? 'Trocar a música (áudio)' : 'Trocar o vídeo';
   const dicaBusca = tipo === 'audio' ? 'Busque a gravação da música…' : 'Música, artista…';
+  const deQual = [song.title && `“${song.title}”`, song.artist].filter(Boolean).join(' · ');
+  // (a janela de escolher: o título e de que música é; a busca; a lista em linhas, sem os traços soltos, com a versão de
+  // agora marcada; o link colado numa linha só dela; e embaixo, o Remover à esquerda e o Cancelar à direita)
   return openDialog(`
-    <h3>${tituloDialogo}</h3>
+    <div class="yt-cab"><h3>${tituloDialogo}</h3>${deQual ? `<p>${esc(deQual)}</p>` : ''}</div>
     <label class="field">${icon('search', 18)}<input class="search" type="search" id="yt-q" value="${esc(termo)}" placeholder="${dicaBusca}"></label>
     <ul class="tracks lista-videos" id="yt-lista">${esqueleto('linhas', 'Buscando vídeos…')}</ul>
-    <details class="colar-link"><summary>Tenho o link do vídeo</summary>
+    <details class="colar-link"><summary><span class="colar-ic">${icon('link', 16)}</span><span class="grow">Tenho o link do vídeo</span><span class="colar-seta">${icon('down', 18)}</span></summary>
       <span class="input-btn"><input class="input" id="yt-link" placeholder="https://www.youtube.com/watch?v=…" value="${esc(atualId && !ehArquivo(atualId) ? 'https://www.youtube.com/watch?v=' + atualId : '')}"><button class="btn small" type="button" data-colar>Colar</button><button class="btn small primary" type="button" data-ok>Usar</button></span>
       <p class="muted" id="yt-info" style="margin:6px 0 0;font-size:13px"></p>
       <a class="link-btn" id="yt-abrir" href="${esc(ytBusca(termo))}" target="_blank" rel="noopener" style="margin-top:8px">${icon('youtube', 15)} ${tipo === 'audio' ? 'Procurar a música' : 'Procurar no YouTube'} e copiar o link</a></details>
-    <div class="acts">${atualId ? '<button class="btn ghost danger" data-rm>Remover versão</button><span class="spacer"></span>' : ''}<button class="btn ghost" data-no>Cancelar</button></div>`,
+    <div class="acts yt-acts">${atualId ? `<button class="btn ghost danger" data-rm>${icon('trash', 16)} Remover ${tipo === 'audio' ? 'a música' : 'o vídeo'}</button><span class="spacer"></span>` : ''}<button class="btn" data-no>Cancelar</button></div>`,
   (dlg, done) => {
+    dlg.classList.add('yt-dlg');
     const link = $('#yt-link', dlg);
     const info = $('#yt-info', dlg);
     const ul = $('#yt-lista', dlg);
@@ -2895,7 +2899,11 @@ function escolherVideo(song, tipo = 'video') {
       try {
         achados = await buscarYoutube(q);
         for (const v of achados) if (v.id && v.segundos > 0) duracoesDaBusca.set(v.id, v.segundos);
-        ul.innerHTML = achados.map((v, i) => linhaVideo(v, i, `<button class="btn small" data-escolher>Escolher</button>`)).join('') || '<li class="muted" style="padding:12px">Nenhum vídeo encontrado</li>';
+        // (a versão de agora vem primeiro, marcada, e com o botão apagado: já é ela)
+        achados.sort((a, b) => Number(b.id === atualId) - Number(a.id === atualId));
+        ul.innerHTML = achados.map((v, i) => (v.id === atualId
+          ? linhaVideo(v, i, `<span class="video-em-uso">${icon('check', 16)} Em uso</span>`, { atual: true })
+          : linhaVideo(v, i, '<button class="btn small video-escolher" data-escolher>Escolher</button>'))).join('') || '<li class="muted" style="padding:12px">Nenhum vídeo encontrado</li>';
       } catch {
         ul.innerHTML = `<li class="muted" style="padding:12px">A busca de vídeos não respondeu agora. <a href="${esc(ytBusca(q))}" target="_blank" rel="noopener">Procure no YouTube</a>, copie o link e use “Tenho o link do vídeo”.</li>`;
       }
