@@ -453,7 +453,7 @@ test('canalDosResultados: canal verificado com complemento no nome, com os inscr
     { type: 'channel', name: 'Frei Gilson / Som do Monte - OFICIAL', verified: true, subscribers: 10200000, url: '/channel/UCbh6', thumbnail: foto },
     { type: 'channel', name: 'Frei Gilson Frede', verified: false, subscribers: 115, url: '/channel/UCx', thumbnail: foto },
   ] };
-  assert.deepEqual(canalDosResultados(json, 'Frei Gilson'), { foto: 'https://yt3.ggpht.com/fg=s480-c-k', id: 'UCbh6', nome: 'Frei Gilson / Som do Monte - OFICIAL', inscritos: 10200000 });
+  assert.deepEqual(canalDosResultados(json, 'Frei Gilson'), { foto: 'https://yt3.ggpht.com/fg=s1000-c-k', id: 'UCbh6', nome: 'Frei Gilson / Som do Monte - OFICIAL', inscritos: 10200000 });
   // sem o selo, o mesmo nome com complemento não vale (pode ser de fã)
   json.items[0].verified = false;
   assert.equal(canalDosResultados(json, 'Frei Gilson'), null);
