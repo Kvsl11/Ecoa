@@ -4,9 +4,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 587, data: '2026-11-07', titulo: 'O "Conexão lenta" em branco',
+    versao: 587, data: '2026-11-07', titulo: 'Os avisos da conexão em branco',
     itens: [
-      { tipo: 'melhoria', texto: 'O aviso "Conexão lenta", embaixo do menu, aparece em branco, como o "Você está offline" (antes era laranja).' },
+      { tipo: 'melhoria', texto: 'Os avisos "Conexão lenta" e "Conectado novamente", embaixo do menu, aparecem em branco, como o "Você está offline" (antes eram laranja e verde).' },
     ],
   },
   {
