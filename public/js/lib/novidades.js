@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 590, data: '2026-11-07', titulo: 'As telas de partitura repaginadas',
+    itens: [
+      { tipo: 'melhoria', texto: 'As telas de partitura ganharam um visual mais moderno e limpo. Na lista, o "Gerar com IA" vem em destaque, com a "Nova partitura" e o acervo em cartões logo abaixo. Ao gerar, um anel mostra o andamento em porcentagem e o tempo, e as etapas aparecem numa linha do tempo. Na partitura pronta, as vozes (Coral, Coral do áudio, Melodia) ficam logo embaixo da prévia, e os botões Editar e Salvar ficam presos no pé da tela.' },
+    ],
+  },
+  {
     versao: 589, data: '2026-11-07', titulo: 'Salvar da busca de primeira, e a música da busca no "Tocou por último"',
     itens: [
       { tipo: 'correcao', texto: 'Na busca, tocar no + para salvar uma música às vezes abria a música (com a tela de carregamento) e não salvava: o círculo é pequeno, e o toque um pouco fora dele caía na música. Agora a área do toque é maior, os toques seguintes enquanto salva não abrem a música, e salvar aproveita o que já começou a ser trazido (fica mais rápido). Se não der para salvar, o app avisa.' },
@@ -69,13 +75,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No app de Android, o aviso "Você está offline" / "Conectado novamente" / "Conexão lenta" não aparecia: a página do app nem sempre fica sabendo quando a internet cai. Agora quem avisa é o próprio Android, que também mede a velocidade da rede para o "Conexão lenta". Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, voltar ao app depois de minimizado às vezes deixava a tela cinza, sem sair dela: o Android tinha fechado a parte que desenha a página, para liberar memória. Agora o app refaz a tela sozinho quando isso acontece (ou quando a página não responde), e essa parte fica com prioridade, para o Android só fechá-la em último caso. Vem com a atualização do app.' },
       { tipo: 'correcao', texto: 'No app de Android, ao atualizar o app (em Ajustes → Sobre ou no aviso de versão nova), a porcentagem do download pulava e voltava (10, 20 e pouco, 5…): cada toque em Atualizar começava outro download, e os dois se misturavam. Agora é um download só, que os dois lugares acompanham, e a barra só anda para a frente. Vem com a atualização do app.' },
-    ],
-  },
-  {
-    versao: 580, data: '2026-11-06', titulo: 'O karaokê do celular com muito mais qualidade',
-    itens: [
-      { tipo: 'melhoria', texto: 'No app de Android, o karaokê feito no celular passou para um modelo bem melhor: a voz não fica mais chiando no fundo e os instrumentos não somem junto com ela. Leva mais tempo (cerca do dobro, conforme o celular) e, na primeira vez, o app baixa o modelo novo (59 MB). Os karaokês já feitos no celular são refeitos sozinhos, um por vez. Dica: com "Baixar também o karaokê" ligado (Ajustes → Downloads), ele fica pronto junto com o download, antes de você precisar.' },
-      { tipo: 'correcao', texto: 'Na capa animada (na barrinha e no Tocando agora), alguns clipes, sobretudo os antigos, mostravam uma imagem cinza com um "play" no meio ao trocar de música. Agora entra a imagem do próprio vídeo, e o aviso de "tocando" do Android também não usa mais essa imagem.' },
     ],
   },
 ];
