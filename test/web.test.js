@@ -700,3 +700,50 @@ test('canalDoArtista: uma instância Piped sem canal não bloqueia outra que tem
   assert.equal(canal?.nome, 'Artista Teste');
   assert.equal(canal?.id, 'UCteste');
 });
+
+test('instâncias do Piped fora do ar ficam de fora por um tempo (não entopem a fila das consultas)', async () => {
+  const { canalDoArtista, instanciasVivas, esquecerSaudeDasInstancias, PIPED } = await import('../public/js/lib/web.js');
+  esquecerSaudeDasInstancias();
+  const pedidos = [];
+  const fetchImpl = async (url) => {
+    pedidos.push(url);
+    if (url.startsWith(PIPED[0])) throw new TypeError('Failed to fetch');
+    if (url.startsWith(PIPED[1])) return new Response('', { status: 502 });
+    return new Response(JSON.stringify({ items: [] }), { status: 200 });
+  };
+  await canalDoArtista('Ninguém', { fetchImpl });
+  assert.equal(pedidos.length, PIPED.length);
+  const vivas = instanciasVivas(PIPED);
+  assert.ok(!vivas.includes(PIPED[0]) && !vivas.includes(PIPED[1]), 'as que falharam saem');
+  assert.equal(vivas.length, PIPED.length - 2);
+  pedidos.length = 0;
+  await canalDoArtista('Ninguém', { fetchImpl });
+  assert.equal(pedidos.length, PIPED.length - 2, 'a segunda busca não pede às fora do ar');
+  // passados 10 minutos, voltam a ser tentadas
+  assert.equal(instanciasVivas(PIPED, Date.now() + 11 * 60e3).length, PIPED.length);
+  // todas fora: tenta só uma
+  for (const b of PIPED) { try { await canalDoArtista('x', { fetchImpl: async () => { throw new TypeError('x'); }, instancias: [b] }); } catch { /* */ } }
+  assert.equal(instanciasVivas(PIPED).length, 1);
+  esquecerSaudeDasInstancias();
+});
+
+test('corridaEscalonada: a lenta não segura as outras, e a primeira que dá certo vale', async () => {
+  const { corridaEscalonada } = await import('../public/js/lib/web.js');
+  const depois = (ms, v, erro = false) => () => new Promise((ok, falha) => setTimeout(() => (erro ? falha(new Error(v)) : ok(v)), ms));
+  const comecou = [];
+  const marcada = (nome, f) => () => { comecou.push(nome); return f(); };
+  // a primeira responde rápido: as outras nem começam
+  assert.equal(await corridaEscalonada([marcada('a', depois(5, 'A')), marcada('b', depois(5, 'B'))], { atraso: 200 }), 'A');
+  assert.deepEqual(comecou, ['a']);
+  // a primeira está pendurada: depois do atraso, a segunda começa e vence
+  let ini = Date.now();
+  assert.equal(await corridaEscalonada([depois(5000, 'lenta'), depois(5, 'rápida')], { atraso: 30 }), 'rápida');
+  assert.ok(Date.now() - ini < 1000);
+  // a que falha passa a vez na hora, sem esperar o atraso
+  ini = Date.now();
+  assert.equal(await corridaEscalonada([depois(5, 'HTTP 403', true), depois(5, 'B')], { atraso: 5000 }), 'B');
+  assert.ok(Date.now() - ini < 1000);
+  // todas falham: o erro de verdade, e não o de tempo esgotado
+  await assert.rejects(corridaEscalonada([depois(5, 'timeout', true), depois(5, 'HTTP 404', true)], { atraso: 10 }), /HTTP 404/);
+  await assert.rejects(corridaEscalonada([], { nome: 'o Cifra Club' }), /Sem acesso a o Cifra Club/);
+});

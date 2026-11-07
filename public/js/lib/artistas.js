@@ -80,3 +80,30 @@ export function faixaDaMusica(lista, { titulo, artista }) {
   if (!t) return null;
   return (lista || []).find((x) => x?.artist?.id && limpo(x.title) === t && mesmoNomeDeArtista(x.artist.name, artista)) || null;
 }
+
+// As fontes (funções que devolvem a promessa do valor), da preferida para a última, todas ao mesmo tempo: vale a
+// preferida que tiver o valor. Quando uma de menos preferência já tem e as de cima ainda não responderam, elas são
+// esperadas só mais um pouco (folga): antes, uma depois da outra, a foto do artista esperava o YouTube fora do ar
+// (até 6,5 s) antes de perguntar ao Cifra Club e ao Deezer, que respondem na hora
+// (folga 0: espera sempre a preferida)
+export function primeiraPorPreferencia(fontes, { folga = 1200 } = {}) {
+  if (!fontes.length) return Promise.resolve('');
+  return new Promise((ok) => {
+    const res = fontes.map(() => undefined); // undefined: esperando; '': não tem
+    let fim = false;
+    let relogio = 0;
+    const melhorPronta = () => res.find((v) => v);
+    const conferir = () => {
+      if (fim) return;
+      for (const v of res) {
+        if (v === undefined) break; // uma preferida ainda responde
+        if (v) { fim = true; clearTimeout(relogio); ok(v); return; }
+      }
+      if (res.every((v) => v !== undefined)) { fim = true; clearTimeout(relogio); ok(''); return; }
+      if (folga > 0 && melhorPronta() && !relogio) relogio = setTimeout(() => { if (!fim) { fim = true; ok(melhorPronta() || ''); } }, folga);
+    };
+    fontes.forEach((f, i) => {
+      Promise.resolve().then(f).catch(() => '').then((v) => { res[i] = v || ''; conferir(); });
+    });
+  });
+}

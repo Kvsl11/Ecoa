@@ -77,3 +77,25 @@ test('busca musical usa a página do YouTube quando Piped não implementa music_
   });
   assert.ok(lista.some((v) => v.id === '51zjlMhdSTE'));
 });
+
+test('a página de busca do YouTube lida direto (APK): os dois formatos, do computador e do celular', async () => {
+  const { videosDoHtmlDoYoutube } = await import('../public/js/lib/web.js');
+  const dados = { contents: { sectionListRenderer: { contents: [{ itemSectionRenderer: { contents: [
+    { videoRenderer: { videoId: 'eVli-tstM5E', title: { runs: [{ text: 'Sabrina Carpenter - Espresso' }] }, ownerText: { runs: [{ text: 'Sabrina Carpenter' }] }, lengthText: { simpleText: '3:21' } } },
+    { channelRenderer: { channelId: 'x' } },
+    { videoWithContextRenderer: { videoId: 'YquwfjrI-FE', headline: { runs: [{ text: 'Odres Novos // Luau da Imaculada II' }] }, shortBylineText: { runs: [{ text: 'Ministério Gerados pela Imaculada' }] }, lengthText: { runs: [{ text: '6:17' }] } } },
+  ] } }] } } };
+  // computador: o objeto direto
+  const doComputador = `<script>var ytInitialData = ${JSON.stringify(dados)};</script>`;
+  // celular (m.youtube.com): um texto entre aspas simples com os caracteres escapados
+  const escapado = JSON.stringify(dados).replace(/[{}"[\]:/]/g, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+  const doCelular = `<script>var ytInitialData = '${escapado}';</script>`;
+  for (const html of [doComputador, doCelular]) {
+    const l = videosDoHtmlDoYoutube(html);
+    assert.equal(l.length, 2);
+    assert.deepEqual([l[0].id, l[0].titulo, l[0].canal, l[0].segundos], ['eVli-tstM5E', 'Sabrina Carpenter - Espresso', 'Sabrina Carpenter', 201]);
+    assert.deepEqual([l[1].id, l[1].titulo, l[1].canal, l[1].duracao], ['YquwfjrI-FE', 'Odres Novos // Luau da Imaculada II', 'Ministério Gerados pela Imaculada', '6:17']);
+    assert.equal(l[1].url, 'https://www.youtube.com/watch?v=YquwfjrI-FE');
+  }
+  assert.deepEqual(videosDoHtmlDoYoutube('<html>sem dados</html>'), []);
+});

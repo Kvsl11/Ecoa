@@ -30,7 +30,7 @@ import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './li
 import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
-import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiroArtista, separarArtistas } from './lib/artistas.js';
+import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
@@ -292,6 +292,31 @@ document.addEventListener('error', (e) => {
   box.classList.add('gen');
   box.style.setProperty('--h', hue(img.alt || img.src));
   img.replaceWith(document.createRange().createContextualFragment(icon('music', 24)));
+}, true);
+
+// A foto do artista que não carrega (o endereço guardado mudou ou saiu do ar) não fica com o desenho de imagem quebrada:
+// volta o desenho do app (a pessoa com a nota), a foto guardada sai e a foto é procurada de novo (entra quando carregar)
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (img.tagName !== 'IMG') return;
+  const mini = img.closest('[data-artista-mini]');
+  if (!mini) return;
+  const src = img.getAttribute('src') || '';
+  mini.classList.remove('com-foto');
+  img.replaceWith(document.createRange().createContextualFragment(semFotoArtista(14)));
+  const nome = mini.dataset.nome || '';
+  if (!nome || mini.dataset.refeita) return;
+  mini.dataset.refeita = '1';
+  const liturgia = mini.dataset.liturgia === '1';
+  const guardadoComo = liturgia ? nomeReligioso(nome) : nome;
+  if (fotoConhecida(guardadoComo) === src) esquecerFotoDoArtista(guardadoComo);
+  fotoDaPessoa(nome, { liturgia }).then((url) => {
+    if (!url || url === src || !mini.isConnected) return;
+    const nova = new Image();
+    nova.alt = '';
+    nova.onload = () => { if (mini.isConnected) { mini.replaceChildren(nova); mini.classList.add('com-foto'); } };
+    nova.src = url;
+  }).catch(() => {});
 }, true);
 
 // a versão mostrada no app (Ajustes e o aviso de atualização): vem das Novidades (a data e o número dela no mês)
@@ -7188,7 +7213,7 @@ function indicadores(s) {
 
 const linhaMusica = (s, extra = '') => `
   <li class="track clickable" data-id="${s.id}" style="grid-template-columns:auto 1fr auto">
-    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${fotoReal(s.fotoArtista) ? ' com-foto' : ''}" data-artista-mini>${fotoReal(s.fotoArtista) ? `<img src="${esc(s.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
+    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${fotoReal(s.fotoArtista) ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(primeiroArtistaDe(s.artist || ''))}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${fotoReal(s.fotoArtista) ? `<img src="${esc(s.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
 
 // Escolhe uma música: da biblioteca ou procurando na internet (Cifra Club, cantos da missa, letras,
 // vídeos do YouTube). O que vem da internet é salvo na biblioteca. Devolve o id, 'nova' ou null.
@@ -8517,10 +8542,23 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
     const busca = (videoJa
       ? videoJa.then((vs) => vs?.[0] || videoDaMusica(m.title, m.artist, source))
       : videoDaMusica(m.title, m.artist, source)).catch(() => null);
-    const v = await busca;
-    if (v?.url) novo.content = definirMeta(novo.content, 'youtube', v.url);
-    else novo.semVideo = true;
+    // (espera o vídeo só um pouco: a busca do YouTube às vezes leva muitos segundos, e a música esperava por ela antes
+    // de abrir. Passando disso, abre sem ele, e o vídeo entra sozinho quando chegar, com o áudio e a letra dele)
+    const ATRASOU = {};
+    const v = await noMaximo(busca, 4000, ATRASOU);
     novo.videoProcurado = true;
+    if (v === ATRASOU) {
+      void busca.then((tarde) => {
+        if (preview !== novo || novo.youtube) return;
+        if (!tarde?.url) { novo.semVideo = true; return; }
+        novo.content = definirMeta(novo.content, 'youtube', tarde.url);
+        novo.youtube = youtubeId(tarde.url) || '';
+        novo.semVideo = false;
+        void prepararMusicaAoAbrir(novo).catch(() => null);
+        if (location.hash === '#/musica/previa') route();
+      });
+    } else if (v?.url) novo.content = definirMeta(novo.content, 'youtube', v.url);
+    else novo.semVideo = true;
   }
 
   // A prévia também precisa ter os metadados explícitos: sem title/artist/youtube,
@@ -8537,8 +8575,8 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   // oficial; sem clipe oficial, a música abre só como música (o vídeo continua sendo o som dela). Venha o vídeo da
   // busca ou da página da cifra. Com limite de tempo: passando, abre como está
   if (novo.youtube && !String(source || '').startsWith('cnbb:')) {
-    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 3000, true))) {
-      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 5000, null);
+    if (!(await noMaximo(ehClipe({ id: novo.youtube }, novo.artist), 2000, true))) {
+      const clipe = await noMaximo(procurarClipe(novo.title, novo.artist, novo.youtube), 3000, null);
       if (clipe) {
         novo.content = definirMeta(novo.content, 'youtube', `https://www.youtube.com/watch?v=${clipe.id}`);
         novo.youtube = clipe.id;
@@ -8601,7 +8639,10 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   const versoesProntas = novo.youtube ? descobrirVersoes(novo).catch(() => null) : Promise.resolve(null);
   aoPreparar?.('Procurando a música, o clipe e a letra sincronizada…');
   void versoesProntas.then(() => { if (preview === novo && !novo.sincronia) aoPreparar?.('Sincronizando a letra…'); });
-  await Promise.all([noMaximo(preparo, 25000, 'demorou'), noMaximo(versoesProntas, 15000, null), noMaximo(buscaCapaDaPrevia, 2000, '').then(aplicarCapaDaPrevia)]);
+  // (com limite curto: a pessoa quer a música na hora. A letra sincronizada, o áudio oficial e o clipe que chegarem
+  // depois entram sozinhos, sem precisar abrir de novo: songbook:sincronia e o casamento das versões em segundo plano.
+  // Antes eram até 25 s esperando a letra e 15 s o áudio, e a música da busca demorava muito para abrir)
+  await Promise.all([noMaximo(preparo, 3500, 'demorou'), noMaximo(versoesProntas, 3500, null), noMaximo(buscaCapaDaPrevia, 1500, '').then(aplicarCapaDaPrevia)]);
   if (preview !== novo) return;
   // (a pessoa desistiu enquanto a música chegava: voltou ou abriu outra tela)
   if (vez && vez !== abrindoDaBusca) return;
@@ -9267,22 +9308,19 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
   // O título não cria uma foto por música: todas as faixas compartilham a mesma escolha.
   if (!k) return Promise.resolve('');
   if (!fotosArtistas.has(k)) {
-    if (slug) {
-      const resolucao = fotoDoCanalDeVerdade(nome)
-        .then((f) => f || carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => ''))
+    const cifraClub = slug
+      ? () => carregarArtista(slug, nome).principal.then((x) => fotoReal(x?.foto)).catch(() => '')
         .then((f) => f || buscarArtistasCifraClub(nome).then((l) => l.find((a) => a.slug === slug)?.capa || '').catch(() => ''))
-        .then((f) => f || fotoDeezer(nome, titulo))
-        .then((f) => f || fotoWikipedia(nome));
-      fotosArtistas.set(k, resolucao);
-    } else {
-      const cifraClub = () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
+      : () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? carregarArtista(a.slug, a.nome || nome).principal.then((x) => fotoReal(x?.foto)) : '')).catch(() => '');
-      const resolucao = fotoDoCanalDeVerdade(nome)
-        .then((f) => f || cifraClub())
-        .then((f) => f || fotoDeezer(nome, titulo))
-        .then((f) => f || fotoWikipedia(nome));
-      fotosArtistas.set(k, resolucao);
-    }
+    // (as três ao mesmo tempo, na mesma ordem de preferência; a Wikipédia só quando nenhuma tem). Sem foto guardada, a
+    // primeira que chegar não espera muito pelas preferidas (a tela está sem foto); com uma guardada, que já aparece na
+    // hora, a troca em segundo plano espera a preferida, para a foto não ficar trocando entre uma abertura e outra
+    const estrita = Boolean(fotoConhecida(nome));
+    const resolucao = primeiraPorPreferencia([() => fotoDoCanalDeVerdade(nome), cifraClub, () => fotoDeezer(nome, titulo)], { folga: estrita ? 0 : 1200 })
+      .then((f) => f || fotoWikipedia(nome).catch(() => ''))
+      .then((f) => { if (!f) fotosArtistas.delete(k); return f || ''; });
+    fotosArtistas.set(k, resolucao);
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
@@ -10230,7 +10268,7 @@ const indicadoresWeb = (r) => {
 };
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
-    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
+    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
     <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
@@ -10560,9 +10598,11 @@ function carregarArtista(slug, nome) {
       const foto = (await buscarArtistasCifraClub(nome || slug).catch(() => [])).find((x) => x.slug === slug)?.capa || '';
       return { nome, foto, slug, musicas: lista.map((r) => ({ titulo: r.titulo, url: r.url, tom: '', capa: r.capa })), parcial: true };
     });
-    // a discografia e a lista completa vêm depois da principal (o leitor de páginas atende uma de cada vez melhor)
-    const disc = principal.then(() => getDiscografiaCifraClub(slug)).catch(() => []);
-    const todas = disc.then(() => getTodasMusicasCifraClub(slug)).catch(() => []);
+    // a discografia e a lista completa: no app de Android, as três páginas ao mesmo tempo (ele lê o Cifra Club direto);
+    // no navegador, depois da principal (o leitor de páginas público atende uma de cada vez melhor)
+    const juntas = noApk();
+    const disc = (juntas ? getDiscografiaCifraClub(slug) : principal.then(() => getDiscografiaCifraClub(slug))).catch(() => []);
+    const todas = (juntas ? getTodasMusicasCifraClub(slug) : disc.then(() => getTodasMusicasCifraClub(slug))).catch(() => []);
     dadosArtista.set(slug, { principal, disc, todas });
   }
   return dadosArtista.get(slug);
@@ -10789,7 +10829,8 @@ async function viewAlbum(slug, nome, albumUrl) {
   const al = disc.find((x) => x.url === albumUrl);
   if (!al) { location.hash = voltar; return; }
   // faixa sem cifra neste álbum (ex.: versão ao vivo só com a letra): a mesma música com cifra, de outro álbum
-  const comCifraDoArtista = await todasDoArtista(carregarArtista(slug, nome)).catch(() => []);
+  // (só se as outras páginas do artista chegarem logo: o álbum não espera por elas)
+  const comCifraDoArtista = al.faixas.some((f) => !f.url) ? await noMaximo(todasDoArtista(carregarArtista(slug, nome)), 1500, []) : [];
   for (const f of al.faixas) {
     if (f.url) continue;
     const igual = comCifraDoArtista.find((m) => normalizar(tituloLimpo(m.titulo)) === normalizar(tituloLimpo(f.titulo)));
@@ -17500,12 +17541,23 @@ const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.C
 // A atualização do próprio APK: o robô publica a versão do APK (Ecoa-versao.json, ao lado do Ecoa.apk no site) e o app
 // compara com a dele. Atualizar baixa o APK novo e abre a tela de instalar do Android (que sempre pergunta antes).
 // O APK antigo, sem o versao(), conta como desatualizado (só dá para atualizar pelo navegador, uma última vez)
+// (o arquivo da versão publicada, sempre o de agora: pela parte nativa, sem passar por cache nenhum; o fetch é a reserva)
+async function versaoApkPublicada(nativo) {
+  const url = `${URL_VERSAO_APK_PUBLICADA}?t=${Date.now()}`;
+  if (nativo?.buscarPagina) {
+    try {
+      const r = await nativo.buscarPagina({ url, cabecalhos: { 'Cache-Control': 'no-cache', Accept: 'application/json' }, tempo: 10000 });
+      if (r?.status >= 200 && r.status < 300) return JSON.parse(r.texto);
+    } catch { /* a reserva abaixo */ }
+  }
+  return fetch(url, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+}
 async function conferirAtualizacaoApk() {
   const nativo = pluginEcoa();
   if (!nativo) return null;
   const [instalada, publicada] = await Promise.all([
     nativo.versao ? nativo.versao().catch(() => null) : null,
-    fetch(`${URL_VERSAO_APK_PUBLICADA}?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    versaoApkPublicada(nativo),
   ]);
   // (o histórico dos APKs publicados fica anotado: a tela Novidades usa)
   if (Array.isArray(publicada?.historico)) anotarVersoesApk(publicada.historico);
@@ -21183,13 +21235,25 @@ if (ecoaNativo) {
   if (baixadorDoAparelho()) setTimeout(() => { if (navigator.onLine) void ecoaNativo.baixadorLocal({ atualizar: true }).catch(() => {}); }, 20000);
   // (a versão do app instalado e a das novidades que vieram com ele: a tela Novidades usa para dizer quando cada uma chegou)
   void ecoaNativo.versao?.().then((info) => { if (info?.codigo) anotarVersoesApk([{ codigo: info.codigo, nome: info.nome || String(info.codigo), web: NOVIDADES[0]?.versao }]); }).catch(() => {});
-  // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e avisa uma vez por versão
-  setTimeout(async () => {
+  // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e também ao voltar para
+  // ele (no máximo a cada 20 minutos): o app fica dias aberto em segundo plano, e conferir só ao abrir deixava a versão
+  // nova sem aviso. Avisa uma vez por versão; com "Agora não", avisa de novo depois de 12 horas
+  let conferidoEm = 0;
+  const conferirEAvisar = async () => {
+    if (!navigator.onLine || document.visibilityState === 'hidden' || Date.now() - conferidoEm < 20 * 60e3) return;
+    conferidoEm = Date.now();
     const r = await conferirAtualizacaoApk().catch(() => null);
-    if (!r?.nova || !r.instalada?.codigo || db.prefs().apkAvisado === r.publicada.codigo) return;
+    if (!r?.nova || !r.instalada?.codigo || document.querySelector('.apk-at')) return;
+    const avisado = db.prefs().apkAvisado;
+    const avisadoEm = Number(db.prefs().apkAvisadoEm) || 0;
+    if (avisado === r.publicada.codigo && Date.now() - avisadoEm < 12 * 3600e3) return;
     db.setPref('apkAvisado', r.publicada.codigo);
+    db.setPref('apkAvisadoEm', Date.now());
     void oferecerAtualizacaoApk(r);
-  }, 8000);
+  };
+  setTimeout(conferirEAvisar, 8000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(conferirEAvisar, 3000); });
+  window.addEventListener('online', () => setTimeout(conferirEAvisar, 3000));
 }
 
 // ---- a barra do player com a última música, mesmo depois de fechar ou atualizar o app (como no Spotify): a música, a

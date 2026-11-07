@@ -37,7 +37,8 @@ final class Paginas {
                 if (!atual.matches("(?i)^https?://.+")) throw new IllegalArgumentException("endereço inválido");
                 c = (HttpURLConnection) new URL(atual).openConnection();
                 c.setInstanceFollowRedirects(false);
-                c.setConnectTimeout(Math.min(tempo, 15000));
+                // (conectar é rápido quando o servidor está no ar: um fora do ar desiste em 6 s, sem segurar a linha o tempo todo)
+                c.setConnectTimeout(Math.min(tempo, 6000));
                 c.setReadTimeout(tempo);
                 c.setRequestProperty("User-Agent", UA);
                 c.setRequestProperty("Accept-Language", "pt-BR,pt;q=0.9,en;q=0.8");

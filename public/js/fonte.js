@@ -15,7 +15,8 @@ const PREFIXO = 'songbook.cache.';
 const NO_APK = typeof document !== 'undefined' && (document.documentElement.classList.contains('app-android') || Boolean(window.Capacitor?.isNativePlatform?.()));
 const VALIDADE = NO_APK ? 5 * 60e3 : 12 * 3600e3;
 const VALIDADE_LITURGIA = NO_APK ? 6 * 3600e3 : 5 * 864e5;
-const MAX_ITENS = 140;
+// (a página do artista são 3 itens: com 140, poucas visitas apagavam as de antes)
+const MAX_ITENS = 320;
 // missa sem o repertório da Cindy (ainda não publicado, ou não achado por versões antigas do app): vale só 12 h,
 // para buscar de novo
 const validade = (chave, v) => (/^(missa|lit):/.test(chave) && !(chave.startsWith('missa:') && !v?.repertorio) ? VALIDADE_LITURGIA : VALIDADE);
@@ -55,11 +56,28 @@ async function viaServidor(caminho) {
   return data;
 }
 
-async function obter(chave, direto, caminhoServidor, { forcar = false, incompleto = () => false } = {}) {
+// Com algo guardado (mesmo vencido), ele volta NA HORA e o valor da internet só atualiza o guardado, em segundo plano
+// (vale na próxima vez): a página do artista, os álbuns, a busca e as letras já vistas abrem sem esperar a internet.
+// Antes, vencido o prazo (5 min no APK), a tela esperava tudo de novo. A liturgia e a missa do dia continuam esperando
+// o valor de agora quando o guardado venceu (as correções do dia precisam aparecer)
+const atualizando = new Map();
+const naHora = (chave) => !/^(missa|lit):/.test(chave);
+async function obter(chave, direto, caminhoServidor, opcoes = {}) {
+  const { forcar = false } = opcoes;
   if (!forcar) {
     const c = lerCache(chave);
     if (c) return c;
+    const velho = naHora(chave) ? lerCacheVelho(chave) : null;
+    if (velho) {
+      if (!atualizando.has(chave)) {
+        atualizando.set(chave, buscarAgora(chave, direto, caminhoServidor, opcoes).catch(() => null).finally(() => atualizando.delete(chave)));
+      }
+      return velho;
+    }
   }
+  return buscarAgora(chave, direto, caminhoServidor, opcoes);
+}
+async function buscarAgora(chave, direto, caminhoServidor, { incompleto = () => false } = {}) {
   let erroDireto;
   try {
     const v = await direto();
@@ -69,6 +87,7 @@ async function obter(chave, direto, caminhoServidor, { forcar = false, incomplet
     erroDireto = e;
   }
   try {
+    if (!caminhoServidor) throw erroDireto;
     const v = await viaServidor(caminhoServidor);
     gravarCache(chave, v);
     return v;

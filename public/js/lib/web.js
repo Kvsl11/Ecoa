@@ -29,15 +29,43 @@ const direto = () => !NO_NAVEGADOR || Boolean(buscaNativa);
 
 // fetch com tempo limite (proxies públicos às vezes ficam pendurados)
 async function buscar(url, { fetchImpl = fetch, timeout = 12000, headers = {} } = {}) {
-  if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) return buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
-  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
+  const base = /^https?:\/\/[^/]+/i.exec(String(url))?.[0] || '';
+  const piped = base && (PIPED.includes(base) || INVIDIOUS.includes(base));
   try {
-    return await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal });
-  } finally {
-    clearTimeout(t);
+    let res;
+    if (buscaNativa && fetchImpl === fetch && /^https?:/i.test(String(url))) res = await buscaNativa(String(url), { headers: { ...UA, ...headers }, timeout });
+    else {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const t = ctrl && setTimeout(() => ctrl.abort(), timeout);
+      try { res = await fetchImpl(url, { headers: { ...UA, ...headers }, signal: ctrl?.signal }); } finally { clearTimeout(t); }
+    }
+    if (piped) marcarInstancia(base, res.ok || (res.status >= 400 && res.status < 429));
+    return res;
+  } catch (e) {
+    if (piped) marcarInstancia(base, false);
+    throw e;
   }
 }
+
+// As instâncias do Piped (o YouTube sem login) caem e voltam o tempo todo. A que falhou (fora do ar, tempo esgotado,
+// limite de pedidos) fica de fora por 10 minutos: antes cada foto de artista e cada busca de vídeo pedia às 5 ao mesmo
+// tempo e esperava as fora do ar até o tempo limite, e, no app de Android, esses pedidos parados ocupavam a fila da
+// parte nativa e atrasavam todas as outras consultas (o Deezer, o Cifra Club, as letras). Com todas fora, tenta só a
+// que falhou há mais tempo
+const saudeInstancias = new Map(); // base → { ok: momento do último sucesso, falhou: momento da última falha }
+const FORA_POR = 10 * 60e3;
+function marcarInstancia(base, ok) {
+  const h = saudeInstancias.get(base) || { ok: 0, falhou: 0 };
+  if (ok) { h.ok = Date.now(); h.falhou = 0; } else h.falhou = Date.now();
+  saudeInstancias.set(base, h);
+}
+export function instanciasVivas(lista = PIPED, agora = Date.now()) {
+  const h = (b) => saudeInstancias.get(b) || { ok: 0, falhou: 0 };
+  const vivas = lista.filter((b) => !(h(b).falhou > agora - FORA_POR)).sort((a, b) => h(b).ok - h(a).ok);
+  if (vivas.length) return vivas;
+  return [...lista].sort((a, b) => h(a).falhou - h(b).falhou).slice(0, 1);
+}
+export const esquecerSaudeDasInstancias = () => saudeInstancias.clear();
 
 // ------------------------------------------------------------------ Cifra Club: busca
 
@@ -207,27 +235,49 @@ async function lerPagina(url, ler, { proxies = [], fetchImpl, nome = 'o site' } 
     return ler(await res.text());
   };
 
-  // No Android, não espera uma fonte lenta para só então tentar a próxima: disputa o endereço original
-  // e os proxies em paralelo. A primeira resposta que passar pela leitura/validação vence; respostas HTTP
-  // vazias ou páginas incompatíveis não bloqueiam as demais. Cada tentativa tem limite próprio.
-  // Na Web, mantém exatamente a sequência e os tempos anteriores.
-  if (nativa) {
-    const tentativasNativas = [[url, {}], ...alternativas];
-    try {
-      return await Promise.any(tentativasNativas.map(([alvo, headers]) => consultar(alvo, headers, 7000)));
-    } catch (e) {
-      const erros = e?.errors || [];
-      throw erros.find((x) => x && !/AbortError|aborted|timeout/i.test(String(x.message || x))) || erros[0] || new Error(`Sem acesso a ${nome}`);
-    }
-  }
+  // Escalonado: começa pelo melhor caminho (no APK e no servidor, a página direto; no navegador, o primeiro proxy) e,
+  // se ele não responder em pouco tempo (ou falhar), já começa o próximo, sem cancelar o anterior: vale a primeira
+  // resposta que passar pela leitura. Antes, no navegador, era um de cada vez com até 25 s cada (a página do artista e
+  // a cifra demoravam muito quando o primeiro proxy estava lento); e, no APK, cada página ia aos 4 ao mesmo tempo,
+  // ocupando a fila da parte nativa mesmo quando a leitura direta já bastava
+  const tentativas = [...(nativa || direto() ? [[url, {}]] : []), ...alternativas];
+  return corridaEscalonada(tentativas.map(([alvo, headers]) => () => consultar(alvo, headers, nativa ? 12000 : 20000)), { atraso: nativa ? 2500 : 3000, nome });
+}
 
-  const tentativas = [...(direto() ? [[url, {}]] : []), ...alternativas];
-  let erro = new Error(`Sem acesso a ${nome}`);
-  for (const [alvo, headers] of tentativas) {
-    try { return await consultar(alvo, headers, 25000); }
-    catch (e) { erro = e; }
-  }
-  throw erro;
+// Começa a primeira tentativa; a cada `atraso` sem resposta (ou na falha de uma), começa a próxima. Resolve com a
+// primeira que der certo; sem nenhuma, rejeita com o erro mais útil (um erro de verdade antes de um tempo esgotado)
+export function corridaEscalonada(tentativas, { atraso = 2500, nome = 'o site' } = {}) {
+  return new Promise((ok, falha) => {
+    if (!tentativas.length) { falha(new Error(`Sem acesso a ${nome}`)); return; }
+    const erros = [];
+    let proxima = 0;
+    let rodando = 0;
+    let fim = false;
+    let relogio = 0;
+    const comecar = () => {
+      if (fim || proxima >= tentativas.length) return;
+      const f = tentativas[proxima++];
+      rodando++;
+      clearTimeout(relogio);
+      if (proxima < tentativas.length) relogio = setTimeout(comecar, atraso);
+      Promise.resolve().then(f).then((v) => {
+        if (fim) return;
+        fim = true;
+        clearTimeout(relogio);
+        ok(v);
+      }, (e) => {
+        rodando--;
+        erros.push(e);
+        if (fim) return;
+        if (proxima < tentativas.length) comecar();
+        else if (!rodando) {
+          fim = true;
+          falha(erros.find((x) => x && !/AbortError|aborted|timeout/i.test(String(x.message || x))) || erros[0] || new Error(`Sem acesso a ${nome}`));
+        }
+      });
+    };
+    comecar();
+  });
 }
 
 export async function getCifraClub(url, opcoes = {}) {
@@ -1016,7 +1066,68 @@ export function videosDaPaginaDoYoutube(texto) {
   }
   return lista;
 }
+// A busca do YouTube lida direto da página dele (no APK, que lê qualquer página): os vídeos vêm nos dados que a página
+// traz embutidos (ytInitialData, cada um num "videoRenderer"). Rápida e sem depender dos servidores públicos
+// (no computador, os dados vêm como um objeto; no celular — m.youtube.com, para onde o Android é levado —, como um
+// texto do JavaScript entre aspas simples, com os caracteres escapados: \x7b, \x22…)
+function textoDoJavaScript(t) {
+  let out = '';
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c !== '\\') { out += c; continue; }
+    const n = t[++i];
+    if (n === 'x') { out += String.fromCharCode(parseInt(t.slice(i + 1, i + 3), 16)); i += 2; }
+    else if (n === 'u') { out += String.fromCharCode(parseInt(t.slice(i + 1, i + 5), 16)); i += 4; }
+    else out += { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', v: '\v', 0: '\0' }[n] ?? n;
+  }
+  return out;
+}
+function dadosDaPaginaDoYoutube(html) {
+  const h = String(html || '');
+  const obj = /ytInitialData\s*=\s*(\{[\s\S]*?\});\s*<\/script>/.exec(h);
+  try { if (obj) return JSON.parse(obj[1]); } catch { /* o outro formato */ }
+  const txt = /ytInitialData\s*=\s*'((?:[^'\\]|\\[\s\S])*)'/.exec(h);
+  try { if (txt) return JSON.parse(textoDoJavaScript(txt[1])); } catch { /* nenhum */ }
+  return null;
+}
+export function videosDoHtmlDoYoutube(html) {
+  const dados = dadosDaPaginaDoYoutube(html);
+  if (!dados) return [];
+  const lista = [];
+  const vistos = new Set();
+  const texto = (x) => x?.simpleText || (x?.runs || []).map((r) => r.text).join('') || '';
+  const andar = (o, fundo = 0) => {
+    if (!o || typeof o !== 'object' || fundo > 40 || lista.length >= 15) return;
+    if (Array.isArray(o)) { for (const x of o) andar(x, fundo + 1); return; }
+    const v = o.videoRenderer || o.videoWithContextRenderer;
+    if (v?.videoId && /^[\w-]{11}$/.test(v.videoId) && !vistos.has(v.videoId)) {
+      vistos.add(v.videoId);
+      const duracao = texto(v.lengthText);
+      const segundos = /^\d{1,2}(:\d{2}){1,2}$/.test(duracao) ? duracao.split(':').reduce((a, x) => a * 60 + Number(x), 0) : 0;
+      const titulo = texto(v.title) || texto(v.headline);
+      if (titulo) {
+        lista.push({ id: v.videoId, titulo, canal: texto(v.ownerText || v.longBylineText || v.shortBylineText).replace(/\s*-\s*Topic$/, ''), duracao: segundos ? duracao : '', segundos,
+          capa: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`, url: `https://www.youtube.com/watch?v=${v.videoId}`, fonte: 'youtube' });
+      }
+      return;
+    }
+    for (const k of Object.keys(o)) andar(o[k], fundo + 1);
+  };
+  andar(dados);
+  return lista;
+}
+async function buscarDiretoNoYoutube(q, { fetchImpl } = {}) {
+  const res = await buscar(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=pt-BR&gl=BR`, { fetchImpl, timeout: 8000 });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const lista = videosDoHtmlDoYoutube(await res.text());
+  if (!lista.length) throw new Error('nenhum vídeo na página');
+  return lista;
+}
 async function buscarNaPaginaDoYoutube(q, { fetchImpl } = {}) {
+  if (buscaNativa && (!fetchImpl || fetchImpl === fetch)) {
+    const direta = await buscarDiretoNoYoutube(q).catch(() => null);
+    if (direta?.length) return direta;
+  }
   const res = await buscar(`https://r.jina.ai/https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, { fetchImpl, timeout: 25000 });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return videosDaPaginaDoYoutube(await res.text()).slice(0, 15);
@@ -1035,8 +1146,10 @@ export async function buscarYoutube(termo, { fetchImpl, instancias = PIPED, filt
     return lista;
   };
   let respondeu = false;
+  // (no APK, a página do YouTube lida direto entra na disputa: os servidores do Piped vivem fora do ar)
+  const naPagina = filtro === 'videos' && buscaNativa && (!fetchImpl || fetchImpl === fetch) ? [buscarDiretoNoYoutube(q)] : [];
   try {
-    return await Promise.any(instancias.map(uma));
+    return await Promise.any([...instanciasVivas(instancias).map(uma), ...naPagina]);
   } catch {
     // O filtro music_songs nem sempre é implementado pelas instâncias Piped. Mesmo que elas respondam
     // sem faixas, tentamos a busca pública do YouTube para não perder a gravação oficial.
@@ -1054,7 +1167,7 @@ export async function audioDoVideo(id, { fetchImpl, instancias = PIPED } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return null;
   // Consulta as instâncias em paralelo: algumas ficam lentas ou fora do ar. O áudio em si é baixado
   // de uma fonte por vez, para não multiplicar o consumo de dados no celular.
-  const fontes = await Promise.all(instancias.map(async (base) => {
+  const fontes = await Promise.all(instanciasVivas(instancias).map(async (base) => {
     try {
       const res = await buscar(base + '/streams/' + id, { fetchImpl, timeout: 12000 });
       if (!res.ok) return null;
@@ -1087,7 +1200,7 @@ export const INVIDIOUS = ['https://inv.nadeko.net', 'https://invidious.nerdvpn.d
 export async function audioPeloInvidious(id, { fetchImpl, instancias = INVIDIOUS } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return null;
   // (a primeira instância que responde à página do vídeo é a que entrega o áudio)
-  const viva = await Promise.any(instancias.map(async (base) => {
+  const viva = await Promise.any(instanciasVivas(instancias).map(async (base) => {
     const r = await buscar(`${base}/api/v1/videos/${id}?fields=lengthSeconds`, { fetchImpl, timeout: 10000 });
     if (!r.ok) throw new Error(String(r.status));
     return base;
@@ -1129,7 +1242,7 @@ export function lerVtt(vtt) {
 export async function legendasDoVideo(id, { fetchImpl, instancias = INVIDIOUS, idioma = '' } = {}) {
   if (!/^[\w-]{11}$/.test(id || '')) return [];
   try {
-    return await Promise.any(instancias.map(async (base) => {
+    return await Promise.any(instanciasVivas(instancias).map(async (base) => {
       const r = await buscar(`${base}/api/v1/captions/${id}`, { fetchImpl, timeout: 10000 });
       if (!r.ok) throw new Error(String(r.status));
       const lista = (await r.json())?.captions || [];
@@ -1154,7 +1267,7 @@ export async function duracaoDoVideo(id, { fetchImpl, instancias = PIPED } = {})
   if (!/^[\w-]{11}$/.test(id || '')) return 0;
   const achado = (await buscarYoutube(id, { fetchImpl, instancias }).catch(() => [])).find((v) => v.id === id);
   if (achado?.segundos > 0) return achado.segundos;
-  for (const base of instancias) {
+  for (const base of instanciasVivas(instancias)) {
     try {
       const res = await buscar(`${base}/streams/${id}`, { fetchImpl, timeout: 12000 });
       if (!res.ok) continue;
@@ -1203,7 +1316,7 @@ export async function canalDoArtista(nome, { fetchImpl, instancias = PIPED } = {
     if (!canal?.foto) throw new Error('Canal válido não encontrado nesta instância');
     return canal;
   };
-  return Promise.any(instancias.map(uma)).catch(() => null);
+  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => null);
 }
 export const fotoDoCanal = (nome, opcoes) => canalDoArtista(nome, opcoes).then((c) => c?.foto || '');
 // quadros dos vídeos do próprio canal do artista (só os postados por ele): mais fotos dele cantando, para a tela
@@ -1218,7 +1331,7 @@ export async function fotosDosVideos(nome, canal, { fetchImpl, instancias = PIPE
     if (!ids.length) throw new Error('nenhum vídeo do canal');
     return [...new Set(ids)].slice(0, quantas).map((id) => `https://i.ytimg.com/vi/${id}/hq720.jpg`);
   };
-  return Promise.any(instancias.map(uma)).catch(() => []);
+  return Promise.any(instanciasVivas(instancias).map(uma)).catch(() => []);
 }
 // o artista na TheAudioDB (chave pública de teste "123"): os seguidores e a popularidade dele no Spotify, várias fotos
 // (a principal e as de fundo) e a biografia em português. Só vale o artista com o mesmo nome. null quando não acha

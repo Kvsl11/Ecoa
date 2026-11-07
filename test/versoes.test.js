@@ -102,12 +102,12 @@ test('só compartilha o mesmo vídeo entre Música e Vídeo quando a sincronia �
 test('a busca abre a música depois de localizar o videoclipe e esperar (com limite) áudio + LRCLIB', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const abrir = app.indexOf('async function abrirPrevia(');
-  const buscarVideo = app.indexOf('const v = await busca;', abrir);
+  const buscarVideo = app.indexOf('const v = await noMaximo(busca, 4000, ATRASOU);', abrir);
   const metadados = app.indexOf('Object.assign(novo, {', buscarVideo);
   const preparar = app.indexOf('prepararMusicaAoAbrir(novo)', metadados);
   const esperar = app.indexOf('await Promise.all([noMaximo(preparo,', preparar);
   const entrar = app.indexOf("location.hash = '#/musica/previa'", esperar);
-  assert.ok(abrir >= 0 && buscarVideo > abrir, 'aguarda a busca do videoclipe');
+  assert.ok(abrir >= 0 && buscarVideo > abrir, 'aguarda a busca do videoclipe (com limite; o que chegar depois entra sozinho)');
   assert.ok(metadados > buscarVideo && preparar > metadados, 'preenche os metadados antes de preparar áudio e letra');
   assert.ok(esperar > preparar && entrar > esperar, 'espera a preparação (com limite) antes de navegar');
   const buscarCapa = app.indexOf('const buscaCapaDaPrevia =', metadados);
@@ -198,7 +198,7 @@ test('ao abrir uma música, o LRCLIB é consultado na hora, sem esperar o áudio
   const rota = app.indexOf("if (jaNaPrevia) route(); else location.hash = '#/musica/previa';", abrir);
   const preparo = app.indexOf('const preparo = prepararMusicaAoAbrir(novo)', abrir);
   assert.ok(preparo > abrir && preparo < rota, 'a tela só navega depois de iniciar o preparo da música');
-  assert.match(app, /noMaximo\(preparo, 25000, 'demorou'\)/, 'entra com a letra sincronizada, mas nunca fica presa');
+  assert.match(app, /noMaximo\(preparo, 3500, 'demorou'\)/, 'espera pouco pela letra sincronizada: a música abre na hora e a letra entra depois');
   const helper = app.slice(app.indexOf('function prepararMusicaAoAbrir(song)'), app.indexOf('// o áudio oficial da gravação'));
   assert.match(helper, /descobrirVersoes\(song\)/);
   assert.match(helper, /sincronizarMusica\(song, \{ audioPromise \}\)/);
@@ -290,9 +290,10 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
   assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
-  assert.match(resolverFoto, /const resolucao = fotoDoCanalDeVerdade\(nome\)/, 'a foto começa pela mesma fonte confiável da versão web');
-  assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'as fontes seguem uma sequência fixa da versão web, sem disputa paralela');
-  assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não disputa fontes nem cria fotos diferentes por faixa');
+  assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDoCanalDeVerdade\(nome\), cifraClub, \(\) => fotoDeezer\(nome, titulo\)\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o canal primeiro)');
+  assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'a ordem de preferência das fontes fica a mesma');
+  assert.match(resolverFoto, /folga: estrita \? 0 : 1200/, 'com uma foto guardada, a troca espera a preferida (a foto não fica trocando)');
+  assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não cria fotos diferentes por faixa');
   assert.match(app, /nativo\?\.buscarPagina/, 'as consultas JSONP usam a conexão nativa no APK');
   assert.match(app, /output=jsonp&callback=ecoaJsonp/, 'o Android recebe e interpreta a resposta JSONP diretamente');
   assert.match(app, /lerJsonpDaPagina\(r\.texto\)/, 'a resposta do Deezer é convertida em JSON antes de chegar à interface');
@@ -337,7 +338,7 @@ test('versões: o servidor casa pelo som já ao abrir, e a troca é sempre na ho
   assert.match(app, /tempoNoVideo\(vs\.pares, ultimaTroca\.t \+ passou\)/);
   assert.match(app, /tempoNoAudio\(vs\.pares, ultimaTroca\.t \+ passou\)/);
   // a prévia espera pouco pelas versões (para ainda poder começar a tocar sozinha)
-  assert.match(app, /noMaximo\(versoesProntas, 15000, null\)/);
+  assert.match(app, /noMaximo\(versoesProntas, 3500, null\)/);
 });
 
 test('os pares pelas legendas automáticas do clipe (Speed Demon: introdução longa e palavras erradas)', async () => {

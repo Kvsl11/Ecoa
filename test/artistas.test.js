@@ -69,3 +69,24 @@ test('o artista do Deezer: o nome escrito junto vale, e entre os iguais fica o d
   assert.equal(faixaDaMusica(faixas, { titulo: 'Standing Next to You', artista: 'Jung Kook' }).artist.id, 9172904);
   assert.equal(faixaDaMusica(faixas, { titulo: 'Seven', artista: 'Jung Kook' }), null);
 });
+
+test('primeiraPorPreferencia: a preferida vence, mesmo chegando depois de uma de menos preferência', async () => {
+  const { primeiraPorPreferencia } = await import('../public/js/lib/artistas.js');
+  const depois = (ms, v) => () => new Promise((ok) => setTimeout(() => ok(v), ms));
+  assert.equal(await primeiraPorPreferencia([depois(60, 'canal'), depois(5, 'deezer')], { folga: 500 }), 'canal');
+  // a preferida sem foto: vale a próxima, sem esperar o tempo da folga
+  assert.equal(await primeiraPorPreferencia([depois(5, ''), depois(10, 'cifra'), depois(1000, 'deezer')], { folga: 5000 }), 'cifra');
+  // uma que falha conta como sem foto
+  assert.equal(await primeiraPorPreferencia([() => Promise.reject(new Error('fora')), depois(5, 'deezer')]), 'deezer');
+  assert.equal(await primeiraPorPreferencia([depois(5, ''), depois(5, '')]), '');
+  assert.equal(await primeiraPorPreferencia([]), '');
+});
+
+test('primeiraPorPreferencia: a preferida lenta é esperada só a folga (e sempre, com folga 0)', async () => {
+  const { primeiraPorPreferencia } = await import('../public/js/lib/artistas.js');
+  const depois = (ms, v) => () => new Promise((ok) => setTimeout(() => ok(v), ms));
+  const ini = Date.now();
+  assert.equal(await primeiraPorPreferencia([depois(3000, 'canal'), depois(5, 'deezer')], { folga: 50 }), 'deezer');
+  assert.ok(Date.now() - ini < 1000, 'não esperou o YouTube lento');
+  assert.equal(await primeiraPorPreferencia([depois(150, 'canal'), depois(5, 'deezer')], { folga: 0 }), 'canal');
+});
