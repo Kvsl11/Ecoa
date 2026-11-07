@@ -1049,7 +1049,8 @@ function arquivosParaBaixar(song) {
   const videoId = vs?.video || song.youtube || '';
   const audio = vs && !ehArquivo(vs.audio) ? vs.audio : '';
   const temClipeIdentificado = Boolean(vs?.video && vs?.audio && vs.video !== vs.audio);
-  const comVideo = db.prefs().baixarVideo !== false && (!song.semClipe || temClipeIdentificado);
+  // (sempre o áudio e o clipe: a escolha "Só o áudio" saiu dos Ajustes, e a guardada não vale mais)
+  const comVideo = !song.semClipe || temClipeIdentificado;
   // O áudio oficial que também é o clipe deve ser baixado uma única vez, como vídeo.
   const lista = audio && !(audio === videoId && comVideo) ? [{ yt: audio, video: false }] : [];
   // A versão de vídeo pode ser diferente da faixa de áudio; as duas são obrigatórias.
@@ -1337,7 +1338,7 @@ window.addEventListener('songbook:nova-musica', (e) => setTimeout(() => { const 
 
 async function garantirClipe(id) {
   const s = db.song(id);
-  if (!s?.youtube || ehArquivo(s.youtube) || db.prefs().baixarVideo === false || s.audioProprio) return null;
+  if (!s?.youtube || ehArquivo(s.youtube) || s.audioProprio) return null;
   // (o vídeo da música já é o clipe, baixado como vídeo: nada a fazer)
   if (String(s.baixado?.arquivos?.[s.youtube]?.tipo || '').startsWith('video/')) return null;
   const info = await youtubeOEmbed(`https://www.youtube.com/watch?v=${s.youtube}`).catch(() => null);
@@ -2162,6 +2163,9 @@ const REVISOES = [
   // v580: o karaokê do app de Android (feito no celular) passou para o modelo UVR Inst HQ 4: o de antes (UVR 9482) deixava
   // a voz chiando no fundo e levava instrumentos junto. O feito com o modelo velho é feito de novo, no celular
   { rev: 25, karaokeCelular: true, quais: (s) => Object.values(s.karaoke || {}).some((k) => k?.celular && k.modelo !== MODELO_KARAOKE_CELULAR) },
+  // v587: a escolha "O que baixar" (Só o áudio) saiu dos Ajustes, e o download é sempre o áudio e o clipe. As baixadas
+  // só com o áudio baixam o clipe que falta
+  { rev: 26, arquivos: true, quais: (s) => Boolean(s.baixado) && precisaBaixar(s) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -6316,7 +6320,7 @@ const semLinhasDeAcordes = (sinc) => {
         // que falta o videoclipe, coloca somente os arquivos ausentes na fila.
         const corrigida = db.song(song.id);
         if (corrigida?.baixado && precisaBaixar(corrigida) && !corrigida.baixarPausado && !baixando.has(song.id)
-          && db.prefs().baixarVideo !== false && navigator.onLine) {
+          && navigator.onLine) {
           passo('Colocando o videoclipe que falta na fila…');
           void baixarMusica(corrigida, { perguntou: true });
         }
@@ -17336,10 +17340,10 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Avançado', `
-    <div class="settings-group">
-      ${noApk() ? '' : `<a class="setting" href="#/servidor"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Servidor da IA</div><div class="s" id="servidor-ia-resumo">Verificando…</div></div><span class="sv-ponto" id="servidor-ia-ponto"></span>${icon('next', 18)}</a>
-      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>`}
-    </div>
+    ${noApk() ? '' /* (no APK não há servidor nem conta do YouTube: sem o grupo vazio, que aparecia como um pedaço de cartão em cima) */ : `<div class="settings-group">
+      <a class="setting" href="#/servidor"><span class="ico">${icon('sparkles', 18)}</span><div class="grow"><div class="t">Servidor da IA</div><div class="s" id="servidor-ia-resumo">Verificando…</div></div><span class="sv-ponto" id="servidor-ia-ponto"></span>${icon('next', 18)}</a>
+      <a class="setting" href="#/youtube"><span class="ico">${icon('youtube', 18)}</span><div class="grow"><div class="t">Conta do YouTube</div><div class="s">Conecta uma vez; volta sozinha</div></div>${icon('next', 18)}</a>
+    </div>`}
     <div class="settings-group">
       <div class="setting"><span class="ico aj-perigo-ic">${icon('trash', 18)}</span><div class="grow"><div class="t">Apagar tudo</div><div class="s">Músicas, repertórios e ajustes deste aparelho</div></div><button class="btn small danger" id="clr">Apagar</button></div>
     </div>`)}
@@ -21516,8 +21520,6 @@ function viewOffline() {
         ${chave('of-economia', 'gauge', 'Economia de dados', 'Desliga a capa animada e, nas músicas baixadas, toca sempre o arquivo do aparelho (até no modo vídeo), sem gastar internet', p.economiaDados)}
       </div></section>
       <section class="aj-sec"><h3 class="aj-titulo">Downloads</h3><div class="settings-group">
-        <div class="setting wrap"><span class="ico">${icon('baixar', 18)}</span><div class="grow"><div class="t">O que baixar</div><div class="s">O vídeo ocupa bem mais espaço que só o áudio</div></div>
-          <div class="seg" id="of-oque"><button data-v="video" aria-pressed="${p.baixarVideo !== false}">Áudio e vídeo</button><button data-v="audio" aria-pressed="${p.baixarVideo === false}">Só o áudio</button></div></div>
         <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(false))[1]} · Vídeo: ${QUALIDADES.find(([k]) => k === qualidadeDoDownload(true))[1]}</div></div>${icon('next', 18)}</a>
         ${chave('of-ao-salvar', 'baixar', 'Baixar ao salvar', 'A música salva na biblioteca já é baixada para tocar sem internet', p.baixarAoSalvar !== false)}
         ${chave('of-karaoke', 'mic', 'Baixar também o karaokê', 'Nas músicas com a letra sincronizada, o servidor já separa a voz da banda ao baixar: o microfone da letra liga na hora, até sem internet', p.baixarKaraoke !== false)}
@@ -21612,7 +21614,6 @@ function viewOffline() {
   view.addEventListener('click', async (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.v) { db.setPref('baixarVideo', b.dataset.v === 'video'); $('#of-oque').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); }
     if (b.id === 'of-todas') {
       const faltam = db.songs().filter((x) => precisaBaixar(x) && !baixando.has(x.id) && midiaDe(x));
       if (!faltam.length) return;

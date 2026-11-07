@@ -21,6 +21,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: read
 
 # uma publicação por vez, na fila: a de depois espera a que está rodando terminar. Antes a nova cancelava a que
 # estava rodando, e cada merge mostrava um "cancelled" (o push e, logo depois, o fim da publicação do servidor da IA
@@ -189,6 +190,25 @@ jobs:
       # O deploy-pages limita o timeout a 10 minutos (600000 ms); valores maiores são ignorados.
       # Se o Pages ficar preso em syncing_files e cancelar por timeout, tenta uma única vez novamente
       # com o mesmo artefato, sem cancelar deployments de outras execuções.
+      # Uma publicação que ficou presa "em andamento" no GitHub (o job dela já acabou) faz o GitHub recusar todas as
+      # seguintes ("due to in progress deployment. Please cancel <sha> first"), e o site parava de atualizar (como
+      # depois do merge #430: #431, #432… recusados). As publicações rodam uma por vez (concurrency acima), então uma
+      # que ainda está em andamento quando esta vai publicar é sobra presa: é cancelada aqui
+      - name: Destravar publicação presa
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for sha in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=15" --jq '.[].sha' 2>/dev/null | awk '!visto[$0]++'); do
+            estado=$(gh api "repos/$GITHUB_REPOSITORY/pages/deployments/$sha" --jq '.status' 2>/dev/null || true)
+            case "$estado" in
+              ''|succeed|deployment_cancelled|deployment_failed|deployment_content_failed|deployment_attempt_error|deployment_lost) ;;
+              *)
+                echo "::warning::Publicação presa ($sha, $estado): cancelando para liberar esta"
+                gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments/$sha/cancel" >/dev/null 2>&1 || true
+                ;;
+            esac
+          done
+
       - id: deploy
         uses: actions/deploy-pages@v4
         continue-on-error: true
@@ -196,6 +216,22 @@ jobs:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           timeout: 600000
           error_count: 30
+
+      - name: Destravar antes de tentar de novo
+        if: steps.deploy.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for sha in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=15" --jq '.[].sha' 2>/dev/null | awk '!visto[$0]++'); do
+            estado=$(gh api "repos/$GITHUB_REPOSITORY/pages/deployments/$sha" --jq '.status' 2>/dev/null || true)
+            case "$estado" in
+              ''|succeed|deployment_cancelled|deployment_failed|deployment_content_failed|deployment_attempt_error|deployment_lost) ;;
+              *)
+                echo "::warning::Publicação presa ($sha, $estado): cancelando para liberar esta"
+                gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments/$sha/cancel" >/dev/null 2>&1 || true
+                ;;
+            esac
+          done
 
       - id: deploy_retry
         if: steps.deploy.outcome == 'failure'
