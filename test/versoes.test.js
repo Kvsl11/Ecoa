@@ -290,7 +290,7 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
   assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
-  assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDoCanalDeVerdade\(nome\), cifraClub, \(\) => fotoDeezer\(nome, titulo\)\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o canal primeiro)');
+  assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDoCanalDeVerdade\(nome\), \(\) => fotoDeezer\(nome, titulo\), cifraClub\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o canal primeiro)');
   assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'a ordem de preferência das fontes fica a mesma');
   assert.match(resolverFoto, /folga: estrita \? 0 : 1200/, 'com uma foto guardada, a troca espera a preferida (a foto não fica trocando)');
   assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não cria fotos diferentes por faixa');
