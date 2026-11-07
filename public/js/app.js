@@ -2564,19 +2564,16 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // a música salva agora já nasce revisada (ela passa pelo que é feito ao salvar e ao baixar)
 window.addEventListener('songbook:nova-musica', (e) => { if (db.song(e.detail.id)) db.updateSong(e.detail.id, { revisao: REVISAO_MUSICAS }); });
 
-// endereço do player do YouTube embutido (enablejsapi permite pausar/tocar pelo botão verde)
-// semConta: os players de apoio (a capa animada, a outra versão que espera por baixo para a troca música/clipe, a próxima
-// que entra muda no crossfade, a prévia das playlists) vêm do youtube-nocookie.com, que não leva a conta do YouTube do
-// navegador. Com a conta em todos, cada um contava como outra reprodução dela ao mesmo tempo, e o YouTube parava o
-// vídeo ("sua conta está sendo usada em outro dispositivo", o limite do Premium). Só o player que se ouve leva a conta
-const YT_COM_CONTA = 'https://www.youtube.com/embed/';
+// Endereço do player incorporado do YouTube. O login do app oficial não é compartilhado com a WebView;
+// usar o domínio de privacidade aprimorada permite tocar vídeos públicos sem pedir uma segunda autenticação.
+// Restrições de idade, vídeos privados ou bloqueados para incorporação continuam sob as regras do YouTube.
 const YT_SEM_CONTA = 'https://www.youtube-nocookie.com/embed/';
-function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false, semConta = false } = {}) {
+function ytEmbed(id, { inicio = 0, autoplay = true, mudo = false } = {}) {
   const p = new URLSearchParams({ autoplay: autoplay ? '1' : '0', playsinline: '1', enablejsapi: '1', rel: '0', modestbranding: '1' });
   if (mudo) p.set('mute', '1'); // (a próxima na transição: começa sem som e sobe aos poucos)
   if (inicio > 0) p.set('start', String(Math.floor(inicio)));
   if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
-  return `${semConta ? YT_SEM_CONTA : YT_COM_CONTA}${encodeURIComponent(id)}?${p}`;
+  return `${YT_SEM_CONTA}${encodeURIComponent(id)}?${p}`;
 }
 
 // nome e canal de um vídeo do YouTube (para o cartão das Referências): pergunta uma vez e guarda enquanto
