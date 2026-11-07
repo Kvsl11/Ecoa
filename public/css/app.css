@@ -5586,14 +5586,16 @@ html.sem-conta .entrada { hyphens: manual; -webkit-hyphens: manual; position: fi
 .rc-item small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rc-item > svg { flex: none; color: var(--muted); }
 
-/* ---- os atalhos no alto dos Ajustes (como no Spotify): três quadrados que ligam e desligam na hora */
-.aj-atalhos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 14px; }
-.aj-atalho { display: grid; justify-items: center; gap: 4px; padding: 12px 6px 10px; border: 0; border-radius: 8px; background: var(--surface);
-  color: var(--text); font: inherit; text-align: center; cursor: pointer; transition: background 0.15s, color 0.15s; }
-.aj-atalho:hover, .aj-atalho:focus-visible { background: var(--surface-2); }
-.aj-atalho b { font-size: 12px; font-weight: 600; line-height: 1.2; }
-.aj-atalho small { color: var(--muted); font-size: 11px; }
-.aj-atalho[aria-pressed="true"], .aj-atalho[aria-pressed="true"] small { color: var(--accent-ink); }
+/* os subtítulos dentro de uma página dos Ajustes (Cifra, Reprodução, Privacidade; no Backup: Biblioteca e Downloads) */
+.aj-subtitulo { margin: 18px 4px 8px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.aj-sec > .aj-subtitulo:first-of-type { margin-top: 2px; }
+.aj-sec .aj-dados + .aj-subtitulo { margin-top: 22px; }
+/* o aviso da sessão privada ligada (Recentes, Estatísticas) e a linha dela na gaveta do perfil */
+.aviso-privada { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: var(--surface); color: var(--text); text-decoration: none; }
+.aviso-privada > .ic:first-child { color: var(--accent-ink); flex: none; }
+.aviso-privada b { display: block; font-size: 14px; }
+.aviso-privada small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.pg-privada { color: var(--accent-ink); }
 .aj-sair { display: block; margin: 22px auto 0; padding: 9px 22px; border: 0; border-radius: 999px; background: var(--text); color: var(--bg);
   font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .aj-sair:active { transform: scale(0.97); }

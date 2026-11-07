@@ -1146,7 +1146,7 @@ const abaixoDaQualidade = (arquivo, video) => Boolean(arquivo) && ((ORDEM_QUALID
 // "Atualizar os downloads" dos Ajustes)
 const foraDaQualidade = (arquivo, video, todas = false) => Boolean(arquivo) && (abaixoDaQualidade(arquivo, video) || (todas && (arquivo.qualidade || '') !== qualidadeDoDownload(video)));
 const precisaMelhorar = (song, todas = false) => Boolean(song?.baixado) && arquivosParaBaixar(song).some(({ yt, video }) => foraDaQualidade(song.baixado.arquivos?.[yt], video, todas));
-// a qualidade dos downloads, como no Spotify (Ajustes → Economia de dados e offline): normal, alta ou muito alta, uma
+// a qualidade dos downloads, como no Spotify (Ajustes → Downloads e internet → Qualidade): normal, alta ou muito alta, uma
 // para o áudio e outra para o vídeo; vale para todos os downloads dali em diante. Sem escolher, a muito alta (o vídeo
 // em até 1080p). No iPhone o áudio fica no máximo na alta: o muito alto vem em Opus, que o Safari não toca
 // (os valores de verdade de cada uma: a altura da imagem e o som que o YouTube tem. O áudio do YouTube vai, na prática,
@@ -1165,7 +1165,7 @@ function qualidadeDoDownload(video) {
 }
 // sem Wi-Fi (no Android o navegador diz): pergunta antes, como no Spotify (uma vez, ao baixar várias)
 const podeBaixarAgora = async () => navigator.connection?.type !== 'cellular' || db.prefs().baixarDadosMoveis
-  || ask({ title: 'Baixar com os dados móveis?', text: 'Você está sem Wi-Fi e o download pode gastar bastante do seu plano. Dá para liberar sempre em Ajustes → Economia de dados e offline.', ok: 'Baixar assim mesmo' });
+  || ask({ title: 'Baixar com os dados móveis?', text: 'Você está sem Wi-Fi e o download pode gastar bastante do seu plano. Dá para liberar sempre em Ajustes → Downloads e internet.', ok: 'Baixar assim mesmo' });
 // as músicas que a pessoa mandou baixar tocando em "Baixar" (os ⋮): se não der certo, o motivo aparece na tela, e não só
 // na notificação (que pode estar desligada: antes nada acontecia e o motivo ficava escondido)
 const baixarComAviso = new Set();
@@ -14805,7 +14805,7 @@ function viewSong(id, ctx = {}) {
   if (isPreview) {
     const r = renderSong(song.content);
     song = { ...song, title: r.meta.title || 'Canto', artist: r.meta.artist || r.meta.subtitle || '', youtube: youtubeId(r.meta.youtube) || '', cover: r.meta.cover || '', pdf: r.meta.pdf || '', key: r.key, composer: r.meta.composer || r.meta.lyricist || '' };
-  } else db.touchRecent(song.id);
+  } else if (!db.prefs().sessaoPrivada) db.touchRecent(song.id);
   // Ao entrar na música, áudio e letra LRCLIB começam a ser preparados juntos.
   // A Busca já aguardou a preparação antes de navegar; aqui a entrada normal só inicia a preparação em segundo plano.
   if (midiaDe(song)) void prepararMusicaAoAbrir(song);
@@ -17746,13 +17746,8 @@ async function montarRepertorio(missa, sel, data, { btn = $('#montar'), tipo = '
 
 // ------------------------------------------------------------- ajustes
 
-// os atalhos no alto dos Ajustes: ligam e desligam na hora (a sessão privada não registra as tocadas nem as estatísticas)
-const ATALHOS_AJUSTES = [
-  { id: 'economia', pref: 'economiaDados', ic: 'gauge', t: 'Economia de dados', ligado: () => Boolean(db.prefs().economiaDados) },
-  { id: 'privada', pref: 'sessaoPrivada', ic: 'eye', t: 'Sessão privada', ligado: () => Boolean(db.prefs().sessaoPrivada) },
-  { id: 'capa', pref: 'videoFundo', ic: 'video', t: 'Capa animada', ligado: () => db.prefs().videoFundo !== false },
-];
-const atalhoDosAjustes = (a) => `<button class="aj-atalho" data-atalho="${a.id}" aria-pressed="${a.ligado()}">${icon(a.ic, 22)}<b>${a.t}</b><small>${a.ligado() ? 'Ligada' : 'Desligada'}</small></button>`;
+// (os atalhos que ficavam no alto dos Ajustes — economia de dados, sessão privada e capa animada — foram para as páginas
+// a que pertencem: a capa animada e a sessão privada em Música e cifra, a economia de dados em Downloads e internet)
 function viewTopicosAjustes() {
   setTab('');
   setTint('#333');
@@ -17761,7 +17756,8 @@ function viewTopicosAjustes() {
     if (t.id === 'qualidade') return `Áudio: ${nomeDaQualidade(false)} · Vídeo: ${nomeDaQualidade(true)}`;
     if (t.id === 'permissoes') return `Notificações: ${ROTULO_PERMISSAO[estadoDasNotificacoes()]} · Microfone`;
     if (t.id === 'conta') { const u = usuarioConta(); if (u) return `${u.email || u.nome} · ${estadoConta.erro ? 'sem sincronizar' : 'sincronizada'}`; }
-    if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Armazenamento · Cache`; }
+    if (t.id === 'offline') { const n = db.songs().filter((x) => x.baixado).length; return `${n} música${n === 1 ? '' : 's'} baixada${n === 1 ? '' : 's'} · Qualidade · Economia de dados · Armazenamento`; }
+    if (t.id === 'musica' && db.prefs().sessaoPrivada) return 'Sessão privada ligada · Transição · Acordes · Capa animada';
     return t.s;
   };
   const versaoLabel = noApk() ? 'Ecoa · APK' : `Ecoa · versão ${APP_VERSAO}`;
@@ -17770,21 +17766,10 @@ function viewTopicosAjustes() {
       <span class="aj-logo">${logo(44)}</span>
       <div class="aj-ident"><h2>Ajustes</h2><span class="aj-versao">${versaoLabel}</span></div>
     </section>
-    <div class="aj-atalhos">${ATALHOS_AJUSTES.map((a) => atalhoDosAjustes(a)).join('')}</div>
     <nav class="aj-lista" aria-label="Tópicos dos ajustes">
       ${TOPICOS_AJUSTES.filter((t) => !(noApk() && t.id === 'permissoes')).map((t) => `<a class="aj-topico" href="${t.href || `#/ajustes/${t.id}`}"><span class="ico">${icon(t.ic, 22)}</span><span class="grow"><b>${t.t}</b><small>${esc(resumo(t))}</small></span>${icon('next', 18)}</a>`).join('')}
     </nav>
     ${usuarioConta() ? '<button class="aj-sair" data-sair>Sair</button>' : ''}</div>`;
-  view.querySelector('.aj-atalhos').onclick = (e) => {
-    const b = e.target.closest('[data-atalho]');
-    const a = b && ATALHOS_AJUSTES.find((x) => x.id === b.dataset.atalho);
-    if (!a) return;
-    const ligado = !a.ligado();
-    db.setPref(a.pref, ligado);
-    if (a.pref === 'videoFundo') player.atualizar({});
-    b.outerHTML = atalhoDosAjustes(a);
-    toast(`${a.t} ${ligado ? 'ligada' : 'desligada'}`);
-  };
   view.querySelector('[data-sair]')?.addEventListener('click', async () => {
     if (!(await ask({ title: 'Sair da conta?', text: 'Para usar o Ecoa de novo, é só entrar com o Google. As suas músicas e os repertórios continuam guardados na sua conta.', ok: 'Sair' }))) return;
     await sairDaConta();
@@ -17864,7 +17849,7 @@ function viewPermissoes() {
 function viewQualidade() {
   setTab('');
   setTint('#333');
-  setHeader('Qualidade de mídia', { back: '#/ajustes' });
+  setHeader('Qualidade de mídia', { back: '#/offline' });
   const lista = (tipo, titulo, sub) => {
     const pref = db.prefs()[tipo === 'video' ? 'qualidadeVideo' : 'qualidadeAudio'] || 'muito-alta';
     return `<section class="aj-sec"><h3 class="aj-titulo">${titulo}</h3><p class="aj-nota">${sub}</p><div class="settings-group aj-radios" data-qtipo="${tipo}">
@@ -17929,13 +17914,13 @@ function viewQualidade() {
 const TOPICOS_AJUSTES = [
   { id: 'conta', href: '#/conta', ic: 'pessoa', t: 'Conta', s: 'Entre com o Google e tenha a biblioteca em todos os aparelhos' },
   { id: 'aparencia', secao: 'Aparência', ic: 'palette', t: 'Aparência', s: 'Modo escuro ou claro · Cor de destaque' },
-  { id: 'musica', secao: 'Música', ic: 'chord', t: 'Música e cifra', s: 'Crossfade e automix · Destaque e diagrama dos acordes · Capa animada' },
-  { id: 'qualidade', href: '#/qualidade', ic: 'gauge', t: 'Qualidade de mídia', s: 'Qualidade do download do áudio e do vídeo' },
-  { id: 'offline', href: '#/offline', ic: 'baixar', t: 'Downloads e economia de dados', s: 'Músicas baixadas · Armazenamento · Cache' },
-  { id: 'permissoes', href: '#/permissoes', ic: 'lock', t: 'Permissões', s: 'Notificações · Microfone' },
-  { id: 'powerpoint', secao: 'PowerPoint', ic: 'columns', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
-  { id: 'backup', secao: 'Backup', ic: 'upload', t: 'Backup', s: 'Exportar e importar músicas e repertórios' },
-  { id: 'avancado', secao: 'Avançado', ic: 'database', t: 'Avançado', s: noApk() ? 'Apagar tudo' : 'Servidor da IA · Conta do YouTube · Apagar tudo' },
+  { id: 'musica', secao: 'Música', ic: 'music', t: 'Música e cifra', s: 'Transição entre as músicas · Acordes · Capa animada · Sessão privada' },
+  // (a qualidade dos downloads fica dentro de Downloads: era um tópico à parte que repetia a linha de lá)
+  { id: 'offline', href: '#/offline', ic: 'baixar', t: 'Downloads e internet', s: 'Qualidade · Economia de dados · Armazenamento' },
+  { id: 'backup', secao: 'Backup', ic: 'backup', t: 'Backup', s: 'Exportar e importar a biblioteca e os downloads' },
+  { id: 'permissoes', href: '#/permissoes', ic: 'escudo', t: 'Permissões', s: 'Notificações · Microfone' },
+  { id: 'powerpoint', secao: 'PowerPoint', ic: 'apresentacao', t: 'PowerPoint', s: 'Modelo da apresentação da missa' },
+  { id: 'avancado', secao: 'Avançado', ic: 'ferramenta', t: 'Avançado', s: noApk() ? 'Apagar tudo' : 'Servidor da IA · Conta do YouTube · Apagar tudo' },
   { id: 'sobre', secao: 'Sobre', ic: 'info', t: 'Sobre', s: noApk() ? 'Versão · Atualização do app · Novidades' : 'Versão · Novidades · Instalar o app' },
 ];
 function viewSettings(topico) {
@@ -17975,29 +17960,40 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Música', `
+    <h4 class="aj-subtitulo">Cifra</h4>
     <div class="settings-group">
       <div class="setting wrap"><span class="ico">${icon('chord', 18)}</span><div class="grow"><div class="t">Destaque dos acordes</div></div>
         <div class="seg" id="destaque">${[['suave', 'Suave'], ['forte', 'Forte'], ['maximo', 'Máximo']].map(([v, n]) => `<button data-v="${v}" aria-pressed="${(p.destaqueCifra || 'forte') === v}">${n}</button>`).join('')}</div></div>
       ${chave('diagramas', 'diagrama', 'Diagrama dos acordes', 'Como montar cada acorde no violão', p.diagramas)}
+    </div>
+    <h4 class="aj-subtitulo">Reprodução</h4>
+    <div class="settings-group">
       <div class="setting wrap"><span class="ico">${icon('shuffle', 18)}</span><div class="grow"><div class="t">Transição entre as músicas</div><div class="s" id="transicao-s"></div></div>
         <div class="seg" id="transicao">${[['', 'Desligada'], ['crossfade', 'Crossfade'], ['automix', 'Automix']].map(([v, n]) => `<button data-v="${v}" aria-pressed="${(['crossfade', 'automix'].includes(p.transicao) ? p.transicao : '') === v}">${n}</button>`).join('')}</div></div>
       <div class="setting wrap aj-crossfade" id="crossfade-linha"${p.transicao === 'crossfade' ? '' : ' hidden'}><span class="ico">${icon('clock', 18)}</span><div class="grow"><div class="t">Duração do crossfade</div></div>
         <div class="aj-crossfade-barra"><input type="range" id="crossfade-seg" min="1" max="${MAX_TRANSICAO}" step="1" value="${Math.max(1, Math.min(MAX_TRANSICAO, Math.round(Number(p.crossfadeSeg) || 6)))}" aria-label="Duração do crossfade, em segundos"><b id="crossfade-num"></b></div></div>
       ${chave('video-fundo', 'video', 'Capa animada', 'Trechos do clipe passam atrás da música, sem som, como o Canvas do Spotify (nas músicas baixadas, o próprio vídeo)', p.videoFundo !== false)}
-    </div>`)}
-
-    ${secao('Downloads e dados', `
+    </div>
+    <h4 class="aj-subtitulo">Privacidade</h4>
     <div class="settings-group">
-      <a class="setting" href="#/offline"><span class="ico">${icon('baixar', 18)}</span><div class="grow"><div class="t">Economia de dados e offline</div><div class="s">Músicas baixadas, armazenamento e cache</div></div>${icon('next', 18)}</a>
+      ${chave('sessao-privada', 'privada', 'Sessão privada', 'Enquanto estiver ligada, o que você ouvir não entra em Recentes nem nas Estatísticas. O resto do app funciona normalmente', p.sessaoPrivada)}
     </div>`)}
 
     ${secao('PowerPoint', `
     <div class="settings-group"><div class="aj-pptx" id="pptx"><div class="aj-pptx-vazio muted">Verificando…</div></div></div>`)}
 
     ${secao('Backup', `
+    <h4 class="aj-subtitulo">Biblioteca</h4>
+    <p class="aj-nota">As músicas, as cifras, as playlists e os repertórios, num arquivo leve. Com a conta Google, a biblioteca já fica guardada na nuvem: o arquivo é uma cópia a mais.</p>
     <div class="aj-dados">
-      <button class="aj-dado" id="exp"><span class="ico">${icon('download', 20)}</span><b>Exportar</b><small>Músicas e repertórios num arquivo</small></button>
-      <button class="aj-dado" id="imp"><span class="ico">${icon('upload', 20)}</span><b>Importar</b><small>Backup, ChordPro ou texto</small></button>
+      <button class="aj-dado" id="exp"><span class="ico">${icon('upload', 20)}</span><b>Exportar</b><small>Músicas e repertórios num arquivo</small></button>
+      <button class="aj-dado" id="imp"><span class="ico">${icon('download', 20)}</span><b>Importar</b><small>Backup, ChordPro ou texto</small></button>
+    </div>
+    <h4 class="aj-subtitulo">Downloads</h4>
+    <p class="aj-nota">O áudio, o vídeo e o karaokê baixados neste aparelho, para levar a outro ${noApk() ? '' : '(como o app de Android) '}sem baixar tudo de novo.</p>
+    <div class="aj-dados">
+      <button class="aj-dado" id="of-exportar"><span class="ico">${icon('upload', 20)}</span><b>Exportar</b><small>Os arquivos baixados num pacote</small></button>
+      <button class="aj-dado" id="of-importar"><span class="ico">${icon('download', 20)}</span><b>Importar</b><small>O arquivo "ecoa-downloads"</small></button>
     </div>`)}
 
     ${secao('Avançado', `
@@ -18087,6 +18083,10 @@ function viewSettings(topico) {
   };
   // vale na hora também no player (o Tocando agora no modo música)
   $('#video-fundo').onchange = (e) => { db.setPref('videoFundo', e.target.checked); player.atualizar({}); };
+  $('#sessao-privada').onchange = (e) => {
+    db.setPref('sessaoPrivada', e.target.checked);
+    toast(e.target.checked ? 'Sessão privada ligada: o que você ouvir não fica registrado' : 'Sessão privada desligada');
+  };
   // a transição entre as músicas: o crossfade (com a duração) ou o automix
   const desenharTransicao = () => {
     const m = db.prefs().transicao;
@@ -18121,6 +18121,8 @@ function viewSettings(topico) {
   aoSair(() => clearInterval(relogioResumo));
   $('#exp').onclick = () => download(`songbook-backup-${hojeISO()}.json`, db.exportAll(), 'application/json');
   $('#imp').onclick = openImport;
+  $('#of-exportar').onclick = (e) => exportarDownloads(e.currentTarget);
+  $('#of-importar').onclick = (e) => importarDownloads(e.currentTarget);
   // Apagar tudo: limpa a conta inteira, e não só este aparelho. Antes ele saía da conta e apagava só o aparelho; como a
   // conta é obrigatória, ao entrar de novo a nuvem trazia tudo de volta (as playlists, as músicas) e só os downloads
   // tinham sumido. Agora: a nuvem primeiro (os outros aparelhos também ficam vazios); depois, neste aparelho, a
@@ -18356,6 +18358,7 @@ function abrirGavetaDoPerfil() {
         ${item('historico', 'Recentes', '#/recentes')}
         ${item('megafone', 'Novidades', '#/novidades')}
         ${item('settings', 'Ajustes e privacidade', '#/ajustes')}
+        ${db.prefs().sessaoPrivada ? `<a class="pg-item pg-privada" href="#/ajustes/musica">${icon('privada', 22)}<span class="grow">Sessão privada ligada<small class="pg-sub">O que você ouve não fica registrado</small></span></a>` : ''}
         ${baixarAppAndroid() ? `<a class="pg-item" href="${LINK_APK}" download data-baixar-apk>${icon('download', 22)}<span class="grow">Baixar o app para Android<small class="pg-sub">Com o widget da tela inicial</small></span></a>` : ''}
       </div>
       ${infoDaGaveta(u)}
@@ -21599,7 +21602,7 @@ function viewEstatisticas(sub) {
   const mus = r.musicas[0];
   const meses = mesesFechados(reg, hoje);
   const seta = icon('next', 16);
-  view.innerHTML = `<div class="est">
+  view.innerHTML = `<div class="est">${avisoSessaoPrivada()}
     <div class="est-topo">
       <div><h2>Esta semana <button class="est-info" data-info aria-label="Como as estatísticas são contadas">${icon('info', 16)}</button></h2><p>${esc(rotulo)}</p></div>
       <button class="icon-btn" data-compartilhar aria-label="Compartilhar"${r.segundos ? '' : ' disabled'}>${icon('share', 20)}</button>
@@ -21657,6 +21660,10 @@ function viewMaisOuvidas(sub, periodo, r) {
   </div>`;
 }
 
+// o aviso da sessão privada nas telas do que fica registrado (Recentes e Estatísticas): sem ele, ligada, parecia que
+// o app só tinha parado de registrar sozinho
+const avisoSessaoPrivada = () => (db.prefs().sessaoPrivada
+  ? `<a class="aviso-privada" href="#/ajustes/musica">${icon('privada', 18)}<span class="grow"><b>Sessão privada ligada</b><small>O que você ouve agora não está sendo registrado. Toque para desligar</small></span>${icon('next', 16)}</a>` : '');
 // ---- Recentes (como no Spotify): o que tocou, dia a dia — Hoje, Ontem e as datas —, só as músicas ou só os repertórios
 function viewRecentes(filtro = '') {
   setTab('');
@@ -21680,6 +21687,7 @@ function viewRecentes(filtro = '') {
   };
   const chip = (v, t) => `<a class="chip" aria-pressed="${filtro === v}" href="#/recentes${filtro === v ? '' : `/${v}`}">${t}</a>`;
   view.innerHTML = `<div class="rc">
+    ${avisoSessaoPrivada()}
     <div class="rc-chips">${chip('musicas', 'Músicas')}${chip('repertorios', 'Repertórios')}</div>
     ${dias.map((d) => `<section><h3 class="rc-dia">${esc(rotuloDoDia(d.dia, hoje))}</h3>${d.itens.map(linha).join('')}</section>`).join('')}
     ${antes.length ? `<section><h3 class="rc-dia">${dias.length ? 'Antes' : 'Tocadas recentemente'}</h3>${antes.map((s) => linha({ tipo: 'musica', id: s.id, t: s.title, a: s.artist, c: capaDaMusica(s) })).join('')}</section>` : ''}
@@ -22167,7 +22175,7 @@ async function exportarDownloads(bt) {
     setTimeout(() => URL.revokeObjectURL(a.href), 10 * 60e3); // (o arquivo grande demora para o navegador gravar)
     const nKar = arquivos.filter((a) => a.chave.startsWith('kar:')).length;
     const nMus = musicas.filter((m) => m.baixado || m.audioProprio).length;
-    await ask({ title: 'Downloads exportados', text: `${nMus} música${nMus === 1 ? '' : 's'}${nKar ? ` e ${nKar} karaokê${nKar === 1 ? '' : 's'}` : ''} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Downloads e economia de dados → Importar os downloads e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
+    await ask({ title: 'Downloads exportados', text: `${nMus} música${nMus === 1 ? '' : 's'}${nKar ? ` e ${nKar} karaokê${nKar === 1 ? '' : 's'}` : ''} (${fmtBytes(pacote.size)}) no arquivo "${a.download}", na pasta Downloads do celular. ${noApk() ? 'No outro aparelho' : 'No app de Android'}, abra Ajustes → Backup → Downloads → Importar e escolha esse arquivo.`, ok: 'Entendi', cancel: false });
   } catch (e) {
     await ask({ title: 'Não deu para exportar', text: String(e?.message || e), ok: 'Entendi', cancel: false });
   } finally {
@@ -22224,32 +22232,27 @@ async function importarDownloads(bt) {
 function viewOffline() {
   setTab('');
   setTint('#1f3a2c');
-  setHeader('Downloads e economia de dados', { back: '#/ajustes' });
+  setHeader('Downloads e internet', { back: '#/ajustes' });
   const desenhar = () => {
     const p = db.prefs();
     const salvas = db.songs();
     const baixadas = salvas.filter((x) => x.baixado && !precisaBaixar(x));
     const faltam = salvas.filter((x) => precisaBaixar(x) && !baixando.has(x.id) && midiaDe(x));
     const chave = (id, ic, t, sub, ligado) => `<label class="setting"><span class="ico">${icon(ic, 18)}</span><div class="grow"><div class="t">${t}</div><div class="s">${sub}</div></div><input type="checkbox" class="switch" id="${id}"${ligado ? ' checked' : ''}></label>`;
-    view.innerHTML = `<div class="ajustes offline"><h2 class="aj-pagina">Downloads e economia de dados</h2>
-      <section class="aj-sec"><h3 class="aj-titulo">Economia de dados</h3><div class="settings-group">
-        ${chave('of-economia', 'gauge', 'Economia de dados', 'Desliga a capa animada e, nas músicas baixadas, toca sempre o arquivo do aparelho (até no modo vídeo), sem gastar internet', p.economiaDados)}
-      </div></section>
+    view.innerHTML = `<div class="ajustes offline"><h2 class="aj-pagina">Downloads e internet</h2>
       <section class="aj-sec"><h3 class="aj-titulo">Downloads</h3><div class="settings-group">
         <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${nomeDaQualidade(false)} · Vídeo: ${nomeDaQualidade(true)}</div></div>${icon('next', 18)}</a>
         ${chave('of-ao-salvar', 'baixar', 'Baixar ao salvar', 'A música salva na biblioteca já é baixada para tocar sem internet', p.baixarAoSalvar !== false)}
         ${chave('of-karaoke', 'mic', 'Baixar também o karaokê', 'Nas músicas com a letra sincronizada, o servidor já separa a voz da banda ao baixar: o microfone da letra liga na hora, até sem internet', p.baixarKaraoke !== false)}
-        ${chave('of-moveis', 'aparelhos', 'Baixar com os dados móveis', 'Sem isso, fora do Wi-Fi o app pergunta antes de baixar', p.baixarDadosMoveis)}
         <div class="setting"><span class="ico">${icon('library', 18)}</span><div class="grow"><div class="t">Baixar as músicas salvas</div><div class="s" id="of-todas-s">${baixando.size ? `Baixando: ${baixando.size} na fila` : `${baixadas.length} de ${salvas.length} baixadas`}${servidorIA().url ? '' : ' · o áudio e o vídeo vêm pelo servidor do seu computador (Ajustes → Avançado)'}</div></div>
           <button class="btn small primary" id="of-todas"${faltam.length ? '' : ' disabled'}>${icon('baixar', 15)} ${faltam.length ? `Baixar ${faltam.length}` : 'Todas baixadas'}</button></div>
         <a class="setting" href="#/biblioteca/baixadas"><span class="ico">${icon('baixada', 18)}</span><div class="grow"><div class="t">Músicas baixadas</div><div class="s">Tocam sem internet, com a letra, a cifra e a partitura</div></div>${icon('next', 18)}</a>
       </div></section>
-      <section class="aj-sec"><h3 class="aj-titulo">Levar os downloads</h3><div class="settings-group">
-        <div class="setting"><span class="ico">${icon('upload', 18)}</span><div class="grow"><div class="t">Exportar os downloads</div><div class="s">${noApk() ? 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar a outro aparelho sem baixar de novo' : 'Um arquivo com o áudio, o vídeo e o karaokê baixados aqui, para levar ao app de Android (ou a outro aparelho) sem baixar de novo'}</div></div>
-          <button class="btn small" id="of-exportar">Exportar</button></div>
-        <div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Importar os downloads</div><div class="s">Escolha o arquivo "ecoa-downloads" exportado ${noApk() ? 'no navegador' : 'em outro aparelho'}: as músicas ficam baixadas aqui</div></div>
-          <button class="btn small" id="of-importar">Importar</button></div>
-      </div></section>
+      <section class="aj-sec"><h3 class="aj-titulo">Internet</h3><div class="settings-group">
+        ${chave('of-economia', 'folha', 'Economia de dados', 'Gasta menos internet: sem a capa animada, as músicas baixadas tocam do aparelho (até no modo vídeo) e a busca não carrega as músicas antes do toque', p.economiaDados)}
+        ${chave('of-moveis', 'aparelhos', 'Baixar com os dados móveis', 'Sem isso, fora do Wi-Fi o app pergunta antes de baixar', p.baixarDadosMoveis)}
+      </div>
+      <p class="aj-nota">Para levar os downloads a outro aparelho, use Ajustes → Backup → Downloads.</p></section>
       <section class="aj-sec"><h3 class="aj-titulo">Armazenamento</h3><div class="settings-group of-armazenamento">
         <div class="of-barra" id="of-barra"><i class="of-dl"></i><i class="of-meus"></i><i class="of-cache"></i></div>
         <ul class="of-legenda" id="of-legenda"><li class="muted">Calculando…</li></ul>
@@ -22338,8 +22341,6 @@ function viewOffline() {
       for (const s of faltam) await baixarMusica(s, { perguntou: true });
       toast(`${faltam.length} música${faltam.length > 1 ? 's' : ''} na fila para baixar`);
     }
-    if (b.id === 'of-exportar') await exportarDownloads(b);
-    if (b.id === 'of-importar') { await importarDownloads(b); desenhar(); }
     if (b.id === 'of-remover' && await ask({ title: 'Remover todos os downloads?', text: 'As músicas continuam na biblioteca, mas só tocam com internet.', ok: 'Remover', danger: true })) {
       await removerTodosDownloads();
       toast('Downloads removidos');
