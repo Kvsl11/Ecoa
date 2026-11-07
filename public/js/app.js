@@ -6707,7 +6707,45 @@ const semLinhasDeAcordes = (sinc) => {
       // (a prévia ainda sem o vídeo escrito nela — ele chega depois — também é a que está tocando: antes o ✓ dizia "Abra a
       // música para salvar", ou só abria a página, e a música não entrava nas curtidas)
       const yt = youtubeId(renderSong(preview.content).meta.youtube) || preview.youtube || '';
-      return !atual.youtube || !yt || [atual.youtube, atual.video, atual.audio].includes(yt);
+      if (!atual.youtube || !yt || [atual.youtube, atual.video, atual.audio].includes(yt)) return true;
+      // (outra gravação da mesma música tocando — um vídeo escolhido, o áudio achado depois —: vale pelo nome)
+      const t = (x) => normalizar(tituloLimpo(x || ''));
+      return Boolean(atual.titulo) && t(renderSong(preview.content).meta.title) === t(atual.titulo);
+    };
+    // Salva ali mesmo a música que está tocando e ainda não está na biblioteca (o vídeo dos relacionados, o vídeo de
+    // referência, a música da busca): sem abrir a página dela nem a tela de carregamento, como o + das listas. O + gira
+    // enquanto salva e vira ✓ quando ela entra. Antes, o + abria a música (com a tela de carregamento) e só depois
+    // tentava salvar; se a música aberta viesse com outro vídeo, não salvava
+    let salvandoDoPlayer = null;
+    const salvarDoPlayer = async (item) => {
+      if (salvandoDoPlayer) return;
+      const botoes = [$('.pl-salva', el), $('.pl-fixo-salva', el)].filter(Boolean);
+      const girar = (sim) => botoes.forEach((x) => { x.setAttribute('aria-busy', String(sim)); if (sim) x.innerHTML = '<span class="spin"></span>'; });
+      salvandoDoPlayer = item;
+      girar(true);
+      let id = null;
+      try {
+        if (item.salvar) id = await item.salvar();
+        else {
+          const video = item.youtube && !ehArquivo(item.youtube) ? { id: item.youtube, url: `https://www.youtube.com/watch?v=${item.youtube}`, titulo: item.titulo || '', canal: '' } : null;
+          // (a música da busca: pela fonte dela, que salva a prévia como está, com a letra, a sincronia e as versões)
+          const fonte = (item.songId === 'previa' || item.href === '#/musica/previa') && preview?.source && /^https?:/.test(preview.source) ? preview.source : '';
+          id = await salvarDaInternet('musica', { titulo: item.titulo || '', artista: item.artista || '', cifra: fonte && ehCifraClub(fonte) ? fonte : '',
+            letra: fonte && !ehCifraClub(fonte) ? { url: fonte, titulo: item.titulo || '', artista: item.artista || '' } : null, video });
+        }
+      } catch { id = null; }
+      salvandoDoPlayer = null;
+      girar(false);
+      const salva = id && db.song(id);
+      if (salva?.soNoRepertorio) db.updateSong(id, { soNoRepertorio: undefined });
+      // (o player passa a ser da música salva, se ainda é a mesma tocando)
+      // (o player troca o objeto a cada atualização, como a cor da capa: a mesma música é a do mesmo vídeo e nome)
+      if (salva && atual && atual.youtube === item.youtube && atual.titulo === item.titulo) api.atualizar({ songId: id, href: `#/musica/${id}`, abrir: null, salvar: null });
+      botoes.forEach((x) => x.classList.toggle('salva', !salva)); // (força o desenho do ✓ ou do + de novo)
+      desenhar();
+      desenharLateral();
+      if (salva && /^#\/biblioteca/.test(location.hash)) route();
+      toast(salva ? 'Salva na biblioteca' : 'Não consegui salvar agora. Tente de novo');
     };
     // salva a prévia na biblioteca e o player passa a ser da música salva
     const salvarDaPrevia = () => {
@@ -6766,11 +6804,10 @@ const semLinhasDeAcordes = (sinc) => {
       else if (atual.songId && db.song(atual.songId)) tirarDoPlayer(db.song(atual.songId));
       // (também a música sem vídeo e a que veio de um vídeo da busca)
       else if (daPrevia()) salvarDaPrevia();
+      // (o vídeo dos relacionados, o de referência, a música da busca: salva ali mesmo, sem abrir nada)
+      else if (atual.titulo && (atual.salvar || atual.youtube || atual.songId === 'previa' || atual.href === '#/musica/previa')) void salvarDoPlayer(atual);
       else if (atual.href && location.hash !== atual.href) location.hash = atual.href;
-      else if (!atual.href && atual.abrir) {
-        // vídeo tocado direto da busca: abre como música (com a cifra e a letra) e já salva
-        Promise.resolve(atual.abrir()).then(() => { if (daPrevia()) salvarDaPrevia(); });
-      } else toast('Abra a música para salvar na biblioteca'); // (nunca mais um toque sem resposta)
+      else toast('Abra a música para salvar na biblioteca'); // (nunca mais um toque sem resposta)
     }
     if (b.dataset.pl === 'add-repertorio' && atual?.songId && db.song(atual.songId)) addToSetDialog(atual.songId, atual.parte || '');
     if (b.dataset.pl === 'proxima') pular(1);
@@ -6843,7 +6880,8 @@ const semLinhasDeAcordes = (sinc) => {
         return;
       }
       const video = { ...v, titulo: v.tituloDoVideo };
-      api.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash) });
+      api.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash),
+        salvar: () => salvarDaInternet('musica', { titulo: v.titulo, artista: v.artista, video }) });
       api.paraModoVideo();
       return;
     }
@@ -10552,7 +10590,9 @@ function viewSearch() {
   setHeader('Buscar', { actions: [{ icon: 'upload', label: 'Importar cifra ou letra da internet', onClick: () => importarDaInternet() }] });
   const q = sessionStorage.getItem('busca') || '';
   // (os vídeos não ficam mais à parte: entram nas músicas, cada um junto da sua)
-  const FILTROS = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['acervo', 'Acervo litúrgico'], ['artistas', 'Artistas'], ['biblioteca', 'Biblioteca']];
+  // (sem a seção "Na sua biblioteca" nem o filtro Biblioteca: a busca é para achar o que ainda não está nela; a
+  // biblioteca tem a busca dela)
+  const FILTROS = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['acervo', 'Acervo litúrgico'], ['artistas', 'Artistas']];
   let filtro = sessionStorage.getItem('buscaFiltro') || 'tudo';
   if (!FILTROS.some(([k]) => k === filtro)) filtro = 'tudo';
   view.innerHTML = `
@@ -10584,7 +10624,7 @@ function viewSearch() {
   // Enquanto procura, sem uma bolinha girando em cada seção: o resultado anterior continua na tela (mais apagado) e uma
   // linha fina corre embaixo da barra de busca. Quando chega o primeiro resultado da busca nova, a tela troca de uma vez;
   // as seções que ainda faltam ficam com o contorno das linhas (o "esqueleto"), no lugar exato em que vão aparecer.
-  // A ordem é a de importância: biblioteca, músicas, artistas e o acervo
+  // A ordem é a de importância: músicas, artistas e o acervo
   const esqueleto = (id) => (id === 'ar-res'
     ? `<div class="shelf esq-artistas">${'<span class="esq-artista"><i class="esq"></i><i class="esq esq-l2"></i></span>'.repeat(4)}</div>`
     : `<ul class="tracks esq-lista">${'<li><i class="esq esq-capa"></i><span><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span></li>'.repeat(id === 'mu-res' ? 5 : 3)}</ul>`);
@@ -10663,10 +10703,7 @@ function viewSearch() {
       return;
     }
     const meu = ++seq;
-    const t = normalizar(term);
-    const locais = db.songs().filter((s) => !s.soNoRepertorio && normalizar(s.title + ' ' + s.artist + ' ' + s.content).includes(t)).slice(0, filtro === 'biblioteca' ? 50 : 6);
     const blocos = [];
-    if (mostra('biblioteca') && (locais.length || filtro === 'biblioteca')) blocos.push(`<section class="bs-sec"><div class="shelf-head"><h2>Na sua biblioteca</h2></div>${locais.length ? `<ul class="tracks">${locais.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>` : '<p class="muted">Nada na biblioteca.</p>'}</section>`);
     if (mostra('musicas')) blocos.push(caixa('mu-res', 'Músicas', '<span class="muted" style="font-size:13px">com cifra, letra e vídeo</span>'));
     if (mostra('artistas')) blocos.push(caixa('ar-res', 'Artistas'));
     if (mostra('acervo')) blocos.push(caixa('ac-res', 'No acervo litúrgico', filtro === 'acervo' ? '' : `<a href="#/setor/busca/${encodeURIComponent(term)}">Ver tudo</a>`));
@@ -18427,7 +18464,8 @@ async function viewFontes() {
     else if (a.acao === 'cifra') abrirMusica({ titulo: sec, cifra: l.url, video: ref ? { id: ref, url: `https://www.youtube.com/watch?v=${ref}` } : null }, location.hash);
     else if (a.acao === 'tocar') {
       const v = { id: youtubeId(l.url), url: `https://www.youtube.com/watch?v=${youtubeId(l.url)}`, titulo: sec || 'Referência', canal: 'Junior Música Católica' };
-      player.tocar({ youtube: v.id, titulo: v.titulo, artista: 'Referência para ouvir', abrir: () => abrirVideoComoMusica(v) });
+      player.tocar({ youtube: v.id, titulo: v.titulo, artista: 'Referência para ouvir', abrir: () => abrirVideoComoMusica(v),
+        salvar: () => salvarDaInternet('musica', { ...nomesDoVideo(v), video: v, artistaIncerto: true }) });
     }
   });
   desenhar();
