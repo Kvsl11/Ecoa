@@ -4742,6 +4742,98 @@ html.tablet .pt-atalho-txt b { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { .ia-pronto-cab { animation: none; } }
 
+/* ============================================================ Partituras: moderno e limpo (v590)
+   Um destaque só por tela (o "Gerar com IA" na lista; o anel do andamento ao gerar; o Salvar na partitura pronta), o
+   resto em cartões claros e silenciosos, cantos mais redondos e mais ar entre as coisas */
+:root { --pt-raio: 20px; }
+@property --pct { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+
+/* ---- a lista: os dois jeitos de começar, um embaixo do outro, como linhas grandes */
+.pt-topo { margin: 6px 0 20px; }
+.pt-topo h2 { font-size: 32px; letter-spacing: -0.03em; }
+.pt-atalhos { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 14px; }
+.pt-atalho { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--pt-raio); }
+.pt-atalho-txt b { font-size: 16px; }
+.pt-atalho-txt small { line-height: 1.35; }
+.pt-atalho-ic { width: 44px; height: 44px; border-radius: 14px; flex: none; }
+.pt-atalho-seta { flex: none; margin-left: auto; color: var(--muted); display: grid; }
+.pt-atalho:active { transform: scale(0.985); }
+/* o principal: um degradê suave na cor de destaque, o ícone num círculo cheio */
+.pt-atalho.pt-ia { padding: 18px 16px; border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 26%, transparent) 0%, transparent 60%), var(--surface); }
+.pt-atalho.pt-ia:hover, .pt-atalho.pt-ia:focus-visible { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 32%, transparent) 0%, transparent 60%), var(--surface-2); }
+.pt-atalho.pt-ia .pt-atalho-ic { width: 48px; height: 48px; border-radius: 50%; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+.pt-atalho.pt-ia .pt-atalho-seta { color: var(--accent-ink); }
+.pt-listas .shelf-head { margin-top: 18px; }
+.pt-lista .pt-linha { border-radius: 14px; }
+/* o acervo: um cartão como os atalhos (antes era uma linha solta embaixo de um traço) */
+.pt-acervo { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--pt-linha); border-top: 1px solid var(--pt-linha); border-radius: var(--pt-raio); background: var(--surface); }
+.pt-acervo > .ic:first-child { flex: none; width: 40px; height: 40px; padding: 10px; box-sizing: border-box; border-radius: 12px; background: var(--surface-2); }
+.pt-acervo:hover { background: var(--surface-2); }
+.pt-vazio { border-radius: var(--pt-raio); }
+
+/* ---- Gerar com IA: o topo e o começo */
+.ia-cab { gap: 16px; margin: 6px 0 22px; }
+.ia-cab .cover { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 10px 28px rgb(0 0 0 / 0.35); }
+.ia-fontes { gap: 12px; }
+.ia-opcao { padding: 14px 16px; border-radius: var(--pt-raio); background: var(--surface); }
+.ia-opcao-ic { width: 42px; height: 42px; border-radius: 50%; }
+/* o aviso, discreto: o fundo do cartão e o texto apagado (antes uma caixa colorida com texto grande) */
+.ia-aviso { border-radius: var(--pt-raio); background: var(--surface); border-color: var(--pt-linha); color: var(--muted); font-size: 13px; }
+.ia-solte { gap: 8px; padding: 40px 20px; border-radius: var(--pt-raio); border: 1.5px dashed color-mix(in srgb, var(--text) 16%, transparent);
+  background: radial-gradient(90% 80% at 50% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%), var(--surface); }
+.ia-solte-ic { width: 56px; height: 56px; color: var(--on-accent, #000); background: var(--accent); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ia-solte b { font-size: 17px; }
+.ia-dicas { gap: 6px; margin-top: 10px; padding: 14px 16px; border-radius: var(--pt-raio); background: color-mix(in srgb, var(--text) 3%, transparent); }
+
+/* ---- gerando: o anel com o andamento no meio e as etapas numa linha do tempo */
+.ia-etapas { justify-items: stretch; gap: 18px; padding: 26px 20px 18px; border-radius: 24px; text-align: left;
+  background: radial-gradient(80% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%), var(--surface); }
+.ia-anel { --pct: 0%; position: relative; justify-self: center; width: 156px; height: 156px; border-radius: 50%; display: grid; place-items: center; transition: --pct 0.6s ease; }
+.ia-anel::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--pct), color-mix(in srgb, var(--text) 9%, transparent) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px)); }
+/* (um brilho que gira devagar por cima do anel: está trabalhando, mesmo quando a porcentagem para um pouco) */
+.ia-anel::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 80%, color-mix(in srgb, var(--accent) 45%, transparent) 95%, transparent);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); animation: ia-gira 2.4s linear infinite; }
+.ia-anel-meio { display: grid; justify-items: center; gap: 2px; }
+.ia-anel-meio b { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.ia-anel-meio .ia-etapa-tempo { font-size: 13px; font-weight: 600; }
+.ia-etapas-cab { display: grid; justify-items: center; gap: 4px; text-align: center; }
+.ia-etapas-cab b { font-size: 19px; }
+.ia-etapas-cab small { max-width: 100%; }
+.ia-etapas ol { gap: 0; padding: 4px 2px 0; }
+.ia-etapas li { position: relative; padding: 9px 0; }
+/* (o fio entre os pontos: liga uma etapa à outra; aceso até onde já foi) */
+.ia-etapas li:not(:last-child)::before { content: ""; position: absolute; left: 10px; top: calc(50% + 13px); height: calc(100% - 26px); width: 2px; border-radius: 1px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.ia-etapas li.feita:not(:last-child)::before { background: var(--accent); }
+.ia-etapas-pe { padding-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .ia-anel::after { animation: none; opacity: 0; } }
+
+/* ---- pronta: a prévia em destaque, as vozes logo embaixo e os botões presos no pé da tela */
+.ia-pronto { gap: 14px; }
+.ia-pronto-cab b { font-size: 20px; }
+.ia-resumo span { background: var(--surface); border: 1px solid var(--pt-linha); }
+.ia-pronto .ia-previa { padding: 14px 8px; border-radius: 24px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.25); }
+/* (o player da prévia fica logo embaixo dela, e não preso no pé: quem fica no pé são os botões de salvar) */
+.ia-pronto .ensaio { position: static; }
+.ia-vozes-sec { display: grid; gap: 10px; padding: 16px; border-radius: var(--pt-raio); background: var(--surface); border: 1px solid var(--pt-linha); }
+.ia-vozes-tit { display: grid; gap: 2px; }
+.ia-vozes-tit b { font-size: 15px; }
+.ia-vozes-tit small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.ia-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); }
+.ia-seg button { min-height: 38px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.2s, color 0.2s; }
+.ia-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent, #000); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ia-ajustar { background: var(--surface); }
+.ia-acoes { position: sticky; bottom: calc(8px - var(--folga-pe)); z-index: 15; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; margin: 2px 0 12px;
+  padding: 10px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid var(--pt-linha); box-shadow: 0 10px 30px rgb(0 0 0 / 0.35); }
+.ia-acoes .ia-denovo { flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); }
+.ia-acoes .btn { flex: 1; height: 44px; border-radius: 999px; justify-content: center; }
+.ia-acoes .btn.primary { flex: 1.6; }
+@media (max-width: 600px) { .ia-acoes { flex-direction: row; align-items: center; } }
+
 /* o mixer do ensaio: a voz em destaque usava a classe .destaque, que também é a do cartão de repertório (display:
    flex, padding largo) — o nome da voz virava "S…" e o volume subia para a mesma linha. Aqui ela volta a ser a grade */
 .ens-voz.destaque { display: grid; gap: 2px 4px; align-items: center; padding: 6px 6px 8px 10px; border-radius: 12px; }

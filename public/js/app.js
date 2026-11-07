@@ -13237,8 +13237,8 @@ function viewPartituras() {
   view.innerHTML = `<div class="pt-pagina">
     <header class="pt-topo"><h2>Partituras</h2><p class="muted">Escreva, gere com IA e ensaie cada voz.</p></header>
     <div class="pt-atalhos">
-      <button class="pt-atalho pt-ia" id="part-ia"><span class="pt-atalho-ic">${icon('sparkles', 20)}</span><span class="pt-atalho-txt"><b>Gerar com IA</b><small>A partir do áudio</small></span></button>
-      <button class="pt-atalho" id="part-nova"><span class="pt-atalho-ic">${icon('edit', 20)}</span><span class="pt-atalho-txt"><b>Nova partitura</b><small>Nota por nota</small></span></button>
+      <button class="pt-atalho pt-ia" id="part-ia"><span class="pt-atalho-ic">${icon('sparkles', 22)}</span><span class="pt-atalho-txt"><b>Gerar com IA</b><small>Pelo áudio da música: melodia ou coral a 4 vozes</small></span><span class="pt-atalho-seta">${icon('next', 18)}</span></button>
+      <button class="pt-atalho" id="part-nova"><span class="pt-atalho-ic">${icon('edit', 20)}</span><span class="pt-atalho-txt"><b>Nova partitura</b><small>Escreva nota por nota</small></span><span class="pt-atalho-seta">${icon('next', 18)}</span></button>
     </div>
     <section class="pt-listas">
     <div class="shelf-head"><h2>Suas partituras</h2>${proprias.length ? `<span class="muted part-conta">${proprias.length}</span>` : ''}</div>
@@ -13521,10 +13521,11 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
   ];
   function telaEtapas(lista) {
     passo.onclick = null;
+    // (no alto, um anel com o andamento geral e o tempo; embaixo, as etapas numa linha do tempo)
     passo.innerHTML = `<div class="ia-etapas">
-      <div class="ia-etapas-cab"><span class="ia-orbita">${icon('sparkles', 20)}</span>
-        <div><b>Gerando a partitura</b><small id="ia-etapa-agora">Começando…</small></div><span class="ia-etapa-tempo" id="ia-etapa-tempo">0:00</span></div>
-      <div class="ia-geral" id="ia-geral" role="progressbar" aria-label="Andamento" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+      <div class="ia-anel" id="ia-geral" role="progressbar" aria-label="Andamento" aria-valuemin="0" aria-valuemax="100">
+        <span class="ia-anel-meio"><b id="ia-pct">0%</b><small class="ia-etapa-tempo" id="ia-etapa-tempo">0:00</small></span></div>
+      <div class="ia-etapas-cab"><b>Gerando a partitura</b><small id="ia-etapa-agora">Começando…</small></div>
       <ol>${lista.map(([id, nome]) => `<li data-etapa="${id}"><span class="ia-etapa-ponto">${icon('check', 12)}</span><span class="ia-etapa-nome">${nome}<small class="ia-etapa-sub"></small><i class="ia-etapa-barra"><b></b></i></span><span class="ia-etapa-st"></span></li>`).join('')}</ol>
       <div class="ia-etapas-pe"><small id="ia-etapa-onde"></small><button class="btn small ghost" id="ia-cancelar">Cancelar</button></div></div>`;
   }
@@ -13539,6 +13540,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
     const geral = $('#ia-geral');
     geral?.style.setProperty('--pct', `${total}%`);
     geral?.setAttribute('aria-valuenow', String(total));
+    const pctEl = $('#ia-pct');
+    if (pctEl) pctEl.textContent = `${total}%`;
     const txt = $('#ia-etapa-agora');
     if (txt) txt.textContent = feitas === itens.length ? 'Pronto' : `${agora?.querySelector('.ia-etapa-nome')?.firstChild?.textContent || 'Começando'}…`;
   }
@@ -13806,10 +13809,10 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
       <div class="ia-resumo" id="ia-resumo"></div>
       <div class="osmd-box ia-previa" id="ia-previa">${esqueleto('folha', 'Desenhando…', 3)}</div>
       <div class="ensaio" id="ia-ensaio" hidden></div>
-      <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar</b><small>Vozes, andamento, tom, compasso</small></span>${icon('down', 18)}</summary>
+      <section class="ia-vozes-sec"><div class="ia-vozes-tit"><b>Vozes</b><small id="ia-vozes-s">Coral: soprano, contralto, tenor e baixo</small></div>
+        <div class="ia-seg" id="ia-vozes"><button data-vozes="4" aria-pressed="true">Coral</button><button data-vozes="4a" aria-pressed="false">Coral do áudio</button><button data-vozes="1" aria-pressed="false">Melodia</button></div></section>
+      <details class="ia-ajustar"><summary>${icon('gauge', 18)}<span><b>Ajustar</b><small>Andamento, tom, compasso, letra e cifra</small></span>${icon('down', 18)}</summary>
       <div class="settings-group ia-ajustes">
-        <div class="setting wrap"><span class="ico">${icon('score', 18)}</span><div class="grow"><div class="t">Vozes</div><div class="s" id="ia-vozes-s">Coral: soprano, contralto, tenor e baixo</div></div>
-          <div class="chips" id="ia-vozes"><button class="chip" data-vozes="4" aria-pressed="true">Coral</button><button class="chip" data-vozes="4a" aria-pressed="false">Coral do áudio</button><button class="chip" data-vozes="1" aria-pressed="false">Melodia</button></div></div>
         <div class="setting wrap"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Andamento</div><div class="s">Notas picadas demais? Use a metade</div></div>
           <div class="seg"><button data-bpm="-4" aria-label="Mais devagar">${icon('minus', 15)}</button><span class="val" id="ia-bpm">${Math.round(bpm)}</span><button data-bpm="4" aria-label="Mais rápido">${icon('plus', 15)}</button></div>
           <div class="chips"><button class="chip" data-bpmx="0.5">Metade</button><button class="chip" data-bpmx="2">Dobro</button></div></div>
@@ -13823,8 +13826,8 @@ async function gerarComIA(song, titulo, { salvarSozinho = false } = {}) {
           <div class="seg"><button data-oit="-1">8ª↓</button><span class="val" id="ia-oit">0</span><button data-oit="1">8ª↑</button></div></div>
       </div></details>
       <div class="ia-acoes">
-        <button class="btn ghost" id="ia-denovo">${icon('refresh', 16)} Gerar de novo</button>
-        <div class="ia-acoes-dir"><button class="btn" id="ia-abrir">${icon('edit', 16)} Editar</button><button class="btn primary" id="ia-salvar">${icon('save', 16)} Salvar</button></div>
+        <button class="icon-btn ia-denovo" id="ia-denovo" aria-label="Gerar de novo" title="Gerar de novo">${icon('refresh', 18)}</button>
+        <button class="btn" id="ia-abrir">${icon('edit', 16)} Editar</button><button class="btn primary" id="ia-salvar">${icon('save', 16)} Salvar</button>
       </div></div>`;
     let ensaio = null;
     aoSair(() => ensaio?.parar());
