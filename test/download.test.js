@@ -225,3 +225,21 @@ test('download: o "Baixar" dos ⋮ tira a pausa de antes e avisa na tela se não
   assert.match(baixar, /if \(s\.baixado \|\| precisaBaixar\(s\) \|\| qualidade\) return false;/);
   assert.match(app, /if \(baixarComAviso\.has\(id\)\) void ask\(\{ title: 'Não deu para baixar'/);
 });
+
+test('qualidades de verdade: 2K e 4K no vídeo, a máxima no áudio, e o 360p só como último recurso no celular', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /\['4k', '4K', 'até 2160p \(Ultra HD\)/);
+  assert.match(app, /\['2k', '2K', 'até 1440p/);
+  assert.match(app, /\['maxima', 'Máxima', 'AAC 256 kb\/s/);
+  // trocar a qualidade baixa de novo as que estão em outra, sozinho
+  assert.match(app, /espera = setTimeout\(\(\) => \{ espera = 0; void rebaixar\(\); \}, 2500\)/);
+  // o vídeo marcado numa qualidade mas que veio numa imagem bem menor conta como abaixo (e os novos vêm conferidos)
+  assert.match(app, /alturaConferida: true/);
+  const java = await readFile(new URL('../app-android/android/app/src/main/java/br/ecoa/app/Baixador.java', import.meta.url), 'utf8');
+  const fv = java.slice(java.indexOf('static String formatoVideo('), java.indexOf('static String tipoDoArquivo('));
+  const qualquer = fv.indexOf('alt + "+bestaudio');
+  assert.ok(qualquer > 0 && qualquer < fv.indexOf('/18/'), 'qualquer imagem até a altura antes do MP4 pronto de 360p');
+  assert.match(java, /case "4k": return 2160;/);
+  assert.match(java, /res\.altura >= alvo/);
+});

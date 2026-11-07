@@ -67,15 +67,22 @@ final class Baixador {
         }
     }
 
-    // ---- os formatos (os mesmos de servidor-ia/youtube.py) ----
+    // ---- os formatos (os de servidor-ia/youtube.py, com o 2K, o 4K e o áudio máximo a mais) ----
+    // vídeo: normal 480p, alta 720p, muito alta 1080p, 2k 1440p, 4k 2160p; áudio: normal AAC 48 kb/s, alta AAC 128,
+    // muito alta Opus ~160 (a melhor que o YouTube costuma ter), máxima AAC 256 quando o YouTube tem (raro), senão a melhor
     static String qualidade(String q) {
-        return "normal".equals(q) || "muito-alta".equals(q) ? q : "alta";
+        switch (q == null ? "" : q) {
+            case "normal": case "muito-alta": case "2k": case "4k": case "maxima": return q;
+            default: return "alta";
+        }
     }
 
     static int alturaDoVideo(String q) {
         switch (qualidade(q)) {
             case "normal": return 480;
-            case "muito-alta": return 1080;
+            case "muito-alta": case "maxima": return 1080;
+            case "2k": return 1440;
+            case "4k": return 2160;
             default: return 720;
         }
     }
@@ -85,17 +92,25 @@ final class Baixador {
             case "normal": return "bestaudio[ext=m4a][abr<=64]/worstaudio[ext=m4a]/bestaudio[ext=m4a]/bestaudio/best";
             // (o Opus toca no Android; no iPhone não, mas o APK é só do Android)
             case "muito-alta": return "bestaudio[acodec=opus]/bestaudio[ext=m4a]/bestaudio/best";
+            case "maxima": return "bestaudio[ext=m4a][abr>=200]/bestaudio[acodec=opus]/bestaudio[ext=m4a]/bestaudio/best";
             default: return "bestaudio[ext=m4a][abr>64]/bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best";
         }
     }
 
+    // A imagem até a altura da qualidade. Até 1080p, em H.264 (avc1: o celular toca com o mínimo de bateria); acima, o
+    // YouTube só tem VP9 ou AV1, e o VP9 vem primeiro (o AV1 em 4K pesa demais em muito celular). Sem nenhum desses
+    // na altura, qualquer imagem até ela, e só por último o MP4 pronto de 360p (o "18"): antes ele vinha logo na
+    // terceira opção, e o vídeo saía em 360p mesmo com a "Muito alta" escolhida
     static String formatoVideo(String q) {
         int h = alturaDoVideo(q);
         String som = "normal".equals(qualidade(q)) ? "bestaudio[ext=m4a][abr<=64]" : "bestaudio[ext=m4a]";
-        return "bestvideo[height<=" + h + "][vcodec^=avc1]+" + som
-            + "/bestvideo[height<=" + h + "][vcodec^=avc1]+bestaudio[ext=m4a]"
-            + "/bestvideo[height<=" + h + "][ext=mp4]+bestaudio[ext=m4a]"
-            + "/best[ext=mp4][height<=" + h + "][vcodec!=none][acodec!=none]"
+        String alt = "[height<=" + h + "]";
+        String preferido = h > 1080
+            ? "bestvideo" + alt + "[vcodec^=vp09]+" + som + "/bestvideo" + alt + "[vcodec^=vp09]+bestaudio/bestvideo" + alt + "[vcodec^=avc1]+" + som
+            : "bestvideo" + alt + "[vcodec^=avc1]+" + som + "/bestvideo" + alt + "[vcodec^=avc1]+bestaudio[ext=m4a]";
+        return preferido
+            + "/bestvideo" + alt + "[vcodec^=vp09]+bestaudio[ext=m4a]/bestvideo" + alt + "+bestaudio[ext=m4a]/bestvideo" + alt + "+bestaudio"
+            + "/best[ext=mp4]" + alt + "[vcodec!=none][acodec!=none]/best" + alt
             + "/18/best[ext=mp4]/best";
     }
 
@@ -151,6 +166,7 @@ final class Baixador {
         String[][] clientes = { null, { "tv" }, { "android_vr" }, { "web_safari" }, { "mweb" } };
         Exception ultimo = null;
         Exception primeiroQueNaoPedeLogin = null;
+        Resultado melhor = null;
         for (String[] cliente : clientes) {
             limpar(pasta);
             pasta.mkdirs();
@@ -195,7 +211,15 @@ final class Baixador {
                 res.tipo = tipoDoArquivo(f.getName(), comVideo);
                 if (comVideo && !res.tipo.startsWith("video/")) throw new IllegalStateException("veio só o áudio, não o videoclipe");
                 lerInformacoes(r.getOut(), res);
-                return res;
+                // A imagem veio abaixo do pedido (o YouTube não deu, por este "cliente", os formatos melhores, e veio o
+                // de 360p): guarda este e tenta pelos outros clientes, ficando com o de imagem maior. Se dois clientes
+                // entregam a mesma altura, ela é a maior que o vídeo tem (um clipe antigo, por exemplo): para ali
+                int alvo = Math.min(alturaDoVideo(qualidade), 720);
+                if (!comVideo || res.altura == null || res.altura >= alvo) { soltarMelhor(melhor); return res; }
+                boolean repetiu = melhor != null && melhor.altura != null && melhor.altura.intValue() == res.altura.intValue();
+                if (melhor == null || melhor.altura == null || res.altura > melhor.altura) { soltarMelhor(melhor); melhor = guardarMelhor(res, pasta); }
+                if (repetiu) { limpar(pasta); return melhor; }
+                continue;
             } catch (YoutubeDL.CanceledException e) {
                 limpar(pasta);
                 throw e;
@@ -209,8 +233,28 @@ final class Baixador {
             }
         }
         limpar(pasta);
+        if (melhor != null) return melhor;
         Exception e = primeiroQueNaoPedeLogin != null ? primeiroQueNaoPedeLogin : ultimo;
         throw new Exception(explicar(e));
+    }
+
+    static void soltarMelhor(Resultado melhor) {
+        if (melhor == null || melhor.arquivo == null) return;
+        File pasta = melhor.arquivo.getParentFile();
+        limpar(pasta);
+        //noinspection ResultOfMethodCallIgnored
+        if (pasta != null) pasta.delete();
+    }
+
+    // o melhor download até agora, fora da pasta de trabalho (que é limpa a cada tentativa), dentro de baixar/
+    static Resultado guardarMelhor(Resultado res, File pasta) {
+        File destino = new File(pasta.getParentFile(), pasta.getName() + "-melhor");
+        limpar(destino);
+        //noinspection ResultOfMethodCallIgnored
+        destino.mkdirs();
+        File novo = new File(destino, res.arquivo.getName());
+        if (res.arquivo.renameTo(novo)) res.arquivo = novo;
+        return res;
     }
 
     static void lerInformacoes(String saida, Resultado res) {

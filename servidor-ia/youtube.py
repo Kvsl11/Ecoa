@@ -154,17 +154,21 @@ def baixar_audio(video: str, pasta: str, progresso=lambda p: None) -> dict:
 # reserva: o Safari do iPhone não toca). A qualidade é a escolhida no app (Ajustes → Economia de dados e offline), como
 # no Spotify: normal, alta ou muito alta. O YouTube só entrega o vídeo com o som juntos até 360p: acima disso vêm a
 # imagem e o som separados, e o ffmpeg junta os dois num MP4 só (sem converter: é rápido)
-QUALIDADES = ("normal", "alta", "muito-alta")
-ALTURA_VIDEO = {"normal": 480, "alta": 720, "muito-alta": 1080}
+QUALIDADES = ("normal", "alta", "muito-alta", "2k", "4k", "maxima")
+# (2K e 4K: acima de 1080p o YouTube só tem VP9/AV1, juntados num MP4 do mesmo jeito; "maxima" é do áudio)
+ALTURA_VIDEO = {"normal": 480, "alta": 720, "muito-alta": 1080, "2k": 1440, "4k": 2160, "maxima": 1080}
 # o som: o M4A de 48 kb/s (o 139 do YouTube) no normal, o de 128 kb/s (o 140) no alto e, no muito alto, o Opus de
 # 160 kb/s (o melhor do YouTube; o app pede "alta" no iPhone, que não toca o Opus)
 FORMATO_AUDIO = {
     "normal": "bestaudio[ext=m4a][abr<=64]/worstaudio[ext=m4a]/bestaudio[ext=m4a]/bestaudio/best",
     "alta": "bestaudio[ext=m4a][abr>64]/bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best",
     "muito-alta": "bestaudio[acodec=opus]/bestaudio[ext=m4a]/bestaudio/best",
+    # (o M4A de 256 kb/s, o 141, quando o YouTube tem: raro; senão o melhor que houver)
+    "maxima": "bestaudio[ext=m4a][abr>=200]/bestaudio[acodec=opus]/bestaudio[ext=m4a]/bestaudio/best",
 }
 SOM_DO_VIDEO = {"normal": "bestaudio[ext=m4a][abr<=64]/bestaudio[ext=m4a]", "alta": "bestaudio[ext=m4a]",
-                "muito-alta": "bestaudio[ext=m4a]"}
+                "muito-alta": "bestaudio[ext=m4a]", "2k": "bestaudio[ext=m4a]", "4k": "bestaudio[ext=m4a]",
+                "maxima": "bestaudio[ext=m4a]"}
 
 
 def formato_video(qualidade: str) -> str:
@@ -173,11 +177,18 @@ def formato_video(qualidade: str) -> str:
     q = qualidade if qualidade in QUALIDADES else "alta"
     h = ALTURA_VIDEO[q]
     som = SOM_DO_VIDEO[q]
-    return "/".join([
+    preferido = ([f"bestvideo[height<={h}][vcodec^=vp09]+{som.split('/')[0]}", f"bestvideo[height<={h}][vcodec^=vp09]+bestaudio"]
+                 if h > 1080 else [])
+    # (o MP4 pronto de 360p, o 18, só depois de qualquer imagem até a altura: antes ele vinha logo, e o vídeo saía em
+    # 360p mesmo com a qualidade alta escolhida, quando o YouTube não dava o H.264)
+    return "/".join(preferido + [
         f"bestvideo[height<={h}][vcodec^=avc1]+{som.split('/')[0]}",
         f"bestvideo[height<={h}][vcodec^=avc1]+bestaudio[ext=m4a]",
-        f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]",
+        f"bestvideo[height<={h}][vcodec^=vp09]+bestaudio[ext=m4a]",
+        f"bestvideo[height<={h}]+bestaudio[ext=m4a]",
+        f"bestvideo[height<={h}]+bestaudio",
         f"best[ext=mp4][height<={h}][vcodec!=none][acodec!=none]",
+        f"best[height<={h}]",
         "18", "best[ext=mp4]", "best",
     ])
 
