@@ -107,6 +107,15 @@ public class MainActivity extends BridgeActivity {
 
     // Ao voltar: a página responde? Se em 10 s não responder (travou) ou voltar sem nada desenhado, a tela é refeita
     private int conferencia = 0;
+    // "ok": o app terminou de abrir (window.__songbookOk, do app.js); senão, quantas coisas a página tem
+    private static final String SITUACAO = "(function(){return window.__songbookOk ? 'ok' : (document.body ? document.body.children.length : 0)})()";
+    // (no máximo 2 recargas seguidas sem o app abrir: depois, a tela é refeita de vez, sem ficar recarregando em ciclo)
+    private int recargas = 0;
+
+    private void recarregar(WebView w) {
+        if (++recargas > 2) { recargas = 0; refazerATela(); return; }
+        try { w.reload(); } catch (Exception e) { refazerATela(); }
+    }
 
     @Override
     public void onResume() {
@@ -118,10 +127,20 @@ public class MainActivity extends BridgeActivity {
             WebView w = getBridge() == null ? null : getBridge().getWebView();
             if (w == null || esta != conferencia) return;
             try {
-                w.evaluateJavascript("(function(){return document.body ? document.body.children.length : 0})()", (r) -> {
+                w.evaluateJavascript(SITUACAO, (r) -> {
                     respondeu[0] = true;
                     // (a página sem nada: carrega de novo)
-                    if ("0".equals(r) || "null".equals(r)) { try { w.reload(); } catch (Exception e) { refazerATela(); } }
+                    if ("0".equals(r) || "null".equals(r)) { recarregar(w); return; }
+                    if ("\"ok\"".equals(r)) { recargas = 0; return; }
+                    // A página responde, mas o app não terminou de abrir (ficou esperando algo da internet que não veio, com
+                    // a tela vazia): mais um tempo e, ainda sem abrir, carrega de novo. Antes só se conferia se a página
+                    // tinha alguma coisa dentro, e ela tinha, então a tela ficava cinza para sempre
+                    principal.postDelayed(() -> {
+                        if (esta != conferencia) return;
+                        try {
+                            w.evaluateJavascript(SITUACAO, (r2) -> { if (!"\"ok\"".equals(r2)) recarregar(w); else recargas = 0; });
+                        } catch (Exception e) { refazerATela(); }
+                    }, 8000);
                 });
             } catch (Exception e) {
                 refazerATela();

@@ -30,6 +30,7 @@ import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './li
 import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
@@ -10919,9 +10920,9 @@ async function todasDoArtista(d) {
 }
 
 // (o tom fica num chip discreto à direita, como na biblioteca; embaixo do nome, o artista)
-const linhaFaixa = (f, i, n, foto, artista = '') => `<li class="track clickable faixa${f.url ? '' : ' sem-cifra'}" data-i="${i}" style="grid-template-columns:auto auto 1fr auto">
+const linhaFaixa = (f, i, n, foto, artista = '') => `<li class="track clickable faixa${f.url || f.versao ? '' : ' sem-cifra'}" data-i="${i}" style="grid-template-columns:auto auto 1fr auto">
   <span class="num">${n}</span>${capa({ titulo: f.titulo, capa: f.capa || foto })}<div class="info"><div class="t">${esc(f.titulo)}</div>
-  <div class="s">${f.url ? `${f.tom ? '' : `<span class="ind"><span class="ind-i" title="Tem cifra">${icon('chord', 11)}</span></span>`}${esc(artista || 'Cifra')}` : 'Sem cifra no Cifra Club'}</div></div>
+  <div class="s">${f.url ? `${f.tom ? '' : `<span class="ind"><span class="ind-i" title="Tem cifra">${icon('chord', 11)}</span></span>`}${esc(artista || 'Cifra')}` : f.versao ? esc(artista) : 'Sem cifra no Cifra Club'}</div></div>
   <span class="acts">${f.url && f.tom ? `<span class="chip sm key" title="Tom ${esc(f.tom)}">${esc(f.tom)}</span>` : ''}${botaoSalvar({ titulo: f.titulo, artista, cifra: f.url || '' }, 'mini')}<button class="icon-btn" aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 async function viewArtista(slug, nome) {
@@ -11118,6 +11119,7 @@ async function viewArtistaPeloNome(nome) {
 }
 const TIPO_ALBUM = { album: 'Álbum', single: 'Single', ep: 'EP' };
 async function viewAlbum(slug, nome, albumUrl) {
+  const aqui = location.hash;
   setTab('buscar');
   setTint('#2f3a4f');
   const voltar = `#/artista/${encodeURIComponent(slug)}/${encodeURIComponent(nome)}`;
@@ -11134,6 +11136,19 @@ async function viewAlbum(slug, nome, albumUrl) {
     const igual = comCifraDoArtista.find((m) => normalizar(tituloLimpo(m.titulo)) === normalizar(tituloLimpo(f.titulo)));
     if (igual) Object.assign(f, { url: igual.url, tom: igual.tom });
   }
+  // (as faixas conferidas com o mesmo álbum no Deezer: num disco de versões, a faixa que o Cifra Club lista com o nome
+  // da original fica com o nome de verdade e é procurada por ele; o álbum não espera muito por isso)
+  const conferir = () => faixasDoAlbumNoDeezer(nome, al.titulo).then((titulos) => {
+    const r = faixasPeloDeezer(al.faixas, titulos);
+    r.forEach((x, i) => {
+      if (!x) return;
+      Object.assign(al.faixas[i], { titulo: x.titulo, url: '', tom: '', versao: true, artista: x.participacoes ? `${nome} feat. ${x.participacoes}` : nome });
+    });
+    return r.some(Boolean);
+  }).catch(() => false);
+  const conferencia = al.conferidoNoDeezer ? Promise.resolve(false) : conferir();
+  al.conferidoNoDeezer = true;
+  await noMaximo(conferencia, 1500, false);
   setHeader(al.titulo.trim(), { back: voltar, eyebrow: nome });
   const comCifra = al.faixas.filter((f) => f.url).length;
   // o tipo (álbum, single, EP; ao vivo e coletânea pelo nome), o ano e as faixas; vindo do "Ver álbum" de uma música,
@@ -11147,7 +11162,12 @@ async function viewAlbum(slug, nome, albumUrl) {
       <div><div class="kind">${esc(tipo[0])}</div><h2>${esc(al.titulo.trim())}</h2>
       <div class="meta"><a href="${voltar}"><b>${esc(nome)}</b></a>${al.ano ? ` · ${esc(al.ano)}` : ''} · ${nFaixas}${comCifra < al.faixas.length ? ` (${comCifra} com cifra)` : ''}</div>
       ${al.ano ? `<div class="album-dados"><span>${icon('calendar', 14)} Lançado em ${esc(al.ano)}</span><span>${icon('list', 14)} ${nFaixas}</span>${comCifra ? `<span>${icon('chord', 14)} ${comCifra} com cifra</span>` : ''}</div>` : ''}</div></section>
-    <ul class="tracks" id="faixas">${al.faixas.map((f, i) => linhaFaixa({ ...f, capa: al.capa }, i, i + 1, al.capa, nome)).join('')}</ul>`;
+    <ul class="tracks" id="faixas">${al.faixas.map((f, i) => linhaFaixa({ ...f, capa: al.capa }, i, i + 1, al.capa, f.artista || nome)).join('')}</ul>`;
+  // (a conferência que chegou depois do desenho: as faixas são desenhadas de novo, com os nomes de verdade)
+  conferencia.then((mudou) => {
+    const lista = $('#faixas');
+    if (mudou && lista && location.hash === aqui) lista.innerHTML = al.faixas.map((f, i) => linhaFaixa({ ...f, capa: al.capa }, i, i + 1, al.capa, f.artista || nome)).join('');
+  });
   if (destaque) {
     const i = al.faixas.findIndex((f) => normalizar(tituloLimpo(f.titulo)) === normalizar(tituloLimpo(destaque)));
     const li = i >= 0 && $(`#faixas li[data-i="${i}"]`);
@@ -11156,8 +11176,26 @@ async function viewAlbum(slug, nome, albumUrl) {
   $('#faixas').addEventListener('click', (e) => {
     const li = e.target.closest('li[data-i]');
     const f = li && al.faixas[Number(li.dataset.i)];
-    if (f) abrirMusica({ titulo: f.titulo, artista: nome, cifra: f.url }, location.hash, li);
+    if (f) abrirMusica({ titulo: f.titulo, artista: f.artista || nome, cifra: f.url }, location.hash, li);
   });
+}
+// As faixas do mesmo álbum no Deezer (os nomes, na ordem dele): o álbum do artista com o mesmo nome, sem o que vem entre
+// parênteses (a edição). Guardadas no aparelho como o resto do que se sabe do artista
+const albunsNoDeezer = new Map();
+function faixasDoAlbumNoDeezer(artista, album) {
+  const nomeDoAlbum = nomeSemExtras(album);
+  const k = `${normalizar(artista)}|${normalizar(nomeDoAlbum)}`;
+  if (!artista || !nomeDoAlbum) return Promise.resolve([]);
+  if (!albunsNoDeezer.has(k)) {
+    albunsNoDeezer.set(k, comUltimoValor('dzalbum', k, async () => {
+      const r = await jsonp(`https://api.deezer.com/search/album?q=${encodeURIComponent(`${artista} ${nomeDoAlbum}`)}&limit=15`);
+      const certo = (r?.data || []).find((a) => mesmoNomeDeArtista(a.artist?.name || '', artista) && normalizar(nomeSemExtras(a.title)) === normalizar(nomeDoAlbum));
+      if (!certo?.id) return [];
+      const f = await jsonp(`https://api.deezer.com/album/${certo.id}/tracks?limit=200`);
+      return (f?.data || []).map((t) => t.title).filter(Boolean);
+    }).then((l) => (Array.isArray(l) ? l : [])).catch(() => { albunsNoDeezer.delete(k); return []; }));
+  }
+  return albunsNoDeezer.get(k);
 }
 
 async function viewCategoria(id, nome) {
