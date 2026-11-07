@@ -1497,7 +1497,10 @@ body.performance #song.lyrics-mode { background: var(--painel); padding-bottom: 
 .salvar-btn:active { transform: scale(0.92); }
 .salvar-btn.salva svg { animation: salvar-pop 0.25s ease-out; }
 @keyframes salvar-pop { from { transform: scale(0.4); } to { transform: scale(1); } }
-.salvar-btn.mini { width: 26px; height: 26px; border-width: 1.5px; }
+.salvar-btn.mini { width: 26px; height: 26px; border-width: 1.5px; position: relative; }
+/* (a área do toque maior que o círculo: no celular, o toque um pouco fora dos 26 px caía na linha, que abria a música
+   com a tela de carregamento, em vez de salvar) */
+.salvar-btn.mini::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; }
 .salvar-btn.mini svg { width: 13px; height: 13px; }
 .salvar-btn .spin { width: 12px; height: 12px; }
 

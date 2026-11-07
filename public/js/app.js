@@ -7359,8 +7359,9 @@ async function salvarDaInternet(tipo, item) {
   toast('Trazendo a música…');
   let r;
   try {
-    r = await trazerMusica(tipo === 'video' ? await musicaDoVideo(item)
-      : item.video && !item.cifra && !item.letra ? await musicaDoVideo(item.video, item) : item);
+    // (a mesma busca que começou quando o dedo encostou na linha: trazerMusicaJa aproveita, e salvar não começa do zero)
+    r = tipo === 'video' ? await trazerMusica(await musicaDoVideo(item))
+      : item.video && !item.cifra && !item.letra ? await trazerMusica(await musicaDoVideo(item.video, item)) : await trazerMusicaJa(item);
   } catch (e) {
     toast('Não consegui trazer: ' + e.message);
     return null;
@@ -10250,18 +10251,22 @@ document.addEventListener('click', async (e) => {
   if (!b || b.id === 'btn-biblio') return;
   e.preventDefault();
   e.stopPropagation();
-  if (b.disabled) return;
+  // (salvando: os toques seguintes são ignorados aqui. Antes o botão ficava desativado, e o toque num botão desativado
+  // não chega a ele: passava para a linha da música, que abria a música, com a tela de carregamento, em vez de salvar)
+  if (b.dataset.salvando) return;
   const item = { titulo: b.dataset.titulo, artista: b.dataset.artista, cifra: b.dataset.cifra, letra: b.dataset.letra, fotoArtista: b.dataset.fotoArtista || '' };
   const salva = musicaSalva(item);
   if (salva?.soNoRepertorio) { db.updateSong(salva.id, { soNoRepertorio: undefined }); marcarSalvar(b, true); toast('Salva na biblioteca'); return; }
   if (salva) { if (await tirarDaBiblioteca(salva)) marcarSalvar(b, false); return; }
-  b.disabled = true;
+  b.dataset.salvando = '1';
+  b.setAttribute('aria-busy', 'true');
   b.innerHTML = '<span class="spin"></span>';
   const video = b.dataset.video ? { id: b.dataset.video, url: `https://www.youtube.com/watch?v=${b.dataset.video}`, titulo: b.dataset.videoTitulo || item.titulo, canal: b.dataset.canal || '' } : null;
-  const id = await salvarDaInternet('musica', { titulo: item.titulo, artista: item.artista, cifra: item.cifra, letra: item.letra ? { url: item.letra, titulo: item.titulo, artista: item.artista } : null, video, fotoArtista: item.fotoArtista || '' });
-  b.disabled = false;
+  const id = await salvarDaInternet('musica', { titulo: item.titulo, artista: item.artista, cifra: item.cifra, letra: item.letra ? { url: item.letra, titulo: item.titulo, artista: item.artista } : null, video, fotoArtista: item.fotoArtista || '' }).catch(() => null);
+  delete b.dataset.salvando;
+  b.removeAttribute('aria-busy');
   marcarSalvar(b, !!id);
-  if (id) toast('Salva na biblioteca');
+  toast(id ? 'Salva na biblioteca' : 'Não consegui salvar agora. Tente de novo');
 }, true);
 
 // (os sinais dizem o que vem junto: cifra, letra e vídeo; o vídeo sozinho abre como música, com a cifra e a letra)
@@ -10359,7 +10364,7 @@ async function viewEstilo(k) {
   const aqui = location.hash;
   let lista = [];
   $('#est-mus').addEventListener('click', (e) => {
-    const li = e.target.closest('[data-web]');
+    const li = !e.target.closest('[data-salvar]') && e.target.closest('[data-web]');
     const item = li && lista[Number(li.dataset.i)];
     if (item) abrirMusica(item, aqui, li);
   });
@@ -10406,7 +10411,7 @@ function viewSearch() {
   });
   res.addEventListener('click', (e) => {
     const li = e.target.closest('[data-web]');
-    if (!li) return;
+    if (!li || e.target.closest('[data-salvar]')) return;
     e.preventDefault();
     const item = achados[li.dataset.web][Number(li.dataset.i)];
     if (!item) return;
@@ -17521,9 +17526,13 @@ function botaoPlayDaUltima(song) {
   const toca = ultimaTocando(song);
   return `<span class="pg-play${toca ? ' pausar' : ''}" role="button" tabindex="0" data-tocar aria-label="${toca ? 'Pausar' : 'Tocar'}">${icon(toca ? 'pause' : 'play', 18)}</span>`;
 }
+// (a música do cartão pelo id: a da biblioteca ou, 'previa', a aberta pela busca que ainda não foi salva)
+const musicaDaGaveta = (id) => (id === 'previa' ? (preview?.title ? preview : null) : db.song(id));
 function infoDaGaveta(u) {
-  // (sem tocadas na lista, como quando a sincronia trouxe a lista vazia: a música que está no player)
-  const ultima = db.recent()[0] || db.song(player.atual?.songId || '');
+  // A que está no player, se é a aberta pela busca (não salva, ela não entra nas tocadas da biblioteca: antes o cartão
+  // mostrava a anterior); senão, a última tocada; sem tocadas (a sincronia trouxe a lista vazia), a que está no player
+  const doPlayer = player.atual?.songId === 'previa' ? musicaDaGaveta('previa') : null;
+  const ultima = doPlayer || db.recent()[0] || db.song(player.atual?.songId || '');
   const fundo = ultima ? capaDaMusica(ultima) : '';
   // a conta já aparece no topo (foto, nome e e-mail): o cartão da sincronia só aparece quando ela deu erro
   return `
@@ -17682,11 +17691,11 @@ function abrirGavetaDoPerfil() {
     const c = $('.pg-ultima', g);
     if (!c) return;
     const b = $('[data-tocar]', c);
-    const toca = ultimaTocando(db.song(c.dataset.id));
-    if (b && b.classList.contains('pausar') !== toca) b.outerHTML = botaoPlayDaUltima(db.song(c.dataset.id));
+    const toca = ultimaTocando(musicaDaGaveta(c.dataset.id));
+    if (b && b.classList.contains('pausar') !== toca) b.outerHTML = botaoPlayDaUltima(musicaDaGaveta(c.dataset.id));
   };
   const tocarUltima = (c) => {
-    const song = db.song(c.dataset.id);
+    const song = musicaDaGaveta(c.dataset.id);
     if (!song) return;
     if (!midiaDe(song)) { location.hash = c.getAttribute('href'); return; } // sem vídeo nem áudio: a tela dela é onde se escolhe um
     if (player.desta(midiaDe(song))) player.alternar(); else player.tocar(itemDoPlayer(song));
