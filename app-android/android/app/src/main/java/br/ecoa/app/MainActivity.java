@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -94,6 +95,11 @@ public class MainActivity extends BridgeActivity {
                 refazerATela();
                 return true; // (tratado: sem isto, o Android fecha o app)
             }
+
+            @Override
+            public void onPageLoaded(WebView webView) {
+                avisarTema();
+            }
         });
     }
 
@@ -117,9 +123,31 @@ public class MainActivity extends BridgeActivity {
         try { w.reload(); } catch (Exception e) { refazerATela(); }
     }
 
+    // ---- o modo escuro ou claro do aparelho, para o tema "Automático" do app
+    // O WebView não responde ao prefers-color-scheme pelo aparelho, e sim pelo tema do app (e a tela não é refeita quando
+    // o modo do Android muda: uiMode está em configChanges), então o automático caía no claro com o aparelho no escuro.
+    // O Android diz o modo de verdade à página (window.ecoaTemaDoSistema e o evento "ecoa:tema") ao abrir, ao voltar ao
+    // app e quando o modo muda; a página guarda o último para o começo da próxima abertura (index.html)
+    private void avisarTema() {
+        WebView w = getBridge() == null ? null : getBridge().getWebView();
+        if (w == null) return;
+        boolean escuro = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        String t = escuro ? "dark" : "light";
+        String js = "(function(){window.ecoaTemaDoSistema='" + t + "';try{localStorage.setItem('songbook.temaSistema','" + t
+            + "')}catch(e){}try{window.dispatchEvent(new Event('ecoa:tema'))}catch(e){}})()";
+        principal.post(() -> { try { w.evaluateJavascript(js, null); } catch (Exception e) { /* a página ainda não abriu */ } });
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration nova) {
+        super.onConfigurationChanged(nova);
+        avisarTema();
+    }
+
     @Override
     public void onResume() {
         super.onResume();
+        avisarTema();
         if (getBridge() == null || getBridge().getWebView() == null) return;
         final int esta = ++conferencia;
         final boolean[] respondeu = { false };

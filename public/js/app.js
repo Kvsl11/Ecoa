@@ -978,10 +978,20 @@ const rgbHex = (c) => '#' + c.map((x) => Math.max(0, Math.min(255, Math.round(x)
 const mistura = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 const luminancia = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
 
+// o modo do aparelho, para o tema "Automático". No app de Android, quem diz é o próprio Android (MainActivity:
+// window.ecoaTemaDoSistema, e o último fica guardado): o WebView responde ao prefers-color-scheme pelo tema do app, e não
+// pelo do aparelho, e o automático caía no claro com o celular no escuro. No navegador, o prefers-color-scheme vale
+function temaDoAparelho() {
+  if (window.ecoaTemaDoSistema === 'dark' || window.ecoaTemaDoSistema === 'light') return window.ecoaTemaDoSistema;
+  if (/EcoaAndroid/.test(navigator.userAgent)) {
+    try { const g = localStorage.getItem('songbook.temaSistema'); if (g === 'dark' || g === 'light') return g; } catch { /* sem armazenamento */ }
+  }
+  return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
 function temaEfetivo() {
   const t = db.prefs().theme || 'dark';
   if (t !== 'auto') return t;
-  return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return temaDoAparelho();
 }
 
 function corDestaque() {
@@ -1025,6 +1035,8 @@ function applyTheme() {
   try { void window.Capacitor?.Plugins?.Ecoa?.barras?.({ escuros: tema === 'light' })?.catch?.(() => {}); } catch { /* app antigo */ }
 }
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { if (db.prefs().theme === 'auto') applyTheme(); });
+// (o Android avisou o modo do aparelho: ao abrir, ao voltar ao app e quando ele muda)
+addEventListener('ecoa:tema', () => { if (db.prefs().theme === 'auto' && document.documentElement.dataset.theme !== temaEfetivo()) applyTheme(); });
 
 // guarda a cor litúrgica de hoje (para a opção "cor litúrgica do dia")
 function lembrarCorLiturgica(data, cor) {
