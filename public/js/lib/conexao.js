@@ -14,3 +14,15 @@ export function estadoDaConexao({ online = true, rede = null } = {}) {
 }
 
 export const TEXTO_DA_CONEXAO = { offline: 'Você está offline', lenta: 'Conexão lenta', volta: 'Conectado novamente' };
+
+// A estimativa de velocidade do Android e a do navegador (o navigator.connection) não bastam para dizer que a conexão
+// está lenta: nos dados móveis, muitos aparelhos e operadoras informam um número baixo e fixo mesmo com a internet boa,
+// e o "Conexão lenta" aparecia sempre fora do Wi-Fi. Elas só levantam a suspeita; quem confirma é uma medida de
+// verdade: pedidos pequenos à internet, cronometrados. tempos: os milissegundos de cada pedido (Infinity: não
+// respondeu a tempo). Lenta quando a maioria demorou mais que o limite
+export const LIMITE_LENTA_MS = 1800;
+export function lentaPelasMedidas(tempos, limite = LIMITE_LENTA_MS) {
+  const ts = (tempos || []).filter((t) => typeof t === 'number' && !Number.isNaN(t));
+  if (!ts.length) return false;
+  return ts.filter((t) => t > limite).length > ts.length / 2;
+}
