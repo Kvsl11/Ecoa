@@ -5,8 +5,9 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 597, data: '2026-11-07', titulo: 'Busca restrita a conteúdo externo e notas de versão em registro técnico',
+    versao: 597, data: '2026-11-07', titulo: 'Salvamento direto pelo player, busca restrita a conteúdo externo e notas de versão em registro técnico',
     itens: [
+      { tipo: 'correcao', texto: 'O botão de salvar do player, acionado sobre uma música aberta pela busca ou sobre um vídeo de "Vídeos relacionados", abria a página da música com a tela de carregamento e só então tentava salvar; quando a música aberta vinha associada a outro vídeo, a verificação falhava e nada era salvo. O salvamento passou a ser executado diretamente no player, sem navegação nem tela de carregamento, pelo mesmo procedimento do botão de salvar das listas: o botão exibe um indicador de progresso e passa a ✓ ao concluir. Aplica-se à versão web e ao aplicativo Android.' },
       { tipo: 'melhoria', texto: 'A tela Buscar deixou de exibir a seção "Na sua biblioteca" e o filtro Biblioteca: os resultados passam a se limitar a conteúdo externo (músicas, artistas e acervo litúrgico), e a consulta ao conteúdo já salvo permanece disponível na busca da própria Biblioteca. Aplica-se à versão web e ao aplicativo Android.' },
       { tipo: 'melhoria', texto: 'As notas de versão exibidas em Novidades passaram a adotar registro técnico e formal, com a descrição objetiva da causa, da alteração implementada e do efeito obtido. As entradas das nove versões anteriores foram revisadas segundo o mesmo padrão.' },
     ],
