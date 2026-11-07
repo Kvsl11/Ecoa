@@ -5201,6 +5201,17 @@ dialog.pk-varias .pk-item { grid-template-columns: auto auto minmax(0, 1fr); }
 li[data-tipo].marcado .acts .chip { background: var(--accent); color: var(--on-accent); }
 .pk-acts { flex-wrap: nowrap; align-items: center; }
 .pk-acts [hidden] { display: none; }
+/* a folha de escolher músicas: a lista ocupa o espaço que sobra e rola sozinha, e os botões (Selecionar todas,
+   Cancelar, Adicionar) ficam sempre no rodapé. Antes a lista tinha uma altura fixa (52% da tela): com a folha puxada
+   para cima, os botões ficavam no meio, com um vazio embaixo */
+dialog.folha.pk-dlg[open] { display: flex; flex-direction: column; overflow: hidden; }
+dialog.folha.pk-dlg:not(.folha-cheia) { height: min(90dvh, 860px); }
+dialog.folha.pk-dlg .folha-cab { flex: none; }
+dialog.folha.pk-dlg .dlg { flex: 1; min-height: 0; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+dialog.folha.pk-dlg .pk-res, dialog.folha.pk-dlg .pk-res .tracks { max-height: none; }
+dialog.folha.pk-dlg .pk-res { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+dialog.folha.pk-dlg .pk-res .tracks { overflow: visible; }
+dialog.folha.pk-dlg .dlg > .acts { position: static; }
 
 /* ---- perfil e conta Google (como no Spotify): a foto no topo, a gaveta da esquerda e a página do perfil */
 .avatar { --t: 32px; position: relative; display: inline-grid; place-items: center; width: var(--t); height: var(--t); flex: none;

@@ -7229,6 +7229,7 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
     ${varias ? `<div class="acts pk-acts"><button class="btn ghost small" data-todas>Selecionar todas</button><span class="spacer"></span><button class="btn ghost" data-no>Cancelar</button><button class="btn primary" data-adicionar disabled>Adicionar</button></div>`
     : `<div class="acts"><button class="btn ghost" data-nova>${icon('edit', 16)} Criar do zero</button><span class="spacer"></span><button class="btn ghost" data-no>Fechar</button></div>`}`,
   (dlg, done) => {
+    dlg.classList.add('pk-dlg');
     if (varias) dlg.classList.add('pk-varias');
     const box = $('#pk-res', dlg);
     const input = $('#pk-q', dlg);
@@ -7244,9 +7245,12 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
       input.placeholder = aba === 'biblioteca' ? 'Buscar na biblioteca' : 'Música, artista ou trecho da letra';
       const q = input.value.trim();
       if (aba === 'biblioteca') {
-        const songs = db.songs().filter((s) => normalizar(s.title + ' ' + s.artist).includes(normalizar(q)));
+        const achadas = db.songs().filter((s) => normalizar(s.title + ' ' + s.artist).includes(normalizar(q)));
+        // (várias: as que já estão na playlist nem aparecem; só as que dá para adicionar)
+        const songs = varias ? achadas.filter((s) => !ja.has(s.id)) : achadas;
+        const todasJa = varias && achadas.length && !songs.length;
         box.innerHTML = varias ? `<ul class="tracks">${songs.map(linhaMarcavel).join('')}</ul>`
-          + (songs.length ? '' : `<p class="muted">Nada na biblioteca. <button class="link-btn" data-ir-internet>Procurar “${esc(q)}” na internet</button></p>`)
+          + (songs.length ? '' : `<p class="muted">${todasJa ? (q ? 'As músicas da biblioteca com esse nome já estão na playlist.' : 'Todas as músicas da biblioteca já estão na playlist.') : 'Nada na biblioteca.'} <button class="link-btn" data-ir-internet>Procurar ${q ? `“${esc(q)}”` : 'outras'} na internet</button></p>`)
           : `<ul class="tracks">${songs.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>`
           + (songs.length ? '' : `<p class="muted">Nada na biblioteca. <button class="link-btn" data-ir-internet>Procurar “${esc(q)}” na internet</button></p>`);
         return;
