@@ -10085,9 +10085,16 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
       img.decoding = 'async';
       if (comPrincipal && n === 0) principal = img;
       // (a que não abrir ou vier minúscula, a imagem cinza de "sem foto" do YouTube, sai; a do cartão só sai se não abrir)
-      img.onerror = () => img.remove();
+      img.onerror = () => {
+        img.remove();
+        if (!naTela()) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
+      };
       img.onload = async () => {
-        if (img !== principal && img.naturalWidth < 200) { img.remove(); return; }
+        if (img !== principal && img.naturalWidth < 200) {
+          img.remove();
+          if (!naTela()) caixaFotos.innerHTML = `<div class="sa-sem-foto">${semFotoArtista(120)}</div>`;
+          return;
+        }
         const h = await impressaoDaFoto(u);
         if (!h || !img.isConnected) return;
         for (const [outra, ho] of impressoes) {
@@ -11532,9 +11539,13 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   if (filtro === 'baixadas') itens = itens.filter((x) => x.baixado && !precisaBaixar(x));
   if (ordemMus === 'recentes') itens.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const marca = () => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
-  const linha = (s) => `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capa(s)}
-        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
+  const linha = (s) => {
+    const nomeArtista = primeiroArtistaDe(s.artist || '');
+    const foto = fotoReal(s.fotoArtista);
+    return `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capa(s)}
+        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${foto ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(nomeArtista)}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${foto ? `<img src="${esc(foto)}" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
         <span class="acts">${s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}</span></li>`;
+  };
   const vazio = !todas.length ? `<div class="empty"><div class="bubble">${icon('music', 32)}</div><h3>Sua biblioteca está vazia</h3>
       <p>Busque cantos, monte a missa do dia ou importe arquivos ChordPro.</p>
       <div class="row"><a class="btn primary" href="#/buscar">Buscar músicas</a><a class="btn" href="#/liturgia">Missa de hoje</a><button class="btn" id="imp">Importar</button></div></div>`
