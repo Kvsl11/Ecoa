@@ -4,6 +4,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 587, data: '2026-11-07', titulo: 'O "Conexão lenta" em branco',
+    itens: [
+      { tipo: 'melhoria', texto: 'O aviso "Conexão lenta", embaixo do menu, aparece em branco, como o "Você está offline" (antes era laranja).' },
+    ],
+  },
+  {
     versao: 586, data: '2026-11-07', titulo: 'O voltar do Android que não fecha o app',
     itens: [
       { tipo: 'correcao', texto: 'No app de Android, o gesto de voltar (ou o botão) fechava o app inteiro. Agora ele volta como no navegador: fecha primeiro o que estiver aberto (uma janela, uma folha, o menu, a gaveta do perfil) e depois volta para a tela anterior. Na primeira tela, o app vai para o segundo plano, sem fechar, e a música continua tocando. Vem com a atualização do app.' },
@@ -72,16 +78,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'novo', texto: 'No app de Android, a partitura pelo vídeo da música é feita no próprio celular, sem o servidor: o app baixa o áudio (ou usa o já baixado) e escreve a partitura ali mesmo.' },
       { tipo: 'correcao', texto: 'No app de Android, a tela Novidades passava da largura da tela (o texto era cortado à direita) e mostrava o número de versão do site. Agora cabe na tela e mostra a versão do app em que cada novidade chegou (quando o app sabe; senão, só a data).' },
-    ],
-  },
-  {
-    versao: 577, data: '2026-11-06', titulo: 'O karaokê e o Lúmen no próprio celular, no app de Android',
-    itens: [
-      { tipo: 'melhoria', texto: 'O app de Android não procura nem liga mais o servidor do GitHub (o Codespace) sozinho: era isso que gastava a cota de horas do mês. Os downloads, o karaokê, o Lúmen e a partitura agora são feitos no próprio celular.' },
-      { tipo: 'novo', texto: 'No app de Android, o karaokê é feito no próprio celular, sem o servidor: a voz é separada da banda ali mesmo (de 1 a 2 minutos por música, conforme o celular; na primeira vez o app baixa o modelo, de 30 MB). Depois fica guardado e toca na hora, até sem internet. Nesse karaokê, o back vocal sai junto com o cantor.' },
-      { tipo: 'novo', texto: 'No app de Android, o Lúmen responde direto do celular, sem o servidor: procura no acervo (inclusive no texto dos PDFs, guardado no aparelho) e pergunta ao Gemini, com a busca na web. Fotos, PDFs, áudios e vídeos enviados na conversa também vão direto para ele.' },
-      { tipo: 'correcao', texto: 'O Baixar dos ⋮ de uma música às vezes não fazia nada: a música que já tinha tido o download pausado entrava na fila e saía na hora, sem aviso. Agora tocar em Baixar sempre baixa; e, se não der certo, o motivo aparece na tela (e não só na notificação).' },
-      { tipo: 'correcao', texto: 'No aviso de versão nova do app de Android, "O que vem com ela" mostrava novidades antigas, que o app já tinha. Agora mostra as que chegam com a versão nova (a partir da próxima atualização).' },
     ],
   },
 ];

@@ -5911,7 +5911,8 @@ html.app-android :is(input, textarea, [contenteditable]:not([contenteditable="fa
   padding: 6px 14px; border-radius: 999px; background: var(--bg-elev); color: var(--text); font-size: 13px; font-weight: 700;
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.35); pointer-events: none; white-space: nowrap; }
 #aviso-rede[hidden] { display: none; }
-#aviso-rede.lenta { color: #f5a524; }
+/* (o "Conexão lenta" na mesma cor do "Você está offline": o branco do texto, e não laranja) */
+#aviso-rede.lenta { color: var(--text); }
 #aviso-rede.volta { color: #30a46c; }
 @media (max-width: 899px) {
   html.aviso-rede:not(.tablet) { --aviso-rede: 22px; }
