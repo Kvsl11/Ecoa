@@ -5903,11 +5903,11 @@ html.pp #player .pl-fixo-play, html.pp body.painel-cheio #player .pl-fixo-play, 
    é reta (parado, a primeira letra aparece inteira) e a da direita some aos poucos */
 #player .rolar { display: inline-block; white-space: nowrap; }
 #player .rolar.eco { margin-left: 48px; }
-#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b, .pl-letra-nome b) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda { text-overflow: clip;
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
-#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
+#player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b, .pl-letra-nome b).anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
 @keyframes pl-anda { 0%, 15% { transform: translateX(0); } 100% { transform: translateX(var(--giro, 0)); } }
 @media (prefers-reduced-motion: reduce) { #player :is(.pl-txt b, .pl-txt small, .pl-fixo-txt b).anda .rolar { animation: none; } }
 /* o artista na linha do nome: só na barrinha de baixo do celular com um fone conectado (embaixo vai o fone) */
@@ -6105,4 +6105,14 @@ dialog.yt-dlg .yt-acts [data-rm] { min-width: 0; padding: 0 14px; gap: 8px; }
 @media (min-width: 700px) {
   /* (no tablet e no computador: as duas colunas de antes, com a mesma linha) */
   dialog.yt-dlg .lista-videos { gap: 4px 10px; }
+}
+
+
+/* Nome da música na letra: mesma rolagem contínua do mini player, em qualquer tamanho de tela. */
+#player .pl-letra-nome { flex: 1 1 0; min-width: 0; max-width: 100%; overflow: hidden; }
+#player .pl-letra-nome b { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+#player .pl-letra-nome b.anda { text-overflow: clip; }
+#player .pl-letra-nome b.anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  #player .pl-letra-nome b.anda .rolar { animation: none; }
 }
