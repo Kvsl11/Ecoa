@@ -3178,7 +3178,7 @@ const player = (() => {
   // sai inteiro pela esquerda a cópia está exatamente onde ele começou: o giro recomeça sem pular)
   const ESPACO_DO_GIRO = 48;
   const medirNomes = () => requestAnimationFrame(() => {
-    el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b').forEach((linha) => {
+    el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b, .pl-letra-nome b').forEach((linha) => {
       const r = linha.querySelector(':scope > .rolar:not(.eco)');
       if (!r || !linha.clientWidth) return;
       let eco = linha.querySelector(':scope > .rolar.eco');
@@ -3289,7 +3289,7 @@ const player = (() => {
     desenharModos();
     el.querySelectorAll('.pl-t0').forEach((t) => { porTexto(t, duracao ? fmt(arrasto ? arrasto.fracao * duracao : tempo) : ''); });
     el.querySelectorAll('.pl-t1').forEach((t) => { porTexto(t, duracao ? fmt(duracao) : ''); });
-    porTexto($('.pl-letra-nome b', el), atual.titulo || '');
+    porHtml($('.pl-letra-nome b', el), `<span class="rolar">${esc(atual.titulo || '')}</span>`);
     porTexto($('.pl-letra-nome small', el), atual.artista || '');
     porTexto($('.pl-cab-meio b', el), atual.setId ? db.set(atual.setId)?.name || '' : atual.parte || '');
     desenharLetra();
