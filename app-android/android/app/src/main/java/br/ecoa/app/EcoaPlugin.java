@@ -163,7 +163,6 @@ public class EcoaPlugin extends Plugin {
         // O Intent da notificação pode chegar enquanto o Android ainda está retomando o WebView.
         // Disparar notifyListeners imediatamente perde o comando em alguns aparelhos: o JS está suspenso.
         // Aguarda a Activity voltar ao primeiro plano e só então entrega o evento ao player.
-        p.principal.removeCallbacksAndMessages(null);
         p.principal.postDelayed(() -> {
             EcoaPlugin atual = ativo;
             if (atual == null || atual.getBridge() == null) { pendente = acao; return; }
