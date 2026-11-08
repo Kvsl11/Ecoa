@@ -28,6 +28,9 @@ public final class Acoes {
     // O comando chega como Intent à Activity, em vez de depender de um evento JS enviado a um WebView
     // suspenso em segundo plano. O Android retoma a tela e onNewIntent entrega a ação ao player.
     static void fazer(Context ctx, String acao) {
+        // Com o player já carregado, manda direto ao WebView: não traz a Activity para a frente
+        // nem recria a tela só para pausar ou trocar de faixa.
+        if (EcoaPlugin.entregar(acao)) return;
         Intent abrir = new Intent(ctx, MainActivity.class);
         abrir.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         abrir.putExtra(EXTRA, acao);
