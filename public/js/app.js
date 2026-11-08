@@ -3290,6 +3290,7 @@ const player = (() => {
     el.querySelectorAll('.pl-t0').forEach((t) => { porTexto(t, duracao ? fmt(arrasto ? arrasto.fracao * duracao : tempo) : ''); });
     el.querySelectorAll('.pl-t1').forEach((t) => { porTexto(t, duracao ? fmt(duracao) : ''); });
     porHtml($('.pl-letra-nome b', el), `<span class="rolar">${esc(atual.titulo || '')}</span>`);
+    medirNomes();
     porTexto($('.pl-letra-nome small', el), atual.artista || '');
     porTexto($('.pl-cab-meio b', el), atual.setId ? db.set(atual.setId)?.name || '' : atual.parte || '');
     desenharLetra();
