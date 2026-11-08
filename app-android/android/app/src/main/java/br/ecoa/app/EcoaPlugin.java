@@ -160,16 +160,15 @@ public class EcoaPlugin extends Plugin {
     static boolean entregar(String acao) {
         EcoaPlugin p = ativo;
         if (p == null || p.getBridge() == null) { pendente = acao; return false; }
-        // O Intent da notificação pode chegar enquanto o Android ainda está retomando o WebView.
-        // Disparar notifyListeners imediatamente perde o comando em alguns aparelhos: o JS está suspenso.
-        // Aguarda a Activity voltar ao primeiro plano e só então entrega o evento ao player.
-        p.principal.postDelayed(() -> {
+        // O Android já retomou a Activity antes de onNewIntent chamar este método.
+        // Não acrescentar espera artificial: o evento fica retido pelo Capacitor até o JS ouvi-lo.
+        p.principal.post(() -> {
             EcoaPlugin atual = ativo;
             if (atual == null || atual.getBridge() == null) { pendente = acao; return; }
             JSObject dados = new JSObject();
             dados.put("acao", acao);
             atual.notifyListeners("acao", dados, true);
-        }, 900);
+        });
         return true;
     }
 
