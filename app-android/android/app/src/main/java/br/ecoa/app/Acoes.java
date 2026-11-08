@@ -25,11 +25,11 @@ public final class Acoes {
         EcoaPlugin.entregar(acao);
     }
 
-    // o botão tocado: o app aberto (mesmo em segundo plano) recebe na hora; fechado, abre com a ação
+    // O comando chega como Intent à Activity, em vez de depender de um evento JS enviado a um WebView
+    // suspenso em segundo plano. O Android retoma a tela e onNewIntent entrega a ação ao player.
     static void fazer(Context ctx, String acao) {
-        if (EcoaPlugin.entregar(acao)) return;
         Intent abrir = new Intent(ctx, MainActivity.class);
-        abrir.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        abrir.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         abrir.putExtra(EXTRA, acao);
         ctx.startActivity(abrir);
     }
