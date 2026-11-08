@@ -8031,21 +8031,43 @@ function abrirFila(set, atualIdx) {
 
 async function importFiles(files) {
   let n = 0;
+  let audios = 0;
   for (const file of files) {
+    const nome = file.name || 'Música';
+    const audio = /^audio\//i.test(file.type) || /\.(mp3|m4a|wav|ogg|opus|aac|flac|wma)$/i.test(nome);
+    if (audio) {
+      const duracao = await duracaoDoArquivo(file);
+      if (!duracao) { toast(`Não consegui abrir "${nome}". Tente MP3, M4A, WAV, OGG ou FLAC.`); continue; }
+      const titulo = nome.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Música importada';
+      const song = db.saveSong({ content: `{title: ${titulo.replace(/[{}\n]/g, ' ').trim() || 'Música importada'}}\n` });
+      try {
+        await guardarAudio(song.id, file);
+        db.updateSong(song.id, { audioProprio: { nome, duracao: Math.round(duracao * 10) / 10 } });
+        audios++;
+        // Tenta primeiro a letra sincronizada existente (LRCLIB). Se não houver uma versão compatível,
+        // a música continua importada e pode receber letra/cifra manualmente.
+        void sincronizarMusica(db.song(song.id)).catch(() => {});
+        n++;
+      } catch (e) {
+        db.deleteSong(song.id);
+        toast(`Não deu para guardar "${nome}": falta espaço no aparelho?`);
+      }
+      continue;
+    }
     const text = await file.text();
-    if (/\.json$/i.test(file.name)) {
+    if (/\.json$/i.test(nome)) {
       try { n += db.importAll(text); } catch (e) { toast(e.message); }
       continue;
     }
     let content = toChordPro(text);
-    if (!/\{\s*(title|t)\s*:/i.test(content)) content = `{title: ${file.name.replace(/\.[^.]+$/, '')}}\n` + content;
+    if (!/\{\s*(title|t)\s*:/i.test(content)) content = `{title: ${nome.replace(/\.[^.]+$/, '')}}\n` + content;
     db.saveSong({ content });
     n++;
   }
-  toast(`${n} música(s) importada(s)`);
+  toast(`${n} música(s) importada(s)${audios ? ` · ${audios} áudio(s) salvo(s) no aparelho` : ''}`);
   route();
 }
-$('#file-input').addEventListener('change', (e) => { importFiles([...e.target.files]); e.target.value = ''; });
+$('#file-input').addEventListener('change', (e) => { void importFiles([...e.target.files]); e.target.value = ''; });
 const openImport = () => $('#file-input').click();
 
 // ------------------------------------------------------------- início
