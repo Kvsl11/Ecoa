@@ -27,8 +27,12 @@ public class EcoaWidget extends AppWidgetProvider {
     }
 
     static PendingIntent botao(Context ctx, String acao, int codigo) {
-        Intent i = new Intent(ctx, AcoesReceiver.class).putExtra(Acoes.EXTRA, acao);
-        return PendingIntent.getBroadcast(ctx, codigo, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        // PendingIntent de Activity: o toque do usuário retoma o WebView antes de executar o comando.
+        // Evita que o receiver envie um evento a uma página suspensa em segundo plano.
+        Intent i = new Intent(ctx, MainActivity.class)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(Acoes.EXTRA, acao);
+        return PendingIntent.getActivity(ctx, codigo, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     static PendingIntent abrirApp(Context ctx) {
