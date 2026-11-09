@@ -504,3 +504,17 @@ test('no K-pop o clipe oficial sai no canal da empresa ("Official MV")', async (
   // (o "MV" de um canal de fã continua não valendo)
   assert.equal(escolherClipe([v('fa000000001', "aespa 'Supernova' MV", 'kpop fanmade edits')], { titulo: 'Supernova', artista: 'Fulano' }), null);
 });
+
+test('quando não há LRC, tenta alinhar a letra encontrada com Gemini no APK', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const inicio = app.indexOf('function sincronizarPeloGemini(song)');
+  const fim = app.indexOf('// Confere a letra em dúvida', inicio);
+  assert.ok(inicio > 0 && fim > inicio);
+  const rotina = app.slice(inicio, fim);
+  assert.match(rotina, /corpoDaSincronia/);
+  assert.match(rotina, /baixarNoAparelho\(baixador, video, false/);
+  assert.match(rotina, /gerada: 'gemini'/);
+  assert.match(rotina, /linhasCantadas\(inicial\.content/);
+  assert.match(app, /if \(!ok\) void sincronizarPeloServidor\(song\)/);
+});
+
