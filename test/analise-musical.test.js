@@ -171,8 +171,8 @@ test('corpoDaSincronia: envia a letra encontrada para o Gemini alinhar no áudio
   const c = corpoDaSincronia({ tipo: 'audio/mp4', dados: 'AAAA', linhas: ['Primeira linha', 'Refrão repetido'] });
   const partes = c.contents[0].parts;
   assert.equal(partes[0].inline_data.mime_type, 'audio/mp4');
-  assert.match(partes[1].text, /1\\. Primeira linha/);
-  assert.match(partes[1].text, /2\\. Refrão repetido/);
+  assert.match(partes[1].text, /1\. Primeira linha/);
+  assert.match(partes[1].text, /2\. Refrão repetido/);
   assert.match(partes[1].text, /inclua novamente a mesma linha/);
   assert.equal(c.generationConfig.responseMimeType, 'application/json');
   assert.ok(c.generationConfig.responseSchema.properties.linhas);
