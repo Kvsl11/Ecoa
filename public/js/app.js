@@ -20076,7 +20076,7 @@ function sincronizarPeloGemini(song) {
 
     const atualAntesDoPedido = alvo();
     if (!atualAntesDoPedido || videoDaLetra(atualAntesDoPedido) !== video || temSincronia(atualAntesDoPedido)) return temSincronia(atualAntesDoPedido);
-    const duracao = Number(versoesDe(atualAntesDoPedido)?.duracao) || Number(atualAntesDoPedido.duracao) || player.duracaoDe?.(video) || 0;
+    const duracao = Number(arquivo?.duracao) || Number(versoesDe(atualAntesDoPedido)?.duracao) || Number(atualAntesDoPedido.duracao) || player.duracaoDe?.(video) || 0;
     const audio = await audioParaTranscrever(blob, duracao, arquivo?.nome || 'audio.m4a');
     if (!audio) return false;
     const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
