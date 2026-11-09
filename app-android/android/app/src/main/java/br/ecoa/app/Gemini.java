@@ -78,8 +78,13 @@ final class Gemini {
     }
 
     static String hex(byte[] d) {
+        // O cabeçalho X-Android-Cert usa a mesma representação SHA-1 exibida pelo keytool,
+        // com pares hexadecimais separados por dois-pontos.
         StringBuilder sb = new StringBuilder();
-        for (byte b : d) sb.append(String.format("%02X", b));
+        for (int i = 0; i < d.length; i++) {
+            if (i > 0) sb.append(':');
+            sb.append(String.format("%02X", d[i]));
+        }
         return sb.toString();
     }
 
