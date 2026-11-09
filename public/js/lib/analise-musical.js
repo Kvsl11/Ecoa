@@ -285,14 +285,20 @@ export function reconhecerAcordes(q, { marcas = null, tom = null, troca = 0.05, 
   let pont = emissao[0].slice();
   const volta = [];
   for (let k = 1; k < trechos.length; k++) {
-    let melhorI = 0;
-    for (let i = 1; i < N; i++) if (pont[i] > pont[melhorI]) melhorI = i;
     const nova = new Array(N);
     const de = new Array(N);
+    // Viterbi completo: cada acorde atual considera todos os acordes anteriores.
+    // O atalho anterior só permitia permanecer no acorde atual ou saltar do melhor global,
+    // o que podia apagar mudanças reais de harmonia e criar transições artificiais.
     for (let j = 0; j < N; j++) {
-      const ficar = pont[j];
-      const trocar = pont[melhorI] - troca;
-      if (ficar >= trocar) { nova[j] = ficar + emissao[k][j]; de[j] = j; } else { nova[j] = trocar + emissao[k][j]; de[j] = melhorI; }
+      let melhor = -Infinity;
+      let anterior = 0;
+      for (let i = 0; i < N; i++) {
+        const candidato = pont[i] - (i === j ? 0 : troca);
+        if (candidato > melhor) { melhor = candidato; anterior = i; }
+      }
+      nova[j] = melhor + emissao[k][j];
+      de[j] = anterior;
     }
     volta.push(de);
     pont = nova;
