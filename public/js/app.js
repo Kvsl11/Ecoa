@@ -26,7 +26,7 @@ import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from 
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
-import { analisar as analisarMusica, corpoDaTranscricao, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
+import { analisar as analisarMusica, corpoDaSincronia, corpoDaTranscricao, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
@@ -8148,7 +8148,7 @@ const TIPOS_GEMINI = {
   m4a: 'audio/m4a', mp4: 'audio/m4a', opus: 'audio/opus', webm: 'audio/webm',
 };
 async function audioParaTranscrever(id, duracao, nomeArquivo = '') {
-  const blob = await lerAudio(id).catch(() => null);
+  const blob = (typeof Blob !== 'undefined' && id instanceof Blob) ? id : await lerAudio(id).catch(() => null);
   if (!blob || !blob.size) return null;
   const mime = String(blob.type || '').split(';')[0].trim().toLowerCase();
   const extensao = /\.([a-z0-9]+)$/i.exec(nomeArquivo || blob.name || '')?.[1]?.toLowerCase() || '';
@@ -19554,7 +19554,11 @@ async function sincronizarMusica(song, { noVideo = '', audioPromise = null } = {
     const lrc = await letraSincronizadaJa(song.title, artista, durAudioSabida);
     // (nem o LRCLIB nem a NetEase têm a letra que acompanha — muitas músicas católicas e brasileiras, que o Spotify tem
     // pelo Musixmatch, fechado —: o servidor da IA encaixa a letra da cifra na voz do vídeo, em segundo plano)
-    if (!lrc?.linhas?.length || !lrc?.tempos?.length) { void sincronizarPeloServidor(song); return 'nada'; }
+    if (!lrc?.linhas?.length || !lrc?.tempos?.length) {
+      // Primeiro tenta o Gemini no APK, usando a letra que veio da busca; se não estiver disponível, mantém o alinhador do servidor.
+      void sincronizarPeloGemini(song).then((ok) => { if (!ok) void sincronizarPeloServidor(song); }).catch(() => { void sincronizarPeloServidor(song); });
+      return 'nada';
+    }
     if (!agora()) return 'nada'; // (a pessoa já abriu outra música)
     const durLrc = Number(lrc.duracao) || 0;
     const naGravacao = (video) => ({ video, linhas: lrc.linhas, tempos: lrc.tempos, fonte: 'lrclib', ...(durLrc ? { duracao: durLrc } : {}), ...(lrc.duvida ? { duvida: true } : {}) });
@@ -20032,6 +20036,79 @@ function sincronizarPeloServidor(song) {
   alinhandoNoServidor.set(chave, p);
   return p;
 }
+// Sem LRC: usa a letra que já veio da busca e pede ao Gemini do APK para marcar cada linha no áudio real.
+// O áudio é baixado temporariamente pelo yt-dlp nativo; não fica na biblioteca nem substitui a letra encontrada.
+const alinhandoNoGemini = new Map();
+const alinhadasPeloGemini = new Set();
+function sincronizarPeloGemini(song) {
+  const id = song?.id;
+  const previaOriginal = id === 'previa' ? preview : null;
+  const alvo = () => id === 'previa' ? (preview === previaOriginal ? preview : null) : db.song(id);
+  const inicial = alvo();
+  const video = inicial && videoDaLetra(inicial);
+  if (!inicial || !video || ehArquivo(video)) return Promise.resolve(false);
+  const temSincronia = (s) => s?.sincronia?.video === videoDaLetra(s) && s.sincronia?.tempos?.length > 0 && !s.sincronia.provisoria;
+  if (temSincronia(inicial)) return Promise.resolve(true);
+  if (inicial.sincronia && inicial.sincronia.fonte !== 'lrclib') return Promise.resolve(false); // preserva a sincronização manual
+  const chave = `${id}|${video}`;
+  if (alinhandoNoGemini.has(chave)) return alinhandoNoGemini.get(chave);
+  if (alinhadasPeloGemini.has(chave)) return Promise.resolve(false);
+  const linhasOriginais = linhasCantadas(inicial.content || '')
+    .map((l) => linhaSemCifra(l).replace(/\\s+/g, ' ').trim())
+    .filter((l) => l && !soAcordes(l)).slice(0, 240);
+  if (linhasOriginais.length < 3) return Promise.resolve(false);
+
+  const tarefa = (async () => {
+    if (!navigator.onLine || !await transcricaoDisponivel()) return false;
+    const nativo = pluginEcoa();
+    const baixador = baixadorDoAparelho();
+    if (!nativo || !baixador) return false;
+
+    let arquivo = null;
+    let blob = null;
+    try {
+      arquivo = await baixarNoAparelho(baixador, video, false, qualidadeDoDownload(false), { abaixo: QUALIDADES_ABAIXO });
+      blob = await lerBaixadoNoAparelho(arquivo);
+    } finally {
+      if (arquivo?.caminho) void Promise.resolve(baixador.apagarLocal?.({ caminho: arquivo.caminho })).catch(() => {});
+    }
+    if (!blob?.size) return false;
+
+    const atualAntesDoPedido = alvo();
+    if (!atualAntesDoPedido || videoDaLetra(atualAntesDoPedido) !== video || temSincronia(atualAntesDoPedido)) return temSincronia(atualAntesDoPedido);
+    const duracao = Number(versoesDe(atualAntesDoPedido)?.duracao) || Number(atualAntesDoPedido.duracao) || player.duracaoDe?.(video) || 0;
+    const audio = await audioParaTranscrever(blob, duracao, arquivo?.nome || 'audio.m4a');
+    if (!audio) return false;
+    const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
+    const resposta = await chamarGeminiModelo(chamar, corpoDaSincronia({ tipo: audio.tipo, dados: audio.dados, linhas: linhasOriginais }), estadoGeminiTranscricao);
+    const texto = (resposta?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('').trim();
+    if (!texto) return false;
+    let dados;
+    try { dados = JSON.parse(texto.replace(/^\`\`\`(?:json)?\\s*|\\s*\`\`\`$/g, '')); } catch { return false; }
+    const alinhadas = lerTranscricao(dados, duracao);
+    const canon = (v) => String(v || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
+    const originais = new Map(linhasOriginais.map((l) => [canon(l), l]));
+    const validas = alinhadas.filter((l) => originais.has(canon(l.texto)));
+    const minimo = Math.min(linhasOriginais.length, Math.max(3, Math.ceil(linhasOriginais.length * 0.35)));
+    if (validas.length < minimo) return false;
+
+    const atual = alvo();
+    if (!atual || videoDaLetra(atual) !== video || temSincronia(atual) || (atual.sincronia && atual.sincronia.fonte !== 'lrclib')) return temSincronia(atual);
+    guardarSincronia(atual, {
+      video,
+      linhas: validas.map((l) => originais.get(canon(l.texto))),
+      tempos: validas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
+      fonte: 'lrclib',
+      gerada: 'gemini',
+      ...(duracao > 0 ? { duracao: Math.round(duracao) } : {}),
+    });
+    alinhadasPeloGemini.add(chave);
+    return true;
+  })().catch(() => false).finally(() => alinhandoNoGemini.delete(chave));
+  alinhandoNoGemini.set(chave, tarefa);
+  return tarefa;
+}
+
 // Confere a letra em dúvida no áudio que toca: o servidor da IA ouve o vídeo (a voz separada, com o Whisper ou o
 // alinhamento forçado) e devolve a letra do LRCLIB deslocada para onde ela é cantada nele (o "referencia" do /letra).
 // Só nas músicas em dúvida (poucas): cada conferência ocupa o servidor por um ou dois minutos. Sem o servidor, fica
