@@ -93,8 +93,8 @@ test('lerTranscricao: JSON e LRC, sem rótulos e com o fim de cada linha', () =>
     { inicio: '00:40.0', texto: '(instrumental)' },
   ] };
   assert.deepEqual(lerTranscricao(json, 60), [
-    { texto: 'Senhor, eu sei que é teu este lugar', inicio: 12, fim: 15.5 },
-    { texto: 'Todos querem entrar', inicio: 16, fim: 28 },
+    { texto: 'Senhor, eu sei que é teu este lugar', inicio: 12, fim: 15.5, secao: 'Verse 1' },
+    { texto: 'Todos querem entrar', inicio: 16, fim: 28, secao: 'Verse 1' },
   ]);
   const lrc = '[00:05.00] Primeira linha\n[00:08.50]  Segunda   linha\nlixo\n';
   assert.deepEqual(lerTranscricao(lrc, 12), [
@@ -102,6 +102,20 @@ test('lerTranscricao: JSON e LRC, sem rótulos e com o fim de cada linha', () =>
     { texto: 'Segunda linha', inicio: 8.5, fim: 12 },
   ]);
   assert.deepEqual(lerTranscricao('```json\n{"linhas": []}\n```'), []);
+});
+
+test('lerTranscricao: capitaliza cada frase e recupera o refrão repetido para letra e cifra', () => {
+  const linhas = lerTranscricao({ linhas: [
+    { inicio: 0, texto: 'eu te louvo. senhor, tu és bom', secao: 'Verse 1' },
+    { inicio: 4, texto: 'tua graça me alcançou' },
+    { inicio: 8, texto: 'teu amor me alcançou' },
+    { inicio: 12, texto: 'tua graça me alcançou' },
+    { inicio: 16, texto: 'teu amor me alcançou' },
+  ] }, 20);
+  assert.equal(linhas[0].texto, 'Eu te louvo. Senhor, tu és bom');
+  assert.deepEqual(linhas.slice(1).map((l) => l.secao), ['Chorus', 'Chorus', 'Chorus', 'Chorus']);
+  const cifra = montarCifra({ titulo: 'Teste', linhas, acordes: [], duracao: 20 });
+  assert.match(cifra, /\\{comment: Chorus\\}/);
 });
 
 test('linhaComAcordes: o acorde do começo e a troca na palavra cantada naquele instante', () => {
