@@ -395,7 +395,52 @@ function normalizarSecao(valor) {
   return String(valor).trim().replace(/\b\p{L}/gu, (m) => m.toLocaleUpperCase('pt-BR'));
 }
 function capitalizarFrase(texto) {
-  return String(texto || '').trim().replace(/^(\s*[“"'‘(¿¡]*)(\p{L})/u, (_, p, l) => p + l.toLocaleUpperCase('pt-BR'));
+  // Maiúscula no começo da linha e depois de cada pontuação que encerra uma frase.
+  return String(texto || '').trim().replace(/(^|[.!?…]+\\s+)([“"'‘¿¡(]*)(\\p{L})/gu,
+    (_, separador, abertura, letra) => separador + abertura + letra.toLocaleUpperCase('pt-BR'));
+}
+
+function chaveEstrutural(texto) {
+  return String(texto || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+    .replace(/\\[[^\\]]*\\]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Quando o modelo não identifica os rótulos, recupera refrões repetidos por blocos de pelo menos duas linhas.
+// O restante é separado em estrofes consecutivas, sem alterar os tempos nem a ordem cantada.
+function inferirSecoes(linhas) {
+  const saida = linhas.map((l) => ({ ...l }));
+  const chaves = saida.map((l) => chaveEstrutural(l.texto));
+  const n = chaves.length;
+  let melhor = null;
+  for (let tamanho = Math.min(8, Math.floor(n / 2)); tamanho >= 2 && !melhor; tamanho--) {
+    const vistos = new Map();
+    for (let i = 0; i + tamanho <= n; i++) {
+      if (saida.slice(i, i + tamanho).some((l) => l.secao)) continue;
+      const bloco = chaves.slice(i, i + tamanho);
+      if (bloco.some((x) => !x)) continue;
+      const chave = bloco.join(' | ');
+      const anteriores = vistos.get(chave) || [];
+      const repeticao = anteriores.find((j) => Math.abs(i - j) >= tamanho);
+      if (repeticao !== undefined) { melhor = { tamanho, inicios: [...anteriores, i] }; break; }
+      anteriores.push(i);
+      vistos.set(chave, anteriores);
+    }
+  }
+  if (melhor) {
+    for (const inicio of melhor.inicios) {
+      for (let k = inicio; k < inicio + melhor.tamanho; k++) {
+        if (!saida[k].secao) saida[k].secao = 'Chorus';
+      }
+    }
+  }
+  let verso = 0;
+  let emVerso = false;
+  for (const linha of saida) {
+    if (linha.secao) { emVerso = false; continue; }
+    if (!emVerso) { verso++; emVerso = true; }
+    linha.secao = 'Verse ' + verso;
+  }
+  return saida;
 }
 
 // A resposta da transcrição ({ linhas: [{ inicio, fim?, texto }] }, em JSON, ou linhas LRC "[mm:ss.xx] texto") →
@@ -428,11 +473,12 @@ export function lerTranscricao(resposta, duracao = 0) {
     if (duracao > 0 && l.inicio > duracao) continue;
     saida.push(l);
   }
-  return saida.map((l, i) => {
+  const normalizadas = saida.map((l, i) => {
     const prox = saida[i + 1]?.inicio ?? (duracao > 0 ? duracao : l.inicio + 6);
     const fim = Number.isFinite(l.fim) && l.fim > l.inicio && l.fim <= prox + 0.5 ? l.fim : Math.min(prox, l.inicio + 12);
     return { texto: capitalizarFrase(l.texto), inicio: Math.round(l.inicio * 100) / 100, fim: Math.round(Math.max(fim, l.inicio + 0.3) * 100) / 100, secao: l.secao || '' };
   });
+  return inferirSecoes(normalizadas);
 }
 
 // O pedido ao Gemini: ouvir o áudio e devolver a letra cantada, linha por linha, com o instante em que cada uma
