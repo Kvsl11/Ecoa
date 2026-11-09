@@ -2279,6 +2279,10 @@ const REVISOES = [
   // sem letra recebe a letra transcrita e sincronizada, os acordes, o tom e o andamento (a cifra que a pessoa já
   // escreveu e a sincronia feita à mão ficam)
   { rev: 28, transcrever: true, quais: (s) => Boolean(s.audioProprio) && !sincOkDe(s) && podeTrocarCifra(s) && !['letra', 'instrumental'].includes(s.audioProprio.transcricao) },
+  // v608: no app de Android a foto do artista variava (a do canal do YouTube, a do Cifra Club ou a do Deezer, conforme
+  // a que respondia primeiro) e ficava guardada na música. A foto do Deezer passou a ser a do artista: a de outra fonte
+  // é trocada pela dele, quando o Deezer tem
+  { rev: 29, fotoDeezer: true, quais: (s) => Boolean(s.fotoArtista && nomeDoArtistaDaMusica(s)) && !fotoDoDeezer(s.fotoArtista) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2410,6 +2414,24 @@ async function revisarMusica(id, pendentes, chaves) {
     }
     s = db.song(id);
     if (!s) return true;
+  }
+  // a foto do artista de outra fonte (o canal do YouTube, o Cifra Club) trocada pela do Deezer, quando ele tem uma; sem
+  // resposta do Deezer, fica a de agora e a revisão tenta de novo
+  if (quer('fotoDeezer') && s.fotoArtista && !fotoDoDeezer(s.fotoArtista)) {
+    const nome = nomeDoArtistaDaMusica(s);
+    if (!navigator.onLine) completa = false;
+    else if (nome) {
+      const f = await fotoDeezer(nome, s.title || '').catch(() => null);
+      s = db.song(id);
+      if (!s) return true;
+      if (f === null) completa = false;
+      else if (f && s.fotoArtista && !fotoDoDeezer(s.fotoArtista)) {
+        db.updateSong(id, { fotoArtista: f });
+        fotosArtistas.delete(normalizar(nome));
+        void valorDaInternet('foto', `foto:${normalizar(nome)}`, Promise.resolve(f));
+      }
+    }
+    s = db.song(id);
   }
   if (quer('fotoOutroArtista')) {
     if (!navigator.onLine) completa = false;
@@ -8887,7 +8909,7 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
 let abrindoDaBusca = 0;
 function telaChegando(dados) {
   const titulo = dados.titulo || 'Música';
-  const img = dados.capa || dados.cover || dados.video?.capa || capaConhecida(titulo, dados.artista || '') || '';
+  const img = dados.capa || dados.cover || capaConhecida(titulo, dados.artista || '') || (dados.semCapaOficial ? dados.video?.capa : '') || '';
   const el = document.createElement('div');
   el.className = 'chegando';
   el.style.setProperty('--cor', corDaMusica(titulo));
@@ -8940,7 +8962,7 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     try {
       const r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
       if (chegando && chegando.meu !== abrindoDaBusca) return;
-      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu });
+      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu, capaDaBusca: capaAutomatica(dados.capa) ? dados.capa : '' });
     } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
     abrirNoTocando = false;
@@ -8988,7 +9010,7 @@ async function videoDaMusica(titulo, artista, source) {
   return vs.find((v) => videoCombina(v.titulo, titulo)) || null;
 }
 
-async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false, vez = 0 } = {}) {
+async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false, vez = 0, capaDaBusca = '' } = {}) {
   const novo = { id: 'previa', content, source, transpose: 0, capo: capoDaCifra(content), back }; // capo da cifra (Cifra Club)
   let m = renderSong(novo.content).meta;
   if (!youtubeId(m.youtube) && !String(source || '').startsWith('cnbb:')) {
@@ -9042,8 +9064,16 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   const jaNaPrevia = location.hash === '#/musica/previa';
   preview = novo;
 
+  // A capa que a pessoa viu na linha da busca é a da música: ela entra já e não é escolhida de novo. Antes a prévia
+  // procurava outra vez pelo título e pelo artista da página da cifra (às vezes escritos de outro jeito: "(Ao Vivo)",
+  // o nome do grupo), e a música abria com uma capa diferente da que estava na busca. Fica guardada também para o
+  // título e o artista da cifra, e a biblioteca e o player mostram a mesma
+  if (capaDaBusca && novo.title && novo.artist && capaTrocavel(novo.cover)) {
+    const k = chaveDaCapa(novo.title, novo.artist);
+    if (k && capaConhecida(novo.title, novo.artist) !== capaDaBusca) void valorDaInternet('capa', `capa:${normalizar(k)}`, Promise.resolve(capaDaBusca));
+  }
   // A capa original é buscada em paralelo com áudio e LRCLIB. Ela não depende do resultado dessas etapas.
-  const buscaCapaDaPrevia = novo.title && novo.artist
+  const buscaCapaDaPrevia = capaDaBusca ? Promise.resolve(capaDaBusca) : novo.title && novo.artist
     ? capaOficial(novo.title, novo.artist).catch(() => '')
     : Promise.resolve('');
   const buscaFotoDaPrevia = novo.title && novo.artist
@@ -9071,7 +9101,7 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   void buscaCapaDaPrevia.then(aplicarCapaDaPrevia);
 
   // a capa que já se conhece desta música entra de primeira (sem a do vídeo antes)
-  if (capaTrocavel(novo.cover)) aplicarCapaDaPrevia(capaConhecida(novo.title, novo.artist));
+  if (capaTrocavel(novo.cover)) aplicarCapaDaPrevia(capaDaBusca || capaConhecida(novo.title, novo.artist));
 
   // A sincronização LRCLIB é complementar: uma falha ou demora não deve impedir a abertura da música. Espera um
   // tempo razoável (a maioria responde em 1–3 s); passou disso, a música abre e a letra sincronizada entra sozinha
@@ -9469,7 +9499,9 @@ function enriquecerTilesArtistas(container) {
       atual.addEventListener('error', falhou, { once: true });
       if (atual.complete && !atual.naturalWidth) falhou();
     }
-    if (!noApk() && box.dataset.mostrando) return;
+    // (a foto do Deezer já mostrada fica; a de outra fonte é conferida, e troca pela do Deezer quando ele tiver. Antes,
+    // no app de Android, toda foto era procurada de novo a cada vez, e com a escolha que variava ela mudava na tela)
+    if (fotoDoDeezer(box.dataset.mostrando)) return;
     const exibida = box.dataset.mostrando || atual?.getAttribute('src') || '';
     fotoDoArtista(nome, slug).then((url) => {
       if (!url || !box.isConnected) return;
@@ -9482,10 +9514,11 @@ function enriquecerTilesArtistas(container) {
 // com a última guardada, ou com o desenho, e entra sozinha quando chegar)
 async function prepararFotosArtistas(lista) {
   await Promise.all(lista.filter(Boolean).map(async (a) => {
-    // (a foto que a busca de artistas do Cifra Club já trouxe vale de reserva, sem esperar)
-    const reserva = fotoReal(a.capa) || '';
-    const f = reserva && !fotoConhecida(a.nome) ? await noMaximo(fotoDoArtista(a.nome, a.slug || ''), 700, reserva) : await fotoRapida(a.nome, a.slug || '');
-    if (f || reserva) a.fotoFinal = f || reserva;
+    // (a mesma foto do artista do resto do app — a do Deezer —: antes, sem uma guardada, entrava a do Cifra Club se a
+    // escolhida não chegasse em 0,7 s, e o quadro mostrava uma foto e o artista, outra. Sem nenhuma, o desenho, e a
+    // foto entra quando chegar: enriquecerTilesArtistas)
+    const f = await fotoRapida(a.nome, a.slug || '');
+    if (f) a.fotoFinal = f;
   }));
   return lista;
 }
@@ -9856,17 +9889,23 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
         .then((f) => f || daPagina(slug, nome))
       : () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? daPagina(a.slug, a.nome || nome) : '')).catch(() => '');
-    // (as três ao mesmo tempo, na mesma ordem de preferência; a Wikipédia só quando nenhuma tem). Sem foto guardada, a
-    // primeira que chegar não espera muito pelas preferidas (a tela está sem foto); com uma guardada, que já aparece na
-    // hora, a troca em segundo plano espera a preferida, para a foto não ficar trocando entre uma abertura e outra
-    const estrita = Boolean(fotoConhecida(nome));
-    const resolucao = primeiraPorPreferencia([() => fotoDoCanalDeVerdade(nome), () => fotoDeezer(nome, titulo), cifraClub], { folga: estrita ? 0 : 1200 })
+    // A foto do Deezer é a do artista, em toda parte (como no site): as outras fontes só valem quando o Deezer não tem
+    // foto dele. As fontes são pedidas juntas, mas a escolha segue a preferência à risca (folga 0): antes a primeira a
+    // responder em 1,2 s ganhava, e no app de Android — que alcança o canal do YouTube pela conexão do próprio Android,
+    // o que o navegador não consegue — a foto alternava entre a do canal e a do Deezer de uma abertura para outra
+    const guardada = fotoConhecida(nome);
+    const resolucao = primeiraPorPreferencia([() => fotoDeezer(nome, titulo), () => fotoDoCanalDeVerdade(nome), cifraClub], { folga: 0 })
       .then((f) => f || fotoWikipedia(nome).catch(() => ''))
+      // (a foto do Deezer já guardada não é trocada pela de outra fonte só porque o Deezer não respondeu agora: o
+      // limite de pedidos dele, a internet do celular oscilando)
+      .then((f) => (fotoDoDeezer(guardada) && !fotoDoDeezer(f) ? guardada : f))
       .then((f) => { if (!f) fotosArtistas.delete(k); return f || ''; });
     fotosArtistas.set(k, resolucao);
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
+// a foto vem do Deezer (o endereço das imagens dele)
+const fotoDoDeezer = (u) => /^https?:\/\/([^/]+\.)?dzcdn\.net\//.test(u || '');
 // A foto e a capa que já se conhece na hora (a última trazida da internet, guardada no aparelho), sem esperar nada
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';
 // tira a foto guardada para o nome (a da sessão e a do aparelho), para ela ser procurada de novo
@@ -9884,7 +9923,7 @@ const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch
 function fotoRapida(nome, slug = '', titulo = '') {
   if (!nome) return Promise.resolve('');
   const guardada = fotoConhecida(nome);
-  return noMaximo(fotoDoArtista(nome, slug, titulo).then((f) => f || guardada), guardada ? (noApk() ? 700 : 1500) : (noApk() ? 2200 : 4500), guardada);
+  return noMaximo(fotoDoArtista(nome, slug, titulo).then((f) => f || guardada), guardada ? 1500 : 4500, guardada);
 }
 function capaRapida(titulo, artista) {
   const guardada = capaConhecida(titulo, artista);
@@ -9953,6 +9992,9 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     if (trocaCapa) {
       capaOficial(titulo, artista).then((url) => {
         porSeloExplicita(linha, titulo, artista);
+        // (sem capa oficial: só então a miniatura do vídeo, que antes aparecia primeiro e era trocada pela oficial —
+        // a capa "nada a ver" que piscava na busca)
+        if (!url && busca && item.video?.capa && !item.capa) { item.semCapaOficial = true; url = item.video.capa; }
         if (!url || !linha.isConnected) return;
         if (linha.querySelector('.cover img')?.getAttribute('src') === url) return;
         const box = linha.querySelector('.cover');
@@ -9980,10 +10022,10 @@ async function jsonp(url, tempo = 8000) {
   for (let vez = 0; ; vez++) {
     const r = await jsonpUmaVez(url, tempo);
     if (!doDeezer || !r?.error) return r;
-    // No APK, não prolongar uma consulta limitada pelo Deezer com várias esperas: a próxima atualização
-    // poderá tentar de novo, e a tela não fica presa por mais de vários segundos.
-    if (r.error.code !== 4 || vez >= (noApk() ? 1 : 3)) return null;
-    await new Promise((ok) => setTimeout(ok, noApk() ? 500 : 1200 * (vez + 1)));
+    // (no APK como no site: com uma só nova tentativa, o Deezer limitado ficava sem resposta, outra fonte entrava e a
+    // foto do artista e a capa mudavam de uma abertura para outra. A tela não espera por isso: mostra a guardada)
+    if (r.error.code !== 4 || vez >= 3) return null;
+    await new Promise((ok) => setTimeout(ok, 1200 * (vez + 1)));
   }
 }
 function lerJsonpDaPagina(texto) {
@@ -10120,6 +10162,16 @@ function capaOficial(titulo, artista) {
   if (!k) return Promise.resolve('');
   if (!capasOficiais.has(k)) {
     const busca = capasCandidatas(titulo, artista).then(async (l) => {
+      // (a capa já guardada desta música continua sendo uma das achadas, e da gravação certa: fica. A escolha entre as
+      // candidatas depende de quais imagens abrem a tempo, e com a internet do celular oscilando ela mudava de uma vez
+      // para outra — a capa trocava sozinha)
+      const conhecida = capaConhecida(titulo, artista);
+      if (conhecida) {
+        const musica = { titulo: tituloLimpo(titulo), artista: artistaDaCapa(artista) };
+        const ck = chaveDaImagem(conhecida);
+        const mesma = l.find((c) => chaveDaImagem(c.url) === ck);
+        if (mesma && !problemaDaCapa(mesma, musica)) { marcarExplicita(k, mesma.explicita); return conhecida; }
+      }
       const melhor = await maiorCapaDisponivel(l);
       if (melhor) marcarExplicita(k, melhor.explicita); // ("cleaned", no iTunes: a versão limpa de uma explícita)
       return melhor?.url || '';
@@ -10157,7 +10209,9 @@ async function conferirCapa(song) {
 async function fotoDeezer(nome, titulo = '') {
   // Quando a foto é pedida junto de uma música, confirma primeiro o artista pela faixa exata no Deezer.
   // A busca só pelo nome é reserva: nomes iguais não podem escolher a foto de um xará.
-  const a = await artistaDoDeezer(nome, titulo ? { titulo } : {});
+  // (sem a faixa desta música no Deezer, o artista pelo nome: antes ficava sem foto do Deezer e entrava outra fonte, e a
+  // foto do artista dependia de qual música dele foi aberta primeiro)
+  const a = await artistaDoDeezer(nome, titulo ? { titulo } : {}) || (titulo ? await artistaDoDeezer(nome) : null);
   // sem foto, o Deezer devolve uma imagem genérica (o endereço fica com "/artist//")
   const foto = [a?.picture_xl, a?.picture_big, a?.picture_medium].find((u) => u && !/\/artist\/\//.test(u)) || '';
   return foto && !(await ehFotoVaziaDoDeezer(foto)) ? foto : '';
@@ -10901,7 +10955,7 @@ const indicadoresWeb = (r) => {
 };
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
-    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
+    ${capa({ titulo: r.titulo, capa: r.capa || (r.semCapaOficial ? r.video?.capa : '') })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
     <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
