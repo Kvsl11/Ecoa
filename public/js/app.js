@@ -26,8 +26,9 @@ import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from 
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
+import { analisar as analisarMusica, corpoDaTranscricao, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
-import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
+import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
@@ -2274,6 +2275,14 @@ const REVISOES = [
   // frente do single ("Aba", do Kemuel, com a capa de uma coletânea gospel). A capa automática que é de uma coletânea ou
   // de outra gravação volta para a da música; a que está certa fica, e a escolhida pela pessoa não muda
   { rev: 27, capa: true, quais: (s) => !s.capaEscolhida && capaAutomatica(s.cover) },
+  // v608: o áudio importado só procurava a letra no LRCLIB; sem ela, ficava só o título. No APK, a música importada
+  // sem letra recebe a letra transcrita e sincronizada, os acordes, o tom e o andamento (a cifra que a pessoa já
+  // escreveu e a sincronia feita à mão ficam)
+  { rev: 28, transcrever: true, quais: (s) => Boolean(s.audioProprio) && !sincOkDe(s) && podeTrocarCifra(s) && !['letra', 'instrumental'].includes(s.audioProprio.transcricao) },
+  // v608: no app de Android a foto do artista variava (a do canal do YouTube, a do Cifra Club ou a do Deezer, conforme
+  // a que respondia primeiro) e ficava guardada na música. A foto do Deezer passou a ser a do artista: a de outra fonte
+  // é trocada pela dele, quando o Deezer tem
+  { rev: 29, fotoDeezer: true, quais: (s) => Boolean(s.fotoArtista && nomeDoArtistaDaMusica(s)) && !fotoDoDeezer(s.fotoArtista) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2405,6 +2414,24 @@ async function revisarMusica(id, pendentes, chaves) {
     }
     s = db.song(id);
     if (!s) return true;
+  }
+  // a foto do artista de outra fonte (o canal do YouTube, o Cifra Club) trocada pela do Deezer, quando ele tem uma; sem
+  // resposta do Deezer, fica a de agora e a revisão tenta de novo
+  if (quer('fotoDeezer') && s.fotoArtista && !fotoDoDeezer(s.fotoArtista)) {
+    const nome = nomeDoArtistaDaMusica(s);
+    if (!navigator.onLine) completa = false;
+    else if (nome) {
+      const f = await fotoDeezer(nome, s.title || '').catch(() => null);
+      s = db.song(id);
+      if (!s) return true;
+      if (f === null) completa = false;
+      else if (f && s.fotoArtista && !fotoDoDeezer(s.fotoArtista)) {
+        db.updateSong(id, { fotoArtista: f });
+        fotosArtistas.delete(normalizar(nome));
+        void valorDaInternet('foto', `foto:${normalizar(nome)}`, Promise.resolve(f));
+      }
+    }
+    s = db.song(id);
   }
   if (quer('fotoOutroArtista')) {
     if (!navigator.onLine) completa = false;
@@ -2539,6 +2566,13 @@ async function revisarMusica(id, pendentes, chaves) {
   if (s && quer('artista')) {
     if (!navigator.onLine) completa = false;
     else if (!(await consertarArtistaDaMusica(id, { esquecer: false }).catch(() => null))) completa = false;
+    s = db.song(id);
+    if (!s) return true;
+  }
+  // a música importada (o áudio da pessoa) sem a letra do LRCLIB: no APK, a letra transcrita, a sincronia, os acordes,
+  // o tom e o andamento (prepararMusicaImportada); sem internet, fica para a próxima revisão
+  if (s?.audioProprio && quer('transcrever')) {
+    if (!(await prepararMusicaImportada(id, { avisar: false }).catch(() => false))) completa = false;
     s = db.song(id);
     if (!s) return true;
   }
@@ -8027,26 +8061,184 @@ function abrirFila(set, atualIdx) {
   }).then((r) => ({ ...(r || {}), atual }));
 }
 
+// ------------------------------------------------- a música importada: letra, sincronia, acordes e tom
+// O áudio da própria pessoa (importado na biblioteca) recebe o que os apps de estudo de música mostram ao abrir uma
+// faixa: a letra que acompanha, os acordes no tempo, o tom e o andamento. Primeiro o LRCLIB (a letra sincronizada da
+// gravação, quando ela é conhecida). Sem ele — a música própria, o ensaio gravado —, no APK:
+// 1. a análise no aparelho (lib/analise-musical.js, num Worker): o andamento, as batidas, o tom e o acorde de cada batida;
+// 2. a letra cantada transcrita pelo Gemini do APK (Gemini.java: a chave não sai do app), com o instante de cada linha;
+// 3. a cifra em ChordPro (os acordes na palavra cantada) e a sincronia, guardada como a automática: a letra acompanha,
+//    o karaokê (Karaoke.java) separa a voz no celular e a música pode ser transposta como as outras.
+// A cifra feita aqui só é trocada enquanto ninguém mexeu nela (song.audioProprio.cifra é a última gerada); a letra
+// sincronizada à mão (fonte diferente de 'lrclib') nunca. Sem internet, os acordes ficam e a letra é feita depois (a
+// revisão das músicas salvas tenta de novo).
+const preparandoImportada = new Map();
+// a cifra é só o título e o artista (a importada que ainda não tem letra nem acordes)
+const cifraVazia = (content) => !String(content || '').split('\n').some((l) => l.trim() && !/^\s*\{[^}]*\}\s*$/.test(l));
+const podeTrocarCifra = (s) => cifraVazia(s?.content) || (s?.audioProprio?.cifra && s.content === s.audioProprio.cifra);
+// a transcrição pede o APK com o Gemini (o site não tem a chave)
+async function transcricaoDisponivel() {
+  const nativo = pluginEcoa();
+  if (!nativo || !temMetodoNativo('gemini')) return false;
+  try { return Boolean((await nativo.geminiDisponivel())?.tem); } catch { return false; }
+}
+function prepararMusicaImportada(id, { avisar = true } = {}) {
+  if (preparandoImportada.has(id)) return preparandoImportada.get(id);
+  const p = (async () => {
+    let s = db.song(id);
+    if (!s?.audioProprio) return true;
+    if (sincOkDe(s)) return true;
+    // 1. o LRCLIB
+    const r = await sincronizarMusica(s).catch(() => 'erro');
+    s = db.song(id);
+    if (!s || sincOkDe(s)) return true;
+    if (!noApk()) return r !== 'erro';
+    if (s.sincronia && s.sincronia.fonte !== 'lrclib') return true; // (a sincronizada à mão)
+    if (!podeTrocarCifra(s)) return true; // (a cifra que a pessoa escreveu ou corrigiu fica)
+    return transcreverImportada(id, { avisar, lrclibRespondeu: r !== 'erro' });
+  })().finally(() => preparandoImportada.delete(id));
+  preparandoImportada.set(id, p);
+  return p;
+}
+// a análise (andamento, tom, acordes) num Worker; sem ele, na própria tela
+async function analisarImportada(id) {
+  const amostras = await amostrasDe(ARQ + id);
+  if (!amostras?.length) return null;
+  return new Promise((ok) => {
+    let w;
+    try { w = new Worker(new URL('./lib/analise-musical-worker.js', import.meta.url), { type: 'module' }); } catch { w = null; }
+    if (!w) { try { ok(analisarMusica(amostras, TAXA_CASAMENTO)); } catch { ok(null); } return; }
+    const fim = (r) => { clearTimeout(limite); w.terminate(); ok(r); };
+    const limite = setTimeout(() => fim(null), 180000);
+    w.onmessage = (e) => fim(e.data?.ok ? e.data.r : null);
+    w.onerror = () => fim(null);
+    w.postMessage({ amostras }, [amostras.buffer]);
+  });
+}
+// o áudio para o Gemini: o próprio arquivo, se ele é de um tipo que o Gemini ouve e cabe no pedido (até ~14 MB); senão
+// um WAV mono de 16 kHz (8 kHz nas músicas muito longas), que é o que o Gemini usa de qualquer jeito
+const TIPOS_GEMINI = { mp3: 'audio/mp3', mpeg: 'audio/mp3', wav: 'audio/wav', 'x-wav': 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac', aiff: 'audio/aiff' };
+async function audioParaTranscrever(id, duracao) {
+  const blob = await lerAudio(id).catch(() => null);
+  if (!blob) return null;
+  const tipo = TIPOS_GEMINI[String(blob.type || '').replace(/^audio\//, '')] || TIPOS_GEMINI[(/\.([a-z0-9]+)$/i.exec(blob.name || '') || [])[1]?.toLowerCase()];
+  if (tipo && blob.size <= 14e6) return { tipo, dados: await emBase64(blob) };
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Ctx) return null;
+  const taxa = Math.max(8000, Math.min(16000, Math.floor(7e6 / Math.max(1, duracao || 300))));
+  const som = await new Ctx(1, 1, taxa).decodeAudioData(await blob.arrayBuffer());
+  const n = Math.min(som.length, 7e6);
+  const pcm = new Int16Array(n);
+  for (let c = 0; c < som.numberOfChannels; c++) {
+    const d = som.getChannelData(c);
+    for (let i = 0; i < n; i++) pcm[i] += Math.max(-1, Math.min(1, d[i] / som.numberOfChannels)) * 32767;
+  }
+  const wav = new DataView(new ArrayBuffer(44));
+  const txt = (o, t) => [...t].forEach((ch, i) => wav.setUint8(o + i, ch.charCodeAt(0)));
+  txt(0, 'RIFF'); wav.setUint32(4, 36 + pcm.byteLength, true); txt(8, 'WAVE'); txt(12, 'fmt ');
+  wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true); wav.setUint32(24, taxa, true);
+  wav.setUint32(28, taxa * 2, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); txt(36, 'data'); wav.setUint32(40, pcm.byteLength, true);
+  return { tipo: 'audio/wav', dados: await emBase64(new Blob([wav.buffer, pcm.buffer], { type: 'audio/wav' })) };
+}
+const estadoGeminiTranscricao = {};
+async function transcreverImportada(id, { avisar = true, lrclibRespondeu = true } = {}) {
+  let s = db.song(id);
+  if (!s?.audioProprio) return true;
+  const nome = s.title || 'a música';
+  if (avisar) toast(lrclibRespondeu ? `A letra de "${nome}" não está no LRCLIB: transcrevendo e tirando os acordes no aparelho…` : `Tirando os acordes de "${nome}" no aparelho…`);
+  // 1. os acordes, o tom e o andamento (sem internet; guardados para não refazer)
+  let analise = s.audioProprio.analise;
+  if (!analise?.acordes) {
+    analise = await analisarImportada(id).catch(() => null);
+    s = db.song(id);
+    if (!s?.audioProprio) return true;
+    if (analise) db.updateSong(id, { audioProprio: { ...s.audioProprio, analise } });
+  }
+  // 2. a letra cantada
+  let linhas = null;
+  let semCanto = false;
+  if (navigator.onLine && await transcricaoDisponivel()) {
+    try {
+      const audio = await audioParaTranscrever(id, Number(s.audioProprio.duracao) || analise?.duracao || 0);
+      if (audio) {
+        const nativo = pluginEcoa();
+        const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
+        const dados = await chamarGeminiModelo(chamar, corpoDaTranscricao(audio), estadoGeminiTranscricao);
+        const texto = (dados?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('');
+        linhas = lerTranscricao(texto, Number(s.audioProprio.duracao) || 0);
+        semCanto = !linhas.length;
+      }
+    } catch { linhas = null; }
+  }
+  s = db.song(id);
+  if (!s?.audioProprio || !podeTrocarCifra(s) || sincOkDe(s) || (s.sincronia && s.sincronia.fonte !== 'lrclib')) return true;
+  if (!analise && !linhas?.length) {
+    if (avisar) toast(`Não consegui processar "${nome}" agora. ${navigator.onLine ? 'Tente de novo mais tarde.' : 'Conecte-se à internet para transcrever a letra.'}`);
+    return false;
+  }
+  // 3. a cifra e a sincronia
+  const meta = renderSong(s.content || '').meta;
+  const cifra = montarCifra({ titulo: meta.title || s.title, artista: meta.artist || s.artist || '', linhas: linhas || [], acordes: analise?.acordes || [],
+    tom: analise?.tom || null, bpm: analise?.bpm || 0, duracao: Number(s.audioProprio.duracao) || analise?.duracao || 0 });
+  const feita = linhas?.length >= 2 ? 'letra' : semCanto ? 'instrumental' : 'acordes';
+  db.updateSong(id, { content: cifra, ...(analise?.tom?.nome ? { key: analise.tom.nome } : {}), audioProprio: { ...s.audioProprio, ...(analise ? { analise } : {}), cifra, transcricao: feita } });
+  if (feita === 'letra') {
+    guardarSincronia(db.song(id), { video: ARQ + id, linhas: linhas.map((l) => l.texto), tempos: linhas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
+      fonte: 'lrclib', gerada: 'transcricao', ...(Number(s.audioProprio.duracao) > 0 ? { duracao: Math.round(Number(s.audioProprio.duracao)) } : {}) });
+  }
+  if (avisar) {
+    const extra = [analise?.tom?.nome && `tom ${analise.tom.nome}`, analise?.bpm && `${analise.bpm} BPM`].filter(Boolean).join(' · ');
+    toast(feita === 'letra' ? `"${nome}": letra sincronizada, acordes${extra ? ` e ${extra}` : ''}. O karaokê já pode ser usado.`
+      : feita === 'instrumental' ? `"${nome}" não tem canto: ficaram os acordes${extra ? ` (${extra})` : ''}.`
+        : `"${nome}": acordes prontos${extra ? ` (${extra})` : ''}. A letra será transcrita quando houver internet.`);
+  }
+  if (location.hash.includes(id)) route();
+  return feita !== 'acordes';
+}
+
 // ------------------------------------------------------------ importação
+
+// os formatos de áudio aceitos na importação (os que a WebView não toca são convertidos no APK pelo ffmpeg)
+const EXT_AUDIO = /\.(mp3|m4a|mp4|wav|ogg|oga|opus|aac|flac|wma|aif|aiff|amr|3gp|ape|alac|ac3|mka|webm|caf)$/i;
+// o áudio que este aparelho não abre, convertido para M4A pelo APK (converterAudio); null fora do APK ou se não deu
+async function converterNoAparelho(arquivo) {
+  const nativo = pluginEcoa();
+  if (!nativo || !temMetodoNativo('converterAudio') || arquivo.size > 150e6) return null;
+  try {
+    const r = await nativo.converterAudio({ dados: await emBase64(arquivo), nome: arquivo.name || 'audio' });
+    if (!r?.dados) return null;
+    const bytes = Uint8Array.from(atob(r.dados), (c) => c.charCodeAt(0));
+    return new File([bytes], `${String(arquivo.name || 'audio').replace(/\.[^.]+$/, '')}.m4a`, { type: r.tipo || 'audio/mp4' });
+  } catch { return null; }
+}
 
 async function importFiles(files) {
   let n = 0;
   let audios = 0;
   for (const file of files) {
     const nome = file.name || 'Música';
-    const audio = /^audio\//i.test(file.type) || /\.(mp3|m4a|wav|ogg|opus|aac|flac|wma)$/i.test(nome);
+    const audio = /^audio\//i.test(file.type) || EXT_AUDIO.test(nome);
     if (audio) {
-      const duracao = await duracaoDoArquivo(file);
-      if (!duracao) { toast(`Não consegui abrir "${nome}". Tente MP3, M4A, WAV, OGG ou FLAC.`); continue; }
-      const titulo = nome.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Música importada';
-      const song = db.saveSong({ content: `{title: ${titulo.replace(/[{}\n]/g, ' ').trim() || 'Música importada'}}\n` });
+      let arquivo = file;
+      let duracao = await duracaoDoArquivo(arquivo);
+      // (WMA, AIFF, AMR, APE, ALAC…: o Android converte para M4A, e a música toca, faz karaokê e é transcrita igual)
+      if (!duracao && noApk()) {
+        toast(`Convertendo "${nome}"…`);
+        const convertido = await converterNoAparelho(file);
+        if (convertido) { arquivo = convertido; duracao = await duracaoDoArquivo(arquivo); }
+      }
+      if (!duracao) { toast(`Não consegui abrir "${nome}". ${noApk() ? 'O arquivo pode estar corrompido.' : 'Tente MP3, M4A, WAV, OGG ou FLAC (o app de Android abre também WMA, AIFF, AMR e outros).'}`); continue; }
+      // ("Artista - Título.mp3": o LRCLIB acha a letra pelo título e pelo artista)
+      const { titulo, artista } = nomesDoArquivo(nome);
+      const limpo = (v) => String(v || '').replace(/[{}\n]/g, ' ').trim();
+      const song = db.saveSong({ content: `{title: ${limpo(titulo) || 'Música importada'}}\n${limpo(artista) ? `{artist: ${limpo(artista)}}\n` : ''}` });
       try {
-        await guardarAudio(song.id, file);
-        db.updateSong(song.id, { audioProprio: { nome, duracao: Math.round(duracao * 10) / 10 } });
+        await guardarAudio(song.id, arquivo);
+        db.updateSong(song.id, { audioProprio: { nome: arquivo.name || nome, duracao: Math.round(duracao * 10) / 10 } });
         audios++;
-        // Tenta primeiro a letra sincronizada existente (LRCLIB). Se não houver uma versão compatível,
-        // a música continua importada e pode receber letra/cifra manualmente.
-        void sincronizarMusica(db.song(song.id)).catch(() => {});
+        // O LRCLIB vem primeiro (a letra sincronizada da gravação, quando ela existe). Sem ela — a música própria,
+        // que nenhum site tem —, o APK transcreve a letra, tira os acordes, o tom e o andamento no próprio aparelho
+        void prepararMusicaImportada(song.id);
         n++;
       } catch (e) {
         db.deleteSong(song.id);
@@ -8717,7 +8909,7 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
 let abrindoDaBusca = 0;
 function telaChegando(dados) {
   const titulo = dados.titulo || 'Música';
-  const img = dados.capa || dados.cover || dados.video?.capa || capaConhecida(titulo, dados.artista || '') || '';
+  const img = dados.capa || dados.cover || capaConhecida(titulo, dados.artista || '') || (dados.semCapaOficial ? dados.video?.capa : '') || '';
   const el = document.createElement('div');
   el.className = 'chegando';
   el.style.setProperty('--cor', corDaMusica(titulo));
@@ -8770,7 +8962,7 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     try {
       const r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
       if (chegando && chegando.meu !== abrindoDaBusca) return;
-      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu });
+      await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu, capaDaBusca: capaAutomatica(dados.capa) ? dados.capa : '' });
     } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
     abrirNoTocando = false;
@@ -8818,7 +9010,7 @@ async function videoDaMusica(titulo, artista, source) {
   return vs.find((v) => videoCombina(v.titulo, titulo)) || null;
 }
 
-async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false, vez = 0 } = {}) {
+async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = null, { noPlayer = false, vez = 0, capaDaBusca = '' } = {}) {
   const novo = { id: 'previa', content, source, transpose: 0, capo: capoDaCifra(content), back }; // capo da cifra (Cifra Club)
   let m = renderSong(novo.content).meta;
   if (!youtubeId(m.youtube) && !String(source || '').startsWith('cnbb:')) {
@@ -8872,8 +9064,16 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   const jaNaPrevia = location.hash === '#/musica/previa';
   preview = novo;
 
+  // A capa que a pessoa viu na linha da busca é a da música: ela entra já e não é escolhida de novo. Antes a prévia
+  // procurava outra vez pelo título e pelo artista da página da cifra (às vezes escritos de outro jeito: "(Ao Vivo)",
+  // o nome do grupo), e a música abria com uma capa diferente da que estava na busca. Fica guardada também para o
+  // título e o artista da cifra, e a biblioteca e o player mostram a mesma
+  if (capaDaBusca && novo.title && novo.artist && capaTrocavel(novo.cover)) {
+    const k = chaveDaCapa(novo.title, novo.artist);
+    if (k && capaConhecida(novo.title, novo.artist) !== capaDaBusca) void valorDaInternet('capa', `capa:${normalizar(k)}`, Promise.resolve(capaDaBusca));
+  }
   // A capa original é buscada em paralelo com áudio e LRCLIB. Ela não depende do resultado dessas etapas.
-  const buscaCapaDaPrevia = novo.title && novo.artist
+  const buscaCapaDaPrevia = capaDaBusca ? Promise.resolve(capaDaBusca) : novo.title && novo.artist
     ? capaOficial(novo.title, novo.artist).catch(() => '')
     : Promise.resolve('');
   const buscaFotoDaPrevia = novo.title && novo.artist
@@ -8901,7 +9101,7 @@ async function abrirPrevia(content, source, back, videoJa = null, aoPreparar = n
   void buscaCapaDaPrevia.then(aplicarCapaDaPrevia);
 
   // a capa que já se conhece desta música entra de primeira (sem a do vídeo antes)
-  if (capaTrocavel(novo.cover)) aplicarCapaDaPrevia(capaConhecida(novo.title, novo.artist));
+  if (capaTrocavel(novo.cover)) aplicarCapaDaPrevia(capaDaBusca || capaConhecida(novo.title, novo.artist));
 
   // A sincronização LRCLIB é complementar: uma falha ou demora não deve impedir a abertura da música. Espera um
   // tempo razoável (a maioria responde em 1–3 s); passou disso, a música abre e a letra sincronizada entra sozinha
@@ -9299,7 +9499,9 @@ function enriquecerTilesArtistas(container) {
       atual.addEventListener('error', falhou, { once: true });
       if (atual.complete && !atual.naturalWidth) falhou();
     }
-    if (!noApk() && box.dataset.mostrando) return;
+    // (a foto do Deezer já mostrada fica; a de outra fonte é conferida, e troca pela do Deezer quando ele tiver. Antes,
+    // no app de Android, toda foto era procurada de novo a cada vez, e com a escolha que variava ela mudava na tela)
+    if (fotoDoDeezer(box.dataset.mostrando)) return;
     const exibida = box.dataset.mostrando || atual?.getAttribute('src') || '';
     fotoDoArtista(nome, slug).then((url) => {
       if (!url || !box.isConnected) return;
@@ -9312,10 +9514,11 @@ function enriquecerTilesArtistas(container) {
 // com a última guardada, ou com o desenho, e entra sozinha quando chegar)
 async function prepararFotosArtistas(lista) {
   await Promise.all(lista.filter(Boolean).map(async (a) => {
-    // (a foto que a busca de artistas do Cifra Club já trouxe vale de reserva, sem esperar)
-    const reserva = fotoReal(a.capa) || '';
-    const f = reserva && !fotoConhecida(a.nome) ? await noMaximo(fotoDoArtista(a.nome, a.slug || ''), 700, reserva) : await fotoRapida(a.nome, a.slug || '');
-    if (f || reserva) a.fotoFinal = f || reserva;
+    // (a mesma foto do artista do resto do app — a do Deezer —: antes, sem uma guardada, entrava a do Cifra Club se a
+    // escolhida não chegasse em 0,7 s, e o quadro mostrava uma foto e o artista, outra. Sem nenhuma, o desenho, e a
+    // foto entra quando chegar: enriquecerTilesArtistas)
+    const f = await fotoRapida(a.nome, a.slug || '');
+    if (f) a.fotoFinal = f;
   }));
   return lista;
 }
@@ -9686,17 +9889,23 @@ function fotoDoArtista(nome, slug = '', titulo = '') {
         .then((f) => f || daPagina(slug, nome))
       : () => buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).then((a) => a?.capa
         || (a?.slug ? daPagina(a.slug, a.nome || nome) : '')).catch(() => '');
-    // (as três ao mesmo tempo, na mesma ordem de preferência; a Wikipédia só quando nenhuma tem). Sem foto guardada, a
-    // primeira que chegar não espera muito pelas preferidas (a tela está sem foto); com uma guardada, que já aparece na
-    // hora, a troca em segundo plano espera a preferida, para a foto não ficar trocando entre uma abertura e outra
-    const estrita = Boolean(fotoConhecida(nome));
-    const resolucao = primeiraPorPreferencia([() => fotoDoCanalDeVerdade(nome), () => fotoDeezer(nome, titulo), cifraClub], { folga: estrita ? 0 : 1200 })
+    // A foto do Deezer é a do artista, em toda parte (como no site): as outras fontes só valem quando o Deezer não tem
+    // foto dele. As fontes são pedidas juntas, mas a escolha segue a preferência à risca (folga 0): antes a primeira a
+    // responder em 1,2 s ganhava, e no app de Android — que alcança o canal do YouTube pela conexão do próprio Android,
+    // o que o navegador não consegue — a foto alternava entre a do canal e a do Deezer de uma abertura para outra
+    const guardada = fotoConhecida(nome);
+    const resolucao = primeiraPorPreferencia([() => fotoDeezer(nome, titulo), () => fotoDoCanalDeVerdade(nome), cifraClub], { folga: 0 })
       .then((f) => f || fotoWikipedia(nome).catch(() => ''))
+      // (a foto do Deezer já guardada não é trocada pela de outra fonte só porque o Deezer não respondeu agora: o
+      // limite de pedidos dele, a internet do celular oscilando)
+      .then((f) => (fotoDoDeezer(guardada) && !fotoDoDeezer(f) ? guardada : f))
       .then((f) => { if (!f) fotosArtistas.delete(k); return f || ''; });
     fotosArtistas.set(k, resolucao);
   }
   return comUltimoValor('foto', nome, fotosArtistas.get(k));
 }
+// a foto vem do Deezer (o endereço das imagens dele)
+const fotoDoDeezer = (u) => /^https?:\/\/([^/]+\.)?dzcdn\.net\//.test(u || '');
 // A foto e a capa que já se conhece na hora (a última trazida da internet, guardada no aparelho), sem esperar nada
 const fotoConhecida = (nome) => (nome && ultimoValorDoArtista('foto', nome)) || '';
 // tira a foto guardada para o nome (a da sessão e a do aparelho), para ela ser procurada de novo
@@ -9714,7 +9923,7 @@ const noMaximo = (p, ms, reserva = '') => Promise.race([Promise.resolve(p).catch
 function fotoRapida(nome, slug = '', titulo = '') {
   if (!nome) return Promise.resolve('');
   const guardada = fotoConhecida(nome);
-  return noMaximo(fotoDoArtista(nome, slug, titulo).then((f) => f || guardada), guardada ? (noApk() ? 700 : 1500) : (noApk() ? 2200 : 4500), guardada);
+  return noMaximo(fotoDoArtista(nome, slug, titulo).then((f) => f || guardada), guardada ? 1500 : 4500, guardada);
 }
 function capaRapida(titulo, artista) {
   const guardada = capaConhecida(titulo, artista);
@@ -9783,6 +9992,9 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     if (trocaCapa) {
       capaOficial(titulo, artista).then((url) => {
         porSeloExplicita(linha, titulo, artista);
+        // (sem capa oficial: só então a miniatura do vídeo, que antes aparecia primeiro e era trocada pela oficial —
+        // a capa "nada a ver" que piscava na busca)
+        if (!url && busca && item.video?.capa && !item.capa) { item.semCapaOficial = true; url = item.video.capa; }
         if (!url || !linha.isConnected) return;
         if (linha.querySelector('.cover img')?.getAttribute('src') === url) return;
         const box = linha.querySelector('.cover');
@@ -9810,10 +10022,10 @@ async function jsonp(url, tempo = 8000) {
   for (let vez = 0; ; vez++) {
     const r = await jsonpUmaVez(url, tempo);
     if (!doDeezer || !r?.error) return r;
-    // No APK, não prolongar uma consulta limitada pelo Deezer com várias esperas: a próxima atualização
-    // poderá tentar de novo, e a tela não fica presa por mais de vários segundos.
-    if (r.error.code !== 4 || vez >= (noApk() ? 1 : 3)) return null;
-    await new Promise((ok) => setTimeout(ok, noApk() ? 500 : 1200 * (vez + 1)));
+    // (no APK como no site: com uma só nova tentativa, o Deezer limitado ficava sem resposta, outra fonte entrava e a
+    // foto do artista e a capa mudavam de uma abertura para outra. A tela não espera por isso: mostra a guardada)
+    if (r.error.code !== 4 || vez >= 3) return null;
+    await new Promise((ok) => setTimeout(ok, 1200 * (vez + 1)));
   }
 }
 function lerJsonpDaPagina(texto) {
@@ -9950,6 +10162,16 @@ function capaOficial(titulo, artista) {
   if (!k) return Promise.resolve('');
   if (!capasOficiais.has(k)) {
     const busca = capasCandidatas(titulo, artista).then(async (l) => {
+      // (a capa já guardada desta música continua sendo uma das achadas, e da gravação certa: fica. A escolha entre as
+      // candidatas depende de quais imagens abrem a tempo, e com a internet do celular oscilando ela mudava de uma vez
+      // para outra — a capa trocava sozinha)
+      const conhecida = capaConhecida(titulo, artista);
+      if (conhecida) {
+        const musica = { titulo: tituloLimpo(titulo), artista: artistaDaCapa(artista) };
+        const ck = chaveDaImagem(conhecida);
+        const mesma = l.find((c) => chaveDaImagem(c.url) === ck);
+        if (mesma && !problemaDaCapa(mesma, musica)) { marcarExplicita(k, mesma.explicita); return conhecida; }
+      }
       const melhor = await maiorCapaDisponivel(l);
       if (melhor) marcarExplicita(k, melhor.explicita); // ("cleaned", no iTunes: a versão limpa de uma explícita)
       return melhor?.url || '';
@@ -9987,7 +10209,9 @@ async function conferirCapa(song) {
 async function fotoDeezer(nome, titulo = '') {
   // Quando a foto é pedida junto de uma música, confirma primeiro o artista pela faixa exata no Deezer.
   // A busca só pelo nome é reserva: nomes iguais não podem escolher a foto de um xará.
-  const a = await artistaDoDeezer(nome, titulo ? { titulo } : {});
+  // (sem a faixa desta música no Deezer, o artista pelo nome: antes ficava sem foto do Deezer e entrava outra fonte, e a
+  // foto do artista dependia de qual música dele foi aberta primeiro)
+  const a = await artistaDoDeezer(nome, titulo ? { titulo } : {}) || (titulo ? await artistaDoDeezer(nome) : null);
   // sem foto, o Deezer devolve uma imagem genérica (o endereço fica com "/artist//")
   const foto = [a?.picture_xl, a?.picture_big, a?.picture_medium].find((u) => u && !/\/artist\/\//.test(u)) || '';
   return foto && !(await ehFotoVaziaDoDeezer(foto)) ? foto : '';
@@ -10731,7 +10955,7 @@ const indicadoresWeb = (r) => {
 };
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
-    ${capa({ titulo: r.titulo, capa: r.capa || r.video?.capa })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
+    ${capa({ titulo: r.titulo, capa: r.capa || (r.semCapaOficial ? r.video?.capa : '') })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
     <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
@@ -22164,7 +22388,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     sessionStorage.setItem('atualizado', '1');
     location.reload();
   });
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+  // (no APK, com o número do APK instalado: cada APK novo troca o pacote em cache pelo dele — sw.js, PACOTE)
+  const doApk = noApk() && pluginEcoa()?.versao
+    ? Promise.race([pluginEcoa().versao().then((i) => (/^\d+$/.test(String(i?.codigo ?? '')) ? `?apk=${i.codigo}` : '')), new Promise((ok) => setTimeout(() => ok(''), 8000))]).catch(() => '')
+    : Promise.resolve('');
+  doApk.then((sufixo) => navigator.serviceWorker.register(`sw.js${sufixo}`, { updateViaCache: 'none' })).then((reg) => {
     reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     // a versão nova que não conseguiu baixar o pacote (a internet caiu no meio, o servidor recusou um arquivo): tenta de

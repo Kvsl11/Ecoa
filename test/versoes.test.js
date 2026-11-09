@@ -290,14 +290,16 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
   const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
   assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
-  assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDoCanalDeVerdade\(nome\), \(\) => fotoDeezer\(nome, titulo\), cifraClub\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o canal primeiro)');
-  assert.ok(resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoDeezer(nome, titulo)') && resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'a ordem de preferência das fontes fica a mesma');
-  assert.match(resolverFoto, /folga: estrita \? 0 : 1200/, 'com uma foto guardada, a troca espera a preferida (a foto não fica trocando)');
+  assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDeezer\(nome, titulo\), \(\) => fotoDoCanalDeVerdade\(nome\), cifraClub\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o Deezer primeiro)');
+  assert.ok(resolverFoto.indexOf('fotoDeezer(nome, titulo)') < resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') && resolverFoto.indexOf('fotoDoCanalDeVerdade(nome)') < resolverFoto.indexOf('fotoWikipedia(nome)'), 'a ordem de preferência das fontes fica a mesma');
+  assert.match(resolverFoto, /\{ folga: 0 \}/, 'a escolha segue a preferência à risca: a primeira a responder não ganha (a foto não fica trocando)');
+  assert.match(resolverFoto, /fotoDoDeezer\(guardada\) && !fotoDoDeezer\(f\) \? guardada : f/, 'a foto do Deezer guardada não é trocada pela de outra fonte quando o Deezer não responde');
   assert.doesNotMatch(resolverFoto, /Promise\.any|cacheKey|fotoDeezer\(nome\)\s*,/, 'o APK não cria fotos diferentes por faixa');
   assert.match(app, /nativo\?\.buscarPagina/, 'as consultas JSONP usam a conexão nativa no APK');
   assert.match(app, /output=jsonp&callback=ecoaJsonp/, 'o Android recebe e interpreta a resposta JSONP diretamente');
   assert.match(app, /lerJsonpDaPagina\(r\.texto\)/, 'a resposta do Deezer é convertida em JSON antes de chegar à interface');
-  assert.match(app, /vez >= \(noApk\(\) \? 1 : 3\)/, 'o APK não fica preso em várias esperas quando o Deezer limita consultas');
+  assert.match(app, /if \(r\.error\.code !== 4 \|\| vez >= 3\) return null;/, 'o APK tenta de novo como o site quando o Deezer limita consultas (com uma só tentativa, outra fonte entrava)');
+  assert.doesNotMatch(app, /noApk\(\) \? 700 : 1500|noApk\(\) \? 2200 : 4500/, 'a foto espera o mesmo tempo no APK e no site');
   assert.match(app, /enriquecerLinhasMusicais\(\$\('#mu-res'\), lista, \{ busca: true \}\)/, 'as fotos são carregadas depois que os resultados já aparecem');
   assert.match(app, /limitar\(buscarCifraClub\(termo\).*4500\)/, 'a busca não espera indefinidamente por uma fonte lenta');
   assert.match(app, /noMaximo\(pVideos, 2200, \[\]\)/, 'o YouTube não pode segurar a lista de músicas');
@@ -305,6 +307,21 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /const exibida = box\.dataset\.mostrando/,'fotos já exibidas também precisam ser atualizadas');
 });
 
+
+test('a capa da busca é a mesma ao abrir a música, sem piscar outra antes', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  // (a linha da busca não mostra a miniatura do vídeo antes da capa oficial: só quando não há capa oficial)
+  assert.match(app, /capa: r\.capa \|\| \(r\.semCapaOficial \? r\.video\?\.capa : ''\)/);
+  assert.match(app, /if \(!url && busca && item\.video\?\.capa && !item\.capa\) \{ item\.semCapaOficial = true; url = item\.video\.capa; \}/);
+  // (a capa vista na busca vai para a música aberta e não é escolhida de novo)
+  assert.match(app, /capaDaBusca: capaAutomatica\(dados\.capa\) \? dados\.capa : ''/);
+  assert.match(app, /const buscaCapaDaPrevia = capaDaBusca \? Promise\.resolve\(capaDaBusca\)/);
+  assert.match(app, /aplicarCapaDaPrevia\(capaDaBusca \|\| capaConhecida\(novo\.title, novo\.artist\)\)/);
+  // (a capa guardada que continua entre as achadas, da gravação certa, fica)
+  const oficial = app.slice(app.indexOf('function capaOficial('), app.indexOf('// Confere a capa da música salva'));
+  assert.match(oficial, /if \(mesma && !problemaDaCapa\(mesma, musica\)\) \{ marcarExplicita\(k, mesma\.explicita\); return conhecida; \}/);
+  assert.ok(oficial.indexOf('return conhecida') < oficial.indexOf('maiorCapaDisponivel(l)'), 'a guardada é conferida antes de escolher entre as imagens que abrem');
+});
 
 test('app.js passa pela verificação real de sintaxe do Node', async () => {
   const { spawnSync } = await import('node:child_process');

@@ -5,8 +5,14 @@
 //   (a anterior continua) e tenta de novo depois;
 // - dados (liturgia, músicas, partituras, API): "rede primeiro", com a cópia local como reserva offline;
 // - ao publicar uma versão nova, mude VERSION: o app baixa o pacote novo e recarrega sozinho com ele.
-const VERSION = 'songbook-v607';
-const SHELL = ['./', 'index.html', 'css/app.css', 'karaoke-teste.m4a', 'js/app.js', 'js/store.js', 'js/conta.js', 'js/lib/sincronia-conta.js', 'js/render.js', 'js/chordpro.js', 'js/icons.js', 'js/pdf.js', 'js/powerpoint.js', 'js/lib/pptx-missa.js', 'js/lib/pptx-simples.js', 'js/fonte.js', 'js/lib/html.js', 'js/lib/cnbb.js', 'js/lib/cindy.js', 'js/lib/missa.js', 'js/lib/mpm.js', 'js/lib/pocket.js', 'js/lib/web.js', 'js/lib/hashtags.js', 'js/lib/acervo.js', 'js/lib/hinario.js', 'js/lib/sugestoes-liturgicas.js', 'js/lib/revisor.js', 'js/lib/ensaio.js', 'js/lib/partitura.js', 'js/lib/alinhamento.js', 'js/lib/harmonizar.js', 'js/lib/transcricao.js', 'js/lib/cores.js', 'js/lib/avisos.js', 'js/lib/novidades.js', 'js/lib/versoes.js', 'js/lib/cifra-sincronizada.js', 'js/lib/violao.js', 'js/lib/casamento.js', 'js/lib/fila.js', 'js/lib/artistas.js', 'js/lib/tom.js', 'js/lib/cifras.js', 'js/lib/estatisticas.js', 'js/lib/automix.js', 'js/lib/capas.js', 'js/lib/transferir.js', 'js/lib/casamento-worker.js', 'js/lib/baixador-aparelho.js', 'js/lib/lumen-local.js', 'js/lib/conexao.js', 'js/audios.js', 'js/lib/piano.js', 'js/acordes.js', 'icon.svg', 'badge-96.png', 'icon-192-v10.png', 'icon-512-v10.png', 'apple-touch-icon-v10.png', 'manifest.webmanifest'];
+const VERSION = 'songbook-v608';
+// No app de Android, a página vem dos arquivos dentro do APK, e o pacote em cache era o da versão acima: um APK novo
+// com arquivos mudados e o mesmo VERSION continuava abrindo os arquivos do APK anterior (as Novidades e as correções
+// não chegavam). O app registra este arquivo com o número do APK (sw.js?apk=1207), e o cache do pacote leva esse
+// número no nome: cada APK instalado troca o pacote em cache pelo dele
+const APK = /^\d{1,9}$/.exec(new URL(self.location.href).searchParams.get('apk') || '')?.[0] || '';
+const PACOTE = APK ? `${VERSION}-apk${APK}` : VERSION;
+const SHELL = ['./', 'index.html', 'css/app.css', 'karaoke-teste.m4a', 'js/app.js', 'js/store.js', 'js/conta.js', 'js/lib/sincronia-conta.js', 'js/render.js', 'js/chordpro.js', 'js/icons.js', 'js/pdf.js', 'js/powerpoint.js', 'js/lib/pptx-missa.js', 'js/lib/pptx-simples.js', 'js/fonte.js', 'js/lib/html.js', 'js/lib/cnbb.js', 'js/lib/cindy.js', 'js/lib/missa.js', 'js/lib/mpm.js', 'js/lib/pocket.js', 'js/lib/web.js', 'js/lib/hashtags.js', 'js/lib/acervo.js', 'js/lib/hinario.js', 'js/lib/sugestoes-liturgicas.js', 'js/lib/revisor.js', 'js/lib/ensaio.js', 'js/lib/partitura.js', 'js/lib/alinhamento.js', 'js/lib/harmonizar.js', 'js/lib/transcricao.js', 'js/lib/cores.js', 'js/lib/avisos.js', 'js/lib/novidades.js', 'js/lib/versoes.js', 'js/lib/cifra-sincronizada.js', 'js/lib/violao.js', 'js/lib/casamento.js', 'js/lib/fila.js', 'js/lib/artistas.js', 'js/lib/tom.js', 'js/lib/cifras.js', 'js/lib/estatisticas.js', 'js/lib/automix.js', 'js/lib/capas.js', 'js/lib/transferir.js', 'js/lib/casamento-worker.js', 'js/lib/analise-musical.js', 'js/lib/analise-musical-worker.js', 'js/lib/baixador-aparelho.js', 'js/lib/lumen-local.js', 'js/lib/conexao.js', 'js/audios.js', 'js/lib/piano.js', 'js/acordes.js', 'icon.svg', 'badge-96.png', 'icon-192-v10.png', 'icon-512-v10.png', 'apple-touch-icon-v10.png', 'manifest.webmanifest'];
 
 // caminhos (absolutos) dos arquivos do pacote, para reconhecer as requisições
 const DO_APP = new Set(SHELL.map((u) => new URL(u, self.registration.scope).pathname));
@@ -28,7 +34,7 @@ async function baixarDoPacote(u) {
 }
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(VERSION)
+    caches.open(PACOTE)
       .then(async (c) => {
         // (de 8 em 8, e não os 57 de uma vez: menos chance de o servidor recusar algum)
         for (let i = 0; i < SHELL.length; i += 8) {
@@ -48,7 +54,7 @@ const BAIXADOS = 'songbook-baixados';
 const MAX_IMAGENS = 400;
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION) && k !== IMAGENS && k !== EXTRAS && k !== COMPARTILHADO && k !== BAIXADOS).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(PACOTE) && k !== IMAGENS && k !== EXTRAS && k !== COMPARTILHADO && k !== BAIXADOS).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 // rede primeiro; se a rede demorar (sinal fraco) e houver cópia guardada, usa a cópia
@@ -106,13 +112,13 @@ self.addEventListener('fetch', (e) => {
     const api = url.pathname.includes('/api/');
     // código do app: sempre do pacote desta versão (as páginas abrem o index.html do pacote)
     if (!api && (req.mode === 'navigate' || DO_APP.has(url.pathname))) {
-      e.respondWith(caches.open(VERSION)
+      e.respondWith(caches.open(PACOTE)
         .then((c) => c.match(req.mode === 'navigate' ? 'index.html' : req, { ignoreSearch: true }))
-        .then((r) => r || redePrimeiro(req, VERSION))
+        .then((r) => r || redePrimeiro(req, PACOTE))
         .catch(() => (req.mode === 'navigate' ? caches.match('index.html').then((r) => r || Response.error()) : Response.error())));
       return;
     }
-    const destino = api ? VERSION + '-api' : VERSION;
+    const destino = api ? PACOTE + '-api' : PACOTE;
     e.respondWith(redePrimeiro(req, destino).catch(() => (api
       ? new Response(JSON.stringify({ erro: 'Sem conexão' }), { status: 503, headers: { 'Content-Type': 'application/json' } })
       : Response.error()))); // um arquivo que não veio nunca recebe a página no lugar
