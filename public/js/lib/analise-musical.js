@@ -396,13 +396,13 @@ function normalizarSecao(valor) {
 }
 function capitalizarFrase(texto) {
   // Maiúscula no começo da linha e depois de cada pontuação que encerra uma frase.
-  return String(texto || '').trim().replace(/(^|[.!?…]+\\s+)([“"'‘¿¡(]*)(\\p{L})/gu,
+  return String(texto || '').trim().replace(/(^|[.!?…]+\s+)([“"'‘¿¡(]*)(\p{L})/gu,
     (_, separador, abertura, letra) => separador + abertura + letra.toLocaleUpperCase('pt-BR'));
 }
 
 function chaveEstrutural(texto) {
-  return String(texto || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
-    .replace(/\\[[^\\]]*\\]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/\[[^\]]*\]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 // Quando o modelo não identifica os rótulos, recupera refrões repetidos por blocos de pelo menos duas linhas.
