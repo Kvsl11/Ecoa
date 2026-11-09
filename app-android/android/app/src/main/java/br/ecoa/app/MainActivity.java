@@ -15,7 +15,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.appcheck.FirebaseAppCheck;
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
+import com.google.firebase.appcheck.AppCheckProviderFactory;
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory;
 
 import android.os.Handler;
@@ -39,7 +39,15 @@ public class MainActivity extends BridgeActivity {
         FirebaseApp.initializeApp(this);
         FirebaseAppCheck appCheck = FirebaseAppCheck.getInstance();
         if (BuildConfig.DEBUG) {
-            appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance());
+            // A dependência do provedor de depuração existe apenas no build debug. A resolução por reflexão
+            // evita que a compilação release tente carregar uma classe que não faz parte dela.
+            try {
+                Class<?> tipo = Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory");
+                AppCheckProviderFactory provedor = (AppCheckProviderFactory) tipo.getMethod("getInstance").invoke(null);
+                appCheck.installAppCheckProviderFactory(provedor);
+            } catch (Exception erro) {
+                throw new IllegalStateException("Não foi possível iniciar o App Check de depuração.", erro);
+            }
         } else {
             appCheck.installAppCheckProviderFactory(PlayIntegrityAppCheckProviderFactory.getInstance());
         }
