@@ -105,6 +105,44 @@ function normalizarModelo(texto) {
   }
 }
 
+function mensagemErro(erro) {
+  if (typeof erro === 'string') return erro;
+  if (erro?.message) return erro.message;
+  try { return JSON.stringify(erro); } catch { return String(erro || 'erro desconhecido'); }
+}
+
+function erroDefinitivo(erro) {
+  const m = mensagemErro(erro).toLowerCase();
+  return /api.?key|chave.{0,20}(inv[aá]lida|incorreta)|permission.?denied|unauthenticated|unauthorized|http.?400|http.?401|http.?403|invalid.argument|audio-grande|entrada inv[aá]lida|modelo.{0,20}(n[aã]o encontrado|inexistente)/i.test(m);
+}
+
+function esperar(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function transcreverComTentativas(plugin, trecho, inicio, duracao, numero, total, aoProgresso) {
+  const maxTentativas = 3;
+  let ultimoErro;
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    try {
+      if (tentativa > 1) {
+        aoProgresso('Trecho ' + numero + '/' + total + ': nova tentativa ' + tentativa + ' de ' + maxTentativas + '…');
+      }
+      return await transcreverBloco(plugin, trecho, inicio, duracao);
+    } catch (erro) {
+      ultimoErro = erro;
+      if (erroDefinitivo(erro) || tentativa === maxTentativas) break;
+      const pausa = tentativa * 1500;
+      aoProgresso('Trecho ' + numero + '/' + total + ': falha temporária. Tentando novamente em ' + Math.ceil(pausa / 1000) + ' s…');
+      await esperar(pausa);
+    }
+  }
+  const detalhe = mensagemErro(ultimoErro);
+  throw new Error('Não foi possível sincronizar o trecho ' + numero + ' de ' + total +
+    ' após ' + (erroDefinitivo(ultimoErro) ? 'uma tentativa' : maxTentativas + ' tentativas') +
+    '. ' + detalhe + ' Você pode tentar gerar novamente; os outros trechos não precisam ser reenviados durante esta execução.');
+}
+
 async function transcreverBloco(plugin, amostras, inicio, duracao) {
   const dados = wavBase64(amostras);
   const corpo = corpoDaTranscricao({ tipo: 'audio/wav', dados: '' });
@@ -182,8 +220,10 @@ export async function processarMusicaImportada(arquivo, {
     const fim = Math.min(paraVoz.length, inicio + passo);
     const trecho = paraVoz.slice(inicio, fim);
     const offset = inicio / TAXA_TRANSCRICAO;
-    aoProgresso('Transcrevendo a letra: trecho ' + (i + 1) + ' de ' + total + '…');
-    const resposta = await transcreverBloco(plugin, trecho, offset, trecho.length / TAXA_TRANSCRICAO);
+    aoProgresso('Sincronizando letra: trecho ' + (i + 1) + ' de ' + total + '…');
+    const resposta = await transcreverComTentativas(
+      plugin, trecho, offset, trecho.length / TAXA_TRANSCRICAO, i + 1, total, aoProgresso,
+    );
     const linhas = lerTranscricao(resposta, trecho.length / TAXA_TRANSCRICAO)
       .map((l) => ({ ...l, inicio: l.inicio + offset, fim: l.fim + offset }));
     blocos.push(linhas);
