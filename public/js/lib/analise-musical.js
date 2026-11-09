@@ -382,6 +382,22 @@ export function segundosDe(v) {
   return Number.isFinite(s) ? s : NaN;
 }
 
+function normalizarSecao(valor) {
+  const s = String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  if (/^(intro|introduction|introducao)$/.test(s)) return 'Intro';
+  if (/^(verse|verso|estrofe)(\s*\d+)?$/.test(s)) return 'Verse' + (s.match(/\d+/)?.[0] ? ' ' + s.match(/\d+/)[0] : '');
+  if (/^(pre chorus|pre refr[aã]o)$/.test(s)) return 'Pre-Chorus';
+  if (/^(chorus|refr[aã]o)$/.test(s)) return 'Chorus';
+  if (/^(bridge|ponte)$/.test(s)) return 'Bridge';
+  if (/^(instrumental|solo)$/.test(s)) return 'Instrumental';
+  if (/^(outro|final)$/.test(s)) return 'Outro';
+  return String(valor).trim().replace(/\b\p{L}/gu, (m) => m.toLocaleUpperCase('pt-BR'));
+}
+function capitalizarFrase(texto) {
+  return String(texto || '').trim().replace(/^(\s*[“"'‘(¿¡]*)(\p{L})/u, (_, p, l) => p + l.toLocaleUpperCase('pt-BR'));
+}
+
 // A resposta da transcrição ({ linhas: [{ inicio, fim?, texto }] }, em JSON, ou linhas LRC "[mm:ss.xx] texto") →
 // [{ texto, inicio, fim }] em ordem, sem as linhas vazias, os rótulos ("[Refrão]", "(instrumental)") e as repetições
 // coladas (o mesmo instante duas vezes); o fim de cada linha é o começo da próxima (no máximo 12 s depois)
@@ -392,7 +408,7 @@ export function lerTranscricao(resposta, duracao = 0) {
   if (!dados && texto.startsWith('{')) { try { dados = JSON.parse(texto); } catch { dados = null; } }
   if (!dados && texto.startsWith('[{')) { try { dados = { linhas: JSON.parse(texto) }; } catch { dados = null; } }
   if (dados) {
-    lista = (dados.linhas || dados.lines || []).map((l) => ({ texto: String(l.texto ?? l.text ?? ''), inicio: segundosDe(l.inicio ?? l.start), fim: segundosDe(l.fim ?? l.end) }));
+    lista = (dados.linhas || dados.lines || []).map((l) => ({ texto: String(l.texto ?? l.text ?? ''), inicio: segundosDe(l.inicio ?? l.start), fim: segundosDe(l.fim ?? l.end), secao: String(l.secao ?? l.section ?? '').trim() }));
   } else {
     for (const linha of texto.split(/\r?\n/)) {
       const m = /^\s*\[(\d+:\d+(?:[.,]\d+)?)\]\s*(.*)$/.exec(linha);
@@ -400,7 +416,7 @@ export function lerTranscricao(resposta, duracao = 0) {
     }
   }
   lista = lista
-    .map((l) => ({ ...l, texto: l.texto.replace(/\s+/g, ' ').replace(/^[-–—•*]\s*/, '').trim() }))
+    .map((l) => ({ ...l, texto: capitalizarFrase(l.texto.replace(/\s+/g, ' ').replace(/^[-–—•*]\s*/, '').trim()), secao: normalizarSecao(l.secao) }))
     .filter((l) => Number.isFinite(l.inicio) && l.inicio >= 0 && l.texto
       && !/^[[(].*[\])]$/.test(l.texto) // ([Refrão], (instrumental), (solo))
       && /[\p{L}\p{N}]/u.test(l.texto))
@@ -415,7 +431,7 @@ export function lerTranscricao(resposta, duracao = 0) {
   return saida.map((l, i) => {
     const prox = saida[i + 1]?.inicio ?? (duracao > 0 ? duracao : l.inicio + 6);
     const fim = Number.isFinite(l.fim) && l.fim > l.inicio && l.fim <= prox + 0.5 ? l.fim : Math.min(prox, l.inicio + 12);
-    return { texto: l.texto, inicio: Math.round(l.inicio * 100) / 100, fim: Math.round(Math.max(fim, l.inicio + 0.3) * 100) / 100 };
+    return { texto: capitalizarFrase(l.texto), inicio: Math.round(l.inicio * 100) / 100, fim: Math.round(Math.max(fim, l.inicio + 0.3) * 100) / 100, secao: l.secao || '' };
   });
 }
 
@@ -425,7 +441,7 @@ export const PEDIDO_TRANSCRICAO = 'Você é um transcritor de letras de música.
   + 'no idioma em que é cantada, como numa cifra: uma entrada separada para cada linha/frase cantada (normalmente de 2 a 7 palavras), quebrando nas pausas naturais do canto. NUNCA una duas ou mais linhas cantadas em uma única entrada, mesmo quando forem consecutivas; cada linha deve ter seu próprio início e fim. Não divida uma frase contínua palavra por palavra. '
   + 'Para cada linha, dê o instante em que a voz começa a cantá-la ("inicio") e em que termina ("fim"), no formato mm:ss.cc, '
   + 'medidos nesta gravação (do começo do arquivo). Transcreva cada repetição (o refrão cantado de novo entra de novo, no tempo dele). '
-  + 'Não escreva acordes, rótulos ("Refrão", "Verso"), nomes de quem canta, descrições nem a parte instrumental. '
+  + 'Não escreva acordes, nomes de quem canta nem descrições. IDENTIFIQUE A ESTRUTURA MUSICAL: para cada linha, preencha também "secao" com a seção correspondente, usando "Intro", "Verse 1", "Pre-Chorus", "Chorus", "Bridge", "Instrumental" ou "Outro" quando aplicável. Diferencie verso e refrão pelas repetições e mudanças musicais; mantenha o mesmo nome nas linhas da mesma seção e incremente o número dos versos quando houver nova estrofe. Se não for possível identificar com segurança, use string vazia. '
   + 'Não invente: se uma palavra não dá para entender, escreva a mais provável pelo som; se não há canto, devolva "linhas": [].';
 export function corpoDaTranscricao({ tipo, dados }) {
   return {
@@ -437,7 +453,7 @@ export function corpoDaTranscricao({ tipo, dados }) {
         type: 'OBJECT',
         properties: {
           idioma: { type: 'STRING' },
-          linhas: { type: 'ARRAY', items: { type: 'OBJECT', properties: { inicio: { type: 'STRING' }, fim: { type: 'STRING' }, texto: { type: 'STRING' } }, required: ['inicio', 'texto'] } },
+          linhas: { type: 'ARRAY', items: { type: 'OBJECT', properties: { inicio: { type: 'STRING' }, fim: { type: 'STRING' }, texto: { type: 'STRING' }, secao: { type: 'STRING' } }, required: ['inicio', 'texto', 'secao'] } },
         },
         required: ['linhas'],
       },
@@ -508,6 +524,7 @@ export function montarCifra({ titulo = '', artista = '', linhas = [], acordes = 
   out.push('');
   const fimDaMusica = duracao || acordes[acordes.length - 1]?.fim || linhas[linhas.length - 1]?.fim || 0;
   let ultimo = '';
+  let secaoAtual = '';
   const soAcordes = (de, ate, rotulo) => {
     const lista = linhaDeAcordes(acordes, de, ate, ultimo);
     if (!lista.length) return;
@@ -530,6 +547,12 @@ export function montarCifra({ titulo = '', artista = '', linhas = [], acordes = 
       const pausa = l.inicio - antes.fim;
       if (pausa > 4) soAcordes(antes.fim, l.inicio, 'Instrumental');
       else if (pausa > 3 && out[out.length - 1] !== '') out.push('');
+    }
+    const secao = normalizarSecao(l.secao);
+    if (secao && secao !== secaoAtual) {
+      if (out[out.length - 1] !== '') out.push('');
+      out.push(`{comment: ${secao}}`);
+      secaoAtual = secao;
     }
     const r = linhaComAcordes(l, acordes, ultimo);
     out.push(r.texto);
