@@ -116,8 +116,13 @@ jobs:
           ECOA_VERSAO_CODIGO: ${{ github.run_number }}
           ECOA_VERSAO_NOME: 1.${{ github.run_number }}
           # (o Lúmen chama o Gemini direto do celular: a chave vai no APK, travada ao app no Google Cloud — LEIA-ME.md)
-          ECOA_GEMINI_CHAVE: ${{ secrets.GEMINI_API_KEY_APK || secrets.GEMINI_API_KEY }}
+          # Nunca usar a chave geral do servidor no APK público: somente a chave exclusiva do Android.
+          ECOA_GEMINI_CHAVE: ${{ secrets.GEMINI_API_KEY_APK }}
         run: |
+          if [ -z "$ECOA_GEMINI_CHAVE" ]; then
+            echo "::error::Falta o segredo GEMINI_API_KEY_APK. Configure uma chave exclusiva para o app Android em Settings → Secrets and variables → Actions."
+            exit 1
+          fi
           chmod +x gradlew
           if [ -f "$RUNNER_TEMP/chave/senha-descartavel" ]; then export ECOA_CHAVE_SENHA="$(cat "$RUNNER_TEMP/chave/senha-descartavel")"; fi
           ./gradlew assembleRelease --no-daemon
