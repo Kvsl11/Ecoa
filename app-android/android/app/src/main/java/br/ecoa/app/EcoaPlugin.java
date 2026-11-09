@@ -861,8 +861,8 @@ public class EcoaPlugin extends Plugin {
     @PluginMethod
     public void compartilharApp(PluginCall call) {
         String texto = call.getString("texto", "Conheça o Ecoa! Ouça, cante e ecoe.");
-        String url = call.getString("url", "https://kvsl11.github.io/Songbook/Ecoa.apk");
-        if (url == null || !url.startsWith("https://kvsl11.github.io/Songbook/")) {
+        String url = call.getString("url", "https://kvsl11.github.io/Ecoa/Ecoa.apk");
+        if (url == null || !url.startsWith("https://kvsl11.github.io/Ecoa/")) {
             call.reject("Endereço de download inválido.", "url-invalida");
             return;
         }
