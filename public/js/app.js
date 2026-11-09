@@ -20238,7 +20238,53 @@ function pedacosDaFala(texto) {
   }
   return out.map((x) => x.trim()).filter(Boolean);
 }
+// O Gemini TTS roda no próprio APK: a mesma chave protegida do Gemini de texto, sem depender de /falar no servidor.
+function pcmGeminiParaWav(dados, mime) {
+  const bin = atob(dados);
+  const pcm = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  const taxa = Number(/rate=(\\d+)/i.exec(mime)?.[1]) || 24000;
+  if (!pcm.length) throw new Error('o Gemini não devolveu áudio');
+  const wav = new ArrayBuffer(44 + pcm.length);
+  const view = new DataView(wav);
+  const escrever = (pos, valor) => { for (let i = 0; i < valor.length; i++) view.setUint8(pos + i, valor.charCodeAt(i)); };
+  escrever(0, 'RIFF'); view.setUint32(4, 36 + pcm.length, true); escrever(8, 'WAVE');
+  escrever(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true); view.setUint32(24, taxa, true); view.setUint32(28, taxa * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true); escrever(36, 'data'); view.setUint32(40, pcm.length, true);
+  new Uint8Array(wav, 44).set(pcm);
+  return new Blob([wav], { type: 'audio/wav' });
+}
+async function audioGeminiNoAparelho(nativo, texto) {
+  const corpo = {
+    contents: [{ parts: [{ text: `Leia em voz alta, em português brasileiro, com naturalidade: ${texto}` }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: vozDoLumen().nome } } },
+    },
+  };
+  const r = await nativo.gemini({ caminho: 'models/gemini-3.1-flash-tts-preview:generateContent', corpo: JSON.stringify(corpo), tempo: 90000 });
+  if (r?.status !== 200) {
+    let mensagem = r?.texto || 'o Gemini não conseguiu gerar a voz';
+    try { mensagem = JSON.parse(mensagem).error?.message || mensagem; } catch { /* mantém a resposta original */ }
+    throw Object.assign(new Error(String(mensagem).slice(0, 260)), { status: r?.status || 0 });
+  }
+  const resposta = JSON.parse(r.texto || '{}');
+  const partes = resposta.candidates?.[0]?.content?.parts || [];
+  const audio = partes.map((p) => p.inlineData || p.inline_data).find((p) => p?.data);
+  if (!audio) throw new Error('o Gemini respondeu, mas não enviou o áudio');
+  const mime = audio.mimeType || audio.mime_type || 'audio/L16;rate=24000';
+  if (/audio\\/(?:l16|pcm)/i.test(mime)) return pcmGeminiParaWav(audio.data, mime);
+  const bin = atob(audio.data);
+  return new Blob([Uint8Array.from(bin, (c) => c.charCodeAt(0))], { type: mime });
+}
 async function audioDaVoz(cfg, texto) {
+  // No APK, a voz selecionada vai direto ao Gemini. O servidor é apenas uma reserva.
+  const nativo = await lumenNoAparelho().catch(() => null);
+  if (nativo) {
+    try { return await audioGeminiNoAparelho(nativo, texto); }
+    catch (e) { if (!cfg) throw e; }
+  }
+  if (!cfg) throw new Error('a voz do Gemini não está disponível');
   const base = baseDoServidor(cfg.url);
   const r = await fetch(`${base}/falar`, {
     method: 'POST', headers: { ...cabecalhos(base, cfg.chave), 'Content-Type': 'application/json' },
@@ -20742,10 +20788,11 @@ async function indiceDasDuvidas() {
 let geminiNoApp = null;
 async function lumenNoAparelho() {
   const C = window.Capacitor;
-  if (!C?.isNativePlatform?.() || !C.Plugins?.Ecoa) return null;
-  if (!(C.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'gemini')) return null;
-  if (geminiNoApp === null) geminiNoApp = await C.Plugins.Ecoa.geminiDisponivel().then((r) => Boolean(r?.tem)).catch(() => false);
-  return geminiNoApp ? C.Plugins.Ecoa : null;
+  const nativo = C?.Plugins?.Ecoa;
+  // PluginHeaders não é confiável em todos os WebViews do Capacitor; confira os métodos que serão chamados.
+  if (!C?.isNativePlatform?.() || typeof nativo?.gemini !== 'function' || typeof nativo?.geminiDisponivel !== 'function') return null;
+  if (geminiNoApp === null) geminiNoApp = await nativo.geminiDisponivel().then((r) => Boolean(r?.tem)).catch(() => false);
+  return geminiNoApp ? nativo : null;
 }
 const URL_TEXTOS_ACERVO = 'https://kvsl11.github.io/Songbook/data/textos-acervo.jsonl.gz';
 const CACHE_LUMEN = 'ecoa-lumen';
@@ -21452,7 +21499,12 @@ function viewDuvidas() {
     el.addEventListener('click', (e) => { if (!menu.hidden && !e.target.closest('.dv-vivo-menu')) abrirMenu(false); });
     // ---- a voz e o nível dela (0 a 1, em --nivel: o brilho e a pílula crescem com ele)
     // o servidor (a voz neural e a IA): conferido ao abrir; a escolha da voz aparece quando ele responde
-    const servidorPronto = carregarServidor().catch(() => {}).then(() => { if (servidorVoz()) el.querySelector('.dv-vivo-menu-vozes').hidden = false; });
+    const servidorPronto = Promise.all([
+      carregarServidor().catch(() => {}),
+      lumenNoAparelho().catch(() => null),
+    ]).then(([, nativo]) => {
+      if (nativo || servidorVoz()) el.querySelector('.dv-vivo-menu-vozes').hidden = false;
+    });
     // o AudioContext nasce aqui, no toque que abriu a conversa (fora de um toque o navegador o deixa mudo)
     const ctxAudio = (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } })();
     ctxAudio?.resume().catch(() => {});
@@ -21642,11 +21694,12 @@ function viewDuvidas() {
           // (o servidor acordando pode passar de 6 s: sem ele, a fala ia toda na voz do aparelho)
           await comPrazo(servidorPronto, 15000);
           if (!vale()) return;
+          const nativo = await lumenNoAparelho().catch(() => null);
           const cfg = servidorVoz();
           const pedacos = pedacosDaFala(texto);
           let feito = 0;
           let base = 0;
-          if (cfg && pedacos.length) {
+          if ((nativo || cfg) && pedacos.length) {
             let proximo = audioDaVoz(cfg, pedacos[0]);
             for (; feito < pedacos.length; feito++) {
               let blob = null;
