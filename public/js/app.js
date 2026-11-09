@@ -2620,10 +2620,18 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     passo('Procurando a letra…');
     await noMaximo(sincronizarMusica(s), 45000, 'demorou');
     // (sem a letra na internet: o servidor da IA sincroniza pela voz do vídeo; leva um ou dois minutos)
-    const s1 = db.song(id);
-    // (só com um servidor conectado: no APK ele não é procurado, e antes o botão ficava até 5 minutos girando à toa)
-    if (s1 && servidorIA().url && !(s1.sincronia?.fonte === 'lrclib' && s1.sincronia.video === videoDaLetra(s1) && s1.sincronia.tempos?.length && !s1.sincronia.provisoria)) {
-      passo('Sincronizando a letra pelo áudio…');
+    let s1 = db.song(id);
+    const sincValida = (x) => Boolean(x?.sincronia?.video === videoDaLetra(x) && x.sincronia?.tempos?.length && !x.sincronia.provisoria);
+    // Se a busca trouxe a letra, mas nenhum serviço entregou LRC, o botão "Consertar agora"
+    // também executa o alinhamento local Gemini no APK, usando a letra guardada e o áudio real.
+    if (s1 && !sincValida(s1) && !(s1.sincronia && s1.sincronia.fonte !== 'lrclib') && noApk()) {
+      passo('Sincronizando a letra com Gemini no celular…');
+      await noMaximo(sincronizarPeloGemini(s1), 300000, false);
+      s1 = db.song(id);
+    }
+    // Se Gemini não estiver disponível/conseguir alinhar, tenta o servidor configurado como alternativa.
+    if (s1 && !sincValida(s1) && servidorIA().url && !(s1.sincronia && s1.sincronia.fonte !== 'lrclib')) {
+      passo('Tentando sincronizar a letra pelo servidor…');
       await noMaximo(sincronizarPeloServidor(s1), 300000, false);
     }
   }
