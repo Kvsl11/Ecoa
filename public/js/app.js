@@ -20054,7 +20054,7 @@ function sincronizarPeloGemini(song) {
   if (alinhandoNoGemini.has(chave)) return alinhandoNoGemini.get(chave);
   if (alinhadasPeloGemini.has(chave)) return Promise.resolve(false);
   const linhasOriginais = linhasCantadas(inicial.content || '')
-    .map((l) => linhaSemCifra(l).replace(/\\s+/g, ' ').trim())
+    .map((l) => linhaSemCifra(l).replace(/\s+/g, ' ').trim())
     .filter((l) => l && !soAcordes(l)).slice(0, 240);
   if (linhasOriginais.length < 3) return Promise.resolve(false);
 
@@ -20084,9 +20084,9 @@ function sincronizarPeloGemini(song) {
     const texto = (resposta?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('').trim();
     if (!texto) return false;
     let dados;
-    try { dados = JSON.parse(texto.replace(/^\`\`\`(?:json)?\\s*|\\s*\`\`\`$/g, '')); } catch { return false; }
+    try { dados = JSON.parse(texto.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { return false; }
     const alinhadas = lerTranscricao(dados, duracao);
-    const canon = (v) => String(v || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
+    const canon = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     const originais = new Map(linhasOriginais.map((l) => [canon(l), l]));
     const validas = alinhadas.filter((l) => originais.has(canon(l.texto)));
     const minimo = Math.min(linhasOriginais.length, Math.max(3, Math.ceil(linhasOriginais.length * 0.35)));
