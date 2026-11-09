@@ -412,10 +412,13 @@ function inferirSecoes(linhas) {
   const chaves = saida.map((l) => chaveEstrutural(l.texto));
   const n = chaves.length;
   let melhor = null;
+  // O modelo às vezes devolve "Verse 1" em todas as linhas, mesmo quando o refrão se repete.
+  // Esses rótulos genéricos não podem bloquear a detecção do refrão.
+  const secaoForte = (s) => !!s && !/^Verse(?:\\s+\\d+)?$/i.test(s);
   for (let tamanho = Math.min(8, Math.floor(n / 2)); tamanho >= 2 && !melhor; tamanho--) {
     const vistos = new Map();
     for (let i = 0; i + tamanho <= n; i++) {
-      if (saida.slice(i, i + tamanho).some((l) => l.secao)) continue;
+      if (saida.slice(i, i + tamanho).some((l) => secaoForte(l.secao))) continue;
       const bloco = chaves.slice(i, i + tamanho);
       if (bloco.some((x) => !x)) continue;
       const chave = bloco.join(' | ');
@@ -428,17 +431,15 @@ function inferirSecoes(linhas) {
   }
   if (melhor) {
     for (const inicio of melhor.inicios) {
-      for (let k = inicio; k < inicio + melhor.tamanho; k++) {
-        if (!saida[k].secao) saida[k].secao = 'Chorus';
-      }
+      for (let k = inicio; k < inicio + melhor.tamanho; k++) saida[k].secao = 'Chorus';
     }
   }
   let verso = 0;
   let emVerso = false;
   for (const linha of saida) {
-    if (linha.secao) { emVerso = false; continue; }
+    if (linha.secao && !/^Verse(?:\\s+\\d+)?$/i.test(linha.secao)) { emVerso = false; continue; }
     if (!emVerso) { verso++; emVerso = true; }
-    linha.secao = 'Verse ' + verso;
+    if (!linha.secao || /^Verse(?:\\s+\\d+)?$/i.test(linha.secao)) linha.secao = 'Verse ' + verso;
   }
   return saida;
 }
@@ -514,7 +515,7 @@ function linhaDeAcordes(acordes, de, ate, ultimo) {
   const lista = [];
   for (const s of acordes) {
     if (!s.acorde || s.fim <= de + 0.3 || s.inicio >= ate - 0.3) continue;
-    if (s.fim - s.inicio < 0.4 && lista.length) continue; // (o acorde de passagem curtinho fica de fora)
+    if (s.fim - s.inicio < 0.22 && lista.length) continue; // (o acorde de passagem curtinho fica de fora)
     if (lista[lista.length - 1] === s.acorde || (!lista.length && s.acorde === ultimo)) continue;
     lista.push(s.acorde);
   }
@@ -534,9 +535,9 @@ export function linhaComAcordes(linha, acordes, ultimo = '') {
   if (noComeco?.acorde) colocar.set(0, noComeco.acorde);
   let atual = noComeco?.acorde || ultimo;
   for (const s of acordes) {
-    if (!s.acorde || s.inicio <= inicio + 0.15 || s.inicio >= fim - 0.15) continue;
+    if (!s.acorde || s.inicio <= inicio + 0.05 || s.inicio >= fim - 0.05) continue;
     if (s.acorde === atual) continue;
-    if (s.fim - s.inicio < 0.35) continue; // (passagem)
+    if (s.fim - s.inicio < 0.2) continue; // (passagem muito curta)
     const fracao = (s.inicio - inicio) / dur;
     const alvo = fracao * texto.length;
     // a palavra cantada naquele ponto (a última que começa até ali), sem cair numa que já tem acorde
