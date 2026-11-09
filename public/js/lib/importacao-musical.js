@@ -109,7 +109,7 @@ async function transcreverBloco(plugin, amostras, inicio, duracao) {
   const dados = wavBase64(amostras);
   const corpo = corpoDaTranscricao({ tipo: 'audio/wav', dados: '' });
   const prompt = corpo.contents[0].parts[1].text +
-    '\\nResponda exclusivamente com JSON válido, sem cercas de código, neste formato: ' +
+    '\nResponda exclusivamente com JSON válido, sem cercas de código, neste formato: ' +
     '{"idioma":"idioma detectado","linhas":[{"inicio":"mm:ss.cc","fim":"mm:ss.cc","texto":"frase cantada"}]}. ' +
     'Este trecho começa em ' + inicio.toFixed(2) + ' segundos e dura ' + duracao.toFixed(2) +
     ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO.';
