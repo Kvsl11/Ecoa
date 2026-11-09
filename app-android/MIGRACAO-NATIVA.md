@@ -6,7 +6,7 @@ Evoluir somente o APK Android para reduzir a dependência do servidor. A versão
 
 ## Arquitetura atual confirmada
 
-- O APK é um invólucro Capacitor 8 que aponta para `https://kvsl11.github.io/Songbook/` por meio de `server.url`.
+- O APK é um invólucro Capacitor 8 que aponta para `https://kvsl11.github.io/Ecoa/` por meio de `server.url`.
 - O código de interface e os scripts são servidos pelo site; por isso, hoje o APK não contém uma cópia autônoma do aplicativo.
 - Já existe um plugin Android `EcoaPlugin` com integração para player/widget, notificações, login Google, armazenamento, atualização do APK e informações de saída de áudio.
 - O módulo `public/js/lib/servidor-ia.js` conversa com a API remota para tarefas pesadas. O karaokê no servidor usa modelos de separação de áudio que não devem ser empacotados indiscriminadamente no APK.
