@@ -644,6 +644,68 @@ public class EcoaPlugin extends Plugin {
         call.resolve(r);
     }
 
+    // Transcrição de áudio pela ponte segura do Firebase AI Logic: nenhuma chave Gemini manual no APK.
+    private static final java.util.concurrent.ExecutorService transcrevendoFirebase = Executors.newFixedThreadPool(2);
+
+    @PluginMethod
+    public void transcreverAudioFirebase(PluginCall call) {
+        String dados = call.getString("dados", "");
+        String prompt = call.getString("prompt", "");
+        String mimeType = call.getString("mimeType", "audio/wav");
+        if (dados == null || dados.isEmpty() || prompt == null || prompt.trim().isEmpty()) {
+            call.reject("Áudio ou instrução de transcrição ausente.", "entrada");
+            return;
+        }
+        // Os blocos de 88 s em PCM mono ficam abaixo do limite de entrada inline do Firebase AI Logic.
+        if (dados.length() > 21000000) {
+            call.reject("Este trecho de áudio ficou grande demais para enviar à IA.", "audio-grande");
+            return;
+        }
+        transcrevendoFirebase.execute(() -> {
+            try {
+                byte[] audio = android.util.Base64.decode(dados, android.util.Base64.DEFAULT);
+                if (audio.length == 0 || audio.length > 15 * 1024 * 1024) {
+                    call.reject("O trecho de áudio está vazio ou excede o limite permitido.", "audio-grande");
+                    return;
+                }
+                com.google.firebase.ai.GenerativeModel modelo = com.google.firebase.ai.FirebaseAI
+                    .getInstance(com.google.firebase.ai.type.GenerativeBackend.googleAI())
+                    .generativeModel("gemini-3.8-flash");
+                com.google.firebase.ai.type.Content entrada = new com.google.firebase.ai.type.Content.Builder()
+                    .addInlineData(audio, mimeType)
+                    .addText(prompt)
+                    .build();
+                com.google.firebase.ai.java.GenerativeModelFutures futuro =
+                    com.google.firebase.ai.java.GenerativeModelFutures.from(modelo);
+                com.google.common.util.concurrent.ListenableFuture<com.google.firebase.ai.type.GenerateContentResponse> pedido =
+                    futuro.generateContent(entrada);
+                com.google.common.util.concurrent.Futures.addCallback(pedido,
+                    new com.google.common.util.concurrent.FutureCallback<com.google.firebase.ai.type.GenerateContentResponse>() {
+                        @Override public void onSuccess(com.google.firebase.ai.type.GenerateContentResponse resposta) {
+                            String texto = resposta == null ? "" : resposta.getText();
+                            if (texto == null || texto.trim().isEmpty()) {
+                                call.reject("O Firebase AI Logic não retornou a transcrição deste trecho.", "sem-transcricao");
+                                return;
+                            }
+                            JSObject resultado = new JSObject();
+                            resultado.put("texto", texto);
+                            resultado.put("modelo", "gemini-3.8-flash");
+                            call.resolve(resultado);
+                        }
+                        @Override public void onFailure(Throwable erro) {
+                            String mensagem = erro == null || erro.getMessage() == null
+                                ? "falha ao processar o áudio" : erro.getMessage();
+                            call.reject("Firebase AI Logic: " + mensagem, "firebase-ai");
+                        }
+                    }, ContextCompat.getMainExecutor(getContext()));
+            } catch (Throwable erro) {
+                String mensagem = erro == null || erro.getMessage() == null
+                    ? "falha ao preparar o áudio" : erro.getMessage();
+                call.reject("Não foi possível preparar a transcrição: " + mensagem, "firebase-ai");
+            }
+        });
+    }
+
     @PluginMethod
     public void geminiDisponivel(PluginCall call) {
         JSObject r = new JSObject();
