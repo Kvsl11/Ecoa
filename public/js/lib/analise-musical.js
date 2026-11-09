@@ -414,7 +414,7 @@ function inferirSecoes(linhas) {
   let melhor = null;
   // O modelo às vezes devolve "Verse 1" em todas as linhas, mesmo quando o refrão se repete.
   // Esses rótulos genéricos não podem bloquear a detecção do refrão.
-  const secaoForte = (s) => !!s && !/^Verse(?:\\s+\\d+)?$/i.test(s);
+  const secaoForte = (s) => !!s && !/^Verse(?:\s+\d+)?$/i.test(s);
   for (let tamanho = Math.min(8, Math.floor(n / 2)); tamanho >= 2 && !melhor; tamanho--) {
     const vistos = new Map();
     for (let i = 0; i + tamanho <= n; i++) {
@@ -437,9 +437,9 @@ function inferirSecoes(linhas) {
   let verso = 0;
   let emVerso = false;
   for (const linha of saida) {
-    if (linha.secao && !/^Verse(?:\\s+\\d+)?$/i.test(linha.secao)) { emVerso = false; continue; }
+    if (linha.secao && !/^Verse(?:\s+\d+)?$/i.test(linha.secao)) { emVerso = false; continue; }
     if (!emVerso) { verso++; emVerso = true; }
-    if (!linha.secao || /^Verse(?:\\s+\\d+)?$/i.test(linha.secao)) linha.secao = 'Verse ' + verso;
+    if (!linha.secao || /^Verse(?:\s+\d+)?$/i.test(linha.secao)) linha.secao = 'Verse ' + verso;
   }
   return saida;
 }
