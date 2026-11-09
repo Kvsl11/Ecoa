@@ -2283,6 +2283,8 @@ const REVISOES = [
   // a que respondia primeiro) e ficava guardada na música. A foto do Deezer passou a ser a do artista: a de outra fonte
   // é trocada pela dele, quando o Deezer tem
   { rev: 29, fotoDeezer: true, quais: (s) => Boolean(s.fotoArtista && nomeDoArtistaDaMusica(s)) && !fotoDoDeezer(s.fotoArtista) },
+  // v609: repetir o processamento de áudio importado com fallback do Worker e diagnóstico real de falhas.
+  { rev: 30, transcrever: true, quais: (s) => Boolean(s.audioProprio) && !sincOkDe(s) && podeTrocarCifra(s) && !['letra', 'instrumental'].includes(s.audioProprio.transcricao) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -8078,8 +8080,10 @@ const cifraVazia = (content) => !String(content || '').split('\n').some((l) => l
 const podeTrocarCifra = (s) => cifraVazia(s?.content) || (s?.audioProprio?.cifra && s.content === s.audioProprio.cifra);
 // a transcrição pede o APK com o Gemini (o site não tem a chave)
 async function transcricaoDisponivel() {
+  // Não depender de PluginHeaders: em alguns WebViews o proxy nativo já está disponível antes de os cabeçalhos
+  // de métodos serem preenchidos. A chamada direta confirma a disponibilidade real e evita desativar a transcrição.
   const nativo = pluginEcoa();
-  if (!nativo || !temMetodoNativo('gemini')) return false;
+  if (!nativo || typeof nativo.gemini !== 'function' || typeof nativo.geminiDisponivel !== 'function') return false;
   try { return Boolean((await nativo.geminiDisponivel())?.tem); } catch { return false; }
 }
 function prepararMusicaImportada(id, { avisar = true } = {}) {
@@ -8105,26 +8109,49 @@ async function analisarImportada(id) {
   const amostras = await amostrasDe(ARQ + id);
   if (!amostras?.length) return null;
   return new Promise((ok) => {
-    let w;
-    try { w = new Worker(new URL('./lib/analise-musical-worker.js', import.meta.url), { type: 'module' }); } catch { w = null; }
-    if (!w) { try { ok(analisarMusica(amostras, TAXA_CASAMENTO)); } catch { ok(null); } return; }
-    const fim = (r) => { clearTimeout(limite); w.terminate(); ok(r); };
-    const limite = setTimeout(() => fim(null), 180000);
-    w.onmessage = (e) => fim(e.data?.ok ? e.data.r : null);
-    w.onerror = () => fim(null);
-    w.postMessage({ amostras }, [amostras.buffer]);
+    let w = null;
+    let encerrada = false;
+    let limite = null;
+    const fim = (resultado) => {
+      if (encerrada) return;
+      encerrada = true;
+      clearTimeout(limite);
+      try { w?.terminate(); } catch { /* o Worker já terminou */ }
+      ok(resultado || null);
+    };
+    // Se o Worker de módulo falhar no WebView, ainda tenta a análise com as amostras originais.
+    // A cópia transferida evita que postMessage destaque o buffer que a reserva precisa.
+    const reserva = () => {
+      try { fim(analisarMusica(amostras, TAXA_CASAMENTO)); } catch { fim(null); }
+    };
+    try { w = new Worker(new URL('./lib/analise-musical-worker.js', import.meta.url), { type: 'module' }); }
+    catch { reserva(); return; }
+    limite = setTimeout(reserva, 180000);
+    w.onmessage = (e) => e.data?.ok && e.data.r ? fim(e.data.r) : reserva();
+    w.onerror = () => reserva();
+    try {
+      const copia = amostras.slice();
+      w.postMessage({ amostras: copia }, [copia.buffer]);
+    } catch { reserva(); }
   });
 }
 // o áudio para o Gemini: o próprio arquivo, se ele é de um tipo que o Gemini ouve e cabe no pedido (até ~14 MB); senão
 // um WAV mono de 16 kHz (8 kHz nas músicas muito longas), que é o que o Gemini usa de qualquer jeito
-const TIPOS_GEMINI = { mp3: 'audio/mp3', mpeg: 'audio/mp3', wav: 'audio/wav', 'x-wav': 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac', aiff: 'audio/aiff' };
-async function audioParaTranscrever(id, duracao) {
+const TIPOS_GEMINI = {
+  mp3: 'audio/mp3', mpeg: 'audio/mpeg', mpga: 'audio/mpeg',
+  wav: 'audio/wav', 'x-wav': 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg',
+  flac: 'audio/flac', aac: 'audio/aac', aiff: 'audio/aiff', aif: 'audio/aiff',
+  m4a: 'audio/m4a', mp4: 'audio/m4a', opus: 'audio/opus', webm: 'audio/webm',
+};
+async function audioParaTranscrever(id, duracao, nomeArquivo = '') {
   const blob = await lerAudio(id).catch(() => null);
-  if (!blob) return null;
-  const tipo = TIPOS_GEMINI[String(blob.type || '').replace(/^audio\//, '')] || TIPOS_GEMINI[(/\.([a-z0-9]+)$/i.exec(blob.name || '') || [])[1]?.toLowerCase()];
+  if (!blob || !blob.size) return null;
+  const mime = String(blob.type || '').split(';')[0].trim().toLowerCase();
+  const extensao = /\.([a-z0-9]+)$/i.exec(nomeArquivo || blob.name || '')?.[1]?.toLowerCase() || '';
+  const tipo = TIPOS_GEMINI[mime.replace(/^audio\//, '')] || TIPOS_GEMINI[extensao];
   if (tipo && blob.size <= 14e6) return { tipo, dados: await emBase64(blob) };
   const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  if (!Ctx) return null;
+  if (!Ctx) throw new Error('Este aparelho não conseguiu preparar o áudio para enviar à transcrição.');
   const taxa = Math.max(8000, Math.min(16000, Math.floor(7e6 / Math.max(1, duracao || 300))));
   const som = await new Ctx(1, 1, taxa).decodeAudioData(await blob.arrayBuffer());
   const n = Math.min(som.length, 7e6);
@@ -8146,51 +8173,72 @@ async function transcreverImportada(id, { avisar = true, lrclibRespondeu = true 
   if (!s?.audioProprio) return true;
   const nome = s.title || 'a música';
   if (avisar) toast(lrclibRespondeu ? `A letra de "${nome}" não está no LRCLIB: transcrevendo e tirando os acordes no aparelho…` : `Tirando os acordes de "${nome}" no aparelho…`);
-  // 1. os acordes, o tom e o andamento (sem internet; guardados para não refazer)
+
+  // 1. Tom, andamento e acordes. Se o Worker falhar, analisarImportada tenta a reserva local.
   let analise = s.audioProprio.analise;
-  if (!analise?.acordes) {
-    analise = await analisarImportada(id).catch(() => null);
+  let erroAnalise = '';
+  if (!analise?.acordes?.length) {
+    try { analise = await analisarImportada(id); }
+    catch (e) { erroAnalise = String(e?.message || e || 'falha ao analisar o áudio'); analise = null; }
     s = db.song(id);
     if (!s?.audioProprio) return true;
     if (analise) db.updateSong(id, { audioProprio: { ...s.audioProprio, analise } });
+    else if (!erroAnalise) erroAnalise = 'Não consegui ler as amostras do áudio importado.';
   }
-  // 2. a letra cantada
+
+  // 2. Letra cantada. Guardar a causa real: antes o catch descartava o erro do Gemini e o usuário não via nada.
   let linhas = null;
   let semCanto = false;
-  if (navigator.onLine && await transcricaoDisponivel()) {
+  let erroTranscricao = '';
+  if (!navigator.onLine) {
+    erroTranscricao = 'O celular está sem conexão no momento.';
+  } else if (!(await transcricaoDisponivel())) {
+    erroTranscricao = 'O plugin do Gemini não respondeu no APK ou não confirmou a chave configurada.';
+  } else {
     try {
-      const audio = await audioParaTranscrever(id, Number(s.audioProprio.duracao) || analise?.duracao || 0);
-      if (audio) {
-        const nativo = pluginEcoa();
-        const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
-        const dados = await chamarGeminiModelo(chamar, corpoDaTranscricao(audio), estadoGeminiTranscricao);
-        const texto = (dados?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('');
-        linhas = lerTranscricao(texto, Number(s.audioProprio.duracao) || 0);
-        semCanto = !linhas.length;
+      const audio = await audioParaTranscrever(id, Number(s.audioProprio.duracao) || analise?.duracao || 0, s.audioProprio.nome || '');
+      if (!audio) throw new Error('Não consegui recuperar o arquivo de áudio salvo na biblioteca.');
+      const nativo = pluginEcoa();
+      const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
+      const dados = await chamarGeminiModelo(chamar, corpoDaTranscricao(audio), estadoGeminiTranscricao);
+      const texto = (dados?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('').trim();
+      if (!texto) {
+        const motivo = dados?.candidates?.[0]?.finishReason || 'resposta vazia';
+        throw new Error(`O Gemini não devolveu a transcrição (${motivo}).`);
       }
-    } catch { linhas = null; }
+      linhas = lerTranscricao(texto, Number(s.audioProprio.duracao) || 0);
+      semCanto = !linhas.length;
+    } catch (e) {
+      linhas = null;
+      erroTranscricao = String(e?.message || e || 'falha ao transcrever').replace(/\s+/g, ' ').slice(0, 420);
+    }
   }
+
   s = db.song(id);
   if (!s?.audioProprio || !podeTrocarCifra(s) || sincOkDe(s) || (s.sincronia && s.sincronia.fonte !== 'lrclib')) return true;
-  if (!analise && !linhas?.length) {
-    if (avisar) toast(`Não consegui processar "${nome}" agora. ${navigator.onLine ? 'Tente de novo mais tarde.' : 'Conecte-se à internet para transcrever a letra.'}`);
+  if (!analise?.acordes?.length && !linhas?.length) {
+    if (avisar) {
+      const detalhes = [erroAnalise && `Análise musical: ${erroAnalise}`, erroTranscricao && `Transcrição: ${erroTranscricao}`].filter(Boolean).join('\n\n');
+      void ask({ title: `Não consegui processar "${nome}"`, text: detalhes || 'A análise não retornou acordes nem a transcrição retornou linhas.', ok: 'Entendi', cancel: false });
+    }
     return false;
   }
-  // 3. a cifra e a sincronia
+
+  // 3. Montar e salvar a cifra, mesmo se só uma das duas etapas (análise/transcrição) tiver funcionado.
   const meta = renderSong(s.content || '').meta;
   const cifra = montarCifra({ titulo: meta.title || s.title, artista: meta.artist || s.artist || '', linhas: linhas || [], acordes: analise?.acordes || [],
     tom: analise?.tom || null, bpm: analise?.bpm || 0, duracao: Number(s.audioProprio.duracao) || analise?.duracao || 0 });
-  const feita = linhas?.length >= 2 ? 'letra' : semCanto ? 'instrumental' : 'acordes';
+  const feita = linhas?.length ? 'letra' : semCanto ? 'instrumental' : 'acordes';
   db.updateSong(id, { content: cifra, ...(analise?.tom?.nome ? { key: analise.tom.nome } : {}), audioProprio: { ...s.audioProprio, ...(analise ? { analise } : {}), cifra, transcricao: feita } });
   if (feita === 'letra') {
     guardarSincronia(db.song(id), { video: ARQ + id, linhas: linhas.map((l) => l.texto), tempos: linhas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
       fonte: 'lrclib', gerada: 'transcricao', ...(Number(s.audioProprio.duracao) > 0 ? { duracao: Math.round(Number(s.audioProprio.duracao)) } : {}) });
   }
-  if (avisar) {
-    const extra = [analise?.tom?.nome && `tom ${analise.tom.nome}`, analise?.bpm && `${analise.bpm} BPM`].filter(Boolean).join(' · ');
-    toast(feita === 'letra' ? `"${nome}": letra sincronizada, acordes${extra ? ` e ${extra}` : ''}. O karaokê já pode ser usado.`
-      : feita === 'instrumental' ? `"${nome}" não tem canto: ficaram os acordes${extra ? ` (${extra})` : ''}.`
-        : `"${nome}": acordes prontos${extra ? ` (${extra})` : ''}. A letra será transcrita quando houver internet.`);
+  if (avisar && erroTranscricao && feita !== 'letra' && feita !== 'instrumental') {
+    void ask({ title: `Acordes prontos; falta a letra de "${nome}"`, text: erroTranscricao, ok: 'Entendi', cancel: false });
+  }
+  if (avisar && erroAnalise && feita === 'letra') {
+    void ask({ title: `Letra pronta; faltaram os acordes de "${nome}"`, text: erroAnalise, ok: 'Entendi', cancel: false });
   }
   if (location.hash.includes(id)) route();
   return feita !== 'acordes';
@@ -8238,7 +8286,9 @@ async function importFiles(files) {
         audios++;
         // O LRCLIB vem primeiro (a letra sincronizada da gravação, quando ela existe). Sem ela — a música própria,
         // que nenhum site tem —, o APK transcreve a letra, tira os acordes, o tom e o andamento no próprio aparelho
-        void prepararMusicaImportada(song.id);
+        void prepararMusicaImportada(song.id).catch((e) => {
+          void ask({ title: `Não consegui processar "${titulo}"`, text: String(e?.message || e || 'Falha inesperada ao preparar a música.').replace(/\s+/g, ' ').slice(0, 420), ok: 'Entendi', cancel: false });
+        });
         n++;
       } catch (e) {
         db.deleteSong(song.id);
