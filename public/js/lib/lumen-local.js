@@ -111,10 +111,16 @@ export function candidatosGemini(modelos = [], preferido = MODELO_PREFERIDO) {
   const nomes = modelos.filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => String(m.name || '').replace(/^models\//, ''));
   const fora = /tts|image|live|audio|embedding|vision|learnlm|gemma|robotics|computer|thinking|exp|8b/;
   const texto = nomes.filter((n) => n.startsWith('gemini') && n.includes('flash') && !fora.test(n));
-  const flash = texto.filter((n) => !n.includes('lite') && !n.endsWith('-latest')).sort(compararVersao);
-  const lites = texto.filter((n) => n.includes('lite') && !n.endsWith('-latest')).sort(compararVersao);
-  const ordem = [preferido, ...flash.slice(0, 3), ...(nomes.includes('gemini-flash-latest') || !nomes.length ? ['gemini-flash-latest'] : []),
-    ...lites.slice(0, 2), ...(nomes.includes('gemini-flash-lite-latest') ? ['gemini-flash-lite-latest'] : [])];
+  const flash = texto.filter((n) => !n.includes('lite')).sort(compararVersao);
+  const lites = texto.filter((n) => n.includes('lite')).sort(compararVersao);
+  const semLista = nomes.length === 0;
+  const ordem = [
+    ...(nomes.includes(preferido) || semLista ? [preferido] : []),
+    ...flash.slice(0, 4),
+    ...(semLista ? ['gemini-flash-latest'] : []),
+    ...lites.slice(0, 2),
+    ...(semLista ? ['gemini-flash-lite-latest'] : []),
+  ];
   return [...new Set(ordem.filter(Boolean))];
 }
 
@@ -139,8 +145,14 @@ export async function chamarGemini(chamar, corpo, estado = {}, { modelos = 7, es
   if (!estado.lista) {
     try {
       const r = await chamar('models?pageSize=1000');
+      if (r.status === 0) throw new ErroGemini(0, r.texto || 'sem conexão com o Google');
+      // 401/403 são falhas de chave, API ou restrição do app: tentar vários modelos só repetiria o mesmo bloqueio.
+      if (r.status === 401 || r.status === 403) throw new ErroGemini(r.status, mensagemDoGoogle(r.texto));
       estado.lista = r.status === 200 ? (JSON.parse(r.texto).models || []) : [];
-    } catch { estado.lista = []; }
+    } catch (e) {
+      if (e instanceof ErroGemini) throw e;
+      estado.lista = [];
+    }
   }
   const lista = candidatosGemini(estado.lista);
   if (estado.bom && lista.includes(estado.bom)) lista.splice(0, 0, ...lista.splice(lista.indexOf(estado.bom), 1));
