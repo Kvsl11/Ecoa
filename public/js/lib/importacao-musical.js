@@ -6,7 +6,7 @@ import {
 } from './analise-musical.js';
 
 const TAXA_TRANSCRICAO = 16000;
-const DURACAO_BLOCO = 88;
+const DURACAO_BLOCO = 40;
 const SOBREPOSICAO = 3;
 
 function pluginEcoa() {
@@ -150,7 +150,11 @@ async function transcreverBloco(plugin, amostras, inicio, duracao) {
     '\nResponda exclusivamente com JSON válido, sem cercas de código, neste formato: ' +
     '{"idioma":"idioma detectado","linhas":[{"inicio":"mm:ss.cc","fim":"mm:ss.cc","texto":"frase cantada"}]}. ' +
     'Este trecho começa em ' + inicio.toFixed(2) + ' segundos e dura ' + duracao.toFixed(2) +
-    ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO.';
+    ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO. ' +
+    'REGRA FUNDAMENTAL DE FORMATAÇÃO: devolva UMA entrada em linhas para CADA frase/linha cantada, separadamente. ' +
+    'NUNCA junte duas ou três linhas da letra em um único campo texto, mesmo que sejam cantadas em sequência. ' +
+    'Use uma nova entrada quando houver uma nova frase musical ou uma pausa perceptível; mantenha juntas apenas palavras que formem a mesma frase cantada. ' +
+    'Não crie uma entrada por palavra. Cada entrada deve conter somente uma linha curta da letra, com seu próprio inicio e fim precisos.';
   const resposta = await plugin.transcreverAudioFirebase({
     dados,
     prompt,
