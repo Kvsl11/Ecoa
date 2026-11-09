@@ -18806,9 +18806,25 @@ function viewConta() {
     </div>`,
   (dlg, done) => dlg.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) done(b.dataset.v); }), { folha: true }).then(async (v) => {
     if (v === 'compartilhar') {
-      const url = new URL('./', location.href).href;
-      if (navigator.share) navigator.share({ title: 'Ecoa', text: 'Ouça e cante com o Ecoa', url }).catch(() => {});
-      else { navigator.clipboard?.writeText(url); toast('Link copiado'); }
+      if (noApk()) {
+        const url = 'https://kvsl11.github.io/Songbook/Ecoa.apk';
+        const mensagem = 'Conheça o Ecoa! 🎵\nCifras, letras sincronizadas, acordes e recursos para seus momentos de música.\nBaixe o app para Android:';
+        const nativo = pluginEcoa();
+        if (nativo?.compartilharApp) {
+          try { await nativo.compartilharApp({ texto: mensagem, url }); }
+          catch (e) { await ask({ title: 'Não foi possível compartilhar', text: String(e?.message || e), ok: 'Entendi', cancel: false }); }
+        } else if (navigator.share) {
+          await navigator.share({ title: 'Ecoa — Ouça, cante e ecoe', text: mensagem + '\\n\\n' + url, url }).catch(() => {});
+        } else {
+          await navigator.clipboard?.writeText(mensagem + '\\n\\n' + url);
+          toast('Link de download copiado');
+        }
+      } else {
+        // No navegador, mantém o compartilhamento atual da versão Web.
+        const url = new URL('./', location.href).href;
+        if (navigator.share) navigator.share({ title: 'Ecoa', text: 'Ouça e cante com o Ecoa', url }).catch(() => {});
+        else { navigator.clipboard?.writeText(url); toast('Link copiado'); }
+      }
     } else if (v === 'sinc') sincronizar({ forcar: true });
     else if (v === 'sair') {
       if (!(await ask({ title: 'Sair da conta?', text: 'Para usar o Ecoa de novo, é só entrar com o Google. As suas músicas e os repertórios continuam guardados na sua conta.', ok: 'Sair' }))) return;
