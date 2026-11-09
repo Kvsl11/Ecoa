@@ -6,7 +6,7 @@ qualquer lugar. A página http://localhost:7860 mostra esse endereço num QR cod
 QR code de novo.
 
     IA_TUNEL  as métricas do cloudflared (http://tunel:2000), de onde vem o endereço
-    IA_APP    o endereço do app (padrão: https://kvsl11.github.io/Songbook/)
+    IA_APP    o endereço do app (padrão: https://kvsl11.github.io/Ecoa/)
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import urllib.request
 
 log = logging.getLogger("songbook-ia")
 TUNEL = os.environ.get("IA_TUNEL", "")
-APP = os.environ.get("IA_APP", "https://kvsl11.github.io/Songbook/")
+APP = os.environ.get("IA_APP", "https://kvsl11.github.io/Ecoa/")
 
 
 def endereco() -> str | None:
