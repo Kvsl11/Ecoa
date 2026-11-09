@@ -241,5 +241,6 @@ test('qualidades de verdade: 2K e 4K no vídeo, a máxima no áudio, e o 360p s�
   const qualquer = fv.indexOf('alt + "+bestaudio');
   assert.ok(qualquer > 0 && qualquer < fv.indexOf('/18/'), 'qualquer imagem até a altura antes do MP4 pronto de 360p');
   assert.match(java, /case "4k": return 2160;/);
-  assert.match(java, /res\.altura >= alvo/);
+  assert.match(java, /yt-dlp já selecionou o melhor formato existente/);
+  assert.match(java, /Aceita a melhor resolução realmente disponível/);
 });
