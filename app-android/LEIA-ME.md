@@ -10,7 +10,7 @@ O mesmo Ecoa do site, dentro de um app de Android, com o que o navegador não de
 
 O APK empacota uma cópia local da interface e dos arquivos estáticos de `public/`. Assim, a tela e os recursos que
 não precisam de rede podem abrir mesmo sem conexão. A versão Web continua sendo publicada separadamente em
-`https://kvsl11.github.io/Songbook/` e não é alterada por esta configuração.
+`https://kvsl11.github.io/Ecoa/` e não é alterada por esta configuração.
 
 **O karaokê é feito no próprio celular**: a voz separada da banda por um modelo de 59 MB (UVR MDX-Net Inst HQ 4), baixado na primeira vez que
 alguém usa (2 a 4 minutos por música, conforme o aparelho; depois fica guardado e toca na hora, sem internet). O back
