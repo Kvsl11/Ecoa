@@ -6447,8 +6447,12 @@ const semLinhasDeAcordes = (sinc) => {
       } else item('Baixador do celular', 'este app ainda não tem: atualize o app', 'aviso', 'o app está numa versão antiga, sem os downloads no celular');
       const busca = Boolean((window.Capacitor?.PluginHeaders || []).find((h) => h.name === 'Ecoa')?.methods?.some((m) => m.name === 'buscarPagina'));
       item('Busca direta das páginas', busca ? 'ligada (sem os serviços intermediários)' : 'não (versão antiga do app)', busca ? 'ok' : 'aviso');
-      const lumen = await lumenNoAparelho().catch(() => null);
-      item('Lúmen no celular', lumen ? 'com a chave do Gemini' : 'sem a chave do Gemini (responde pela busca simples)', lumen ? 'ok' : 'aviso', lumen ? '' : 'o Lúmen do app está sem a chave do Gemini (configure o segredo GEMINI_API_KEY_APK no GitHub)');
+      const gemini = await diagnosticoGeminiNoAparelho().catch((e) => ({ tem: false, ok: false, mensagem: String(e?.message || e || 'não foi possível testar a API') }));
+      const lumen = gemini.ok === true ? pluginEcoa() : null;
+      item('Gemini nativo', gemini.ok === true ? 'API e identificação Android confirmadas' :
+        (gemini.mensagem || (gemini.tem ? 'chave incluída, mas sem confirmação de acesso' : 'chave ausente')),
+        gemini.ok === true ? 'ok' : (gemini.tem ? 'erro' : 'aviso'),
+        gemini.ok === true ? '' : (gemini.mensagem || 'Confira o segredo GEMINI_API_KEY_APK e as restrições da chave para br.ecoa.app + SHA-1 do APK.'));
       const k = karaokeNoAparelho() ? await noMaximo(karaokeNoAparelho().karaokeDisponivel(), 5000, null).catch(() => null) : null;
       item('Karaokê no celular', k ? `sim · modelo ${k.modelo ? 'baixado' : 'ainda não baixado (baixa na primeira vez, 30 MB)'}` : 'não (versão antiga do app)', k ? 'ok' : 'aviso');
     }
@@ -20802,12 +20806,40 @@ async function indiceDasDuvidas() {
 // feita aqui (com o texto dos PDFs do acervo, que o site publica e o app guarda por uma semana) e o Gemini é chamado
 // pelo plugin do APK (a chave não passa pela página). No navegador, nada disso existe e o Lúmen segue como sempre
 let geminiNoApp = null;
+let geminiDiagnosticoApp = null;
+// A disponibilidade real é verificada uma vez por sessão, usando a mesma identidade Android da chamada Gemini.
+// APKs antigos continuam compatíveis: neles só conseguimos confirmar que a chave foi incluída na montagem.
+async function diagnosticoGeminiNoAparelho() {
+  const C = window.Capacitor;
+  const nativo = C?.Plugins?.Ecoa;
+  if (!C?.isNativePlatform?.() || typeof nativo?.gemini !== 'function' || typeof nativo?.geminiDisponivel !== 'function') {
+    return { tem: false, ok: false, mensagem: 'Ponte nativa do Gemini indisponível neste app.' };
+  }
+  if (geminiDiagnosticoApp) return geminiDiagnosticoApp;
+  geminiDiagnosticoApp = (async () => {
+    if (typeof nativo.geminiDiagnostico === 'function') {
+      try { return await nativo.geminiDiagnostico(); }
+      catch (e) { return { tem: true, ok: false, mensagem: String(e?.message || e || 'Falha ao testar a API Gemini.') }; }
+    }
+    try {
+      const r = await nativo.geminiDisponivel();
+      return { tem: Boolean(r?.tem), ok: null, mensagem: r?.tem
+        ? 'APK antigo: a chave está incluída, mas esta versão não testa a conexão com o Google.'
+        : 'Este APK foi montado sem a chave do Gemini.' };
+    } catch (e) {
+      return { tem: false, ok: false, mensagem: String(e?.message || e || 'Não consegui consultar o plugin nativo.') };
+    }
+  })();
+  return geminiDiagnosticoApp;
+}
 async function lumenNoAparelho() {
   const C = window.Capacitor;
   const nativo = C?.Plugins?.Ecoa;
-  // PluginHeaders não é confiável em todos os WebViews do Capacitor; confira os métodos que serão chamados.
   if (!C?.isNativePlatform?.() || typeof nativo?.gemini !== 'function' || typeof nativo?.geminiDisponivel !== 'function') return null;
-  if (geminiNoApp === null) geminiNoApp = await nativo.geminiDisponivel().then((r) => Boolean(r?.tem)).catch(() => false);
+  if (geminiNoApp === null) {
+    const d = await diagnosticoGeminiNoAparelho();
+    geminiNoApp = typeof d?.ok === 'boolean' ? d.ok : Boolean(d?.tem);
+  }
   return geminiNoApp ? nativo : null;
 }
 const URL_TEXTOS_ACERVO = 'https://kvsl11.github.io/Songbook/data/textos-acervo.jsonl.gz';

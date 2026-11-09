@@ -713,6 +713,32 @@ public class EcoaPlugin extends Plugin {
         call.resolve(r);
     }
 
+    // Testa a autenticação e as restrições Android com uma consulta leve; nunca devolve nem registra a chave.
+    @PluginMethod
+    public void geminiDiagnostico(PluginCall call) {
+        if (!Gemini.temChave()) {
+            JSObject r = new JSObject();
+            r.put("tem", false);
+            r.put("ok", false);
+            r.put("status", 0);
+            r.put("mensagem", "Este APK foi montado sem a chave GEMINI_API_KEY_APK.");
+            r.put("certificadoSha1", !Gemini.impressaoDigital(getContext()).isEmpty());
+            call.resolve(r);
+            return;
+        }
+        Context ctx = getContext();
+        perguntando.execute(() -> {
+            Gemini.Resposta g = Gemini.chamar(ctx, "models?pageSize=1", null, 20000);
+            JSObject r = new JSObject();
+            r.put("tem", true);
+            r.put("status", g.status);
+            r.put("ok", g.status == 200);
+            r.put("mensagem", g.status == 200 ? "Google aceitou a chave e a identificação deste APK." : Gemini.mensagem(g));
+            r.put("certificadoSha1", !Gemini.impressaoDigital(ctx).isEmpty());
+            call.resolve(r);
+        });
+    }
+
     @PluginMethod
     public void gemini(PluginCall call) {
         String caminho = call.getString("caminho", "");

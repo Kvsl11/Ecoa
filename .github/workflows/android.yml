@@ -109,6 +109,68 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Validar a API Gemini com a assinatura Android do APK
+        if: env.PRINCIPAL == 'true'
+        env:
+          ECOA_GEMINI_CHAVE: ${{ secrets.GEMINI_API_KEY_APK }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ECOA_GEMINI_CHAVE" ]; then
+            echo "::error::Falta o segredo GEMINI_API_KEY_APK."
+            exit 1
+          fi
+          # Reproduz exatamente a normalização usada pelo BuildConfig, sem imprimir a chave.
+          CHAVE="$(printf '%s' "$ECOA_GEMINI_CHAVE" | tr -cd '[:alnum:]_-')"
+          if [ -z "$CHAVE" ]; then
+            echo "::error::O segredo GEMINI_API_KEY_APK não contém uma chave válida."
+            exit 1
+          fi
+          echo "::add-mask::$CHAVE"
+          SHA1="$(awk '/SHA1:/{gsub(":", "", $2); print toupper($2); exit}' "$RUNNER_TEMP/digitais.txt")"
+          if [ -z "$SHA1" ]; then
+            echo "::error::Não foi possível obter a SHA-1 do certificado que assina o APK."
+            exit 1
+          fi
+          # O Google recebe o mesmo pacote e a mesma SHA-1 que o plugin Java envia no celular.
+          CONFIG="$RUNNER_TEMP/gemini-curl.conf"
+          BODY="$RUNNER_TEMP/gemini-validacao.json"
+          printf 'header = "x-goog-api-key: %s"\nheader = "X-Android-Package: br.ecoa.app"\nheader = "X-Android-Cert: %s"\n' "$CHAVE" "$SHA1" > "$CONFIG"
+          chmod 600 "$CONFIG"
+          set +e
+          HTTP="$(curl --config "$CONFIG" --silent --show-error --output "$BODY" --write-out '%{http_code}' \
+            'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000')"
+          CURL_STATUS=$?
+          set -e
+          if [ "$CURL_STATUS" -ne 0 ] || [ "$HTTP" != "200" ]; then
+            MSG="$(node -e 'const fs=require("node:fs");try{const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(d.error?.message||"O Google não retornou detalhes.");}catch{console.log("Não foi possível ler a resposta do Google.");}' "$BODY")"
+            MSG="$(printf '%s' "$MSG" | tr '\n\r' '  ' | cut -c1-300)"
+            rm -f "$CONFIG"
+            echo "::error::A API Gemini recusou a chave deste APK (HTTP ${HTTP:-sem resposta}): $MSG. Confira a chave, a Generative Language API e as restrições Android para br.ecoa.app + SHA-1 deste certificado."
+            exit 1
+          fi
+          # Verifica também generateContent, a mesma operação usada pelo Lúmen e pela transcrição.
+          MODELO="$(node -e 'const fs=require("node:fs");const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")&&/^models\/gemini-.*flash/i.test(m.name||"")&&!/(tts|image|live|audio|embedding|vision|learnlm|gemma|robotics|computer|thinking|exp|8b)/i.test(m.name||""));ms.sort((a,b)=>(a.name==="models/gemini-3.6-flash"?-1:0)-(b.name==="models/gemini-3.6-flash"?-1:0));process.stdout.write(ms.length?ms[0].name.replace(/^models\//,""):"");' "$BODY")"
+          if [ -z "$MODELO" ]; then
+            rm -f "$CONFIG"
+            echo "::error::A chave foi aceita, mas o Google não anunciou nenhum modelo Flash com generateContent para este projeto."
+            exit 1
+          fi
+          printf '%s' '{"contents":[{"parts":[{"text":"Responda somente OK."}]}],"generationConfig":{"maxOutputTokens":8}}' > "$RUNNER_TEMP/gemini-payload.json"
+          set +e
+          HTTP="$(curl --config "$CONFIG" --silent --show-error --request POST --header 'Content-Type: application/json' \
+            --data-binary @"$RUNNER_TEMP/gemini-payload.json" --output "$RUNNER_TEMP/gemini-geracao.json" --write-out '%{http_code}' \
+            "https://generativelanguage.googleapis.com/v1beta/models/$MODELO:generateContent")"
+          CURL_STATUS=$?
+          set -e
+          rm -f "$CONFIG"
+          if [ "$CURL_STATUS" -ne 0 ] || [ "$HTTP" != "200" ]; then
+            MSG="$(node -e 'const fs=require("node:fs");try{const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(d.error?.message||"O Google não retornou detalhes.");}catch{console.log("Não foi possível ler a resposta do Google.");}' "$RUNNER_TEMP/gemini-geracao.json")"
+            MSG="$(printf '%s' "$MSG" | tr '\n\r' '  ' | cut -c1-300)"
+            echo "::error::A chave passou pela autenticação, mas a chamada generateContent falhou (modelo $MODELO, HTTP ${HTTP:-sem resposta}): $MSG. Confira cotas e acesso ao modelo."
+            exit 1
+          fi
+          echo "API Gemini validada: chave, pacote br.ecoa.app, SHA-1 do certificado, modelo $MODELO e generateContent." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Montar o APK
         working-directory: app-android/android
         env:

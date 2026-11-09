@@ -54,6 +54,26 @@ test('Lúmen no aparelho: o Flash mais novo primeiro, os Lite de reserva', () =>
   assert.ok(!lista.some((n) => /tts|pro/.test(n)));
 });
 
+test('Lúmen no aparelho: usa o modelo disponível anunciado pela API, inclusive aliases latest', () => {
+  const lista = candidatosGemini([
+    { name: 'models/gemini-3.6-flash-latest', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/gemini-3.5-flash', supportedGenerationMethods: ['generateContent'] },
+  ]);
+  assert.equal(lista[0], 'gemini-3.6-flash-latest');
+  assert.ok(!lista.includes('gemini-3.6-flash'));
+});
+
+test('Lúmen no aparelho: erro 403 da chave interrompe antes de tentar modelos', async () => {
+  const pedidos = [];
+  const chamar = async (caminho) => {
+    pedidos.push(caminho);
+    return { status: 403, texto: '{"error":{"message":"API key not valid for this Android app"}}' };
+  };
+  await assert.rejects(chamarGemini(chamar, { contents: [] }, {}), (e) =>
+    e.status === 403 && /API key not valid/.test(e.message));
+  assert.deepEqual(pedidos, ['models?pageSize=1000']);
+});
+
 test('Lúmen no aparelho: modelo sem cota passa para o próximo; sem a busca do Google se ela estourar', async () => {
   const g = geminiFalso({
     'gemini-3.6-flash': [{ status: 429, texto: '{"error":{"message":"quota PerDay limit: 0"}}' }, { status: 429, texto: '{"error":{"message":"quota PerDay limit: 0"}}' }],
