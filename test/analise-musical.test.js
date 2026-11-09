@@ -118,6 +118,23 @@ test('lerTranscricao: capitaliza cada frase e recupera o refrão repetido para l
   assert.match(cifra, /\{comment: Chorus\}/);
 });
 
+test('lerTranscricao: identifica refrão mesmo quando o Gemini marca todas as linhas como Verse 1', () => {
+  const linhas = lerTranscricao({ linhas: [
+    { inicio: 0, texto: 'Eu caminho em tua luz', secao: 'Verse 1' },
+    { inicio: 3, texto: 'E encontro a paz em ti', secao: 'Verse 1' },
+    { inicio: 8, texto: 'Teu amor me alcançou', secao: 'Verse 1' },
+    { inicio: 11, texto: 'Tua graça me salvou', secao: 'Verse 1' },
+    { inicio: 16, texto: 'Eu caminho em tua luz', secao: 'Verse 1' },
+    { inicio: 19, texto: 'E encontro a paz em ti', secao: 'Verse 1' },
+    { inicio: 24, texto: 'Teu amor me alcançou', secao: 'Verse 1' },
+    { inicio: 27, texto: 'Tua graça me salvou', secao: 'Verse 1' },
+  ] }, 32);
+  assert.deepEqual(linhas.slice(2, 4).map((l) => l.secao), ['Chorus', 'Chorus']);
+  assert.deepEqual(linhas.slice(6, 8).map((l) => l.secao), ['Chorus', 'Chorus']);
+  const cifra = montarCifra({ titulo: 'Teste', linhas, duracao: 32 });
+  assert.match(cifra, /\\{comment: Chorus\\}/);
+});
+
 test('linhaComAcordes: o acorde do começo e a troca na palavra cantada naquele instante', () => {
   const acordes = [{ inicio: 0, fim: 4, acorde: 'G' }, { inicio: 4, fim: 8, acorde: 'D' }];
   const r = linhaComAcordes({ texto: 'Eu te louvo meu Senhor', inicio: 2, fim: 6 }, acordes);
