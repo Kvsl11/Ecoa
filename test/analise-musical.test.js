@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  TAXA, analisar, andamento, ataques, corpoDaTranscricao, detectarTom, lerTranscricao, linhaComAcordes, montarCifra, nomesDoArquivo,
+  TAXA, analisar, andamento, ataques, corpoDaSincronia, corpoDaTranscricao, detectarTom, lerTranscricao, linhaComAcordes, montarCifra, nomesDoArquivo,
   segundosDe,
 } from '../public/js/lib/analise-musical.js';
 
@@ -165,6 +165,17 @@ test('corpoDaTranscricao: o áudio inteiro e a resposta em JSON', () => {
   assert.equal(c.contents[0].parts[0].inline_data.mime_type, 'audio/mp3');
   assert.equal(c.generationConfig.responseMimeType, 'application/json');
   assert.ok(!c.tools);
+});
+
+test('corpoDaSincronia: envia a letra encontrada para o Gemini alinhar no áudio', () => {
+  const c = corpoDaSincronia({ tipo: 'audio/mp4', dados: 'AAAA', linhas: ['Primeira linha', 'Refrão repetido'] });
+  const partes = c.contents[0].parts;
+  assert.equal(partes[0].inline_data.mime_type, 'audio/mp4');
+  assert.match(partes[1].text, /1\\. Primeira linha/);
+  assert.match(partes[1].text, /2\\. Refrão repetido/);
+  assert.match(partes[1].text, /inclua novamente a mesma linha/);
+  assert.equal(c.generationConfig.responseMimeType, 'application/json');
+  assert.ok(c.generationConfig.responseSchema.properties.linhas);
 });
 
 test('nomesDoArquivo: o artista e o título pelo nome do arquivo', () => {
