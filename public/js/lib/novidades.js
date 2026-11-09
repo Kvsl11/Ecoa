@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 609, data: '2026-11-08', titulo: 'Geração de letra sincronizada e cifra para músicas importadas',
+    itens: [
+      { tipo: 'novo', texto: 'No aplicativo Android, foi adicionada uma ferramenta para selecionar um arquivo de áudio e gerar uma transcrição da letra com marcações de tempo pelo Gemini, além de estimativas locais de tom, andamento e acordes. O resultado pode ser conferido e exportado em LRC (letra sincronizada) e ChordPro (cifra). A transcrição requer internet; a análise musical é executada no aparelho. Nesta versão, os arquivos são exportados para revisão e importação manual, sem substituir automaticamente uma música já existente na biblioteca.' },
+    ],
+  },
+  {
     versao: 608, data: '2026-11-08', titulo: 'Áudio importado com letra, sincronia, acordes e tom; capas e fotos estáveis no Android',
     itens: [
       { tipo: 'novo', texto: 'O áudio importado para a biblioteca passou a ser processado no aplicativo Android. A letra sincronizada continua sendo procurada primeiro no LRCLIB, com o título e o artista lidos do nome do arquivo ("Artista - Título"). Quando o LRCLIB não tem a letra, como nas músicas próprias e nas gravações de ensaio, a letra cantada é transcrita pelo Gemini do aplicativo, com o instante de cada linha, e o andamento, o tom e o acorde de cada batida são calculados no próprio aparelho. Com esses dados, o aplicativo monta a cifra com os acordes sobre a palavra cantada no instante da troca, a introdução, os trechos instrumentais e o final, e guarda a letra sincronizada; com ela, o karaokê feito no celular passa a funcionar para a música. A análise de um minuto de música levou cerca de 0,2 s em computador; em áudio sintético, o tom e a sequência de acordes foram reconhecidos sem erro. Sem internet, os acordes ficam prontos e a letra é transcrita na próxima oportunidade; a cifra editada pela pessoa e a sincronia feita à mão não são alteradas. As músicas importadas antes desta versão passam pelo mesmo processamento em segundo plano. Disponível mediante atualização do aplicativo.' },
@@ -74,13 +80,7 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No tablet, em orientação retrato e paisagem, a foto do perfil e os botões do cabeçalho, bem como o topo do painel "Tocando agora" (o título, o botão de recolher e o menu ⋮), ficavam sobrepostos à hora e aos ícones de rede da barra de status do Android. A regra de estilo específica do tablet definia um espaçamento superior fixo de 12 px, que substituía o espaçamento da área segura (env(safe-area-inset-top)) aplicado nos demais aparelhos; o painel "Tocando agora" não reservava essa área. O espaçamento superior passou a somar a altura da barra de status no cabeçalho, no painel lateral, na tela cheia e na barra fixa exibida ao rolar o painel.' },
     ],
   },
-  {
-    versao: 599, data: '2026-11-07', titulo: 'Retorno ao aplicativo sem tela vazia e faixas de álbuns de versões com o nome correto',
-    itens: [
-      { tipo: 'correcao', texto: 'Ao retornar ao aplicativo Android após longo período em segundo plano, a tela podia permanecer vazia indefinidamente. Quando o sistema encerra a página para liberar memória, ela é recarregada no retorno, e a folha de estilos das fontes (Google Fonts) era carregada de forma bloqueante: com a conexão ainda instável, a página não era desenhada e o aplicativo não iniciava. As fontes passaram a ser carregadas de forma assíncrona, com a fonte do sistema até a chegada delas. Além disso, a verificação executada no retorno passou a confirmar a inicialização completa do aplicativo e a recarregar a página quando ela não ocorre (no máximo duas vezes, seguidas da recriação da tela). Disponível mediante atualização do aplicativo.' },
-      { tipo: 'correcao', texto: 'Em álbuns de versões, como o Reanimation do Linkin Park, o Cifra Club lista as faixas com o nome da música original e as associa à cifra da original ("My December" no lugar de "My<Dsmbr"); a faixa abria a cifra, a letra e o vídeo da música original. As faixas passaram a ser conferidas com o mesmo álbum no Deezer: a que tem outro nome lá recebe o nome correto, o remixador e as participações (por exemplo, "My<Dsmbr (Mickey P. Reanimation)", Linkin Park feat. Kelli Ali), e a cifra, a letra e o vídeo são procurados por esse nome. Diferenças apenas de pontuação e faixas bônus ao vivo ou demo não alteram a faixa.' },
-    ],
-  },
+
 ];
 
 // A primeira versão de cada mês. O número mostrado ("2026.10.31-383") é a data da versão e quantas versões o mês já
