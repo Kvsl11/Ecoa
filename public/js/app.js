@@ -18814,7 +18814,7 @@ function viewConta() {
           try { await nativo.compartilharApp({ texto: mensagem, url }); }
           catch (e) { await ask({ title: 'Não foi possível compartilhar', text: String(e?.message || e), ok: 'Entendi', cancel: false }); }
         } else if (navigator.share) {
-          await navigator.share({ title: 'Ecoa — Ouça, cante e ecoe', text: mensagem + '\\n\\n' + url, url }).catch(() => {});
+          await navigator.share({ title: 'Ecoa — Ouça, cante e ecoe', text: mensagem + '\n\n' + url, url }).catch(() => {});
         } else {
           await navigator.clipboard?.writeText(mensagem + '\\n\\n' + url);
           toast('Link de download copiado');
