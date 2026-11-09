@@ -30,6 +30,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import androidx.core.content.ContextCompat;
 
 import java.io.File;
 import java.util.concurrent.Executors;
@@ -65,7 +66,10 @@ import java.util.concurrent.Executors;
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
 //  - converterAudio({ dados (base64), nome }) → { dados (base64), tipo }: o áudio importado num formato que a WebView não
 //    toca (WMA, AIFF, AMR, APE, ALAC…) convertido para M4A pelo ffmpeg do APK
-@CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
+@CapacitorPlugin(name = "Ecoa", permissions = {
+    @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+    @Permission(alias = "microfone", strings = { Manifest.permission.RECORD_AUDIO })
+})
 public class EcoaPlugin extends Plugin {
     // o id do cliente web do login Google do projeto do Firebase (é público: vai no endereço de login do site)
     static final String CLIENTE_GOOGLE = "286830451197-skc9t7g9hqui9laem4tsaouir33kab6m.apps.googleusercontent.com";
@@ -585,6 +589,60 @@ public class EcoaPlugin extends Plugin {
 
     // ---- o Lúmen no próprio celular (Gemini.java): a chave não sai do APK para a página
     private static final java.util.concurrent.ExecutorService perguntando = Executors.newFixedThreadPool(2);
+
+    // ---- conversa por voz em tempo real: Firebase AI Logic / Gemini Live, sem servidor próprio
+    @PluginMethod
+    public void lumenAoVivoIniciar(PluginCall call) {
+        if (getPermissionState("microfone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microfone", call, "depoisDoMicrofone");
+            return;
+        }
+        iniciarLumenAoVivo(call);
+    }
+
+    @PermissionCallback
+    private void depoisDoMicrofone(PluginCall call) {
+        if (getPermissionState("microfone") == PermissionState.GRANTED) iniciarLumenAoVivo(call);
+        else call.reject("Permita o acesso ao microfone para iniciar a conversa ao vivo.", "sem-microfone");
+    }
+
+    private void iniciarLumenAoVivo(PluginCall call) {
+        String genero = call.getString("genero", "feminina");
+        String instrucao = call.getString("instrucao",
+            "Você é o Lúmen, assistente do Songbook Litúrgico. Responda em português do Brasil, naturalmente e com frases curtas.");
+        GeminiLive.iniciar(genero, instrucao, ContextCompat.getMainExecutor(getContext()), new GeminiLive.Retorno() {
+            @Override public void sucesso() {
+                JSObject r = new JSObject();
+                r.put("ativa", true);
+                r.put("modelo", GeminiLive.MODELO);
+                call.resolve(r);
+            }
+            @Override public void erro(Throwable erro) {
+                call.reject("Não foi possível iniciar a conversa ao vivo: " + String.valueOf(erro.getMessage()), "gemini-live");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void lumenAoVivoParar(PluginCall call) {
+        GeminiLive.parar(ContextCompat.getMainExecutor(getContext()), new GeminiLive.Retorno() {
+            @Override public void sucesso() {
+                JSObject r = new JSObject();
+                r.put("ativa", false);
+                call.resolve(r);
+            }
+            @Override public void erro(Throwable erro) {
+                call.reject("Não foi possível encerrar a conversa: " + String.valueOf(erro.getMessage()), "gemini-live");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void lumenAoVivoStatus(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("ativa", GeminiLive.ativa());
+        call.resolve(r);
+    }
 
     @PluginMethod
     public void geminiDisponivel(PluginCall call) {

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "286830451197",
+    "project_id": "ecoa-82a51",
+    "storage_bucket": "ecoa-82a51.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:286830451197:android:388492b6e5ca6af5cbe194",
+        "android_client_info": {
+          "package_name": "br.ecoa.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "286830451197-7bdeen6bvplquad8bh4i8l3qb7u9jm13.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.ecoa.app",
+            "certificate_hash": "144c7a0036e3dd819117eb3232b2078f85df034b"
+          }
+        },
+        {
+          "client_id": "286830451197-skc9t7g9hqui9laem4tsaouir33kab6m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3610B4vVDe12kWF-Bj7gjS9MDbjBtBkA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "286830451197-skc9t7g9hqui9laem4tsaouir33kab6m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
