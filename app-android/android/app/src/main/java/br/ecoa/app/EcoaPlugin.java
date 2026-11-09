@@ -63,6 +63,8 @@ import java.util.concurrent.Executors;
 //  - rede() → { online, kbps, lenta }: a conexão vista pelo Android; evento "rede" (o mesmo) a cada mudança
 //  - geminiDisponivel() → { tem }: se este APK foi montado com a chave do Gemini (o Lúmen no próprio celular)
 //  - gemini({ caminho, corpo, tempo }) → { status, texto }: a API do Gemini (só os caminhos models…), com a chave do APK
+//  - converterAudio({ dados (base64), nome }) → { dados (base64), tipo }: o áudio importado num formato que a WebView não
+//    toca (WMA, AIFF, AMR, APE, ALAC…) convertido para M4A pelo ffmpeg do APK
 @CapacitorPlugin(name = "Ecoa", permissions = { @Permission(alias = "avisos", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class EcoaPlugin extends Plugin {
     // o id do cliente web do login Google do projeto do Firebase (é público: vai no endereço de login do site)
@@ -531,6 +533,52 @@ public class EcoaPlugin extends Plugin {
                 call.reject(msg, "erro");
             } finally {
                 if (prioridade) Karaoke.PEDIDOS.decrementAndGet();
+            }
+        });
+    }
+
+    // ---- a importação de áudio: o formato que a WebView não toca (WMA, AIFF, AMR, APE, ALAC, AC3, MKA…) vira M4A (AAC
+    // estéreo, 192 kb/s) pelo ffmpeg do APK, para a música tocar, ter o karaokê e ser transcrita como as outras
+    private static final java.util.concurrent.ExecutorService convertendo = Executors.newSingleThreadExecutor();
+
+    @PluginMethod
+    public void converterAudio(PluginCall call) {
+        Context ctx = getContext();
+        String dados = call.getString("dados", null);
+        String nome = call.getString("nome", "audio");
+        if (dados == null || dados.isEmpty()) { call.reject("sem o arquivo", "entrada"); return; }
+        convertendo.execute(() -> {
+            java.io.File pasta = Baixador.pastaDe(ctx, "converter-" + System.currentTimeMillis());
+            try {
+                pasta.mkdirs();
+                Baixador.preparar(ctx); // (o ffmpeg do APK extraído)
+                String ext = nome.toLowerCase(java.util.Locale.ROOT).replaceAll("^.*\\.", "");
+                java.io.File entrada = new java.io.File(pasta, "entrada." + (ext.matches("[a-z0-9]{2,5}") ? ext : "bin"));
+                try (java.io.OutputStream o = new java.io.FileOutputStream(entrada)) {
+                    o.write(android.util.Base64.decode(dados, android.util.Base64.DEFAULT));
+                }
+                java.io.File saida = new java.io.File(pasta, "audio.m4a");
+                java.io.File log = new java.io.File(pasta, "ffmpeg.log");
+                Process p = Karaoke.processo(ctx, Karaoke.ffmpeg(ctx, "-v", "error", "-nostdin", "-y", "-i", entrada.getAbsolutePath(),
+                    "-vn", "-map", "0:a:0", "-ac", "2", "-ar", "44100", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
+                    saida.getAbsolutePath())).redirectErrorStream(true).redirectOutput(log).start();
+                if (p.waitFor() != 0 || !saida.isFile() || saida.length() == 0) {
+                    String motivo = Karaoke.lerTexto(log);
+                    throw new IllegalStateException("o ffmpeg não abriu este arquivo" + (motivo.isEmpty() ? "" : " (" + motivo.substring(0, Math.min(160, motivo.length())) + ")"));
+                }
+                byte[] b = new byte[(int) saida.length()];
+                try (java.io.InputStream in = new java.io.FileInputStream(saida)) {
+                    int lido = 0;
+                    while (lido < b.length) { int n = in.read(b, lido, b.length - lido); if (n < 0) break; lido += n; }
+                }
+                JSObject r = new JSObject();
+                r.put("dados", android.util.Base64.encodeToString(b, android.util.Base64.NO_WRAP));
+                r.put("tipo", "audio/mp4");
+                call.resolve(r);
+            } catch (Throwable e) {
+                call.reject(e instanceof OutOfMemoryError ? "o arquivo é grande demais para converter no celular" : String.valueOf(e.getMessage()), "erro");
+            } finally {
+                Baixador.limpar(pasta);
             }
         });
     }

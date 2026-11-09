@@ -26,8 +26,9 @@ import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from 
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
+import { analisar as analisarMusica, corpoDaTranscricao, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
-import { responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
+import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
@@ -2274,6 +2275,10 @@ const REVISOES = [
   // frente do single ("Aba", do Kemuel, com a capa de uma coletânea gospel). A capa automática que é de uma coletânea ou
   // de outra gravação volta para a da música; a que está certa fica, e a escolhida pela pessoa não muda
   { rev: 27, capa: true, quais: (s) => !s.capaEscolhida && capaAutomatica(s.cover) },
+  // v608: o áudio importado só procurava a letra no LRCLIB; sem ela, ficava só o título. No APK, a música importada
+  // sem letra recebe a letra transcrita e sincronizada, os acordes, o tom e o andamento (a cifra que a pessoa já
+  // escreveu e a sincronia feita à mão ficam)
+  { rev: 28, transcrever: true, quais: (s) => Boolean(s.audioProprio) && !sincOkDe(s) && podeTrocarCifra(s) && !['letra', 'instrumental'].includes(s.audioProprio.transcricao) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2539,6 +2544,13 @@ async function revisarMusica(id, pendentes, chaves) {
   if (s && quer('artista')) {
     if (!navigator.onLine) completa = false;
     else if (!(await consertarArtistaDaMusica(id, { esquecer: false }).catch(() => null))) completa = false;
+    s = db.song(id);
+    if (!s) return true;
+  }
+  // a música importada (o áudio da pessoa) sem a letra do LRCLIB: no APK, a letra transcrita, a sincronia, os acordes,
+  // o tom e o andamento (prepararMusicaImportada); sem internet, fica para a próxima revisão
+  if (s?.audioProprio && quer('transcrever')) {
+    if (!(await prepararMusicaImportada(id, { avisar: false }).catch(() => false))) completa = false;
     s = db.song(id);
     if (!s) return true;
   }
@@ -8027,26 +8039,184 @@ function abrirFila(set, atualIdx) {
   }).then((r) => ({ ...(r || {}), atual }));
 }
 
+// ------------------------------------------------- a música importada: letra, sincronia, acordes e tom
+// O áudio da própria pessoa (importado na biblioteca) recebe o que os apps de estudo de música mostram ao abrir uma
+// faixa: a letra que acompanha, os acordes no tempo, o tom e o andamento. Primeiro o LRCLIB (a letra sincronizada da
+// gravação, quando ela é conhecida). Sem ele — a música própria, o ensaio gravado —, no APK:
+// 1. a análise no aparelho (lib/analise-musical.js, num Worker): o andamento, as batidas, o tom e o acorde de cada batida;
+// 2. a letra cantada transcrita pelo Gemini do APK (Gemini.java: a chave não sai do app), com o instante de cada linha;
+// 3. a cifra em ChordPro (os acordes na palavra cantada) e a sincronia, guardada como a automática: a letra acompanha,
+//    o karaokê (Karaoke.java) separa a voz no celular e a música pode ser transposta como as outras.
+// A cifra feita aqui só é trocada enquanto ninguém mexeu nela (song.audioProprio.cifra é a última gerada); a letra
+// sincronizada à mão (fonte diferente de 'lrclib') nunca. Sem internet, os acordes ficam e a letra é feita depois (a
+// revisão das músicas salvas tenta de novo).
+const preparandoImportada = new Map();
+// a cifra é só o título e o artista (a importada que ainda não tem letra nem acordes)
+const cifraVazia = (content) => !String(content || '').split('\n').some((l) => l.trim() && !/^\s*\{[^}]*\}\s*$/.test(l));
+const podeTrocarCifra = (s) => cifraVazia(s?.content) || (s?.audioProprio?.cifra && s.content === s.audioProprio.cifra);
+// a transcrição pede o APK com o Gemini (o site não tem a chave)
+async function transcricaoDisponivel() {
+  const nativo = pluginEcoa();
+  if (!nativo || !temMetodoNativo('gemini')) return false;
+  try { return Boolean((await nativo.geminiDisponivel())?.tem); } catch { return false; }
+}
+function prepararMusicaImportada(id, { avisar = true } = {}) {
+  if (preparandoImportada.has(id)) return preparandoImportada.get(id);
+  const p = (async () => {
+    let s = db.song(id);
+    if (!s?.audioProprio) return true;
+    if (sincOkDe(s)) return true;
+    // 1. o LRCLIB
+    const r = await sincronizarMusica(s).catch(() => 'erro');
+    s = db.song(id);
+    if (!s || sincOkDe(s)) return true;
+    if (!noApk()) return r !== 'erro';
+    if (s.sincronia && s.sincronia.fonte !== 'lrclib') return true; // (a sincronizada à mão)
+    if (!podeTrocarCifra(s)) return true; // (a cifra que a pessoa escreveu ou corrigiu fica)
+    return transcreverImportada(id, { avisar, lrclibRespondeu: r !== 'erro' });
+  })().finally(() => preparandoImportada.delete(id));
+  preparandoImportada.set(id, p);
+  return p;
+}
+// a análise (andamento, tom, acordes) num Worker; sem ele, na própria tela
+async function analisarImportada(id) {
+  const amostras = await amostrasDe(ARQ + id);
+  if (!amostras?.length) return null;
+  return new Promise((ok) => {
+    let w;
+    try { w = new Worker(new URL('./lib/analise-musical-worker.js', import.meta.url), { type: 'module' }); } catch { w = null; }
+    if (!w) { try { ok(analisarMusica(amostras, TAXA_CASAMENTO)); } catch { ok(null); } return; }
+    const fim = (r) => { clearTimeout(limite); w.terminate(); ok(r); };
+    const limite = setTimeout(() => fim(null), 180000);
+    w.onmessage = (e) => fim(e.data?.ok ? e.data.r : null);
+    w.onerror = () => fim(null);
+    w.postMessage({ amostras }, [amostras.buffer]);
+  });
+}
+// o áudio para o Gemini: o próprio arquivo, se ele é de um tipo que o Gemini ouve e cabe no pedido (até ~14 MB); senão
+// um WAV mono de 16 kHz (8 kHz nas músicas muito longas), que é o que o Gemini usa de qualquer jeito
+const TIPOS_GEMINI = { mp3: 'audio/mp3', mpeg: 'audio/mp3', wav: 'audio/wav', 'x-wav': 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac', aiff: 'audio/aiff' };
+async function audioParaTranscrever(id, duracao) {
+  const blob = await lerAudio(id).catch(() => null);
+  if (!blob) return null;
+  const tipo = TIPOS_GEMINI[String(blob.type || '').replace(/^audio\//, '')] || TIPOS_GEMINI[(/\.([a-z0-9]+)$/i.exec(blob.name || '') || [])[1]?.toLowerCase()];
+  if (tipo && blob.size <= 14e6) return { tipo, dados: await emBase64(blob) };
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Ctx) return null;
+  const taxa = Math.max(8000, Math.min(16000, Math.floor(7e6 / Math.max(1, duracao || 300))));
+  const som = await new Ctx(1, 1, taxa).decodeAudioData(await blob.arrayBuffer());
+  const n = Math.min(som.length, 7e6);
+  const pcm = new Int16Array(n);
+  for (let c = 0; c < som.numberOfChannels; c++) {
+    const d = som.getChannelData(c);
+    for (let i = 0; i < n; i++) pcm[i] += Math.max(-1, Math.min(1, d[i] / som.numberOfChannels)) * 32767;
+  }
+  const wav = new DataView(new ArrayBuffer(44));
+  const txt = (o, t) => [...t].forEach((ch, i) => wav.setUint8(o + i, ch.charCodeAt(0)));
+  txt(0, 'RIFF'); wav.setUint32(4, 36 + pcm.byteLength, true); txt(8, 'WAVE'); txt(12, 'fmt ');
+  wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true); wav.setUint32(24, taxa, true);
+  wav.setUint32(28, taxa * 2, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); txt(36, 'data'); wav.setUint32(40, pcm.byteLength, true);
+  return { tipo: 'audio/wav', dados: await emBase64(new Blob([wav.buffer, pcm.buffer], { type: 'audio/wav' })) };
+}
+const estadoGeminiTranscricao = {};
+async function transcreverImportada(id, { avisar = true, lrclibRespondeu = true } = {}) {
+  let s = db.song(id);
+  if (!s?.audioProprio) return true;
+  const nome = s.title || 'a música';
+  if (avisar) toast(lrclibRespondeu ? `A letra de "${nome}" não está no LRCLIB: transcrevendo e tirando os acordes no aparelho…` : `Tirando os acordes de "${nome}" no aparelho…`);
+  // 1. os acordes, o tom e o andamento (sem internet; guardados para não refazer)
+  let analise = s.audioProprio.analise;
+  if (!analise?.acordes) {
+    analise = await analisarImportada(id).catch(() => null);
+    s = db.song(id);
+    if (!s?.audioProprio) return true;
+    if (analise) db.updateSong(id, { audioProprio: { ...s.audioProprio, analise } });
+  }
+  // 2. a letra cantada
+  let linhas = null;
+  let semCanto = false;
+  if (navigator.onLine && await transcricaoDisponivel()) {
+    try {
+      const audio = await audioParaTranscrever(id, Number(s.audioProprio.duracao) || analise?.duracao || 0);
+      if (audio) {
+        const nativo = pluginEcoa();
+        const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
+        const dados = await chamarGeminiModelo(chamar, corpoDaTranscricao(audio), estadoGeminiTranscricao);
+        const texto = (dados?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('');
+        linhas = lerTranscricao(texto, Number(s.audioProprio.duracao) || 0);
+        semCanto = !linhas.length;
+      }
+    } catch { linhas = null; }
+  }
+  s = db.song(id);
+  if (!s?.audioProprio || !podeTrocarCifra(s) || sincOkDe(s) || (s.sincronia && s.sincronia.fonte !== 'lrclib')) return true;
+  if (!analise && !linhas?.length) {
+    if (avisar) toast(`Não consegui processar "${nome}" agora. ${navigator.onLine ? 'Tente de novo mais tarde.' : 'Conecte-se à internet para transcrever a letra.'}`);
+    return false;
+  }
+  // 3. a cifra e a sincronia
+  const meta = renderSong(s.content || '').meta;
+  const cifra = montarCifra({ titulo: meta.title || s.title, artista: meta.artist || s.artist || '', linhas: linhas || [], acordes: analise?.acordes || [],
+    tom: analise?.tom || null, bpm: analise?.bpm || 0, duracao: Number(s.audioProprio.duracao) || analise?.duracao || 0 });
+  const feita = linhas?.length >= 2 ? 'letra' : semCanto ? 'instrumental' : 'acordes';
+  db.updateSong(id, { content: cifra, ...(analise?.tom?.nome ? { key: analise.tom.nome } : {}), audioProprio: { ...s.audioProprio, ...(analise ? { analise } : {}), cifra, transcricao: feita } });
+  if (feita === 'letra') {
+    guardarSincronia(db.song(id), { video: ARQ + id, linhas: linhas.map((l) => l.texto), tempos: linhas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
+      fonte: 'lrclib', gerada: 'transcricao', ...(Number(s.audioProprio.duracao) > 0 ? { duracao: Math.round(Number(s.audioProprio.duracao)) } : {}) });
+  }
+  if (avisar) {
+    const extra = [analise?.tom?.nome && `tom ${analise.tom.nome}`, analise?.bpm && `${analise.bpm} BPM`].filter(Boolean).join(' · ');
+    toast(feita === 'letra' ? `"${nome}": letra sincronizada, acordes${extra ? ` e ${extra}` : ''}. O karaokê já pode ser usado.`
+      : feita === 'instrumental' ? `"${nome}" não tem canto: ficaram os acordes${extra ? ` (${extra})` : ''}.`
+        : `"${nome}": acordes prontos${extra ? ` (${extra})` : ''}. A letra será transcrita quando houver internet.`);
+  }
+  if (location.hash.includes(id)) route();
+  return feita !== 'acordes';
+}
+
 // ------------------------------------------------------------ importação
+
+// os formatos de áudio aceitos na importação (os que a WebView não toca são convertidos no APK pelo ffmpeg)
+const EXT_AUDIO = /\.(mp3|m4a|mp4|wav|ogg|oga|opus|aac|flac|wma|aif|aiff|amr|3gp|ape|alac|ac3|mka|webm|caf)$/i;
+// o áudio que este aparelho não abre, convertido para M4A pelo APK (converterAudio); null fora do APK ou se não deu
+async function converterNoAparelho(arquivo) {
+  const nativo = pluginEcoa();
+  if (!nativo || !temMetodoNativo('converterAudio') || arquivo.size > 150e6) return null;
+  try {
+    const r = await nativo.converterAudio({ dados: await emBase64(arquivo), nome: arquivo.name || 'audio' });
+    if (!r?.dados) return null;
+    const bytes = Uint8Array.from(atob(r.dados), (c) => c.charCodeAt(0));
+    return new File([bytes], `${String(arquivo.name || 'audio').replace(/\.[^.]+$/, '')}.m4a`, { type: r.tipo || 'audio/mp4' });
+  } catch { return null; }
+}
 
 async function importFiles(files) {
   let n = 0;
   let audios = 0;
   for (const file of files) {
     const nome = file.name || 'Música';
-    const audio = /^audio\//i.test(file.type) || /\.(mp3|m4a|wav|ogg|opus|aac|flac|wma)$/i.test(nome);
+    const audio = /^audio\//i.test(file.type) || EXT_AUDIO.test(nome);
     if (audio) {
-      const duracao = await duracaoDoArquivo(file);
-      if (!duracao) { toast(`Não consegui abrir "${nome}". Tente MP3, M4A, WAV, OGG ou FLAC.`); continue; }
-      const titulo = nome.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Música importada';
-      const song = db.saveSong({ content: `{title: ${titulo.replace(/[{}\n]/g, ' ').trim() || 'Música importada'}}\n` });
+      let arquivo = file;
+      let duracao = await duracaoDoArquivo(arquivo);
+      // (WMA, AIFF, AMR, APE, ALAC…: o Android converte para M4A, e a música toca, faz karaokê e é transcrita igual)
+      if (!duracao && noApk()) {
+        toast(`Convertendo "${nome}"…`);
+        const convertido = await converterNoAparelho(file);
+        if (convertido) { arquivo = convertido; duracao = await duracaoDoArquivo(arquivo); }
+      }
+      if (!duracao) { toast(`Não consegui abrir "${nome}". ${noApk() ? 'O arquivo pode estar corrompido.' : 'Tente MP3, M4A, WAV, OGG ou FLAC (o app de Android abre também WMA, AIFF, AMR e outros).'}`); continue; }
+      // ("Artista - Título.mp3": o LRCLIB acha a letra pelo título e pelo artista)
+      const { titulo, artista } = nomesDoArquivo(nome);
+      const limpo = (v) => String(v || '').replace(/[{}\n]/g, ' ').trim();
+      const song = db.saveSong({ content: `{title: ${limpo(titulo) || 'Música importada'}}\n${limpo(artista) ? `{artist: ${limpo(artista)}}\n` : ''}` });
       try {
-        await guardarAudio(song.id, file);
-        db.updateSong(song.id, { audioProprio: { nome, duracao: Math.round(duracao * 10) / 10 } });
+        await guardarAudio(song.id, arquivo);
+        db.updateSong(song.id, { audioProprio: { nome: arquivo.name || nome, duracao: Math.round(duracao * 10) / 10 } });
         audios++;
-        // Tenta primeiro a letra sincronizada existente (LRCLIB). Se não houver uma versão compatível,
-        // a música continua importada e pode receber letra/cifra manualmente.
-        void sincronizarMusica(db.song(song.id)).catch(() => {});
+        // O LRCLIB vem primeiro (a letra sincronizada da gravação, quando ela existe). Sem ela — a música própria,
+        // que nenhum site tem —, o APK transcreve a letra, tira os acordes, o tom e o andamento no próprio aparelho
+        void prepararMusicaImportada(song.id);
         n++;
       } catch (e) {
         db.deleteSong(song.id);
@@ -22164,7 +22334,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     sessionStorage.setItem('atualizado', '1');
     location.reload();
   });
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+  // (no APK, com o número do APK instalado: cada APK novo troca o pacote em cache pelo dele — sw.js, PACOTE)
+  const doApk = noApk() && pluginEcoa()?.versao
+    ? Promise.race([pluginEcoa().versao().then((i) => (/^\d+$/.test(String(i?.codigo ?? '')) ? `?apk=${i.codigo}` : '')), new Promise((ok) => setTimeout(() => ok(''), 8000))]).catch(() => '')
+    : Promise.resolve('');
+  doApk.then((sufixo) => navigator.serviceWorker.register(`sw.js${sufixo}`, { updateViaCache: 'none' })).then((reg) => {
     reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     // a versão nova que não conseguiu baixar o pacote (a internet caiu no meio, o servidor recusou um arquivo): tenta de
