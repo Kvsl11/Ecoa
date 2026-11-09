@@ -98,8 +98,8 @@ test('lerTranscricao: JSON e LRC, sem rótulos e com o fim de cada linha', () =>
   ]);
   const lrc = '[00:05.00] Primeira linha\n[00:08.50]  Segunda   linha\nlixo\n';
   assert.deepEqual(lerTranscricao(lrc, 12), [
-    { texto: 'Primeira linha', inicio: 5, fim: 8.5 },
-    { texto: 'Segunda linha', inicio: 8.5, fim: 12 },
+    { texto: 'Primeira linha', inicio: 5, fim: 8.5, secao: 'Verse 1' },
+    { texto: 'Segunda linha', inicio: 8.5, fim: 12, secao: 'Verse 1' },
   ]);
   assert.deepEqual(lerTranscricao('```json\n{"linhas": []}\n```'), []);
 });
