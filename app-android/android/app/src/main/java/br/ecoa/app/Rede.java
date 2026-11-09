@@ -4,13 +4,13 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
-import android.os.Build;
 
 import com.getcapacitor.JSObject;
 
-// A conexão vista pelo próprio Android (o WebView nem sempre avisa a página quando a internet cai ou volta: o aviso
-// "Você está offline" não aparecia no app). online: há rede com internet que funciona (validada pelo Android); kbps: a
-// velocidade de descida que o Android estima; lenta: abaixo de ~300 kb/s
+// A conexão vista pelo próprio Android (o WebView nem sempre avisa a página quando a internet cai ou volta).
+// online: há uma rede que oferece acesso à internet. Não exigir NET_CAPABILITY_VALIDATED: em algumas redes o Android
+// demora ou falha em validar o acesso, embora o aparelho consiga navegar; isso causava falso aviso de falta de internet.
+// kbps: a velocidade de descida que o Android estima; lenta: abaixo de ~300 kb/s
 final class Rede {
     private Rede() {}
 
@@ -27,8 +27,7 @@ final class Rede {
             Network n = cm == null ? null : cm.getActiveNetwork();
             NetworkCapabilities c = n == null ? null : cm.getNetworkCapabilities(n);
             if (c != null) {
-                online = c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    && (Build.VERSION.SDK_INT < 23 || c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+                online = c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
                 kbps = c.getLinkDownstreamBandwidthKbps();
             }
         } catch (Exception e) { online = true; } // (sem saber: não diz que está offline à toa)
