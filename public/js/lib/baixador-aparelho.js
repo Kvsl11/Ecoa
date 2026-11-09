@@ -17,7 +17,7 @@ export const erroSemVolta = (e) => e?.code === 'login' || /longo demais|login|in
 // (cancela no celular na hora). Devolve { caminho, tipo, tamanho, qualidade, altura, titulo, duracao }
 export async function baixarNoAparelho(nativo, yt, video, q, { abaixo = {}, aoProgresso = () => {}, aoRecomecar = () => {}, sinal, agora = Date.now } = {}) {
   if (!nativo) throw new Error('o celular não tem o baixador');
-  const qualidades = video ? [q, ...(abaixo[q] || [])] : [q, q];
+  const qualidades = video ? [q, ...(abaixo[q] || [])] : [q];
   let erro;
   for (let t = 0; t < qualidades.length; t++) {
     if (sinal?.aborted) throw new Error('Cancelado');
