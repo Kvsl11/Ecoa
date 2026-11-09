@@ -18816,7 +18816,7 @@ function viewConta() {
         } else if (navigator.share) {
           await navigator.share({ title: 'Ecoa — Ouça, cante e ecoe', text: mensagem + '\n\n' + url, url }).catch(() => {});
         } else {
-          await navigator.clipboard?.writeText(mensagem + '\\n\\n' + url);
+          await navigator.clipboard?.writeText(mensagem + '\n\n' + url);
           toast('Link de download copiado');
         }
       } else {
