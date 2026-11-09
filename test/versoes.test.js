@@ -518,3 +518,15 @@ test('quando não há LRC, tenta alinhar a letra encontrada com Gemini no APK', 
   assert.match(app, /if \(!ok\) void sincronizarPeloServidor\(song\)/);
 });
 
+test('diagnóstico: Consertar agora tenta sincronização Gemini quando não há LRC', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const inicio = app.indexOf('async function consertarMusica(id');
+  const fim = app.indexOf('let revisaoRodando', inicio);
+  assert.ok(inicio >= 0 && fim > inicio);
+  const rotina = app.slice(inicio, fim);
+  assert.match(rotina, /sincronizarPeloGemini\(s1\)/);
+  assert.match(rotina, /Sincronizando a letra com Gemini no celular/);
+  assert.match(rotina, /sincronizarPeloServidor\(s1\)/);
+  assert.match(rotina, /!sincValida\(s1\)/);
+});
+
