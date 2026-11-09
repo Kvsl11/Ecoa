@@ -176,6 +176,11 @@ jobs:
           if [ "$CURL_STATUS" -ne 0 ] || [ "$HTTP" != "200" ]; then
             MSG="$(node -e 'const fs=require("node:fs");try{const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(d.error?.message||"O Google não retornou detalhes.");}catch{console.log("Não foi possível ler a resposta do Google.");}' "$RUNNER_TEMP/gemini-geracao.json")"
             MSG="$(printf '%s' "$MSG" | tr '\n\r' '  ' | cut -c1-300)"
+            if [ "$HTTP" = "429" ]; then
+              echo "::warning::A chave Gemini foi autenticada, mas a cota temporária do Google está esgotada. O APK será montado; as funções Gemini voltarão quando a cota for liberada ou ampliada."
+              echo "Atenção: a chave e a assinatura Android foram validadas, mas generateContent retornou HTTP 429 (cota excedida). O APK será montado; a API pode ficar indisponível até a renovação/aumento da cota." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
             echo "::error::A chave passou pela autenticação, mas a chamada generateContent falhou (modelo $MODELO, HTTP ${HTTP:-sem resposta}): $MSG. Confira cotas e acesso ao modelo."
             exit 1
           fi
