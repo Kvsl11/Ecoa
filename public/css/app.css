@@ -3890,6 +3890,10 @@ dialog.aparelhos-dlg[open] { display: flex; flex-direction: column; }
 body:not(.painel-cheio) #player.sem-video { display: none !important; }
 #player .pl-video.sem-capa, html.pp #player.modo-capa .pl-video.sem-capa { display: grid; place-items: center; color: rgb(255 255 255 / 0.9);
   background: linear-gradient(135deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #fff 10%), color-mix(in srgb, var(--cor-musica, var(--tint)) 55%, #000)); }
+/* A capa sem imagem (músicas importadas) segue o quadrado das capas genéricas das listas.
+   O formato 16:9 era próprio do vídeo e espremia/cortava a nota musical. */
+#player .pl-video.sem-capa { width: 96px; aspect-ratio: 1 / 1; display: grid; place-items: center; }
+#player .pl-video.sem-capa > .ic { display: block; width: 42%; height: 42%; max-width: 42%; max-height: 42%; flex: none; transform: none; }
 
 /* ================================================================ liturgia: cartão do dia e página da Liturgia (moderno)
    o cartão: o dia num quadradinho de calendário, o tempo e a semana, a celebração, a cor do dia, o refrão do salmo e as
