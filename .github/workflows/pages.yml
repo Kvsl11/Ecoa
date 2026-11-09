@@ -46,7 +46,8 @@ jobs:
       - run: npm test
 
   publicar:
-    if: github.event_name != 'pull_request'
+    # Uma execução do APK que falhou não deve republicar no Pages o APK antigo da Release.
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     needs: testes
     runs-on: ubuntu-latest
     environment:
