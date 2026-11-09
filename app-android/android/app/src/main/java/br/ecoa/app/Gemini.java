@@ -13,6 +13,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import org.json.JSONObject;
 
 // O Lúmen no próprio celular: a chamada à API do Gemini, sem o servidor Python. A chave vem na montagem do APK (o
 // segredo GEMINI_API_KEY do GitHub, em BuildConfig) e nunca passa para a página. Junto vão o pacote e a impressão
@@ -26,7 +27,23 @@ final class Gemini {
     private static String sha1;
 
     static boolean temChave() {
-        return BuildConfig.GEMINI_CHAVE != null && !BuildConfig.GEMINI_CHAVE.isEmpty();
+        return BuildConfig.GEMINI_CHAVE != null && !BuildConfig.GEMINI_CHAVE.trim().isEmpty();
+    }
+
+    // Extrai a mensagem do Google sem expor a chave, que nunca faz parte do corpo da resposta.
+    static String mensagem(Resposta r) {
+        if (r == null) return "A API Gemini não devolveu uma resposta.";
+        if (r.status == 0) return (r.texto == null || r.texto.trim().isEmpty())
+            ? "Não foi possível conectar ao Google." : r.texto.trim();
+        try {
+            JSONObject erro = new JSONObject(r.texto == null ? "" : r.texto).optJSONObject("error");
+            if (erro != null) {
+                String msg = erro.optString("message", "").replaceAll("\\s+", " ").trim();
+                if (!msg.isEmpty()) return msg.length() > 420 ? msg.substring(0, 420) : msg;
+            }
+        } catch (Exception ignorado) { /* usa o texto recebido */ }
+        String texto = r.texto == null ? "" : r.texto.replaceAll("\\s+", " ").trim();
+        return texto.length() > 420 ? texto.substring(0, 420) : (texto.isEmpty() ? "Resposta vazia do Google." : texto);
     }
 
     // só os caminhos da API do Gemini (a página não manda a chave para outro lugar)
@@ -47,6 +64,10 @@ final class Gemini {
                 @SuppressWarnings("deprecation")
                 PackageInfo pi = pm.getPackageInfo(ctx.getPackageName(), PackageManager.GET_SIGNATURES);
                 assinaturas = pi.signatures;
+            }
+            if (assinaturas == null || assinaturas.length == 0 || assinaturas[0] == null) {
+                sha1 = "";
+                return sha1;
             }
             byte[] d = MessageDigest.getInstance("SHA-1").digest(assinaturas[0].toByteArray());
             sha1 = hex(d);
@@ -75,6 +96,9 @@ final class Gemini {
             c = (HttpURLConnection) new URL(API + caminho).openConnection();
             c.setConnectTimeout(20000);
             c.setReadTimeout(tempoMs);
+            c.setUseCaches(false);
+            c.setInstanceFollowRedirects(true);
+            c.setRequestProperty("Accept", "application/json");
             c.setRequestProperty("x-goog-api-key", BuildConfig.GEMINI_CHAVE);
             c.setRequestProperty("X-Android-Package", ctx.getPackageName());
             c.setRequestProperty("X-Android-Cert", impressaoDigital(ctx));
@@ -87,11 +111,21 @@ final class Gemini {
                 try (OutputStream o = c.getOutputStream()) { o.write(b); }
             }
             r.status = c.getResponseCode();
-            InputStream in = r.status >= 400 ? c.getErrorStream() : c.getInputStream();
-            r.texto = ler(in);
+            try {
+                InputStream in = r.status >= 400 ? c.getErrorStream() : c.getInputStream();
+                r.texto = ler(in);
+            } catch (Exception leitura) {
+                // Não descarte o HTTP 401/403/429 se a leitura do corpo de erro também falhar.
+                r.texto = "Não foi possível ler o corpo da resposta HTTP " + r.status
+                    + " (" + leitura.getClass().getSimpleName() + ")";
+            }
         } catch (Exception e) {
-            r.status = 0;
-            r.texto = "sem conexão com a IA (" + e.getClass().getSimpleName() + ")";
+            if (r.status == 0) {
+                String detalhe = e.getMessage() == null ? "" : ": " + e.getMessage();
+                r.texto = "sem conexão com o Google (" + e.getClass().getSimpleName() + detalhe + ")";
+            } else if (r.texto == null) {
+                r.texto = "falha ao consultar o Google (" + e.getClass().getSimpleName() + ")";
+            }
         } finally {
             if (c != null) c.disconnect();
         }
