@@ -91,7 +91,7 @@ def provedor() -> str | None:
         return "gemini"
     return "claude" if tem_claude else None
 # sem a pasta public/data ao lado (o servidor publicado sozinho, no Modal): os mesmos arquivos, do app no ar
-DADOS_URL = os.environ.get("IA_DADOS_URL", "https://kvsl11.github.io/Songbook/data/")
+DADOS_URL = os.environ.get("IA_DADOS_URL", "https://kvsl11.github.io/Ecoa/data/")
 
 VAZIAS = set("""a o e os as um uma uns umas de do da dos das no na nos nas em por para pra com sem que se ao aos à às
 é ser foi são era como mais mas ou eu tu ele ela nós vós eles elas me te lhe nos vos seu sua seus suas meu minha
