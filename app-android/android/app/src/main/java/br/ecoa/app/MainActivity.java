@@ -13,6 +13,11 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.appcheck.FirebaseAppCheck;
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.RenderProcessGoneDetail;
@@ -28,6 +33,16 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(EcoaPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Firebase AI Logic: App Check é ativado antes de qualquer chamada ao Gemini.
+        // Em builds de desenvolvimento usa o provedor debug; no APK release usa Play Integrity.
+        FirebaseApp.initializeApp(this);
+        FirebaseAppCheck appCheck = FirebaseAppCheck.getInstance();
+        if (BuildConfig.DEBUG) {
+            appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance());
+        } else {
+            appCheck.installAppCheckProviderFactory(PlayIntegrityAppCheckProviderFactory.getInstance());
+        }
 
         // Esta montagem publica um APK novo com a versão Android incrementada no GitHub Actions.
         // Edge-to-edge: o WebView ocupa também as áreas das barras do Android.
