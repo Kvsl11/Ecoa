@@ -925,7 +925,7 @@ public class EcoaPlugin extends Plugin {
             android.content.Intent enviar = new android.content.Intent(android.content.Intent.ACTION_SEND);
             enviar.setType("image/png");
             enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
-            enviar.putExtra(android.content.Intent.EXTRA_TEXT, texto + "\\n\\n" + url);
+            enviar.putExtra(android.content.Intent.EXTRA_TEXT, texto + "\n\n" + url);
             enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), "Convite do Ecoa", uri));
             enviar.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
             getActivity().startActivity(android.content.Intent.createChooser(enviar, "Compartilhar o Ecoa"));
