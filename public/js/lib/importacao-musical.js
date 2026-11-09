@@ -143,19 +143,19 @@ async function transcreverBloco(plugin, modelos, amostras, inicio, duracao) {
   throw new Error(ultimo || 'Não encontrei um modelo Gemini disponível para transcrever o áudio.');
 }
 
-function juntarLinhas(partes, duracao) {
+export function juntarLinhas(partes, duracao) {
   const todas = partes.flat().sort((a, b) => a.inicio - b.inicio);
   const saida = [];
   const chave = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   for (const linha of todas) {
     if (linha.inicio < 0 || linha.inicio >= duracao || !linha.texto) continue;
     const k = chave(linha.texto);
-    const repetida = saida.some((x) => chave(x.texto) === k && Math.abs(x.inicio - linha.inicio) <= SOBREPOSICAO + 0.5);
+    const repetida = saida.some((x) => chave(x.texto) === k && Math.abs(x.inicio - linha.inicio) <= 1.2);
     if (!repetida) saida.push(linha);
   }
   return saida.map((l, i) => ({
     ...l,
-    fim: Math.min(duracao, Math.max(l.fim || 0, saida[i + 1]?.inicio || duracao, l.inicio + 0.3)),
+    fim: Math.min(duracao, Math.max(l.inicio + 0.3, Math.min(l.fim || l.inicio + 6, saida[i + 1]?.inicio ?? duracao))),
   }));
 }
 
