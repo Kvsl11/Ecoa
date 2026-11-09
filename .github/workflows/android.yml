@@ -109,6 +109,47 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Validar a API Gemini com a assinatura Android do APK
+        if: env.PRINCIPAL == 'true'
+        env:
+          ECOA_GEMINI_CHAVE: ${{ secrets.GEMINI_API_KEY_APK }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ECOA_GEMINI_CHAVE" ]; then
+            echo "::error::Falta o segredo GEMINI_API_KEY_APK."
+            exit 1
+          fi
+          # Reproduz exatamente a normalização usada pelo BuildConfig, sem imprimir a chave.
+          CHAVE="$(printf '%s' "$ECOA_GEMINI_CHAVE" | tr -cd '[:alnum:]_-')"
+          if [ -z "$CHAVE" ]; then
+            echo "::error::O segredo GEMINI_API_KEY_APK não contém uma chave válida."
+            exit 1
+          fi
+          echo "::add-mask::$CHAVE"
+          SHA1="$(awk '/SHA1:/{gsub(":", "", $2); print toupper($2); exit}' "$RUNNER_TEMP/digitais.txt")"
+          if [ -z "$SHA1" ]; then
+            echo "::error::Não foi possível obter a SHA-1 do certificado que assina o APK."
+            exit 1
+          fi
+          # O Google recebe o mesmo pacote e a mesma SHA-1 que o plugin Java envia no celular.
+          CONFIG="$RUNNER_TEMP/gemini-curl.conf"
+          BODY="$RUNNER_TEMP/gemini-validacao.json"
+          printf 'header = "x-goog-api-key: %s"\nheader = "X-Android-Package: br.ecoa.app"\nheader = "X-Android-Cert: %s"\n' "$CHAVE" "$SHA1" > "$CONFIG"
+          chmod 600 "$CONFIG"
+          set +e
+          HTTP="$(curl --config "$CONFIG" --silent --show-error --output "$BODY" --write-out '%{http_code}' \
+            'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1')"
+          CURL_STATUS=$?
+          set -e
+          rm -f "$CONFIG"
+          if [ "$CURL_STATUS" -ne 0 ] || [ "$HTTP" != "200" ]; then
+            MSG="$(node -e 'const fs=require("node:fs");try{const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(d.error?.message||"O Google não retornou detalhes.");}catch{console.log("Não foi possível ler a resposta do Google.");}' "$BODY")"
+            MSG="$(printf '%s' "$MSG" | tr '\n\r' '  ' | cut -c1-300)"
+            echo "::error::A API Gemini recusou a chave deste APK (HTTP ${HTTP:-sem resposta}): $MSG. Confira a chave, a Generative Language API e as restrições Android para br.ecoa.app + SHA-1 deste certificado."
+            exit 1
+          fi
+          echo "A API Gemini aceitou a chave, o pacote br.ecoa.app e a SHA-1 do certificado de produção." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Montar o APK
         working-directory: app-android/android
         env:
