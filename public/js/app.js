@@ -20242,7 +20242,7 @@ function pedacosDaFala(texto) {
 function pcmGeminiParaWav(dados, mime) {
   const bin = atob(dados);
   const pcm = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-  const taxa = Number(/rate=(\\d+)/i.exec(mime)?.[1]) || 24000;
+  const taxa = Number(/rate=(\d+)/i.exec(mime)?.[1]) || 24000;
   if (!pcm.length) throw new Error('o Gemini não devolveu áudio');
   const wav = new ArrayBuffer(44 + pcm.length);
   const view = new DataView(wav);
@@ -20273,7 +20273,7 @@ async function audioGeminiNoAparelho(nativo, texto) {
   const audio = partes.map((p) => p.inlineData || p.inline_data).find((p) => p?.data);
   if (!audio) throw new Error('o Gemini respondeu, mas não enviou o áudio');
   const mime = audio.mimeType || audio.mime_type || 'audio/L16;rate=24000';
-  if (/audio\\/(?:l16|pcm)/i.test(mime)) return pcmGeminiParaWav(audio.data, mime);
+  if (/audio\/(?:l16|pcm)/i.test(mime)) return pcmGeminiParaWav(audio.data, mime);
   const bin = atob(audio.data);
   return new Blob([Uint8Array.from(bin, (c) => c.charCodeAt(0))], { type: mime });
 }
