@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 610, data: '2026-11-08', titulo: 'Remoção definitiva do botão extra de geração musical',
+    itens: [
+      { tipo: 'correcao', texto: 'O botão separado de geração de letra e cifra foi removido da interface. A geração continua automática durante a importação da música, sem exigir um comando manual nem ocupar a área dos controles do player. O número do pacote offline foi atualizado para invalidar o cache antigo que ainda podia exibir a interface anterior.' },
+    ],
+  },
+  {
     versao: 609, data: '2026-11-08', titulo: 'Geração de letra sincronizada e cifra para músicas importadas',
     itens: [
       { tipo: 'novo', texto: 'No aplicativo Android, foi adicionada uma ferramenta para selecionar um arquivo de áudio e gerar uma transcrição da letra com marcações de tempo pelo Gemini, além de estimativas locais de tom, andamento e acordes. O resultado pode ser conferido e exportado em LRC (letra sincronizada) e ChordPro (cifra). A transcrição requer internet; a análise musical é executada no aparelho. Nesta versão, os arquivos são exportados para revisão e importação manual, sem substituir automaticamente uma música já existente na biblioteca.' },
@@ -74,12 +80,7 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A tela de entrada foi simplificada. Foram removidos o mural animado de quadros de clipes ao fundo, o indicador de música em reprodução no canto superior, as etiquetas de recursos e o título em duas cores. A tela passou a exibir, centralizados sobre fundo escuro liso com brilho suave na cor do aplicativo, o logotipo com três anéis concêntricos que se expandem lentamente a partir dele, o título em cor única, a descrição e o botão "Entrar com o Google". O mesmo layout é aplicado ao celular, ao tablet e ao computador. Com a remoção do mural, a tela deixou de baixar cerca de 45 imagens do YouTube ao abrir. Aplica-se à versão web e ao aplicativo Android.' },
     ],
   },
-  {
-    versao: 600, data: '2026-11-07', titulo: 'Cabeçalho do tablet afastado da barra de status do Android',
-    itens: [
-      { tipo: 'correcao', texto: 'No tablet, em orientação retrato e paisagem, a foto do perfil e os botões do cabeçalho, bem como o topo do painel "Tocando agora" (o título, o botão de recolher e o menu ⋮), ficavam sobrepostos à hora e aos ícones de rede da barra de status do Android. A regra de estilo específica do tablet definia um espaçamento superior fixo de 12 px, que substituía o espaçamento da área segura (env(safe-area-inset-top)) aplicado nos demais aparelhos; o painel "Tocando agora" não reservava essa área. O espaçamento superior passou a somar a altura da barra de status no cabeçalho, no painel lateral, na tela cheia e na barra fixa exibida ao rolar o painel.' },
-    ],
-  },
+
 
 ];
 
