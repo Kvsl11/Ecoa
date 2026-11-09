@@ -71,3 +71,17 @@ rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum c
 ## Critério de conclusão
 
 A migração será considerada pronta por recurso, não por aparência: cada função deverá demonstrar que funciona sem conexão, listar claramente suas dependências online e não regredir na versão Web.
+
+
+## Conversa ao vivo do Lúmen (Android)
+
+A sessão de áudio em tempo real foi adicionada ao APK com Firebase AI Logic / Gemini Live:
+
+- `GeminiLive.java` abre a sessão `gemini-3.1-flash-live-preview` e usa o microfone e a saída de áudio nativos.
+- `EcoaPlugin` expõe `lumenAoVivoIniciar`, `lumenAoVivoParar` e `lumenAoVivoStatus` ao JavaScript.
+- `public/js/lib/lumen-live.js` fornece o wrapper para a interface.
+- Francisca usa a voz `Aoede` e Antônio usa `Charon` no modelo Live.
+- Firebase App Check usa Play Integrity no APK release e o provedor debug em builds de desenvolvimento. O projeto precisa ter o app registrado no App Check e o Firebase AI Logic habilitado/aplicado no console.
+- A API Live está em prévia e exige internet; não depende de um servidor Python/Codespace/Modal próprio. Não funciona offline.
+
+A interface ainda precisa chamar o wrapper `iniciarConversaAoVivo` / `pararConversaAoVivo` nos controles da conversa. A sessão nativa e a ponte do plugin estão implementadas, mas a ligação visual final e o teste em aparelho real são etapas de validação separadas.
