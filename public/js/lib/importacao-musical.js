@@ -113,7 +113,7 @@ function mensagemErro(erro) {
 
 function erroDefinitivo(erro) {
   const m = mensagemErro(erro).toLowerCase();
-  return /api.?key|chave.{0,20}(inv[aá]lida|incorreta)|permission.?denied|unauthenticated|unauthorized|http.?400|http.?401|http.?403|invalid.argument|audio-grande|entrada inv[aá]lida|modelo.{0,20}(n[aã]o encontrado|inexistente)/i.test(m);
+  return /api.?key|chave.{0,20}(inv[aá]lida|incorreta)|permission.?denied|unauthenticated|unauthorized|http.?400|http.?401|http.?403|\\b(400|401|403)\\b|invalid.?argument|audio-grande|entrada inv[aá]lida|modelo.{0,20}(n[aã]o encontrado|inexistente)/i.test(m);
 }
 
 function esperar(ms) {
@@ -140,7 +140,7 @@ async function transcreverComTentativas(plugin, trecho, inicio, duracao, numero,
   const detalhe = mensagemErro(ultimoErro);
   throw new Error('Não foi possível sincronizar o trecho ' + numero + ' de ' + total +
     ' após ' + (erroDefinitivo(ultimoErro) ? 'uma tentativa' : maxTentativas + ' tentativas') +
-    '. ' + detalhe + ' Você pode tentar gerar novamente; os outros trechos não precisam ser reenviados durante esta execução.');
+    '. ' + detalhe + ' Confira a conexão ou a configuração da API e tente gerar novamente.');
 }
 
 async function transcreverBloco(plugin, amostras, inicio, duracao) {
