@@ -44,6 +44,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Testes do aplicativo
+        run: |
+          npm ci
+          npm test
       - name: Preparar o projeto (o Capacitor copia a configuração para o Android)
         working-directory: app-android
         run: |
