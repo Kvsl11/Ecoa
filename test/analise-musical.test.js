@@ -115,7 +115,7 @@ test('lerTranscricao: capitaliza cada frase e recupera o refrão repetido para l
   assert.equal(linhas[0].texto, 'Eu te louvo. Senhor, tu és bom');
   assert.deepEqual(linhas.slice(1).map((l) => l.secao), ['Chorus', 'Chorus', 'Chorus', 'Chorus']);
   const cifra = montarCifra({ titulo: 'Teste', linhas, acordes: [], duracao: 20 });
-  assert.match(cifra, /\\{comment: Chorus\\}/);
+  assert.match(cifra, /\{comment: Chorus\}/);
 });
 
 test('linhaComAcordes: o acorde do começo e a troca na palavra cantada naquele instante', () => {
