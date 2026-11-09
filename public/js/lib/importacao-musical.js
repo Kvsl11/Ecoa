@@ -148,10 +148,12 @@ async function transcreverBloco(plugin, amostras, inicio, duracao) {
   const corpo = corpoDaTranscricao({ tipo: 'audio/wav', dados: '' });
   const prompt = corpo.contents[0].parts[1].text +
     '\nResponda exclusivamente com JSON válido, sem cercas de código, neste formato: ' +
-    '{"idioma":"idioma detectado","linhas":[{"inicio":"mm:ss.cc","fim":"mm:ss.cc","texto":"frase cantada"}]}. ' +
+    '{"idioma":"idioma detectado","linhas":[{"inicio":"mm:ss.cc","fim":"mm:ss.cc","texto":"Frase cantada.","secao":"Verse 1"}]}. ' +
     'Este trecho começa em ' + inicio.toFixed(2) + ' segundos e dura ' + duracao.toFixed(2) +
     ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO. ' +
     'REGRA FUNDAMENTAL DE FORMATAÇÃO: devolva UMA entrada em linhas para CADA frase/linha cantada, separadamente. ' +
+    'FORMATAÇÃO DA LETRA: comece cada frase com letra maiúscula e use pontuação natural quando audível, sem colocar toda a letra em maiúsculas. ' +
+    'ESTRUTURA: preencha secao em TODAS as linhas com o nome da parte musical: Intro, Verse 1, Pre-Chorus, Chorus, Bridge, Instrumental ou Outro. Identifique versos e refrões pela repetição da letra e pela estrutura musical; use o mesmo rótulo em todas as linhas da mesma parte e numere versos diferentes. Não confunda cada linha cantada com uma nova seção. Se não identificar com segurança, use string vazia. ' +
     'NUNCA junte duas ou três linhas da letra em um único campo texto, mesmo que sejam cantadas em sequência. ' +
     'Use uma nova entrada quando houver uma nova frase musical ou uma pausa perceptível; mantenha juntas apenas palavras que formem a mesma frase cantada. ' +
     'Não crie uma entrada por palavra. Cada entrada deve conter somente uma linha curta da letra, com seu próprio inicio e fim precisos.';
@@ -196,12 +198,17 @@ function workerAnalise(amostras) {
 }
 
 export function gerarLrc(linhas) {
-  return linhas.map((l) => {
+  let secaoAtual = '';
+  const saida = [];
+  for (const l of linhas) {
+    const secao = String(l.secao || '').trim();
+    if (secao && secao !== secaoAtual) { saida.push('[' + secao + ']'); secaoAtual = secao; }
     const t = Math.max(0, l.inicio);
     const mm = String(Math.floor(t / 60)).padStart(2, '0');
     const ss = (t % 60).toFixed(2).padStart(5, '0');
-    return '[' + mm + ':' + ss + '] ' + l.texto;
-  }).join('\n') + (linhas.length ? '\n' : '');
+    saida.push('[' + mm + ':' + ss + '] ' + l.texto);
+  }
+  return saida.join('\n') + (saida.length ? '\n' : '');
 }
 
 export async function processarMusicaImportada(arquivo, {
