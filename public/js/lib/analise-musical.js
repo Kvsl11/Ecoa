@@ -422,7 +422,7 @@ export function lerTranscricao(resposta, duracao = 0) {
 // O pedido ao Gemini: ouvir o áudio e devolver a letra cantada, linha por linha, com o instante em que cada uma
 // começa e termina. (O Gemini ouve a música inteira de uma vez, com a voz no meio da banda.)
 export const PEDIDO_TRANSCRICAO = 'Você é um transcritor de letras de música. Ouça a gravação inteira e transcreva EXATAMENTE a letra cantada, '
-  + 'no idioma em que é cantada, como numa cifra: uma linha por frase cantada (de 3 a 10 palavras, quebrando nas pausas do canto). '
+  + 'no idioma em que é cantada, como numa cifra: uma entrada separada para cada linha/frase cantada (normalmente de 2 a 7 palavras), quebrando nas pausas naturais do canto. NUNCA una duas ou mais linhas cantadas em uma única entrada, mesmo quando forem consecutivas; cada linha deve ter seu próprio início e fim. Não divida uma frase contínua palavra por palavra. '
   + 'Para cada linha, dê o instante em que a voz começa a cantá-la ("inicio") e em que termina ("fim"), no formato mm:ss.cc, '
   + 'medidos nesta gravação (do começo do arquivo). Transcreva cada repetição (o refrão cantado de novo entra de novo, no tempo dele). '
   + 'Não escreva acordes, rótulos ("Refrão", "Verso"), nomes de quem canta, descrições nem a parte instrumental. '
