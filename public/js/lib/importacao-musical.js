@@ -11,7 +11,7 @@ const SOBREPOSICAO = 3;
 
 function pluginEcoa() {
   const p = globalThis.Capacitor?.Plugins?.Ecoa;
-  if (!p?.gemini) throw new Error('Este recurso precisa do APK Android atualizado com a integração Gemini.');
+  if (!p?.transcreverAudioFirebase) throw new Error('Atualize o APK para usar a transcrição pelo Firebase AI Logic.');
   return p;
 }
 
@@ -105,42 +105,20 @@ function normalizarModelo(texto) {
   }
 }
 
-async function modelosDisponiveis(plugin) {
-  try {
-    const r = await plugin.gemini({ caminho: 'models?pageSize=1000', tempo: 30000 });
-    if (r.status === 200) return (JSON.parse(r.texto).models || [])
-      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
-      .map((m) => String(m.name || '').replace(/^models\//, ''))
-      .filter((n) => n.startsWith('gemini') && /flash/i.test(n) && !/live|tts|embedding|image|robotics|computer|gemma/i.test(n));
-  } catch { /* usa a lista de reserva */ }
-  return [];
-}
-
-async function transcreverBloco(plugin, modelos, amostras, inicio, duracao) {
+async function transcreverBloco(plugin, amostras, inicio, duracao) {
   const dados = wavBase64(amostras);
-  const corpo = corpoDaTranscricao({ tipo: 'audio/wav', dados });
-  corpo.contents[0].parts[1].text +=
-    '\nEste é um trecho da gravação original. O trecho começa em ' + inicio.toFixed(2) +
-    ' segundos e dura ' + duracao.toFixed(2) + ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO.';
-  const tentativas = [...new Set([...modelos, 'gemini-3.6-flash', 'gemini-flash-latest'])];
-  let ultimo = '';
-  for (const modelo of tentativas) {
-    const r = await plugin.gemini({
-      caminho: 'models/' + modelo + ':generateContent',
-      corpo: JSON.stringify(corpo),
-      tempo: 240000,
-    });
-    if (r.status === 200) {
-      const dadosResposta = JSON.parse(r.texto);
-      const partes = dadosResposta?.candidates?.[0]?.content?.parts || [];
-      const texto = partes.map((p) => p.text || '').join('');
-      if (!texto) throw new Error('O Gemini não retornou a letra deste trecho.');
-      return normalizarModelo(texto);
-    }
-    ultimo = 'Gemini (' + r.status + '): ' + String(r.texto || '').slice(0, 220);
-    if (![400, 404, 429, 500, 503].includes(r.status)) break;
-  }
-  throw new Error(ultimo || 'Não encontrei um modelo Gemini disponível para transcrever o áudio.');
+  const corpo = corpoDaTranscricao({ tipo: 'audio/wav', dados: '' });
+  const prompt = corpo.contents[0].parts[1].text +
+    '\nResponda exclusivamente com JSON válido, sem cercas de código, neste formato: ' +
+    '{"idioma":"idioma detectado","linhas":[{"inicio":"mm:ss.cc","fim":"mm:ss.cc","texto":"frase cantada"}]}. ' +
+    'Este trecho começa em ' + inicio.toFixed(2) + ' segundos e dura ' + duracao.toFixed(2) +
+    ' segundos. Marque os tempos relativos ao COMEÇO DESTE TRECHO.';
+  const resposta = await plugin.transcreverAudioFirebase({
+    dados,
+    prompt,
+    mimeType: 'audio/wav',
+  });
+  return normalizarModelo(resposta?.texto || '');
 }
 
 export function juntarLinhas(partes, duracao) {
@@ -189,14 +167,11 @@ export async function processarMusicaImportada(arquivo, {
 } = {}) {
   if (!arquivo || !arquivo.size) throw new Error('Escolha um arquivo de áudio.');
   const plugin = pluginEcoa();
-  const disponibilidade = await plugin.geminiDisponivel?.();
-  if (disponibilidade && !disponibilidade.tem) throw new Error('Este APK não foi montado com a chave do Gemini.');
   aoProgresso('Abrindo o áudio no aparelho…');
   const audio = await abrirAudio(arquivo, plugin);
   if (!(audio.duracao > 0)) throw new Error('Não consegui identificar a duração desta música.');
   const paraAnalise = reamostrar(audio.mono, audio.taxa, TAXA);
   const paraVoz = reamostrar(audio.mono, audio.taxa, TAXA_TRANSCRICAO);
-  const modelos = await modelosDisponiveis(plugin);
   aoProgresso('Analisando tom, andamento e acordes no próprio celular…');
   const analisePromise = workerAnalise(paraAnalise);
   const blocos = [];
@@ -208,7 +183,7 @@ export async function processarMusicaImportada(arquivo, {
     const trecho = paraVoz.slice(inicio, fim);
     const offset = inicio / TAXA_TRANSCRICAO;
     aoProgresso('Transcrevendo a letra: trecho ' + (i + 1) + ' de ' + total + '…');
-    const resposta = await transcreverBloco(plugin, modelos, trecho, offset, trecho.length / TAXA_TRANSCRICAO);
+    const resposta = await transcreverBloco(plugin, trecho, offset, trecho.length / TAXA_TRANSCRICAO);
     const linhas = lerTranscricao(resposta, trecho.length / TAXA_TRANSCRICAO)
       .map((l) => ({ ...l, inicio: l.inicio + offset, fim: l.fim + offset }));
     blocos.push(linhas);
