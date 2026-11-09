@@ -1,4 +1,4 @@
-# O app de Android do Ecoa (o APK): o mesmo site (kvsl11.github.io/Songbook) dentro de um app, com o widget da tela
+# O app de Android do Ecoa (o APK): o mesmo site (kvsl11.github.io/Ecoa) dentro de um app, com o widget da tela
 # inicial, o aviso de "tocando" com os botões e o login do Google pelo próprio Android. Publicado em
 # Releases → android (o arquivo Ecoa.apk), que o botão "Baixar o app para Android" do site baixa.
 # O site muda sozinho dentro do app (ele abre o site publicado), mas o APK também é recompilado a cada push:
