@@ -26,7 +26,7 @@ import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 
-// A tela do Ecoa: o site (https://kvsl11.github.io/Songbook/) num WebView, com o plugin "Ecoa" para o que só o
+// A tela do Ecoa: o site (https://kvsl11.github.io/Ecoa/) num WebView, com o plugin "Ecoa" para o que só o
 // Android faz: o widget da tela inicial, o aviso de "tocando" com os botões, o login do Google pelo próprio Android
 public class MainActivity extends BridgeActivity {
     @Override
