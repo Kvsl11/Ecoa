@@ -18551,8 +18551,8 @@ function infoDaGaveta(u) {
 const LINK_APK = 'Ecoa.apk';
 // No APK, os arquivos publicados ficam no GitHub Pages; document.baseURI aponta para o pacote local do Capacitor.
 // A Web continua usando o endereço relativo acima, sem mudar seu comportamento.
-const URL_APK_PUBLICADO = 'https://kvsl11.github.io/Songbook/Ecoa.apk';
-const URL_VERSAO_APK_PUBLICADA = 'https://kvsl11.github.io/Songbook/Ecoa-versao.json';
+const URL_APK_PUBLICADO = 'https://kvsl11.github.io/Ecoa/Ecoa.apk';
+const URL_VERSAO_APK_PUBLICADA = 'https://kvsl11.github.io/Ecoa/Ecoa-versao.json';
 const baixarAppAndroid = () => /Android/i.test(navigator.userAgent) && !window.Capacitor?.isNativePlatform?.();
 // A atualização do próprio APK: o robô publica a versão do APK (Ecoa-versao.json, ao lado do Ecoa.apk no site) e o app
 // compara com a dele. Atualizar baixa o APK novo e abre a tela de instalar do Android (que sempre pergunta antes).
