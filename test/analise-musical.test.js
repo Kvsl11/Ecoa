@@ -132,7 +132,7 @@ test('lerTranscricao: identifica refrão mesmo quando o Gemini marca todas as li
   assert.deepEqual(linhas.slice(2, 4).map((l) => l.secao), ['Chorus', 'Chorus']);
   assert.deepEqual(linhas.slice(6, 8).map((l) => l.secao), ['Chorus', 'Chorus']);
   const cifra = montarCifra({ titulo: 'Teste', linhas, duracao: 32 });
-  assert.match(cifra, /\\{comment: Chorus\\}/);
+  assert.ok(cifra.includes('{comment: Chorus}'));
 });
 
 test('linhaComAcordes: o acorde do começo e a troca na palavra cantada naquele instante', () => {
