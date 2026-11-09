@@ -496,6 +496,36 @@ export const PEDIDO_TRANSCRICAO = 'Você é um transcritor de letras de música.
   + 'medidos nesta gravação (do começo do arquivo). Transcreva cada repetição (o refrão cantado de novo entra de novo, no tempo dele). '
   + 'Não escreva acordes, nomes de quem canta nem descrições. IDENTIFIQUE A ESTRUTURA MUSICAL: para cada linha, preencha também "secao" com a seção correspondente, usando "Intro", "Verse 1", "Pre-Chorus", "Chorus", "Bridge", "Instrumental" ou "Outro" quando aplicável. Diferencie verso e refrão pelas repetições e mudanças musicais; mantenha o mesmo nome nas linhas da mesma seção e incremente o número dos versos quando houver nova estrofe. Se não for possível identificar com segurança, use string vazia. '
   + 'Não invente: se uma palavra não dá para entender, escreva a mais provável pelo som; se não há canto, devolva "linhas": [].';
+// O áudio de uma música encontrada na busca + a letra que o app já encontrou: o Gemini não reescreve a letra,
+// apenas localiza cada linha na gravação. Repetições devem aparecer de novo, nos tempos em que são cantadas.
+export function corpoDaSincronia({ tipo, dados, linhas }) {
+  const lista = (linhas || []).map((linha, i) => `${i + 1}. ${String(linha || '').trim()}`).filter((l) => !/^\\d+\\.\\s*$/.test(l)).join('\\n');
+  return {
+    contents: [{ role: 'user', parts: [
+      { inline_data: { mime_type: tipo, data: dados } },
+      { text: 'Você é um alinhador de letras musicais. Ouça a gravação inteira e sincronize a letra fornecida abaixo com a voz. ' +
+        'Devolva uma entrada para cada ocorrência cantada, com o texto da linha exatamente como foi fornecido e os instantes "inicio" e "fim" em mm:ss.cc, relativos ao começo do áudio. ' +
+        'Preserve a ordem e as quebras das linhas; não junte linhas diferentes, não divida uma linha em palavras, não invente versos e não transcreva trechos que não estejam na letra fornecida. ' +
+        'Quando o refrão ou outra linha se repetir, inclua novamente a mesma linha com o novo tempo. Ignore introduções instrumentais e pausas sem voz. ' +
+        'Se uma linha não for cantada ou não puder ser localizada com segurança, omita-a. ' +
+        'Retorne somente JSON no formato {"linhas":[{"texto":"...","inicio":"00:00.00","fim":"00:03.20"}]}.\\n\\nLETRA NUMERADA:\\n' + lista },
+    ] }],
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          linhas: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+            texto: { type: 'STRING' }, inicio: { type: 'STRING' }, fim: { type: 'STRING' },
+          }, required: ['texto', 'inicio', 'fim'] } },
+        },
+        required: ['linhas'],
+      },
+    },
+  };
+}
+
 export function corpoDaTranscricao({ tipo, dados }) {
   return {
     contents: [{ role: 'user', parts: [{ inline_data: { mime_type: tipo, data: dados } }, { text: PEDIDO_TRANSCRICAO }] }],
