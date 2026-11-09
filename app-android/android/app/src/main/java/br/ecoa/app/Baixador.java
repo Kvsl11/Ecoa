@@ -163,10 +163,11 @@ final class Baixador {
     static Resultado baixar(Context ctx, String video, boolean comVideo, String qualidade, File pasta, String processo, Andamento andamento) throws Exception {
         if (video == null || !ID.matcher(video).matches()) throw new IllegalArgumentException("link do YouTube inválido");
         preparar(ctx);
+        // O primeiro cliente já escolhe o melhor formato disponível para a qualidade pedida.
+        // Só troca de cliente se o YouTube exigir login; repetir o arquivo inteiro por diferenças de cliente
+        // fazia um vídeo ser baixado várias vezes mesmo com a conexão funcionando.
         String[][] clientes = { null, { "tv" }, { "android_vr" }, { "web_safari" }, { "mweb" } };
         Exception ultimo = null;
-        Exception primeiroQueNaoPedeLogin = null;
-        Resultado melhor = null;
         for (String[] cliente : clientes) {
             limpar(pasta);
             pasta.mkdirs();
@@ -179,15 +180,14 @@ final class Baixador {
             req.addOption("--newline");
             req.addOption("--match-filter", "duration <= " + MAX_VIDEO);
             req.addOption("--concurrent-fragments", 4);
-            // (em pedaços de 10 MB o YouTube entrega na velocidade da internet, e não na de tocar)
             req.addOption("--http-chunk-size", "10M");
-            req.addOption("--socket-timeout", 30);
-            req.addOption("--retries", 6);
-            req.addOption("--fragment-retries", 6);
-            req.addOption("--extractor-retries", 5);
+            req.addOption("--socket-timeout", 20);
+            // Retentativas curtas para falhas transitórias. Não multiplicar a espera por cinco clientes.
+            req.addOption("--retries", 3);
+            req.addOption("--fragment-retries", 3);
+            req.addOption("--extractor-retries", 2);
             if (comVideo) req.addOption("--merge-output-format", "mp4");
             if (cliente != null) req.addOption("--extractor-args", "youtube:player_client=" + String.join(",", cliente));
-            // (as informações do vídeo baixado, numa linha que começa com ECOA| no fim)
             req.addOption("--print", "after_move:ECOA|%(height)s|%(duration)s|%(title)s");
             req.addOption("--no-simulate");
             req.addOption("--progress");
@@ -211,31 +211,21 @@ final class Baixador {
                 res.tipo = tipoDoArquivo(f.getName(), comVideo);
                 if (comVideo && !res.tipo.startsWith("video/")) throw new IllegalStateException("veio só o áudio, não o videoclipe");
                 lerInformacoes(r.getOut(), res);
-                // A imagem veio abaixo do pedido (o YouTube não deu, por este "cliente", os formatos melhores, e veio o
-                // de 360p): guarda este e tenta pelos outros clientes, ficando com o de imagem maior. Se dois clientes
-                // entregam a mesma altura, ela é a maior que o vídeo tem (um clipe antigo, por exemplo): para ali
-                int alvo = Math.min(alturaDoVideo(qualidade), 720);
-                if (!comVideo || res.altura == null || res.altura >= alvo) { soltarMelhor(melhor); return res; }
-                boolean repetiu = melhor != null && melhor.altura != null && melhor.altura.intValue() == res.altura.intValue();
-                if (melhor == null || melhor.altura == null || res.altura > melhor.altura) { soltarMelhor(melhor); melhor = guardarMelhor(res, pasta); }
-                if (repetiu) { limpar(pasta); return melhor; }
-                continue;
+                // O yt-dlp já selecionou o melhor formato existente dentro da qualidade escolhida.
+                // Aceita a melhor resolução realmente disponível sem baixar a mesma mídia novamente.
+                return res;
             } catch (YoutubeDL.CanceledException e) {
                 limpar(pasta);
                 throw e;
             } catch (Exception e) {
                 ultimo = e;
-                if (!pedeLogin(e.getMessage())) {
-                    if (primeiroQueNaoPedeLogin == null) primeiroQueNaoPedeLogin = e;
-                    // (erro de rede ou de formato: o yt-dlp já tentou por dentro; os outros clientes ajudam pouco, mas
-                    // o "tv" e o "android_vr" às vezes entregam o que o padrão não entrega: segue tentando)
-                }
+                // Clientes alternativos só ajudam quando o YouTube bloqueia a consulta por login/cookies.
+                // Em timeout, erro de rede ou formato inválido, novas cópias completas só aumentariam a demora.
+                if (!pedeLogin(e.getMessage())) break;
             }
         }
         limpar(pasta);
-        if (melhor != null) return melhor;
-        Exception e = primeiroQueNaoPedeLogin != null ? primeiroQueNaoPedeLogin : ultimo;
-        throw new Exception(explicar(e));
+        throw new Exception(explicar(ultimo));
     }
 
     static void soltarMelhor(Resultado melhor) {
