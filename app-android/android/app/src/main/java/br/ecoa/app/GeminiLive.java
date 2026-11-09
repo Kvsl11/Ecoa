@@ -11,7 +11,6 @@ import com.google.firebase.ai.java.LiveSessionFutures;
 import com.google.firebase.ai.type.Content;
 import com.google.firebase.ai.type.GenerativeBackend;
 import com.google.firebase.ai.type.LiveGenerationConfig;
-import com.google.firebase.ai.type.LiveSession;
 import com.google.firebase.ai.type.ResponseModality;
 import com.google.firebase.ai.type.SpeechConfig;
 import com.google.firebase.ai.type.Voice;
@@ -62,11 +61,10 @@ final class GeminiLive {
                 .liveModel(MODELO, config, null, sistema);
 
             LiveModelFutures modeloFuturo = LiveModelFutures.from(modelo);
-            ListenableFuture<LiveSession> conexao = modeloFuturo.connect();
+            ListenableFuture<LiveSessionFutures> conexao = modeloFuturo.connect();
 
-            Futures.addCallback(conexao, new FutureCallback<LiveSession>() {
-                @Override public void onSuccess(LiveSession criada) {
-                    LiveSessionFutures nova = LiveSessionFutures.from(criada);
+            Futures.addCallback(conexao, new FutureCallback<LiveSessionFutures>() {
+                @Override public void onSuccess(LiveSessionFutures nova) {
                     synchronized (GeminiLive.class) {
                         sessao = nova;
                         iniciando = false;
