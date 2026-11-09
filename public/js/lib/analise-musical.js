@@ -499,7 +499,7 @@ export const PEDIDO_TRANSCRICAO = 'Você é um transcritor de letras de música.
 // O áudio de uma música encontrada na busca + a letra que o app já encontrou: o Gemini não reescreve a letra,
 // apenas localiza cada linha na gravação. Repetições devem aparecer de novo, nos tempos em que são cantadas.
 export function corpoDaSincronia({ tipo, dados, linhas }) {
-  const lista = (linhas || []).map((linha, i) => `${i + 1}. ${String(linha || '').trim()}`).filter((l) => !/^\\d+\\.\\s*$/.test(l)).join('\\n');
+  const lista = (linhas || []).map((linha, i) => `${i + 1}. ${String(linha || '').trim()}`).filter((l) => l.trim().length > 0).join('\n');
   return {
     contents: [{ role: 'user', parts: [
       { inline_data: { mime_type: tipo, data: dados } },
@@ -508,7 +508,7 @@ export function corpoDaSincronia({ tipo, dados, linhas }) {
         'Preserve a ordem e as quebras das linhas; não junte linhas diferentes, não divida uma linha em palavras, não invente versos e não transcreva trechos que não estejam na letra fornecida. ' +
         'Quando o refrão ou outra linha se repetir, inclua novamente a mesma linha com o novo tempo. Ignore introduções instrumentais e pausas sem voz. ' +
         'Se uma linha não for cantada ou não puder ser localizada com segurança, omita-a. ' +
-        'Retorne somente JSON no formato {"linhas":[{"texto":"...","inicio":"00:00.00","fim":"00:03.20"}]}.\\n\\nLETRA NUMERADA:\\n' + lista },
+        'Retorne somente JSON no formato {"linhas":[{"texto":"...","inicio":"00:00.00","fim":"00:03.20"}]}.\n\nLETRA NUMERADA:\n' + lista },
     ] }],
     generationConfig: {
       temperature: 0,
