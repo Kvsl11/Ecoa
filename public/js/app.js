@@ -32,6 +32,7 @@ import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
 import { relogio, secoesDaLetra, trechoMarcado, voltaDoTrecho } from './lib/trechos.js';
+import { pontoAgora, rotuloVelocidade, velocidadeValida, VELOCIDADES } from './lib/velocidade.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -3020,6 +3021,7 @@ const player = (() => {
   let tempo = 0;
   let marcaTempo = 0;
   let pendente = null;
+  let velocidade = 1; // a velocidade da música no ensaio (veja abrirVelocidade); 1 = normal
   let pendenteEm = 0; // quando o ponto pendente foi pedido (performance.now)
   let arrasto = null; // a barra do tempo sendo arrastada: { prog, id, fracao } // ida para um ponto do vídeo pedida antes de ele estar pronto
   let tentativasIda = 0;
@@ -4776,8 +4778,8 @@ const semLinhasDeAcordes = (sinc) => {
     }
     // (sempre na velocidade normal: a versão de antes do automix podia deixar o player um pouco mais rápido ou mais lento,
     // e a música seguinte nele tocava acelerada, mesmo com a transição desligada)
-    m.defaultPlaybackRate = 1;
-    m.playbackRate = 1;
+    m.defaultPlaybackRate = velocidade;
+    m.playbackRate = velocidade;
     if (tocar) m.play().catch(() => { velho?.pause(); estado = 'pausado'; desenhar(); avisar(); });
     else m.pause();
     setTimeout(prepararLocalOutra, 1500);
@@ -4850,7 +4852,8 @@ const semLinhasDeAcordes = (sinc) => {
   setInterval(() => {
     const r = reservaDe();
     if (!r || r.dataset.pronto !== '1' || trocando || local || !atual || r.dataset.yt !== outraVersao() || !sombraTocando()) return;
-    if (estado !== 'tocando' || estadoYt !== 1) { if (rs.estado === 1 || rs.estado === 3) cmdEm(r, 'pauseVideo'); return; }
+    // (fora da velocidade normal, no ensaio, a outra versão espera parada: ela andaria noutro passo)
+    if (estado !== 'tocando' || estadoYt !== 1 || velocidade !== 1) { if (rs.estado === 1 || rs.estado === 3) cmdEm(r, 'pauseVideo'); return; }
     const alvo = noOutroLado(api.tempoAgora);
     // (o ponto fica fora da outra versão — o fim do clipe, sem a música no áudio: ela espera parada, sem chegar ao fim)
     if (rs.duracao > 0 && alvo >= rs.duracao - 1) { if (rs.estado === 1 || rs.estado === 3) cmdEm(r, 'pauseVideo'); return; }
@@ -5304,7 +5307,7 @@ const semLinhasDeAcordes = (sinc) => {
     // segundos do vídeo agora (o YouTube avisa algumas vezes por segundo; entre um aviso e outro, estima)
     // (no máximo 2 s além do último aviso: com o app em segundo plano o vídeo para de avisar, e a letra corria sozinha
     // muito à frente do que se cantava)
-    get tempoAgora() { return tempo + (estado === 'tocando' && marcaTempo && !anuncio ? Math.min(2, (performance.now() - marcaTempo) / 1000) : 0); },
+    get tempoAgora() { return estado === 'tocando' && marcaTempo && !anuncio ? pontoAgora(tempo, (performance.now() - marcaTempo) / 1000, velocidade) : tempo; },
     // passando o anúncio do YouTube (a música ainda não começou)
     get emAnuncio() { return Boolean(anuncio); },
     // a duração de um vídeo do YouTube que o player já tocou (0 se não sabe)
@@ -5480,6 +5483,7 @@ const semLinhasDeAcordes = (sinc) => {
     fechar() {
       telinha(false); // a telinha da página volta a mostrar a miniatura
       trecho = null; marcaA = null; pintarTrecho(); // (a repetição do trecho acaba com o player)
+      if (velocidade !== 1) mudarVelocidade(1); // (e a velocidade do ensaio volta ao normal)
       tirarDaTelinha();
       if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }
       sessaoDe = '';
@@ -5629,7 +5633,7 @@ const semLinhasDeAcordes = (sinc) => {
       acao('nexttrack', naFila ? () => pular(1) : null);
     }
     ms.playbackState = estado === 'tocando' ? 'playing' : 'paused';
-    if (duracao > 0 && ms.setPositionState) { try { ms.setPositionState({ duration: duracao, position: Math.min(duracao, Math.max(0, tempo)), playbackRate: 1 }); } catch { /* fora do intervalo */ } }
+    if (duracao > 0 && ms.setPositionState) { try { ms.setPositionState({ duration: duracao, position: Math.min(duracao, Math.max(0, tempo)), playbackRate: velocidade }); } catch { /* fora do intervalo */ } }
   };
   // a música acabou: repete, vai para a próxima (na ordem ou aleatória) ou para
   // ---- Repetir um trecho (o ensaio, no ⋯ do player; como as "Song Sections" do Moises): uma parte da música (as da
@@ -5680,6 +5684,46 @@ const semLinhasDeAcordes = (sinc) => {
     const sec = secoes[Number(String(v).slice(1))];
     if (sec) repetirTrecho(sec);
   };
+  // ---- A velocidade da música (o ensaio, no ⋯ do player; como o "speed changer" do Moises): de 0,5× a 1,5×, sem
+  // mudar o tom, no próprio aparelho (o arquivo baixado, o áudio da pessoa, o karaokê e o vídeo do YouTube). Vale para
+  // a música que está tocando: na próxima, volta ao normal. Não fica guardada. A conta está em lib/velocidade.js
+  let velocidadeDe = ''; // a música em que a velocidade foi escolhida
+  const musicaDaVelocidade = () => (atual ? `${atual.songId || ''}|${atual.titulo || ''}` : '');
+  const aplicarVelocidade = () => {
+    for (const m of [somAudio, somVideo, somKaraoke]) {
+      if (!m) continue;
+      try { m.preservesPitch = true; } catch { /* navegador sem a opção: já é o padrão */ }
+      if (m.playbackRate !== velocidade) { m.defaultPlaybackRate = velocidade; m.playbackRate = velocidade; }
+    }
+    if (!local) comandoYt('setPlaybackRate', [velocidade]);
+  };
+  const mudarVelocidade = (v) => {
+    // (o ponto de agora, na velocidade de antes, fica como a nova referência: a barra não dá um salto)
+    tempo = api.tempoAgora;
+    marcaTempo = performance.now();
+    velocidade = velocidadeValida(v);
+    velocidadeDe = musicaDaVelocidade();
+    aplicarVelocidade();
+    desenhar();
+    avisar();
+  };
+  const abrirVelocidade = async () => {
+    if (!atual) return;
+    const v = await escolherNaLista({
+      titulo: 'Velocidade da música',
+      atual: velocidade,
+      opcoes: VELOCIDADES.map((x) => ({ valor: x, rotulo: rotuloVelocidade(x), sub: x === 1 ? '' : x < 1 ? 'Mais devagar, no mesmo tom' : 'Mais rápido, no mesmo tom', ic: 'gauge' })),
+    });
+    if (v === undefined || !atual || v === velocidade) return;
+    mudarVelocidade(v);
+    toast(velocidade === 1 ? 'Velocidade normal' : `Velocidade ${rotuloVelocidade(velocidade)} (o tom não muda)`);
+  };
+  setInterval(() => {
+    if (velocidade === 1) return;
+    // (outra música: volta ao normal; a mesma música noutro player — o vídeo que entrou, o arquivo que abriu — segue)
+    if (!atual || musicaDaVelocidade() !== velocidadeDe) { mudarVelocidade(1); return; }
+    if (estado === 'tocando' && !anuncio) aplicarVelocidade();
+  }, 1000);
   setInterval(() => {
     if (!trecho) return;
     if (!atual || atual.youtube !== trecho.de) { trecho = null; marcaA = null; pintarTrecho(); return; }
@@ -5878,7 +5922,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (transicao) { andarTransicao(); return; }
     const modo = modoTransicao();
     if (!modo || !atual || atual.semVideo || estado !== 'tocando' || anuncio || pendente !== null || trocando || !(duracao > 20)) return;
-    if (trecho) return; // (repetindo um trecho: a próxima música não entra por baixo)
+    if (trecho || velocidade !== 1) return; // (no ensaio — repetindo um trecho ou noutra velocidade —, a próxima música não entra por baixo)
     const falta = duracao - api.tempoAgora;
     if (falta > 45 || falta < 0.6) return;
     if (repetir === 'uma' || !fila() || (vizinha(1) < 0 && repetir !== 'todas')) return;
@@ -6356,6 +6400,7 @@ const semLinhasDeAcordes = (sinc) => {
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
       // o ensaio: repetir uma parte da música ou um trecho marcado
       !atual.semVideo && { valor: 'trecho', rotulo: trecho ? 'Repetindo um trecho' : 'Repetir um trecho', ic: 'repeat', dir: trecho ? trecho.nome : '' },
+      !atual.semVideo && { valor: 'velocidade', rotulo: 'Velocidade da música', ic: 'gauge', dir: velocidade === 1 ? '' : rotuloVelocidade(velocidade) },
       // o karaokê (o mesmo microfone da letra na tela toda)
       fonteKaraokeAgora() && { valor: 'karaoke', rotulo: karaokeLigado ? 'Desligar o karaokê' : 'Karaokê (tirar a voz)', svg: MICROFONE_KARAOKE },
       fonteKaraokeAgora() && karaokeDe(fonteKaraokeAgora()) && !karaokeLigado && { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê do aparelho', ic: 'trash' },
@@ -6380,6 +6425,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (!v || !atual) return;
     if (v === 'diagnostico') { void abrirDiagnostico(); return; }
     if (v === 'trecho') { void abrirTrecho(); return; }
+    if (v === 'velocidade') { void abrirVelocidade(); return; }
     if (v === 'copiar-letra' || v === 'copiar-cifra') {
       void copiarLetra(song, { comCifra: v === 'copiar-cifra', transpose: song?.transpose || 0, capo: song?.capo || 0, titulo: atual?.titulo, artista: atual?.artista });
       return;

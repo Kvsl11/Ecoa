@@ -5,12 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 613, data: '2026-11-10', titulo: 'Repetição de trecho no player para ensaio',
+    versao: 613, data: '2026-11-10', titulo: 'Modo de ensaio no player: repetição de trecho e velocidade da música',
     itens: [
       { tipo: 'novo', texto: 'Foi adicionada ao menu de opções do player (⋯ do Tocando agora) a função "Repetir um trecho". Nas músicas com letra sincronizada, as partes da gravação (Verse, Chorus, Bridge e demais marcações da cifra) passam a ser listadas com o instante de início e de fim, calculados a partir da letra sincronizada, e a parte escolhida é reproduzida em repetição contínua até ser desligada. Numa gravação de 10 min 47 s usada na verificação, foram identificadas 8 partes.' },
       { tipo: 'novo', texto: 'Em qualquer música, o trecho a repetir também pode ser marcado manualmente: o início e o fim são definidos no ponto em que a reprodução se encontra, com duração mínima de 2 segundos. O trecho ativo é destacado na barra de tempo e indicado no menu.' },
-      { tipo: 'melhoria', texto: 'Durante a repetição de um trecho, a transição entre músicas (crossfade e automix) e a passagem para a faixa seguinte ficam suspensas. A repetição não é guardada: é encerrada ao trocar de música, ao trocar entre o clipe e o áudio ou ao fechar o player.' },
-      { tipo: 'melhoria', texto: 'Pendências do modo de ensaio, ainda não entregues: separação em quatro faixas (voz, bateria, baixo e demais instrumentos) com mixer, alteração de velocidade e de tom do áudio, metrônomo e contagem inicial. O retorno automático ao início do trecho foi validado por testes automatizados; a validação com reprodução real em aparelho permanece pendente.' },
+      { tipo: 'novo', texto: 'Foi adicionada ao mesmo menu a função "Velocidade da música", com os passos 0,5×, 0,75×, normal, 1,25× e 1,5×, sem alteração do tom. O ajuste é aplicado no próprio aparelho ao arquivo baixado, ao áudio importado, ao karaokê e ao vídeo do YouTube, sem uso de servidor. Na verificação com um arquivo de áudio local, o avanço medido foi de 0,50 s por segundo em 0,5× e de 1,50 s por segundo em 1,5×; a letra sincronizada e a barra de tempo acompanham a velocidade escolhida.' },
+      { tipo: 'melhoria', texto: 'Durante a repetição de um trecho ou fora da velocidade normal, a transição entre músicas (crossfade e automix) fica suspensa. Os dois ajustes não são guardados: a repetição é encerrada ao trocar de música, ao trocar entre o clipe e o áudio ou ao fechar o player, e a velocidade volta ao normal na música seguinte.' },
+      { tipo: 'melhoria', texto: 'Pendências do modo de ensaio, ainda não entregues: separação em quatro faixas (voz, bateria, baixo e demais instrumentos) com mixer, alteração de tom do áudio, metrônomo e contagem inicial. A repetição e a velocidade foram validadas com reprodução real de um arquivo de áudio local no navegador; a validação com o vídeo do YouTube e no aplicativo Android em aparelho permanece pendente.' },
     ],
   },
   {
