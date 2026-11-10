@@ -530,3 +530,29 @@ test('diagnóstico: Consertar agora tenta sincronização Gemini quando não há
   assert.match(rotina, /!sincValida\(s1\)/);
 });
 
+
+test('cache da letra sincronizada separa a busca antecipada da edição com duração conhecida', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const inicio = app.indexOf('const letrasSincronizadas = new Map();');
+  const fim = app.indexOf('// A edição do LRCLIB', inicio);
+  assert.ok(inicio >= 0 && fim > inicio);
+  const rotina = app.slice(inicio, fim);
+  assert.match(rotina, /chaveDaLetraSinc = \(titulo, artista, duracao = 0\)/);
+  assert.match(rotina, /Math\.round\(Number\(duracao\)\)/);
+  assert.match(rotina, /chaveDaLetraSinc\(titulo, artista, duracao\)/);
+});
+
+test('a revisão refaz apenas sincronias automáticas e preserva as sincronias manuais', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const revisoesInicio = app.indexOf('const REVISOES = [');
+  const revisoesFim = app.indexOf('];', revisoesInicio);
+  const revisoes = app.slice(revisoesInicio, revisoesFim);
+  assert.match(revisoes, /rev: 31, refazerLetra: true/);
+  const inicio = app.indexOf("if (quer('refazerLetra') && s.sincronia?.fonte === 'lrclib')");
+  const fim = app.indexOf('// a letra do LRCLIB de novo', inicio);
+  assert.ok(inicio > 0 && fim > inicio);
+  const rotina = app.slice(inicio, fim);
+  assert.match(rotina, /sincronia: undefined/);
+  assert.match(rotina, /quer\('refazerLetra'\)/);
+  assert.match(rotina, /s\.sincronia\.fonte !== 'lrclib'/);
+});
