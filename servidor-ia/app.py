@@ -838,7 +838,7 @@ async def falar_texto(pedido: PedidoFala):
         import asyncio
 
         try:
-            audio = await asyncio.to_thread(falar.falar_gemini, pedido.texto, "Kore")
+            audio = await asyncio.to_thread(falar.falar_gemini, pedido.texto)
             return Response(audio, media_type="audio/wav", headers={"Cache-Control": "no-store", "X-Voz": "gemini"})
         except ValueError as e:
             raise HTTPException(422, str(e))
