@@ -1329,6 +1329,8 @@ body.performance .convite-instalar { display: none; }
 #player .pl-prog { position: relative; touch-action: none; cursor: pointer; }
 #player .pl-prog::before { content: ""; position: absolute; left: -6px; right: -6px; top: -14px; bottom: -14px; }
 #player.arrastando .pl-prog i { transition: none; }
+/* o trecho que está repetindo (o ensaio: Repetir um trecho), pintado na barra do tempo */
+#player.com-trecho .pl-prog::after { content: ""; position: absolute; top: -2px; bottom: -2px; left: var(--trecho-a, 0%); width: var(--trecho-l, 0%); min-width: 3px; border-radius: 3px; background: var(--accent); opacity: 0.6; pointer-events: none; }
 html.pp #player.arrastando .pl-prog i::after { transform: scale(1.35); }
 /* ampliado: o vídeo grande em cima da barra */
 html:not(.pp) #player.grande:not(.capa-na-barra) { grid-template-areas: "video video video video" "info info play lado" "tempo tempo tempo tempo"; }
