@@ -6,12 +6,12 @@ function pluginEcoa() {
   return p;
 }
 
-export async function iniciarConversaAoVivo({ genero = 'feminina', instrucao = '' } = {}) {
+export async function iniciarConversaAoVivo({ instrucao = '' } = {}) {
   const p = pluginEcoa();
   if (typeof p.lumenAoVivoIniciar !== 'function') {
     throw new Error('Atualize o APK para habilitar a conversa ao vivo nativa.');
   }
-  return p.lumenAoVivoIniciar({ genero, instrucao });
+  return p.lumenAoVivoIniciar({ instrucao });
 }
 
 export async function pararConversaAoVivo() {
