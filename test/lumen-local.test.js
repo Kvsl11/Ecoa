@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  SISTEMA, SISTEMA_VOZ, montarPergunta, pedacos, limparTextoPdf, trechosDosPdfs, trechosQueImportam, candidatosGemini,
+  SISTEMA, SISTEMA_VOZ, sistemaDoGenero, montarPergunta, pedacos, limparTextoPdf, trechosDosPdfs, trechosQueImportam, candidatosGemini,
   chamarGemini, responderNoAparelho, corpoDoGemini, arquivoParaOGemini,
 } from '../public/js/lib/lumen-local.js';
 
@@ -22,7 +22,9 @@ const ok = (texto, extra = {}) => ({ status: 200, texto: JSON.stringify({ candid
 
 test('Lúmen no aparelho: os textos do sistema são os mesmos do servidor', async () => {
   const py = await readFile(new URL('../servidor-ia/duvidas.py', import.meta.url), 'utf8');
-  assert.ok(SISTEMA.startsWith('Você é o Lumen, o assistente do app Songbook Litúrgico.'));
+  assert.ok(SISTEMA.startsWith('Você é o Google Gemini integrado ao app Ecoa.'));
+  assert.equal(sistemaDoGenero('feminina'), '');
+  assert.equal(sistemaDoGenero('masculina'), '');
   assert.ok(SISTEMA.includes('[[tocar: título exato da música'));
   assert.ok(py.includes('A resposta será LIDA EM VOZ ALTA'));
   assert.ok(SISTEMA_VOZ.includes('A resposta será LIDA EM VOZ ALTA'));
