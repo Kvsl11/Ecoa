@@ -1,0 +1,14 @@
+/* Ajustes do chat de dúvidas: o campo flutua sem um painel retangular por trás. */
+.chat-barra {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.chat-barra::before,
+.chat-barra::after {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#view:has(.chat),
+.main-col:has(.chat) {
+  background: transparent !important;
+}
