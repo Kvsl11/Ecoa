@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 612, data: '2026-11-10', titulo: 'Sincronização de letras ajustada à duração da gravação',
+    itens: [
+      { tipo: 'correcao', texto: 'O cache das consultas de letras sincronizadas passou a distinguir buscas antecipadas sem duração das consultas realizadas após a identificação do áudio. Com isso, resultados do LRCLIB e da reserva NetEase deixam de ser reutilizados entre edições com durações diferentes, reduzindo deslocamentos de tempo causados por masters incompatíveis. As sincronias automáticas já salvas serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas. Quando LRCLIB e NetEase não fornecem uma letra sincronizada correspondente, o Gemini no Android continua como alternativa, seguido pelo servidor configurado.' },
+    ],
+  },
+  {
     versao: 611, data: '2026-11-10', titulo: 'Integração Gemini padronizada e identidade da assistência simplificada',
     itens: [
       { tipo: 'melhoria', texto: 'O servidor passou a priorizar o Google Gemini quando a chave correspondente está configurada, inclusive quando há também uma chave do provedor alternativo. A seleção explícita de Claude continua disponível por configuração; na ausência da chave Gemini, mantém-se o provedor alternativo como reserva.' },
@@ -73,18 +79,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A janela de trocar o vídeo ou a música (áudio) foi reformulada, no celular e no tablet: o título indica a ação ("Trocar o vídeo", "Trocar a música (áudio)") e a música a que se refere; as linhas da lista passaram a ter miniatura maior, com a duração, e o nome em até duas linhas; a versão em uso aparece primeiro, destacada, com a etiqueta "Atual" e a indicação "Em uso" no lugar do botão; "Tenho o link do vídeo" passou a ser uma linha com ícone, que se expande; no rodapé, "Remover" fica à esquerda, em vermelho e com ícone, e "Cancelar" à direita.' },
     ],
   },
-  {
-    versao: 602, data: '2026-11-07', titulo: 'Capas estáveis, conta limpa por completo, menu das playlists por toque longo e novo selo de artista confirmado',
-    itens: [
-      { tipo: 'correcao', texto: 'A capa das músicas salvas podia mudar sozinha: ao abrir o aplicativo, ao tocar a música e ao exibir a biblioteca, a capa do álbum era procurada de novo e substituída sempre que a busca devolvia outra. Além disso, a escolha entre as capas encontradas ordenava as opções pela adequação à música (single e álbum à frente de coletâneas e de outras gravações), mas em seguida selecionava a de maior resolução e, no empate, a mais ouvida, de modo que uma coletânea gospel substituía a capa do single de "Aba", do Kemuel. A escolha passou a respeitar a ordem de adequação, considerando as duas fontes (Deezer e iTunes) em conjunto, e a resolução só desempata o mesmo álbum. A busca em segundo plano passou a preencher apenas a capa provisória (nenhuma, o quadro do vídeo ou a foto do artista): a capa do álbum já atribuída não é mais substituída. As capas salvas que forem de coletânea ou de outra gravação são corrigidas uma única vez, em segundo plano; as corretas e as escolhidas manualmente são mantidas.' },
-      { tipo: 'melhoria', texto: 'Em "Trocar a capa", o botão "Automática", que não indicava atividade e, sem resposta da busca, removia a capa, foi substituído por "Achar a capa certa": durante a busca, a janela informa que o Deezer e o iTunes estão sendo consultados; ao final, exibe a capa encontrada, o álbum, a fonte e a resolução, e informa se a capa foi trocada, se a atual já era a correta ou se nada foi encontrado (nesse caso, a capa atual é mantida). Cada opção da grade passou a indicar a fonte. O Diagnóstico da música ganhou a seção "Capa", que identifica a capa de coletânea ou de outra gravação, e "Consertar agora" passou a informar quando a capa é corrigida.' },
-      { tipo: 'correcao', texto: '"Apagar tudo", nas configurações, saía da conta e apagava apenas os dados do aparelho; como a conta é obrigatória, ao entrar novamente a nuvem restaurava músicas, playlists e repertórios, e na prática só os downloads eram removidos. O botão passou a limpar a conta: primeiro todos os itens da nuvem são marcados como apagados (os demais aparelhos da conta também são esvaziados na sincronização seguinte) e, em seguida, são removidos do aparelho a biblioteca, as playlists, os repertórios, os downloads, os karaokês, as estatísticas, o histórico e os ajustes. A sessão da conta é mantida. Sem internet ou sem resposta da nuvem, nada é apagado e o motivo é informado.' },
-      { tipo: 'novo', texto: 'Na biblioteca, manter o dedo sobre uma playlist ou um repertório abre o menu inferior (celular e tablet) com as opções Fixar no topo (ou Desafixar), Renomear, Trocar a capa, Usar a capa automática, Selecionar várias e Excluir. Os itens fixados aparecem logo após "Músicas curtidas" e "Baixadas", com o ícone de alfinete, e a fixação é sincronizada pela conta. Antes, o toque longo apenas iniciava a seleção para exclusão.' },
-      { tipo: 'melhoria', texto: 'O selo de artista confirmado, na seção "Sobre o artista", passou de um círculo azul para o formato de borda ondulada, preenchido em azul, com o sinal de confirmação em branco.' },
-    ],
-  },
-
-
 ];
 
 // A primeira versão de cada mês. O número mostrado ("2026.10.31-383") é a data da versão e quantas versões o mês já
