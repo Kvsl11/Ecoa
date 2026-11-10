@@ -881,72 +881,38 @@ public class EcoaPlugin extends Plugin {
             });
     }
 
-    // Compartilha um convite visual do Ecoa (logo do APK + texto + link de download direto).
-    // O Android recebe a imagem como anexo e o link na legenda, para o WhatsApp mostrar o card da marca.
+    // Compartilha o convite do Ecoa: a imagem (o cartão desenhado pela interface, em lib/convite.js, que chega em
+    // base64) como anexo e o texto com o link na legenda, para o WhatsApp mostrar os dois juntos.
+    // Sem a imagem da interface, usa o cartão simples desenhado aqui.
     @PluginMethod
     public void compartilharApp(PluginCall call) {
         String texto = call.getString("texto", "Conheça o Ecoa! Ouça, cante e ecoe.");
         // Sempre usa o endereço oficial do APK do Ecoa, mesmo se uma versão antiga da interface
         // enviar por engano o link legado do Songbook.
         String url = "https://kvsl11.github.io/Ecoa/Ecoa.apk";
+        String imagem = call.getString("imagem", "");
+        boolean jpeg = "image/jpeg".equals(call.getString("tipo", "image/png"));
         try {
             Context ctx = getContext();
-            android.graphics.Bitmap card = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888);
-            android.graphics.Canvas canvas = new android.graphics.Canvas(card);
-            android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            paint.setShader(new android.graphics.LinearGradient(0, 0, 1080, 1350,
-                new int[] { 0xFF071824, 0xFF0B3448, 0xFF123D57 }, null, android.graphics.Shader.TileMode.CLAMP));
-            canvas.drawRect(0, 0, 1080, 1350, paint);
-            paint.setShader(null);
-            paint.setColor(0x3322D3EE);
-            canvas.drawCircle(540, 360, 360, paint);
-            paint.setStyle(android.graphics.Paint.Style.STROKE);
-            paint.setStrokeWidth(3f);
-            paint.setColor(0x5522D3EE);
-            canvas.drawCircle(540, 360, 390, paint);
-            paint.setStyle(android.graphics.Paint.Style.FILL);
-            paint.setColor(0xFF0B2637);
-            canvas.drawRoundRect(72, 90, 1008, 1260, 56, 56, paint);
-
-            paint.setColor(0xFF16445A);
-            canvas.drawCircle(540, 370, 178, paint);
-            android.graphics.drawable.Drawable logo = ctx.getPackageManager().getApplicationIcon(ctx.getPackageName());
-            logo.setBounds(410, 240, 670, 500);
-            logo.draw(canvas);
-
-            paint.setColor(android.graphics.Color.WHITE);
-            paint.setTextAlign(android.graphics.Paint.Align.CENTER);
-            paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
-            paint.setTextSize(104f);
-            canvas.drawText("Ecoa", 540, 690, paint);
-            paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
-            paint.setTextSize(48f);
-            canvas.drawText("Ouça, cante e ecoe.", 540, 775, paint);
-            paint.setColor(0xFFB8D5E2);
-            paint.setTextSize(34f);
-            canvas.drawText("Cifras • letras sincronizadas • acordes", 540, 890, paint);
-
-            paint.setColor(0xFF22D3EE);
-            canvas.drawRoundRect(205, 1010, 875, 1128, 34, 34, paint);
-            paint.setColor(0xFF062333);
-            paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
-            paint.setTextSize(34f);
-            canvas.drawText("BAIXE O APK PARA ANDROID", 540, 1083, paint);
-
             File pasta = new File(ctx.getCacheDir(), "compartilhar");
             if (!pasta.exists() && !pasta.mkdirs()) throw new IllegalStateException("Não foi possível preparar a imagem.");
-            File arquivo = new File(pasta, "ecoa-compartilhar.png");
-            try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) {
-                if (!card.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, saida)) {
-                    throw new IllegalStateException("Não foi possível gerar a imagem do convite.");
-                }
-            } finally {
-                card.recycle();
+            // (um nome por envio: o aplicativo que recebe pode ler o arquivo depois de um convite novo ser preparado)
+            File[] antigos = pasta.listFiles();
+            if (antigos != null) for (File f : antigos) if (System.currentTimeMillis() - f.lastModified() > 3600_000L) f.delete();
+            boolean daInterface = imagem != null && !imagem.isEmpty();
+            String tipo = daInterface && jpeg ? "image/jpeg" : "image/png";
+            File arquivo = new File(pasta, "convite-ecoa-" + System.currentTimeMillis() + (daInterface && jpeg ? ".jpg" : ".png"));
+            if (daInterface) {
+                byte[] bytes = android.util.Base64.decode(imagem, android.util.Base64.DEFAULT);
+                if (bytes.length == 0) throw new IllegalStateException("A imagem do convite chegou vazia.");
+                try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) { saida.write(bytes); }
+            } else {
+                desenharConviteSimples(ctx, arquivo);
             }
             android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
                 ctx, ctx.getPackageName() + ".fileprovider", arquivo);
             android.content.Intent enviar = new android.content.Intent(android.content.Intent.ACTION_SEND);
-            enviar.setType("image/png");
+            enviar.setType(tipo);
             enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
             enviar.putExtra(android.content.Intent.EXTRA_TEXT, texto + "\n\n" + url);
             enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), "Convite do Ecoa", uri));
@@ -955,6 +921,58 @@ public class EcoaPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("Não foi possível preparar o compartilhamento: " + String.valueOf(e.getMessage()), "compartilhar");
+        }
+    }
+
+    // O cartão de reserva do convite, desenhado no Android (para quando a interface não manda a imagem).
+    private static void desenharConviteSimples(Context ctx, File arquivo) throws java.io.IOException {
+        android.graphics.Bitmap card = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(card);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setShader(new android.graphics.LinearGradient(0, 0, 1080, 1350,
+            new int[] { 0xFF071824, 0xFF0B3448, 0xFF123D57 }, null, android.graphics.Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, 1080, 1350, paint);
+        paint.setShader(null);
+        paint.setColor(0x3322D3EE);
+        canvas.drawCircle(540, 360, 360, paint);
+        paint.setStyle(android.graphics.Paint.Style.STROKE);
+        paint.setStrokeWidth(3f);
+        paint.setColor(0x5522D3EE);
+        canvas.drawCircle(540, 360, 390, paint);
+        paint.setStyle(android.graphics.Paint.Style.FILL);
+        paint.setColor(0xFF0B2637);
+        canvas.drawRoundRect(72, 90, 1008, 1260, 56, 56, paint);
+
+        paint.setColor(0xFF16445A);
+        canvas.drawCircle(540, 370, 178, paint);
+        android.graphics.drawable.Drawable logo = ctx.getPackageManager().getApplicationIcon(ctx.getPackageName());
+        logo.setBounds(410, 240, 670, 500);
+        logo.draw(canvas);
+
+        paint.setColor(android.graphics.Color.WHITE);
+        paint.setTextAlign(android.graphics.Paint.Align.CENTER);
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
+        paint.setTextSize(104f);
+        canvas.drawText("Ecoa", 540, 690, paint);
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
+        paint.setTextSize(48f);
+        canvas.drawText("Ouça, cante e ecoe.", 540, 775, paint);
+        paint.setColor(0xFFB8D5E2);
+        paint.setTextSize(34f);
+        canvas.drawText("Cifras • letras sincronizadas • acordes", 540, 890, paint);
+
+        paint.setColor(0xFF22D3EE);
+        canvas.drawRoundRect(205, 1010, 875, 1128, 34, 34, paint);
+        paint.setColor(0xFF062333);
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
+        paint.setTextSize(34f);
+        canvas.drawText("BAIXE O APK PARA ANDROID", 540, 1083, paint);
+        try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) {
+            if (!card.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, saida)) {
+                throw new IllegalStateException("Não foi possível gerar a imagem do convite.");
+            }
+        } finally {
+            card.recycle();
         }
     }
 

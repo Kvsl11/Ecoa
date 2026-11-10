@@ -5449,6 +5449,13 @@ dialog.folha.pk-dlg .dlg > .acts { position: static; }
 .perfil-folha-lista { display: grid; padding-top: 6px; }
 .perfil-folha-lista .pg-item { padding: 14px 4px; border-radius: 8px; }
 .pg-item.pg-sair, .pg-item.pg-sair svg { color: #f87171; }
+/* "Compartilhar o Ecoa": a prévia do cartão do convite (4:5) e, embaixo, as formas de enviar */
+.convite-previa { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: 46dvh; aspect-ratio: 4 / 5; margin: 0 auto; border-radius: 18px;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38); }
+.convite-texto { text-align: center; font-size: 14px; }
+.convite-estado { text-align: center; font-size: 13.5px; color: #f87171 !important; }
+.convite-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.convite-acoes .btn { flex: 1 1 150px; justify-content: center; gap: 8px; text-decoration: none; }
 .pg-conta { display: flex; align-items: center; gap: 12px; margin: 4px 16px 0; padding: 10px 8px 10px 14px; border-radius: 14px;
   background: var(--surface); border: 1px solid var(--border); }
 .pg-conta > svg { flex: none; }
