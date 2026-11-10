@@ -8527,7 +8527,7 @@ function viewHome() {
   setTab('inicio');
   setTint('#1e3264');
   setHeader('Início', { actions: [
-    { html: logoLumen(22), label: 'Lumen, o assistente litúrgico', href: '#/duvidas' },
+    { icon: 'sparkles', label: 'Tirar dúvidas', href: '#/duvidas' }
     { icon: 'upload', label: 'Importar arquivos', onClick: openImport },
     // (os Ajustes ficam na gaveta da foto do perfil e na página do perfil)
   ] });
@@ -20983,8 +20983,7 @@ function viewDuvidas() {
   conversaDuvidas = conversaDuvidas.filter((m) => m.carregando || Date.now() - (m.t || 0) < DIA);
   setTab('inicio');
   setTint('#0b1020');
-  setHeader('Lumen', { back: '#/', eyebrow: generoLumen() === 'masculina' ? 'Seu assistente' : 'Sua assistente', actions: [...(conversaDuvidas.length ? [{ icon: 'trash', label: 'Apagar conversa', onClick: async () => { if (await ask({ title: 'Apagar a conversa?', text: 'As perguntas e respostas saem deste aparelho. (Elas também somem sozinhas depois de 24 horas.)', ok: 'Apagar', danger: true })) { conversaDuvidas = []; guardarConversa(); viewDuvidas(); } } }] : [])] });
-  const avatar = `<span class="dv-avatar" aria-hidden="true">${logoLumen(20)}</span>`;
+  setHeader('Tirar dúvidas', { back: '#/', actions: [...(conversaDuvidas.length ? [{ icon: 'trash', label: 'Apagar conversa', onClick: async () => { if (await ask({ title: 'Apagar a conversa?', text: 'As perguntas e respostas saem deste aparelho. (Elas também somem sozinhas depois de 24 horas.)', ok: 'Apagar', danger: true })) { conversaDuvidas = []; guardarConversa(); viewDuvidas(); } } }] : [])] });
   view.innerHTML = `<div class="chat">
     <div class="chat-rolo" id="dv-conversa"></div>
     <form class="chat-barra" id="dv-form">
@@ -20993,7 +20992,7 @@ function viewDuvidas() {
       <div class="chat-campo">
         <button class="chat-anexar" type="button" aria-label="Enviar um arquivo (PDF, foto, vídeo…)" title="Enviar um arquivo">${icon('upload', 21)}</button>
         <input type="file" id="dv-arquivo" accept="${ACEITA_ANEXO}" hidden>
-        <textarea name="q" rows="1" placeholder="Pergunte ao Lumen" aria-label="Sua pergunta"></textarea>
+        <textarea name="q" rows="1" placeholder="Digite sua pergunta" aria-label="Sua pergunta"></textarea>
         ${ReconhecerVoz ? `<button class="chat-mic" type="button" aria-label="Falar a pergunta (ditado)" aria-pressed="false" title="Falar a pergunta">${icon('mic', 22)}</button>` : ''}
         <button class="chat-enviar${ReconhecerVoz ? ' com-vivo' : ''}" type="submit" aria-label="Enviar" disabled>${icon('enviar', 20)}</button>
         ${ReconhecerVoz ? `<button class="chat-vivo" type="button" aria-label="Conversar ao vivo" title="Conversar ao vivo">${icon('onda', 22)}</button>` : ''}
@@ -21006,9 +21005,7 @@ function viewDuvidas() {
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   const boasVindas = () => `<div class="chat-vazio">
       <div class="dv-boas">
-        <span class="dv-estrela">${logoLumen(56)}</span>
         <h2>Pode perguntar!</h2>
-        <p class="dv-sub-boas">${saudacao}! Eu sou ${oLumen()}, ${generoLumen() === 'masculina' ? 'o seu assistente litúrgico' : 'a sua assistente litúrgica'}.</p>
       </div>
       <div class="dv-sugs">${SUGESTOES_DUVIDAS.map(([ic, q]) => `<button type="button" class="dv-sug" data-q="${esc(q)}">${icon(ic, 22)}<span>${esc(q)}</span></button>`).join('')}</div>
     </div>`;
@@ -21111,7 +21108,7 @@ function viewDuvidas() {
   };
   const msgHtml = (m, k) => (m.role === 'user'
     ? `<div class="chat-msg eu">${m.anexo ? `<span class="chat-anexo-msg">${icon(iconeDoAnexo(m.anexo.tipo), 16)}<span>${esc(m.anexo.nome)}</span></span>` : ''}<div class="chat-bolha">${esc(m.content)}</div><small class="chat-hora">${horaCurta(m.t)}</small></div>`
-    : `<div class="chat-msg ia"><div class="chat-corpo"><div class="chat-nome">${avatar}<span>Lumen</span><small class="chat-hora">${horaCurta(m.t)}</small></div>
+    : `<div class="chat-msg ia"><div class="chat-corpo"><div class="chat-nome"><small class="chat-hora">${horaCurta(m.t)}</small></div>
         <div class="chat-bolha">${corpo(m, k)}</div>
         ${!m.carregando ? `<div class="chat-acoes">${m.acao || m.ia || m.sugestoes || m.liturgia || m.acervo?.length || m.cantos?.length || m.arquivos?.length || m.web?.length || m.wiki ? `<button type="button" data-copiar="${k}">${icon('copy', 14)} Copiar</button>` : ''}
           ${m.pergunta && !m.acao ? `<a href="${esc(google(m.pergunta))}" target="_blank" rel="noopener">${icon('search', 14)} Pesquisar no Google</a>` : ''}</div>` : ''}</div></div>`);
@@ -21225,7 +21222,7 @@ function viewDuvidas() {
     if (!local) await comPrazo(carregarServidor().catch(() => {}), 12000);
     const cfgIA = local ? null : servidorLumen();
     if (local || cfgIA) {
-      resp.etapa = 'Lumen está pensando…';
+      resp.etapa = 'Preparando resposta…';
       mostrarEtapa(resp);
       try {
         // as últimas perguntas e respostas: dá para continuar a conversa ("e no ofertório?")
