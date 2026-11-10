@@ -19489,8 +19489,9 @@ function viewConectarYoutube() {
 // os vídeos que já tentaram sincronizar a letra sozinhos desde que o app abriu (não repete a cada visita)
 const tentouSincronizar = new Set();
 
-// A sincronia é automática e usa somente o LRCLIB. Se não houver letra sincronizada correspondente,
-// a música permanece sem sincronia; nenhum áudio é enviado a servidor de IA.
+// A sincronia automática prioriza LRCLIB e usa NetEase como segunda fonte de letras sincronizadas.
+// Só quando ambas não encontram uma correspondência o APK tenta Gemini; se ele não conseguir, usa o servidor configurado.
+// Sincronias feitas à mão nunca são substituídas.
 const sincronizando = new Set();
 const preparandoLetra = new Set(); // (as músicas ainda tentando achar a letra sincronizada, entre uma tentativa e outra)
 const OPÇÕES_LRCLIB_RÁPIDAS = { espera: 1000, timeout: 10000, tentativas: 4 };
