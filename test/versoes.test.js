@@ -542,19 +542,19 @@ test('cache da letra sincronizada separa a busca antecipada da edição com dura
   assert.match(rotina, /chaveDaLetraSinc\(titulo, artista, duracao\)/);
 });
 
-test('a revisão refaz apenas sincronias automáticas e preserva as sincronias manuais', async () => {
+test('a revisão reavalia sincronias automáticas sem apagar a atual e preserva as manuais', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
   const revisoesInicio = app.indexOf('const REVISOES = [');
   const revisoesFim = app.indexOf('];', revisoesInicio);
   const revisoes = app.slice(revisoesInicio, revisoesFim);
   assert.match(revisoes, /rev: 31, refazerLetra: true/);
-  const inicio = app.indexOf("if (quer('refazerLetra') && s.sincronia?.fonte === 'lrclib')");
+  const inicio = app.indexOf("if ((quer('letra') || quer('refazerLetra'))");
   const fim = app.indexOf('// a letra do LRCLIB de novo', inicio);
   assert.ok(inicio > 0 && fim > inicio);
   const rotina = app.slice(inicio, fim);
-  assert.doesNotMatch(rotina, /sincronia: undefined/);
-  assert.match(rotina, /quer\('refazerLetra'\)/);
+  assert.match(rotina, /!sincOkDe\(s\) \|\| quer\('refazerLetra'\)/);
   assert.match(rotina, /s\.sincronia\.fonte !== 'lrclib'/);
+  assert.doesNotMatch(rotina, /sincronia: undefined/);
 });
 
 test('LRCLIB e NetEase têm prioridade antes do fallback Gemini', async () => {
