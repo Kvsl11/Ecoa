@@ -176,9 +176,7 @@ toda segunda-feira, e a publicação do app o põe no site, de onde o servidor b
 grátis) no secret `GEMINI_API_KEY` (do Codespaces), o Lumen responde pelo Gemini (`gemini-2.5-flash`, troque com `IA_GEMINI_MODELO`),
 com a busca do Google para o que não está no acervo. Com as duas chaves vale o Claude (`IA_PROVEDOR=gemini` troca).
 
-**A voz do Lumen ao vivo (`/falar`)**: a conversa ao vivo fala com uma voz neural realista (as vozes da Microsoft do
-"Ler em voz alta" do Edge, pelo pacote `edge-tts`: de graça, sem chave). Francisca (feminina) e Antonio (masculina);
-`IA_VOZ` e `IA_VOZ_MASCULINA` trocam. Sem o servidor, o app usa a voz mais natural do aparelho.
+**Voz da conversa (`/falar`)**: quando habilitada, a fala usa o Gemini TTS; se ele não estiver disponível, usa uma voz neural única de reserva pelo `edge-tts`. A seleção de personagens/vozes Francisca e Antonio não faz parte da interface do Ecoa.
 
 ## Rodar no seu computador
 
