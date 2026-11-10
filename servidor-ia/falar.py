@@ -1,8 +1,7 @@
-"""A voz do Lumen na conversa ao vivo: o texto vira áudio (MP3) com uma voz neural realista, no lugar da voz robótica
-do navegador.
+"""Síntese de fala para respostas do Gemini, com uma única voz padrão no servidor.
 
-Usa as vozes neurais da Microsoft (as mesmas do "Ler em voz alta" do Edge) pelo pacote edge-tts: de graça, sem chave.
-As vozes em português do Brasil: Francisca (feminina, a padrão) e Antonio (masculina); IA_VOZ troca a padrão.
+Usa a voz do Gemini quando disponível e uma voz neural de reserva quando necessário.
+A escolha da voz é interna; a interface não oferece personagens nem opções de gênero.
 """
 
 from __future__ import annotations
@@ -10,32 +9,9 @@ from __future__ import annotations
 import os
 import re
 
-VOZES = {
-    "feminina": os.environ.get("IA_VOZ", "pt-BR-FranciscaNeural"),
-    "masculina": os.environ.get("IA_VOZ_MASCULINA", "pt-BR-AntonioNeural"),
-}
+VOZ_PADRAO = os.environ.get("IA_VOZ", "pt-BR-FranciscaNeural")
 MAX_CARACTERES = 2500
-# as vozes do próprio Gemini (o app escolhe pelo nome), com o gênero de cada uma: a voz de reserva (Microsoft) usa o
-# mesmo gênero quando a do Gemini não responde
-FEMININAS_GEMINI = {"Kore", "Aoede", "Zephyr", "Leda", "Callirrhoe", "Autonoe", "Despina", "Erinome", "Laomedeia",
-                    "Achernar", "Gacrux", "Pulcherrima", "Vindemiatrix", "Sulafat"}
-MASCULINAS_GEMINI = {"Charon", "Puck", "Fenrir", "Orus", "Enceladus", "Iapetus", "Umbriel", "Algieba", "Algenib",
-                     "Rasalgethi", "Alnilam", "Schedar", "Achird", "Zubenelgenubi", "Sadachbia", "Sadaltager"}
-VOZES_GEMINI = {
-    "feminina": os.environ.get("IA_VOZ_GEMINI", "Kore"),
-    "masculina": os.environ.get("IA_VOZ_GEMINI_MASCULINA", "Charon"),
-}
-
-
-def voz_do_gemini(voz: str) -> str:
-    """O nome da voz do Gemini: o que o app mandou (Kore, Puck…) ou a padrão do gênero ("feminina"/"masculina")."""
-    nome = str(voz or "").strip().capitalize()
-    return nome if nome in FEMININAS_GEMINI | MASCULINAS_GEMINI else VOZES_GEMINI.get(voz, VOZES_GEMINI["feminina"])
-
-
-def genero_da_voz(voz: str) -> str:
-    nome = str(voz or "").strip().capitalize()
-    return "masculina" if voz == "masculina" or nome in MASCULINAS_GEMINI else "feminina"
+VOZ_GEMINI_PADRAO = os.environ.get("IA_VOZ_GEMINI", "Kore")
 # (o limite grátis do Gemini para a fala acabou: volta a tentar depois de 10 minutos; antes disso, a voz de reserva)
 _gemini_sem_ate = 0.0
 
@@ -58,14 +34,13 @@ def limpar(texto: str) -> str:
     return t[:MAX_CARACTERES]
 
 
-async def falar(texto: str, voz: str = "feminina", velocidade: str = "+4%") -> bytes:
+async def falar(texto: str, velocidade: str = "+4%") -> bytes:
     import edge_tts
 
     texto = limpar(texto)
     if not texto:
         raise ValueError("nada para falar")
-    # (o nome de uma voz do Gemini vira a voz de reserva do mesmo gênero)
-    nome = voz if re.fullmatch(r"[a-z]{2}-[A-Z]{2}-\w+Neural", voz or "") else VOZES[genero_da_voz(voz)]
+    nome = VOZ_PADRAO
     erro: Exception | None = None
     for _ in range(2):  # (o serviço da Microsoft às vezes corta a ligação: uma segunda tentativa costuma passar)
         audio = bytearray()
@@ -89,7 +64,7 @@ def wav(pcm: bytes, taxa: int = 24000) -> bytes:
             + b"data" + struct.pack("<I", len(pcm)) + pcm)
 
 
-def falar_gemini(texto: str, voz: str = "feminina") -> bytes:
+def falar_gemini(texto: str) -> bytes:
     """A fala na voz do Gemini (o modelo de fala, TTS, que a chave pode usar). Erro se não der: quem chama usa a reserva."""
     import base64
     import time
@@ -105,7 +80,7 @@ def falar_gemini(texto: str, voz: str = "feminina") -> bytes:
     corpo = {
         "contents": [{"parts": [{"text": texto}]}],
         "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {
-            "prebuiltVoiceConfig": {"voiceName": voz_do_gemini(voz)}}}},
+            "prebuiltVoiceConfig": {"voiceName": VOZ_GEMINI_PADRAO}}}},
     }
     try:
         # (poucos modelos, sem esperar e com prazo curto: se a voz do Gemini não vem logo, a de reserva ainda chega a
