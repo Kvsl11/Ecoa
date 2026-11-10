@@ -239,7 +239,7 @@ jobs:
             ...(atual?.itens || []).flatMap((item) => ['', `- **${String(item.tipo || '').toUpperCase()}** — ${item.texto}`]),
             ''
           ];
-          writeFileSync(process.argv[3], linhas.join('\\n'));
+          writeFileSync(process.argv[3], linhas.join('\n'));
           NODE
           gh release delete android --cleanup-tag --yes 2>/dev/null || true
           gh release create android "$RUNNER_TEMP/Ecoa.apk" "$RUNNER_TEMP/Ecoa-versao.json" --title "Ecoa para Android" --notes-file "$RUNNER_TEMP/notas.md" --target "$GITHUB_SHA" --latest=false
