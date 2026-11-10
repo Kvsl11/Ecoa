@@ -31,7 +31,6 @@ import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './li
 import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
-import { novoTimerSono, OPCOES_SONO, textoSono, venceuSono } from './lib/timer-sono.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -5476,7 +5475,6 @@ const semLinhasDeAcordes = (sinc) => {
     },
     fechar() {
       telinha(false); // a telinha da página volta a mostrar a miniatura
-      sono = null; // (o timer de sono acaba com o player)
       tirarDaTelinha();
       if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }
       sessaoDe = '';
@@ -5629,28 +5627,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (duracao > 0 && ms.setPositionState) { try { ms.setPositionState({ duration: duracao, position: Math.min(duracao, Math.max(0, tempo)), playbackRate: 1 }); } catch { /* fora do intervalo */ } }
   };
   // a música acabou: repete, vai para a próxima (na ordem ou aleatória) ou para
-  // ---- Timer de sono (no ⋯ do player, como no Spotify): a música pausa sozinha depois do tempo escolhido ou no fim da
-  // música que está tocando. Não fica guardado: fechou o player ou o app, o timer acaba. A conta está em lib/timer-sono.js
-  let sono = null;
-  const pararPeloSono = () => {
-    sono = null;
-    if (estado === 'tocando') api.alternar();
-    toast('Timer de sono: a música foi pausada');
-  };
-  const abrirSono = async () => {
-    const v = await escolherNaLista({
-      titulo: 'Timer de sono',
-      opcoes: [...OPCOES_SONO.map((o) => ({ valor: o.valor, rotulo: o.rotulo, ic: o.valor === 'fim' ? 'music' : 'clock' })), sono && { valor: 'desligar', rotulo: 'Desligar o timer', sub: `Falta: ${textoSono(sono)}`, ic: 'x' }].filter(Boolean),
-    });
-    if (v === undefined) return;
-    if (v === 'desligar') { sono = null; toast('Timer de sono desligado'); return; }
-    sono = novoTimerSono(v);
-    if (sono) toast(sono.noFim ? 'A música vai pausar no fim desta música' : `A música vai pausar em ${textoSono(sono)}`);
-  };
-  setInterval(() => { if (venceuSono(sono)) pararPeloSono(); }, 1000);
   const fimDaMusica = () => {
-    // (o timer de sono no "fim da música": não repete nem passa para a próxima)
-    if (sono?.noFim) { sono = null; toast('Timer de sono: a música foi pausada'); return false; }
     if (repetir === 'uma' || (repetir === 'todas' && !fila())) { api.irPara(0); return true; }
     return pular(1);
   };
@@ -5838,7 +5815,6 @@ const semLinhasDeAcordes = (sinc) => {
     if (transicao) { andarTransicao(); return; }
     const modo = modoTransicao();
     if (!modo || !atual || atual.semVideo || estado !== 'tocando' || anuncio || pendente !== null || trocando || !(duracao > 20)) return;
-    if (sono?.noFim) return; // (o timer de sono para no fim desta música: a próxima não entra por baixo)
     const falta = duracao - api.tempoAgora;
     if (falta > 45 || falta < 0.6) return;
     if (repetir === 'uma' || !fila() || (vizinha(1) < 0 && repetir !== 'todas')) return;
@@ -6314,7 +6290,6 @@ const semLinhasDeAcordes = (sinc) => {
       !naLetra && (atual.href || atual.abrir) && !telaDeCelular() && { valor: 'abrir', rotulo: 'Abrir a música', ic: 'external' },
       salva ? { valor: 'add-repertorio', rotulo: 'Adicionar a um repertório', ic: 'plus' } : { valor: 'salva', rotulo: 'Salvar na biblioteca', ic: 'download' },
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
-      { valor: 'sono', rotulo: 'Timer de sono', ic: 'moon', dir: textoSono(sono) },
       // o karaokê (o mesmo microfone da letra na tela toda)
       fonteKaraokeAgora() && { valor: 'karaoke', rotulo: karaokeLigado ? 'Desligar o karaokê' : 'Karaokê (tirar a voz)', svg: MICROFONE_KARAOKE },
       fonteKaraokeAgora() && karaokeDe(fonteKaraokeAgora()) && !karaokeLigado && { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê do aparelho', ic: 'trash' },
@@ -6338,7 +6313,6 @@ const semLinhasDeAcordes = (sinc) => {
     const v = await escolherNaLista({ menu: true, titulo: atual.titulo || 'Tocando agora', cabeca: `${capaMenu}<span class="lista-txt"><b>${esc(atual.titulo || 'Tocando agora')}</b><small>${esc(atual.artista || 'Tocando agora')}</small></span>`, opcoes });
     if (!v || !atual) return;
     if (v === 'diagnostico') { void abrirDiagnostico(); return; }
-    if (v === 'sono') { void abrirSono(); return; }
     if (v === 'copiar-letra' || v === 'copiar-cifra') {
       void copiarLetra(song, { comCifra: v === 'copiar-cifra', transpose: song?.transpose || 0, capo: song?.capo || 0, titulo: atual?.titulo, artista: atual?.artista });
       return;
