@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 613, data: '2026-11-10', titulo: 'Timer de sono no player',
+    itens: [
+      { tipo: 'novo', texto: 'Foi adicionado o timer de sono ao menu de opções do player (⋯ do Tocando agora). A reprodução passa a ser pausada automaticamente após 5, 10, 15, 30, 45 ou 60 minutos, ou ao término da música em reprodução. O tempo restante é exibido na própria linha do menu, e o timer pode ser desligado pela mesma janela. O timer não é guardado: é encerrado ao fechar o player ou o aplicativo.' },
+      { tipo: 'melhoria', texto: 'Com o timer configurado para o término da música, a repetição e a transição entre músicas (crossfade e automix) deixam de iniciar a faixa seguinte, de modo que a reprodução termina exatamente no fim da gravação atual.' },
+    ],
+  },
+  {
     versao: 612, data: '2026-11-10', titulo: 'Sincronização de letras ajustada à duração da gravação',
     itens: [
       { tipo: 'correcao', texto: 'O cache das consultas de letras sincronizadas passou a distinguir buscas antecipadas sem duração das consultas realizadas após a identificação do áudio. Com isso, resultados do LRCLIB e da reserva NetEase deixam de ser reutilizados entre edições com durações diferentes, reduzindo deslocamentos de tempo causados por masters incompatíveis. As sincronias automáticas já salvas serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas. Quando LRCLIB e NetEase não fornecem uma letra sincronizada correspondente, o Gemini no Android continua como alternativa, seguido pelo servidor configurado.' },
@@ -70,13 +77,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na biblioteca (celular e tablet), o alfinete verde dos itens fixados foi ampliado de 13 px para 16 px (de 11 px para 15 px na grade do celular), alinhado à linha "Playlist • n músicas".' },
       { tipo: 'novo', texto: 'Playlists e repertórios cujas músicas com áudio ou vídeo estão todas baixadas no aparelho passaram a exibir, ao lado do alfinete, o círculo verde com a seta de download, no mesmo tamanho. O indicador também aparece em "Músicas curtidas", quando todas estão baixadas.' },
       { tipo: 'melhoria', texto: 'O cartão fixo "Baixadas" foi removido da biblioteca (celular, tablet, web e aplicativo Android), por repetir as músicas já reunidas em "Músicas curtidas", que passou a indicar quando estão todas baixadas. A lista das músicas baixadas continua acessível em Configurações → Músicas baixadas; o filtro "Baixadas" da biblioteca passou a listar apenas as playlists e os repertórios inteiramente baixados.' },
-    ],
-  },
-  {
-    versao: 603, data: '2026-11-07', titulo: 'Janela de troca de vídeo e de áudio reformulada',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas janelas que sobem do rodapé com lista (como a de trocar o vídeo ou a música), um traço horizontal aparecia sobre cada botão "Escolher". A regra de estilo do rodapé da janela (fixo, com linha superior, fundo e margens) também se aplicava ao espaço dos botões de cada linha da lista, que usa a mesma classe. A regra passou a valer apenas para o rodapé da janela.' },
-      { tipo: 'melhoria', texto: 'A janela de trocar o vídeo ou a música (áudio) foi reformulada, no celular e no tablet: o título indica a ação ("Trocar o vídeo", "Trocar a música (áudio)") e a música a que se refere; as linhas da lista passaram a ter miniatura maior, com a duração, e o nome em até duas linhas; a versão em uso aparece primeiro, destacada, com a etiqueta "Atual" e a indicação "Em uso" no lugar do botão; "Tenho o link do vídeo" passou a ser uma linha com ícone, que se expande; no rodapé, "Remover" fica à esquerda, em vermelho e com ícone, e "Cancelar" à direita.' },
     ],
   },
 ];
