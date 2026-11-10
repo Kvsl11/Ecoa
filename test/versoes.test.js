@@ -552,7 +552,21 @@ test('a revisão refaz apenas sincronias automáticas e preserva as sincronias m
   const fim = app.indexOf('// a letra do LRCLIB de novo', inicio);
   assert.ok(inicio > 0 && fim > inicio);
   const rotina = app.slice(inicio, fim);
-  assert.match(rotina, /sincronia: undefined/);
+  assert.doesNotMatch(rotina, /sincronia: undefined/);
   assert.match(rotina, /quer\('refazerLetra'\)/);
   assert.match(rotina, /s\.sincronia\.fonte !== 'lrclib'/);
+});
+
+test('LRCLIB e NetEase têm prioridade antes do fallback Gemini', async () => {
+  const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
+  const web = await readFile(new URL('../public/js/lib/web.js', import.meta.url), 'utf8');
+  const busca = app.indexOf('const lrc = await letraSincronizadaJa(song.title, artista, durAudioSabida);');
+  const gemini = app.indexOf('void sincronizarPeloGemini(song)', busca);
+  assert.ok(busca > 0 && gemini > busca);
+  const inicio = web.indexOf('export async function letraSincronizada(');
+  const fim = web.indexOf('let lrclibForaAte = 0;', inicio);
+  assert.ok(inicio > 0 && fim > inicio);
+  const rotina = web.slice(inicio, fim);
+  assert.ok(rotina.indexOf('if (reserva) return reserva;') > rotina.indexOf('const reserva = await pReserva;'));
+  assert.ok(rotina.indexOf('if (reserva) return reserva;') < rotina.lastIndexOf('return null;'));
 });
