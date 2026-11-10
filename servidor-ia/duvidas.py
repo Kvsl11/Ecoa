@@ -2,13 +2,12 @@
 Google Drive que o app já leu) e, se eles não trazem a resposta, por uma busca na internet.
 
 1. busca: os trechos do acervo que mais têm as palavras da pergunta (BM25, sem acentos, sem as palavras vazias);
-2. resposta: o Claude lê esses trechos e responde em português, citando os arquivos [1], [2]…; se os trechos não
-   bastam, ele busca na web (ferramenta de busca do próprio Claude) e diz que a resposta veio de lá.
+2. resposta: o Gemini lê esses trechos e responde em português, citando os arquivos [1], [2]…; se os trechos não
+   bastam, ele busca na web (Google Search) e diz que a resposta veio de lá.
 
 Os textos vêm de public/data (cantos.json, hinario.json, acervo.json: letras, títulos, pastas) e, quando existe, de
 textos-acervo.jsonl (o texto inteiro dos PDFs do acervo: python indexar_acervo.py).
-Precisa de uma chave de IA: ANTHROPIC_API_KEY (o Claude, o padrão) ou GEMINI_API_KEY (o Gemini, com a busca do
-Google). Com as duas, vale o Claude (IA_PROVEDOR=gemini troca).
+Precisa de uma chave de IA: GEMINI_API_KEY (Gemini, padrão quando disponível) ou ANTHROPIC_API_KEY (Claude, como alternativa). Com as duas, vale o Gemini; IA_PROVEDOR=claude seleciona explicitamente o Claude.
 """
 
 from __future__ import annotations
