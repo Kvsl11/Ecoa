@@ -24,8 +24,8 @@ rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum c
 | `letra.py`, `alinhador.py` · `/letra` | Letra sincronizada ouvindo a voz (Whisper / MMS_FA) | Demucs, faster-whisper, torch | **Disponível no APK para áudio importado, com internet.** A ação **Gerar letra + cifra** abre a seleção de áudio no Android; o Gemini do APK transcreve a música em blocos, no idioma cantado, com tempos por linha. O app exporta `.lrc` com timestamps e `.cho` em ChordPro. Tom, BPM e acordes são estimados localmente por `analise-musical.js` em Worker; formatos não decodificados pela WebView tentam conversão pelo ffmpeg do APK (`converterAudio`). A pessoa confere e importa os arquivos gerados; esta primeira tela não altera automaticamente uma música já salva nem funciona offline. O alinhamento da letra conhecida aos vídeos do YouTube continua no servidor. |
 | `karaoke.py` · `/karaoke` | Separa voz e banda em 4 canais | Demucs / audio-separator (GPU T4) | **Migrado.** `Karaoke.java`: o UVR MDX-Net Inst HQ 4 (59 MB, baixado na primeira vez) no ONNX Runtime (com o XNNPACK quando o aparelho tem), a mesma STFT do UVR (FFT de 5120 pontos, 5 × 1024) e o mesmo arquivo do servidor (M4A AAC 4 canais quad, pelo ffmpeg do APK). Medido no MUSDB18 (8 músicas): banda 15,6 dB e voz 11,3 dB de SDR (o UVR 9482 de antes: 11,3 e 7,6 dB; a versão int8 do HQ 4 piorou para 8,9 dB e foi descartada). O caminho Java confere com o numpy (121 dB). Tempo no computador: ~0,6× a duração da música com 4 núcleos; no celular, a medir. O back vocal sai junto com o cantor |
 | `transcricao.py` · `/transcrever`, `/youtube` | Áudio → partitura (Basic Pitch + CREPE + Beat This!) | onnxruntime, torch | **Parcial.** A partitura já é feita no aparelho com o Basic Pitch do navegador; o servidor só dá a versão mais fiel (voz separada) |
-| `duvidas.py`, `indexar_acervo.py` · `/duvida`, `/buscar-acervo`, `/ler-anexo` | Lúmen: busca no acervo (BM25) e resposta pela IA | API do Claude/Gemini | **Migrado.** `public/js/lib/lumen-local.js` faz o mesmo pedido (os mesmos textos do sistema, os trechos do acervo — com o texto dos PDFs, guardado no celular por uma semana —, a busca do Google e os modelos de reserva) e `Gemini.java` chama a API com a chave do APK, travada ao pacote e à SHA-1. Fica de fora: o PDF inteiro do acervo junto (o servidor baixava do Drive) e o Word enviado (vai só o nome) |
-| `falar.py` · `/falar` | Voz neural do Lúmen ao vivo | edge-tts | **Pendente.** Alternativa local: o TextToSpeech do Android |
+| `duvidas.py`, `indexar_acervo.py` · `/duvida`, `/buscar-acervo`, `/ler-anexo` | Gemini: busca no acervo (BM25) e resposta pela IA | API do Claude/Gemini | **Migrado.** `public/js/lib/lumen-local.js` faz o mesmo pedido (os mesmos textos do sistema, os trechos do acervo — com o texto dos PDFs, guardado no celular por uma semana —, a busca do Google e os modelos de reserva) e `Gemini.java` chama a API com a chave do APK, travada ao pacote e à SHA-1. Fica de fora: o PDF inteiro do acervo junto (o servidor baixava do Drive) e o Word enviado (vai só o nome) |
+| `falar.py` · `/falar` | Voz neural do Gemini ao vivo | edge-tts | **Pendente.** Alternativa local: o TextToSpeech do Android |
 | `codespace.py`, `ligar_codespace.py`, `modal_app.py`, `pc.py`, `iniciar_pc.py`, `preparar_python.py`, `pacote-windows/` | Ligar e expor o servidor (Codespace, Modal, PC) | — | **Não se aplica.** Infraestrutura do servidor; o APK deixa de precisar dela à medida que as rotas acima migram |
 | `youtube.py` · `/youtube/conectar` | Guarda os cookies da conta do YouTube no servidor | — | **Não necessário para o download no celular**: o YouTube costuma bloquear servidores na nuvem, não celulares. Vídeos com restrição de idade ainda não baixam pelo celular |
 
@@ -53,8 +53,8 @@ rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum c
 - Implementar fila de downloads Android com estados reais por arquivo (áudio e vídeo separados), retomada e validação antes de marcar como concluído.
 - Expor as operações ao JavaScript por métodos explícitos do plugin Capacitor.
 
-### Fase 3 — Lúmen
-- Manter a interface do Lúmen no APK e migrar primeiro as funções determinísticas e a busca no acervo para execução local.
+### Fase 3 — Gemini
+- Manter a interface do Gemini no APK e migrar primeiro as funções determinísticas e a busca no acervo para execução local.
 - Avaliar um modelo pequeno de linguagem no dispositivo, como recurso opcional e baixado sob demanda; preservar o servidor como fallback para respostas que exijam modelos maiores ou dados online.
 - Não prometer conversa generativa offline antes de validar desempenho e qualidade em aparelhos reais.
 
@@ -65,7 +65,7 @@ rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum c
 
 ### Fase 5 — Verificação e publicação
 - Criar testes unitários para a lógica migrada e testes de integração do plugin.
-- Montar APK de teste em branch isolada e verificar login, reprodução, downloads, Lúmen, karaokê e atualização.
+- Montar APK de teste em branch isolada e verificar login, reprodução, downloads, Gemini, karaokê e atualização.
 - Só publicar no canal de atualização do APK depois que a montagem e os testes passarem.
 
 ## Critério de conclusão
@@ -73,15 +73,15 @@ rotas. A coluna "No APK" diz o estado atual; a versão Web não muda em nenhum c
 A migração será considerada pronta por recurso, não por aparência: cada função deverá demonstrar que funciona sem conexão, listar claramente suas dependências online e não regredir na versão Web.
 
 
-## Conversa ao vivo do Lúmen (Android)
+## Conversa ao vivo do Gemini (Android)
 
 A sessão de áudio em tempo real foi adicionada ao APK com Firebase AI Logic / Gemini Live:
 
 - `GeminiLive.java` abre a sessão `gemini-3.1-flash-live-preview` e usa o microfone e a saída de áudio nativos.
 - `EcoaPlugin` expõe `lumenAoVivoIniciar`, `lumenAoVivoParar` e `lumenAoVivoStatus` ao JavaScript.
 - `public/js/lib/lumen-live.js` fornece o wrapper para a interface.
-- Francisca usa a voz `Aoede` e Antônio usa `Charon` no modelo Live.
+- A sessão Live usa uma única voz padrão do Gemini, sem seletor de personagem ou gênero.
 - Firebase App Check usa Play Integrity no APK release e o provedor debug em builds de desenvolvimento. O projeto precisa ter o app registrado no App Check e o Firebase AI Logic habilitado/aplicado no console.
 - A API Live está em prévia e exige internet; não depende de um servidor Python/Codespace/Modal próprio. Não funciona offline.
 
-A interface ainda precisa chamar o wrapper `iniciarConversaAoVivo` / `pararConversaAoVivo` nos controles da conversa. A sessão nativa e a ponte do plugin estão implementadas, mas a ligação visual final e o teste em aparelho real são etapas de validação separadas.
+A interface ainda precisa chamar o wrapper `iniciarConversaAoVivo` / `pararConversaAoVivo` nos controles da conversa. A sessão nativa e a ponte do plugin estão implementadas, mas a ligação visual final e o teste em aparelho real continuam pendentes.
