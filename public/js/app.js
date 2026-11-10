@@ -26,7 +26,7 @@ import { montarPacote, lerPacote, juntarDownloads, downloadsPelaGravacao } from 
 import { apagarAudio, chavesDosAudios, duracaoDoArquivo, guardarAudio, lerAudio, limparAudios } from './audios.js';
 import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClipe, mesmoTitulo, pareceSoAudio, quadrosParados, mesmaSincronia, paresPelaDuracao, paresPelaLegenda, paresPelasLetras, tempoNoAudio, tempoNoVideo } from './lib/versoes.js';
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
-import { analisar as analisarMusica, corpoDaSincronia, corpoDaTranscricao, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
+import { analisar as analisarMusica, corpoDaSincronia, corpoDaTranscricao, lerSincronia, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
@@ -2288,6 +2288,10 @@ const REVISOES = [
   // v612: a busca antecipada sem duração podia ser reutilizada depois para outra edição da mesma gravação.
   // As sincronias automáticas são refeitas com a duração do áudio conhecido; a sincronia manual permanece intacta.
   { rev: 31, refazerLetra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && (!s.sincronia || s.sincronia.fonte === 'lrclib') },
+  // v615: a sincronia pelo Gemini do APK falhava em silêncio (os pedidos da revisão saíam todos juntos e a cota por
+  // minuto acabava; a linha devolvida com a numeração da lista era recusada). As músicas que ficaram sem a letra
+  // sincronizada tentam de novo, uma de cada vez. A sincronizada à mão fica
+  { rev: 32, letra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && !sincOkDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib') },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2630,8 +2634,10 @@ async function consertarMusica(id, { passo = () => {} } = {}) {
     // também executa o alinhamento local Gemini no APK, usando a letra guardada e o áudio real.
     if (s1 && !sincValida(s1) && !(s1.sincronia && s1.sincronia.fonte !== 'lrclib') && noApk()) {
       passo('Sincronizando a letra com Gemini no celular…');
-      await noMaximo(sincronizarPeloGemini(s1), 300000, false);
+      await noMaximo(sincronizarPeloGemini(s1, { prioridade: true }), 300000, false);
       s1 = db.song(id);
+      // (a causa fica na tela: antes a falha do Gemini era descartada e nada indicava por que a letra não vinha)
+      if (s1 && !sincValida(s1) && motivoDoGemini(s1)) mudou.push(`A sincronização da letra pelo Gemini não foi concluída: ${motivoDoGemini(s1)}`);
     }
     // Se Gemini não estiver disponível/conseguir alinhar, tenta o servidor configurado como alternativa.
     if (s1 && !sincValida(s1) && servidorIA().url && !(s1.sincronia && s1.sincronia.fonte !== 'lrclib')) {
@@ -8159,13 +8165,14 @@ const TIPOS_GEMINI = {
   flac: 'audio/flac', aac: 'audio/aac', aiff: 'audio/aiff', aif: 'audio/aiff',
   m4a: 'audio/m4a', mp4: 'audio/m4a', opus: 'audio/opus', webm: 'audio/webm',
 };
-async function audioParaTranscrever(id, duracao, nomeArquivo = '') {
+async function audioParaTranscrever(id, duracao, nomeArquivo = '', { emWav = false } = {}) {
   const blob = (typeof Blob !== 'undefined' && id instanceof Blob) ? id : await lerAudio(id).catch(() => null);
   if (!blob || !blob.size) return null;
   const mime = String(blob.type || '').split(';')[0].trim().toLowerCase();
   const extensao = /\.([a-z0-9]+)$/i.exec(nomeArquivo || blob.name || '')?.[1]?.toLowerCase() || '';
   const tipo = TIPOS_GEMINI[mime.replace(/^audio\//, '')] || TIPOS_GEMINI[extensao];
-  if (tipo && blob.size <= 14e6) return { tipo, dados: await emBase64(blob) };
+  // (emWav: o Google recusou o arquivo como veio — o tipo ou o contêiner —, e ele vai convertido)
+  if (tipo && blob.size <= 14e6 && !emWav) return { tipo, dados: await emBase64(blob) };
   const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if (!Ctx) throw new Error('Este aparelho não conseguiu preparar o áudio para enviar à transcrição.');
   const taxa = Math.max(8000, Math.min(16000, Math.floor(7e6 / Math.max(1, duracao || 300))));
@@ -20051,11 +20058,19 @@ function sincronizarPeloServidor(song) {
   alinhandoNoServidor.set(chave, p);
   return p;
 }
-// Sem LRC: usa a letra que já veio da busca e pede ao Gemini do APK para marcar cada linha no áudio real.
+// Sem LRC: usa a letra que já veio da busca e pede ao Gemini do APK para marcar cada linha no áudio real; sem letra
+// nenhuma na cifra, pede a transcrição (a letra cantada, com o instante de cada linha).
 // O áudio é baixado temporariamente pelo yt-dlp nativo; não fica na biblioteca nem substitui a letra encontrada.
+// Uma música de cada vez: a revisão das músicas salvas pedia todas juntas (um download e um pedido por música, ao mesmo
+// tempo), a cota por minuto do Google acabava e nenhuma era sincronizada. A música aberta (a prévia, a da tela, o
+// "Consertar agora") não espera a fila. O motivo da última falha fica guardado para o diagnóstico (motivoDoGemini).
 const alinhandoNoGemini = new Map();
 const alinhadasPeloGemini = new Set();
-function sincronizarPeloGemini(song) {
+const falhasDoGemini = new Map();
+let filaDoGemini = Promise.resolve();
+let geminiSemCotaAte = 0;
+const motivoDoGemini = (song) => falhasDoGemini.get(`${song?.id}|${videoDaLetra(song)}`) || '';
+function sincronizarPeloGemini(song, { prioridade = false } = {}) {
   const id = song?.id;
   const previaOriginal = id === 'previa' ? preview : null;
   const alvo = () => id === 'previa' ? (preview === previaOriginal ? preview : null) : db.song(id);
@@ -20071,55 +20086,85 @@ function sincronizarPeloGemini(song) {
   const linhasOriginais = linhasCantadas(inicial.content || '')
     .map((l) => linhaSemCifra(l).replace(/\s+/g, ' ').trim())
     .filter((l) => l && !soAcordes(l)).slice(0, 240);
-  if (linhasOriginais.length < 3) return Promise.resolve(false);
+  // (com menos de 3 linhas, a cifra não tem a letra: ela é transcrita da gravação)
+  const comLetra = linhasOriginais.length >= 3;
+  const falhou = (motivo) => { falhasDoGemini.set(chave, String(motivo || 'falha desconhecida').replace(/\s+/g, ' ').slice(0, 300)); return false; };
+  prioridade ||= id === 'previa' || location.hash.includes(id);
 
-  const tarefa = (async () => {
-    if (!navigator.onLine || !await transcricaoDisponivel()) return false;
+  const executar = async () => {
+    if (!alvo()) return false; // (a pessoa já abriu outra música)
+    if (!navigator.onLine) return falhou('o celular está sem conexão');
+    if (!prioridade && Date.now() < geminiSemCotaAte) return falhou('a cota do Gemini acabou há pouco; a sincronização é tentada de novo mais tarde');
+    if (!await transcricaoDisponivel()) return falhou('este app foi montado sem a chave do Gemini, ou o plugin nativo não respondeu');
     const nativo = pluginEcoa();
     const baixador = baixadorDoAparelho();
-    if (!nativo || !baixador) return false;
+    if (!nativo || !baixador) return falhou('o baixador do celular (yt-dlp) não está disponível neste app');
 
     let arquivo = null;
     let blob = null;
     try {
-      arquivo = await baixarNoAparelho(baixador, video, false, qualidadeDoDownload(false), { abaixo: QUALIDADES_ABAIXO });
+      // (a qualidade normal basta para ouvir a voz, baixa mais rápido e deixa o pedido menor)
+      arquivo = await baixarNoAparelho(baixador, video, false, 'normal');
       blob = await lerBaixadoNoAparelho(arquivo);
+    } catch (e) {
+      return falhou(`não foi possível baixar o áudio no celular (${String(e?.message || e)})`);
     } finally {
       if (arquivo?.caminho) void Promise.resolve(baixador.apagarLocal?.({ caminho: arquivo.caminho })).catch(() => {});
     }
-    if (!blob?.size) return false;
+    if (!blob?.size) return falhou('o áudio baixado no celular veio vazio');
 
     const atualAntesDoPedido = alvo();
     if (!atualAntesDoPedido || videoDaLetra(atualAntesDoPedido) !== video || temSincronia(atualAntesDoPedido)) return temSincronia(atualAntesDoPedido);
     const duracao = Number(arquivo?.duracao) || Number(versoesDe(atualAntesDoPedido)?.duracao) || Number(atualAntesDoPedido.duracao) || player.duracaoDe?.(video) || 0;
-    const audio = await audioParaTranscrever(blob, duracao, arquivo?.nome || 'audio.m4a');
-    if (!audio) return false;
+    const nomeDoArquivo = arquivo?.nome || 'audio.m4a';
     const chamar = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 300000 });
-    const resposta = await chamarGeminiModelo(chamar, corpoDaSincronia({ tipo: audio.tipo, dados: audio.dados, linhas: linhasOriginais }), estadoGeminiTranscricao);
+    const pedir = (audio) => chamarGeminiModelo(chamar, comLetra
+      ? corpoDaSincronia({ tipo: audio.tipo, dados: audio.dados, linhas: linhasOriginais })
+      : corpoDaTranscricao(audio), estadoGeminiTranscricao);
+    let resposta;
+    try {
+      const audio = await audioParaTranscrever(blob, duracao, nomeDoArquivo);
+      if (!audio) return falhou('não foi possível preparar o áudio para o pedido');
+      try { resposta = await pedir(audio); }
+      catch (e) {
+        // (o Google recusou o pedido com o arquivo como veio: vai de novo em WAV, que ele sempre aceita)
+        if (e?.status !== 400 || audio.tipo === 'audio/wav') throw e;
+        resposta = await pedir(await audioParaTranscrever(blob, duracao, nomeDoArquivo, { emWav: true }));
+      }
+    } catch (e) {
+      if (e?.status === 429) geminiSemCotaAte = Date.now() + 10 * 60e3;
+      return falhou(`o Google respondeu com erro${e?.status ? ` ${e.status}` : ''}: ${String(e?.message || e)}`);
+    }
     const texto = (resposta?.candidates?.[0]?.content?.parts || []).map((x) => x.text || '').join('').trim();
-    if (!texto) return false;
-    let dados;
-    try { dados = JSON.parse(texto.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { return false; }
-    const alinhadas = lerTranscricao(dados, duracao);
-    const canon = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    const originais = new Map(linhasOriginais.map((l) => [canon(l), l]));
-    const validas = alinhadas.filter((l) => originais.has(canon(l.texto)));
-    const minimo = Math.min(linhasOriginais.length, Math.max(3, Math.ceil(linhasOriginais.length * 0.35)));
-    if (validas.length < minimo) return false;
+    if (!texto) return falhou(`o Gemini não devolveu a resposta (${resposta?.candidates?.[0]?.finishReason || 'resposta vazia'})`);
+
+    let linhas;
+    if (comLetra) {
+      linhas = lerSincronia(texto, linhasOriginais, duracao);
+      const minimo = Math.min(linhasOriginais.length, Math.max(3, Math.ceil(linhasOriginais.length * 0.35)));
+      if (linhas.length < minimo) return falhou(`o Gemini localizou só ${linhas.length} de ${linhasOriginais.length} linhas da letra na gravação`);
+    } else {
+      linhas = lerTranscricao(texto, duracao);
+      if (linhas.length < 4) return falhou('a cifra não tem a letra e o Gemini não ouviu canto suficiente na gravação para transcrever');
+    }
 
     const atual = alvo();
     if (!atual || videoDaLetra(atual) !== video || temSincronia(atual) || (atual.sincronia && atual.sincronia.fonte !== 'lrclib')) return temSincronia(atual);
     guardarSincronia(atual, {
       video,
-      linhas: validas.map((l) => originais.get(canon(l.texto))),
-      tempos: validas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
+      linhas: linhas.map((l) => l.texto),
+      tempos: linhas.map((l) => ({ inicio: l.inicio, fim: l.fim })),
       fonte: 'lrclib',
-      gerada: 'gemini',
+      gerada: comLetra ? 'gemini' : 'transcricao',
       ...(duracao > 0 ? { duracao: Math.round(duracao) } : {}),
     });
     alinhadasPeloGemini.add(chave);
+    falhasDoGemini.delete(chave);
     return true;
-  })().catch(() => false).finally(() => alinhandoNoGemini.delete(chave));
+  };
+  const protegida = () => executar().catch((e) => falhou(String(e?.message || e)));
+  const tarefa = (prioridade ? protegida() : filaDoGemini.then(protegida)).finally(() => alinhandoNoGemini.delete(chave));
+  if (!prioridade) filaDoGemini = tarefa.catch(() => false);
   alinhandoNoGemini.set(chave, tarefa);
   return tarefa;
 }
