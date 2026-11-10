@@ -83,12 +83,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O selo de artista confirmado, na seção "Sobre o artista", passou de um círculo azul para o formato de borda ondulada, preenchido em azul, com o sinal de confirmação em branco.' },
     ],
   },
-  {
-    versao: 601, data: '2026-11-07', titulo: 'Tela de entrada redesenhada',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela de entrada foi simplificada. Foram removidos o mural animado de quadros de clipes ao fundo, o indicador de música em reprodução no canto superior, as etiquetas de recursos e o título em duas cores. A tela passou a exibir, centralizados sobre fundo escuro liso com brilho suave na cor do aplicativo, o logotipo com três anéis concêntricos que se expandem lentamente a partir dele, o título em cor única, a descrição e o botão "Entrar com o Google". O mesmo layout é aplicado ao celular, ao tablet e ao computador. Com a remoção do mural, a tela deixou de baixar cerca de 45 imagens do YouTube ao abrir. Aplica-se à versão web e ao aplicativo Android.' },
-    ],
-  },
 
 
 ];
