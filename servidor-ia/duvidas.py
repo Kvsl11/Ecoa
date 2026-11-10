@@ -85,9 +85,12 @@ def chave_gemini() -> str:
 
 
 def provedor() -> str | None:
-    """Qual IA responde: "claude", "gemini" ou None (sem chave nenhuma)."""
+    """Gemini é o provedor padrão quando há chave; Claude só é usado por escolha explícita ou como única chave."""
+    escolha = os.environ.get("IA_PROVEDOR", "").strip().lower()
     tem_claude, tem_gemini = bool(segredo("ANTHROPIC_API_KEY")), bool(chave_gemini())
-    if tem_gemini and (not tem_claude or os.environ.get("IA_PROVEDOR", "").lower() == "gemini"):
+    if escolha == "claude" and tem_claude:
+        return "claude"
+    if tem_gemini:
         return "gemini"
     return "claude" if tem_claude else None
 # sem a pasta public/data ao lado (o servidor publicado sozinho, no Modal): os mesmos arquivos, do app no ar
