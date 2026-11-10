@@ -785,7 +785,7 @@ def tirar_duvida(pedido: PedidoDuvida):
     import anthropic
 
     try:
-        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos, pedido.genero)
+        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except anthropic.RateLimitError:
