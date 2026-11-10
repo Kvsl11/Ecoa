@@ -3890,6 +3890,10 @@ dialog.aparelhos-dlg[open] { display: flex; flex-direction: column; }
 body:not(.painel-cheio) #player.sem-video { display: none !important; }
 #player .pl-video.sem-capa, html.pp #player.modo-capa .pl-video.sem-capa { display: grid; place-items: center; color: rgb(255 255 255 / 0.9);
   background: linear-gradient(135deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #fff 10%), color-mix(in srgb, var(--cor-musica, var(--tint)) 55%, #000)); }
+/* com o matiz do título (--h), a capa sem imagem é a mesma capa gerada das listas (.cover.gen). Na barrinha, a regra da
+   capa (fundo #000, mais específica) ganhava, e a capa gerada ficava preta */
+#player .pl-video.sem-capa[style*="--h"], html.pp #player.modo-capa .pl-video.sem-capa[style*="--h"],
+html:not(.pp) #player.capa-na-barra .pl-video.sem-capa { background: linear-gradient(135deg, hsl(var(--h, 140) 55% 46%), hsl(calc(var(--h, 140) + 40) 60% 22%)); }
 /* A capa sem imagem (músicas importadas) segue o quadrado das capas genéricas das listas.
    O formato 16:9 era próprio do vídeo e espremia/cortava a nota musical. */
 #player .pl-video.sem-capa { width: 96px; aspect-ratio: 1 / 1; display: grid; place-items: center; }
