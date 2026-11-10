@@ -2488,8 +2488,8 @@ async function revisarMusica(id, pendentes, chaves) {
     await noMaximo(ajustarTomDaGravacao(s), 60000, false).catch(() => {});
     s = db.song(id);
   }
-  // a letra sincronizada (a feita à mão pela pessoa fica como está). A revisão específica invalida apenas a automática,
-  // para refazer a busca com a duração conhecida e comparar LRCLIB/NetEase antes do Gemini.
+  // a letra sincronizada (a feita à mão pela pessoa fica como está). A revisão específica reavalia a automática
+  // com a duração conhecida; a sincronia atual permanece até uma nova correspondência válida ser encontrada.
   if ((quer('letra') || quer('refazerLetra')) && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
     try { recuperarSincronia(s); } catch { /* segue */ }
     s = db.song(id);
