@@ -177,7 +177,6 @@ public class EcoaPlugin extends Plugin {
         });
         return true;
     }
-
     // uma notificação do site (os downloads): { titulo, texto, tag, href, silenciosa, imagem }
     @PluginMethod
     public void avisar(PluginCall call) {
@@ -357,8 +356,7 @@ public class EcoaPlugin extends Plugin {
     public void baixadorLocal(PluginCall call) {
         Context ctx = getContext();
         boolean atualizar = Boolean.TRUE.equals(call.getBoolean("atualizar", false));
-        boolean forcar = Boolean.TRUE.equals(call.getBoolean("forcar", false));
-        preparando.execute(() -> {
+        boolean forcar = Boolean.TRUE.equals(call.getBoolean("forcar", false));        preparando.execute(() -> {
             JSObject r = new JSObject();
             try {
                 Baixador.preparar(ctx);
@@ -537,8 +535,7 @@ public class EcoaPlugin extends Plugin {
                 call.reject(msg, "erro");
             } finally {
                 if (prioridade) Karaoke.PEDIDOS.decrementAndGet();
-            }
-        });
+            }        });
     }
 
     // ---- a importação de áudio: o formato que a WebView não toca (WMA, AIFF, AMR, APE, ALAC, AC3, MKA…) vira M4A (AAC
@@ -717,8 +714,7 @@ public class EcoaPlugin extends Plugin {
     @PluginMethod
     public void geminiDiagnostico(PluginCall call) {
         if (!Gemini.temChave()) {
-            JSObject r = new JSObject();
-            r.put("tem", false);
+            JSObject r = new JSObject();            r.put("tem", false);
             r.put("ok", false);
             r.put("status", 0);
             r.put("mensagem", "Este APK foi montado sem a chave GEMINI_API_KEY_APK.");
@@ -887,18 +883,15 @@ public class EcoaPlugin extends Plugin {
     @PluginMethod
     public void compartilharApp(PluginCall call) {
         String texto = call.getString("texto", "Conheça o Ecoa! Ouça, cante e ecoe.");
-        String url = call.getString("url", "https://kvsl11.github.io/Ecoa/Ecoa.apk");
-        if (url == null || !url.startsWith("https://kvsl11.github.io/Ecoa/")) {
-            call.reject("Endereço de download inválido.", "url-invalida");
-            return;
-        }
+        // Sempre usa o endereço oficial do APK do Ecoa, mesmo se uma versão antiga da interface
+        // enviar por engano o link legado do Songbook.
+        String url = "https://kvsl11.github.io/Ecoa/Ecoa.apk";
         try {
             Context ctx = getContext();
             android.graphics.Bitmap card = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888);
             android.graphics.Canvas canvas = new android.graphics.Canvas(card);
             android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            paint.setShader(new android.graphics.LinearGradient(0, 0, 1080, 1350,
-                new int[] { 0xFF071824, 0xFF0B3448, 0xFF123D57 }, null, android.graphics.Shader.TileMode.CLAMP));
+            paint.setShader(new android.graphics.LinearGradient(0, 0, 1080, 1350,                new int[] { 0xFF071824, 0xFF0B3448, 0xFF123D57 }, null, android.graphics.Shader.TileMode.CLAMP));
             canvas.drawRect(0, 0, 1080, 1350, paint);
             paint.setShader(null);
             paint.setColor(0x3322D3EE);
