@@ -6120,3 +6120,74 @@ dialog.yt-dlg .yt-acts [data-rm] { min-width: 0; padding: 0 14px; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   #player .pl-letra-nome b.anda .rolar { animation: none; }
 }
+
+
+/* ============================================================
+   Gemini: interface limpa e consistente no chat e no modo ao vivo
+   Mantém a estrutura e os controles existentes; altera apenas a apresentação.
+*/
+.chat { --chat-max: 820px; --dv-roxo: #4285f4; }
+.chat-rolo { gap: 26px; padding-top: 28px; }
+.dv-avatar { width: 30px; height: 30px; color: #8ab4f8; }
+.dv-avatar svg { filter: none; }
+.chat-msg.eu .chat-bolha {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: none;
+  border-radius: 22px 22px 6px 22px;
+}
+.chat-msg.ia .chat-bolha {
+  padding: 8px 2px 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.chat-nome { color: var(--text); font-size: 13px; }
+.chat-barra {
+  padding: 12px 16px max(14px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 78%, color-mix(in srgb, var(--bg) 0%, transparent));
+}
+.chat-campo {
+  padding: 8px 8px 8px 20px;
+  border-radius: 28px;
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--text) 10%, transparent);
+  box-shadow: 0 4px 22px rgb(0 0 0 / 0.16);
+}
+.chat-campo:focus-within {
+  border-color: #8ab4f8;
+  box-shadow: 0 4px 22px rgb(0 0 0 / 0.16), 0 0 0 3px rgb(138 180 248 / 0.12);
+}
+.chat-enviar { background: #8ab4f8; color: #101820; }
+.chat-enviar:disabled { background: var(--surface-3); color: var(--muted); }
+.chat-mic { color: var(--muted); }
+.chat-acoes button:hover, .chat-acoes a:hover { border-color: #8ab4f8; }
+.dv-cita { background: rgb(138 180 248 / 0.16); color: #8ab4f8; }
+.dv-vivo {
+  --lm-roxo: #8ab4f8;
+  --lm-azul: #8ab4f8;
+  background:
+    radial-gradient(70% 42% at 50% 105%, rgb(66 133 244 / 0.2), transparent 76%),
+    radial-gradient(50% 35% at 50% 0%, rgb(52 168 83 / 0.08), transparent 80%),
+    #080b12;
+}
+.dv-vivo-marca .logo-lumen { filter: none; }
+.dv-vivo-estado { color: rgb(232 240 254 / 0.62); }
+.dv-vivo-texto .dita { color: #e8f0fe; }
+.dv-vivo-texto .vem { color: rgb(232 240 254 / 0.38); }
+.dv-vivo-resposta {
+  background: rgb(138 180 248 / 0.08);
+  border-color: rgb(138 180 248 / 0.2);
+}
+.dv-vivo-menu {
+  background: #151b26;
+  border-color: rgb(138 180 248 / 0.2);
+}
+.dv-vivo-menu button .ic:last-child { color: #8ab4f8; }
+.dv-vivo-menu-vozes { display: none !important; }
+@media (min-width: 900px) {
+  .chat-rolo { padding-top: 34px; }
+  .chat-barra { padding-bottom: 18px; }
+}
