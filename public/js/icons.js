@@ -175,14 +175,13 @@ export function icon(name, size = 20, extra = '') {
 // desenho em public/lumen.svg.
 let nLumen = 0;
 export function logoLumen(size = 32) {
-  const id = 'lm' + ++nLumen;
-  return `<svg class="logo-lumen" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">
-    <defs><linearGradient id="${id}g" gradientUnits="userSpaceOnUse" x1="10" y1="5" x2="40" y2="41">
-      <stop offset="0" stop-color="#4f8cff"/><stop offset="0.45" stop-color="#9b72ff"/><stop offset="0.75" stop-color="#ff6fa8"/><stop offset="1" stop-color="#ffb84d"/></linearGradient>
-      <radialGradient id="${id}c" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
-    <path fill="url(#${id}g)" d="M14.5 6A4.5 4.5 0 0 1 19 10.5V31H34.5A4.5 4.5 0 0 1 34.5 40H14.5A4.5 4.5 0 0 1 10 35.5V10.5A4.5 4.5 0 0 1 14.5 6Z"/>
-    <path fill="url(#${id}g)" d="M31.5 5C32.1 11.6 34.9 14.4 41.5 15 34.9 15.6 32.1 18.4 31.5 25 30.9 18.4 28.1 15.6 21.5 15 28.1 14.4 30.9 11.6 31.5 5Z"/>
-    <circle cx="31.5" cy="15" r="4.5" fill="url(#${id}c)"/>
+  const id = 'gm' + ++nLumen;
+  // Símbolo em estrela multicolorida para identificar visualmente a integração Gemini.
+  return `<svg class="logo-lumen logo-gemini" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">
+    <defs><linearGradient id="${id}g" x1="7" y1="4" x2="41" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4285f4"/><stop offset=".34" stop-color="#9b72cb"/><stop offset=".68" stop-color="#d96570"/><stop offset="1" stop-color="#f9ab00"/>
+    </linearGradient></defs>
+    <path fill="url(#${id}g)" d="M24 2.5C26.7 14.1 31.1 18.1 45.5 24 31.1 29.9 26.7 33.9 24 45.5 21.3 33.9 16.9 29.9 2.5 24 16.9 18.1 21.3 14.1 24 2.5Z"/>
   </svg>`;
 }
 
