@@ -8531,7 +8531,7 @@ function viewHome() {
   setTab('inicio');
   setTint('#1e3264');
   setHeader('Início', { actions: [
-    { icon: 'sparkles', label: 'Tirar dúvidas', href: '#/duvidas' }
+    { icon: 'sparkles', label: 'Tirar dúvidas', href: '#/duvidas' },
     { icon: 'upload', label: 'Importar arquivos', onClick: openImport },
     // (os Ajustes ficam na gaveta da foto do perfil e na página do perfil)
   ] });
