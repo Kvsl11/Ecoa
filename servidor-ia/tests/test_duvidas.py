@@ -57,6 +57,8 @@ def test_provedor_escolhe_a_ia_pela_chave(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "g")
     assert duvidas.provedor() == "gemini"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
+    assert duvidas.provedor() == "gemini"  # Gemini é o padrão quando as duas chaves existem
+    monkeypatch.setenv("IA_PROVEDOR", "claude")
     assert duvidas.provedor() == "claude"
     monkeypatch.setenv("IA_PROVEDOR", "gemini")
     assert duvidas.provedor() == "gemini"
