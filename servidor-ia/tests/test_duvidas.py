@@ -156,9 +156,9 @@ def test_texto_do_pdf_limpo_e_o_pdf_do_acervo_para_a_ia(monkeypatch):
     assert duvidas.pdf_do_acervo("o que é liturgia", achados) is None
 
 
-def test_o_genero_da_voz_vai_para_a_ia():
-    assert "A Lumen" in duvidas.sistema_do_genero("feminina")
-    assert "O Lumen" in duvidas.sistema_do_genero("masculina")
+def test_gemini_nao_assume_personagem_nem_genero():
+    assert duvidas.sistema_do_genero("feminina") == ""
+    assert duvidas.sistema_do_genero("masculina") == ""
 
 
 def test_escolhe_o_flash_mais_novo_e_troca_quando_um_sumiu(monkeypatch):
