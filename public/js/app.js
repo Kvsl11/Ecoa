@@ -2285,6 +2285,9 @@ const REVISOES = [
   { rev: 29, fotoDeezer: true, quais: (s) => Boolean(s.fotoArtista && nomeDoArtistaDaMusica(s)) && !fotoDoDeezer(s.fotoArtista) },
   // v609: repetir o processamento de áudio importado com fallback do Worker e diagnóstico real de falhas.
   { rev: 30, transcrever: true, quais: (s) => Boolean(s.audioProprio) && !sincOkDe(s) && podeTrocarCifra(s) && !['letra', 'instrumental'].includes(s.audioProprio.transcricao) },
+  // v612: a busca antecipada sem duração podia ser reutilizada depois para outra edição da mesma gravação.
+  // As sincronias automáticas são refeitas com a duração do áudio conhecido; a sincronia manual permanece intacta.
+  { rev: 31, refazerLetra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && (!s.sincronia || s.sincronia.fonte === 'lrclib') },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2485,11 +2488,16 @@ async function revisarMusica(id, pendentes, chaves) {
     await noMaximo(ajustarTomDaGravacao(s), 60000, false).catch(() => {});
     s = db.song(id);
   }
-  // a letra sincronizada (a feita à mão pela pessoa fica como está)
-  if (quer('letra') && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
+  // a letra sincronizada (a feita à mão pela pessoa fica como está). A revisão específica invalida apenas a automática,
+  // para refazer a busca com a duração conhecida e comparar LRCLIB/NetEase antes do Gemini.
+  if (quer('refazerLetra') && s.sincronia?.fonte === 'lrclib') {
+    db.updateSong(id, { sincronia: undefined });
+    s = db.song(id);
+  }
+  if ((quer('letra') || quer('refazerLetra')) && midiaDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
     try { recuperarSincronia(s); } catch { /* segue */ }
     s = db.song(id);
-    if (s && !sincOkDe(s)) {
+    if (s && (!sincOkDe(s) || quer('refazerLetra'))) {
       if (!navigator.onLine) completa = false;
       else {
         const r = await noMaximo(sincronizarMusica(s), 45000, 'demorou');
@@ -19493,9 +19501,11 @@ const OPÇÕES_LRCLIB_RÁPIDAS = { espera: 1000, timeout: 10000, tentativas: 4 }
 // A letra sincronizada procurada pelo título e pelo artista, guardada enquanto o app está aberto: ela começa já no toque
 // na música da busca (junto com a cifra e o vídeo, e não depois deles), e quem precisar dela depois usa a mesma
 const letrasSincronizadas = new Map();
-const chaveDaLetraSinc = (titulo, artista) => `${normalizar(tituloLimpo(titulo))}|${normalizar(String(artista || '').split(/\s*(?:,|&| feat\.? | ft\.? | part\.? )\s*/i)[0])}`;
+// A duração faz parte da chave: uma busca antecipada sem duração não pode ser reutilizada quando já sabemos
+// qual master toca. LRCLIB e NetEase podem ter LRCs de edições diferentes da mesma música.
+const chaveDaLetraSinc = (titulo, artista, duracao = 0) => `${normalizar(tituloLimpo(titulo))}|${normalizar(String(artista || '').split(/\s*(?:,|&| feat\.? | ft\.? | part\.? )\s*/i)[0])}|${Number(duracao) > 0 ? Math.round(Number(duracao)) : 0}`;
 function letraSincronizadaJa(titulo, artista, duracao = 0) {
-  const k = chaveDaLetraSinc(titulo, artista);
+  const k = chaveDaLetraSinc(titulo, artista, duracao);
   if (!letrasSincronizadas.has(k)) {
     const p = letraSincronizada({ titulo: tituloLimpo(titulo), artista: artista || '', duracao }, undefined, OPÇÕES_LRCLIB_RÁPIDAS);
     letrasSincronizadas.set(k, p);
