@@ -5,6 +5,17 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 615, data: '2026-11-10', titulo: 'Sincronização de letras pelo Gemini no Android: fila, tolerância na resposta e causa da falha',
+    itens: [
+      { tipo: 'correcao', texto: 'A revisão das músicas salvas da versão 612 disparava, ao mesmo tempo, um download de áudio e um pedido ao Gemini para cada música sem letra sincronizada no LRCLIB e na NetEase. Os pedidos simultâneos esgotavam a cota por minuto do Google e a sincronização terminava sem resultado. Os pedidos em segundo plano passaram a ser atendidos um de cada vez; após uma resposta de cota esgotada (HTTP 429), ficam suspensos por 10 minutos. A música aberta na tela e o "Consertar agora" não aguardam a fila.' },
+      { tipo: 'correcao', texto: 'A resposta do alinhamento era aceita somente quando o texto de cada linha voltava idêntico ao enviado; linhas devolvidas com a numeração da lista ou com pequena alteração eram descartadas e, abaixo de 35% de linhas reconhecidas, a sincronia inteira era rejeitada. O pedido passou a exigir o número de cada linha, e a leitura passou a reconhecer a linha pelo texto, pelo texto sem a numeração ou pelo número.' },
+      { tipo: 'melhoria', texto: 'O áudio usado na sincronização passou a ser baixado na qualidade normal, o que reduz o tamanho do pedido. Quando o Google recusa o arquivo no formato original (HTTP 400), o pedido é repetido com o áudio convertido para WAV mono.' },
+      { tipo: 'novo', texto: 'Quando a cifra encontrada não contém a letra (menos de 3 linhas cantadas), o aplicativo para Android passou a solicitar ao Gemini a transcrição da gravação, com o instante de cada linha, em vez de encerrar a tentativa.' },
+      { tipo: 'melhoria', texto: 'A causa da falha da sincronização pelo Gemini (chave ausente, baixador indisponível, erro devolvido pelo Google, linhas não localizadas) deixou de ser descartada e passou a ser exibida no resultado do "Consertar agora". As músicas salvas que permaneceram sem letra sincronizada serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas.' },
+      { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados; a validação com chamadas reais ao Gemini em aparelho ainda não foi realizada. A montagem do APK confirmou que a chave e a assinatura do aplicativo são aceitas pelo Google.' },
+    ],
+  },
+  {
     versao: 614, data: '2026-11-10', titulo: 'Remoção da repetição de trecho do player',
     itens: [
       { tipo: 'melhoria', texto: 'A função "Repetir um trecho", adicionada ao menu de opções do player na versão 613, foi removida a pedido. O menu, a barra de tempo e a transição entre músicas (crossfade e automix) voltaram ao comportamento da versão 612. A função não guardava dados nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
@@ -69,14 +80,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'As opções repetidas foram unificadas. A exportação e a importação dos downloads, que ficavam em Downloads, passaram para Backup, que agora reúne a cópia da biblioteca e a dos downloads, cada uma com a sua explicação. O tópico Qualidade de mídia, que repetia a linha "Qualidade dos downloads" da página de Downloads, foi retirado da lista; a opção continua dentro de Downloads e internet. Os três atalhos do alto dos Ajustes (Economia de dados, Sessão privada e Capa animada) foram removidos, pois repetiam opções das páginas.' },
       { tipo: 'melhoria', texto: 'Música e cifra passou a ser dividida em Cifra (destaque e diagrama dos acordes), Reprodução (transição entre as músicas e capa animada) e Privacidade (sessão privada). Downloads e economia de dados passou a se chamar Downloads e internet, com a economia de dados e o download com dados móveis na seção Internet; a descrição da economia de dados passou a dizer o que ela faz: desliga a capa animada, toca do aparelho as músicas baixadas, até no modo vídeo, e evita que a busca carregue as músicas antes do toque.' },
       { tipo: 'correcao', texto: 'A sessão privada não registrava as músicas tocadas, mas abrir a página de uma música ainda a colocava nos Recentes; isso foi corrigido. Como a sessão não dava nenhum sinal de estar ligada, passou a ser indicada em Recentes, nas Estatísticas e no menu do perfil, com um atalho para desligá-la, e a opção passou a explicar o seu efeito.' },
-    ],
-  },
-  {
-    versao: 605, data: '2026-11-07', titulo: 'Busca e ordenação de "Músicas curtidas" reformuladas',
-    itens: [
-      { tipo: 'melhoria', texto: 'Em "Músicas curtidas" (celular, tablet, web e aplicativo Android), a busca e o botão de ordem passaram a ficar acima do título, fora da área visível ao abrir a página; ambos aparecem ao puxar a página para baixo e desaparecem gradualmente ao rolar. O campo passou a se chamar "Buscar na playlist", com fundo translúcido sobre o degradê, e o botão de ordem passou a se chamar "Ordenar". Com poucas músicas, a página recebe a altura necessária para que a busca permaneça oculta ao abrir.' },
-      { tipo: 'novo', texto: 'Tocar no campo de busca abre o modo de busca: a seta de voltar e o campo ficam fixos no topo, seguidos dos filtros e da lista filtrada; o título, os botões e "Adicionar a esta playlist" são ocultados até a saída pela seta, que também limpa o texto digitado.' },
-      { tipo: 'novo', texto: '"Ordenar" passou a abrir a folha "Ordenar por", com as opções Título, Artista, Álbum e Adicionadas recentemente; a ordem em uso aparece em destaque, com o sinal de confirmação. Antes, o botão alternava apenas entre a ordem recente e a alfabética.' },
     ],
   },
 ];

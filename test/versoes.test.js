@@ -507,13 +507,18 @@ test('no K-pop o clipe oficial sai no canal da empresa ("Official MV")', async (
 
 test('quando não há LRC, tenta alinhar a letra encontrada com Gemini no APK', async () => {
   const app = await readFile(new URL('../public/js/app.js', import.meta.url), 'utf8');
-  const inicio = app.indexOf('function sincronizarPeloGemini(song)');
+  const inicio = app.indexOf('function sincronizarPeloGemini(song');
   const fim = app.indexOf('// Confere a letra em dúvida', inicio);
   assert.ok(inicio > 0 && fim > inicio);
   const rotina = app.slice(inicio, fim);
   assert.match(rotina, /corpoDaSincronia/);
   assert.match(rotina, /baixarNoAparelho\(baixador, video, false/);
-  assert.match(rotina, /gerada: 'gemini'/);
+  assert.match(rotina, /'gemini' : 'transcricao'/);
+  // sem letra na cifra, a gravação é transcrita; os pedidos da revisão entram numa fila e a falha fica registrada
+  assert.match(rotina, /corpoDaTranscricao\(audio\)/);
+  assert.match(rotina, /filaDoGemini\.then\(protegida\)/);
+  assert.match(rotina, /emWav: true/);
+  assert.match(rotina, /falhasDoGemini\.set\(chave/);
   assert.match(rotina, /linhasCantadas\(inicial\.content/);
   assert.match(app, /if \(!ok\) void sincronizarPeloServidor\(song\)/);
 });
@@ -524,7 +529,8 @@ test('diagnóstico: Consertar agora tenta sincronização Gemini quando não há
   const fim = app.indexOf('let revisaoRodando', inicio);
   assert.ok(inicio >= 0 && fim > inicio);
   const rotina = app.slice(inicio, fim);
-  assert.match(rotina, /sincronizarPeloGemini\(s1\)/);
+  assert.match(rotina, /sincronizarPeloGemini\(s1, \{ prioridade: true \}\)/);
+  assert.match(rotina, /motivoDoGemini\(s1\)/);
   assert.match(rotina, /Sincronizando a letra com Gemini no celular/);
   assert.match(rotina, /sincronizarPeloServidor\(s1\)/);
   assert.match(rotina, /!sincValida\(s1\)/);
@@ -548,6 +554,7 @@ test('a revisão reavalia sincronias automáticas sem apagar a atual e preserva 
   const revisoesFim = app.indexOf('];', revisoesInicio);
   const revisoes = app.slice(revisoesInicio, revisoesFim);
   assert.match(revisoes, /rev: 31, refazerLetra: true/);
+  assert.match(revisoes, /rev: 32, letra: true/);
   const inicio = app.indexOf("if ((quer('letra') || quer('refazerLetra'))");
   const fim = app.indexOf('// a letra do LRCLIB de novo', inicio);
   assert.ok(inicio > 0 && fim > inicio);

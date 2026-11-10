@@ -504,11 +504,11 @@ export function corpoDaSincronia({ tipo, dados, linhas }) {
     contents: [{ role: 'user', parts: [
       { inline_data: { mime_type: tipo, data: dados } },
       { text: 'Você é um alinhador de letras musicais. Ouça a gravação inteira e sincronize a letra fornecida abaixo com a voz. ' +
-        'Devolva uma entrada para cada ocorrência cantada, com o texto da linha exatamente como foi fornecido e os instantes "inicio" e "fim" em mm:ss.cc, relativos ao começo do áudio. ' +
+        'Devolva uma entrada para cada ocorrência cantada, com o número da linha na lista ("n"), o texto da linha exatamente como foi fornecido, sem o número ("texto"), e os instantes "inicio" e "fim" em mm:ss.cc, relativos ao começo do áudio. ' +
         'Preserve a ordem e as quebras das linhas; não junte linhas diferentes, não divida uma linha em palavras, não invente versos e não transcreva trechos que não estejam na letra fornecida. ' +
         'Quando o refrão ou outra linha se repetir, inclua novamente a mesma linha com o novo tempo. Ignore introduções instrumentais e pausas sem voz. ' +
         'Se uma linha não for cantada ou não puder ser localizada com segurança, omita-a. ' +
-        'Retorne somente JSON no formato {"linhas":[{"texto":"...","inicio":"00:00.00","fim":"00:03.20"}]}.\n\nLETRA NUMERADA:\n' + lista },
+        'Retorne somente JSON no formato {"linhas":[{"n":1,"texto":"...","inicio":"00:00.00","fim":"00:03.20"}]}.\n\nLETRA NUMERADA:\n' + lista },
     ] }],
     generationConfig: {
       temperature: 0,
@@ -517,13 +517,39 @@ export function corpoDaSincronia({ tipo, dados, linhas }) {
         type: 'OBJECT',
         properties: {
           linhas: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
-            texto: { type: 'STRING' }, inicio: { type: 'STRING' }, fim: { type: 'STRING' },
-          }, required: ['texto', 'inicio', 'fim'] } },
+            n: { type: 'INTEGER' }, texto: { type: 'STRING' }, inicio: { type: 'STRING' }, fim: { type: 'STRING' },
+          }, required: ['n', 'texto', 'inicio', 'fim'] } },
         },
         required: ['linhas'],
       },
     },
   };
+}
+
+// A resposta do alinhamento → [{ texto, inicio, fim }], com o texto de cada linha como está na letra enviada. A linha é
+// reconhecida pelo texto devolvido (sem a numeração da lista, que o modelo às vezes copia: "12. Santo, santo") e, se o
+// texto veio alterado (a pontuação, uma palavra trocada), pelo número dela ("n"). O que não é da letra enviada sai.
+const canonDaLinha = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+export function lerSincronia(resposta, linhas = [], duracao = 0) {
+  let dados = typeof resposta === 'object' && resposta ? resposta : null;
+  if (!dados) {
+    const texto = String(resposta || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+    try { dados = JSON.parse(texto); } catch { return []; }
+  }
+  if (Array.isArray(dados)) dados = { linhas: dados };
+  const originais = new Map(linhas.map((l) => [canonDaLinha(l), l]));
+  const entradas = [];
+  for (const l of dados?.linhas || dados?.lines || []) {
+    const cru = String(l?.texto ?? l?.text ?? '');
+    const n = Number(l?.n ?? l?.numero ?? l?.linha);
+    const original = originais.get(canonDaLinha(cru))
+      ?? originais.get(canonDaLinha(cru.replace(/^\s*\d{1,3}\s*[.):-]\s*/, '')))
+      ?? (Number.isInteger(n) && n >= 1 && n <= linhas.length ? linhas[n - 1] : undefined);
+    if (original === undefined) continue;
+    entradas.push({ texto: original, inicio: l.inicio ?? l.start, fim: l.fim ?? l.end });
+  }
+  return lerTranscricao({ linhas: entradas }, duracao)
+    .map((l) => ({ texto: originais.get(canonDaLinha(l.texto)) ?? l.texto, inicio: l.inicio, fim: l.fim }));
 }
 
 export function corpoDaTranscricao({ tipo, dados }) {

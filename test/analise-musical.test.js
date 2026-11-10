@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  TAXA, analisar, andamento, ataques, corpoDaSincronia, corpoDaTranscricao, detectarTom, lerTranscricao, linhaComAcordes, montarCifra, nomesDoArquivo,
+  TAXA, analisar, andamento, ataques, corpoDaSincronia, corpoDaTranscricao, detectarTom, lerSincronia, lerTranscricao, linhaComAcordes, montarCifra, nomesDoArquivo,
   segundosDe,
 } from '../public/js/lib/analise-musical.js';
 
@@ -176,6 +176,24 @@ test('corpoDaSincronia: envia a letra encontrada para o Gemini alinhar no áudio
   assert.match(partes[1].text, /inclua novamente a mesma linha/);
   assert.equal(c.generationConfig.responseMimeType, 'application/json');
   assert.ok(c.generationConfig.responseSchema.properties.linhas);
+  assert.ok(c.generationConfig.responseSchema.properties.linhas.items.required.includes('n'));
+});
+
+test('lerSincronia: reconhece a linha pelo texto, pela numeração copiada e pelo número dela', () => {
+  const letra = ['Santo, santo, santo', 'Senhor Deus do universo', 'O céu e a terra', 'Hosana nas alturas'];
+  const r = lerSincronia(JSON.stringify({ linhas: [
+    { n: 1, texto: 'Santo, santo, santo', inicio: '00:10.00', fim: '00:14.00' },
+    { n: 2, texto: '2. Senhor Deus do universo', inicio: '00:14.50', fim: '00:18.00' }, // (a numeração da lista copiada)
+    { n: 3, texto: 'O céu e a terra proclamam', inicio: '00:19.00', fim: '00:22.00' }, // (o texto alterado: vale o número)
+    { n: 9, texto: 'Verso que não é da letra', inicio: '00:23.00', fim: '00:25.00' },
+    { n: 4, texto: 'hosana nas alturas!', inicio: '00:26.00', fim: '00:30.00' },
+    { n: 4, texto: 'Hosana nas alturas', inicio: '00:31.00', fim: '00:35.00' }, // (a repetição entra de novo)
+  ] }), letra, 60);
+  assert.deepEqual(r.map((l) => l.texto), ['Santo, santo, santo', 'Senhor Deus do universo', 'O céu e a terra', 'Hosana nas alturas', 'Hosana nas alturas']);
+  assert.deepEqual(r.map((l) => l.inicio), [10, 14.5, 19, 26, 31]);
+  assert.equal(r[0].fim, 14);
+  assert.deepEqual(lerSincronia('isto não é JSON', letra), []);
+  assert.deepEqual(lerSincronia('```json\n{"linhas":[]}\n```', letra), []);
 });
 
 test('nomesDoArquivo: o artista e o título pelo nome do arquivo', () => {
