@@ -221,14 +221,25 @@ jobs:
       - name: Publicar (Releases → android)
         if: env.PRINCIPAL == 'true'
         run: |
-          cat > "$RUNNER_TEMP/notas.md" <<'NOTAS'
-          O Ecoa para Android: baixe o **Ecoa.apk** abaixo e abra no celular (o Android pede para permitir "instalar apps desconhecidos" na primeira vez).
-
-          - O mesmo app do site, com a sua conta Google.
-          - O widget da tela inicial: segure o dedo na tela inicial → Widgets → Ecoa.
-          - O aviso de "tocando" com os botões, que mantém a música tocando com o app minimizado.
-
-          As novidades do app chegam sozinhas (ele abre o site publicado); este arquivo só muda quando a parte de Android muda. Quando muda, o app avisa e atualiza por Ajustes → Sobre → Atualização do app.
-          NOTAS
+          node --input-type=module - "$RUNNER_TEMP/Ecoa-versao.json" "$RUNNER_TEMP/notas.md" <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const v = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const atual = v.novidades?.[0];
+          const linhas = [
+            'O Ecoa para Android: baixe o **Ecoa.apk** abaixo e abra no celular (o Android pede para permitir "instalar apps desconhecidos" na primeira vez).',
+            '',
+            '- O mesmo app do site, com a sua conta Google.',
+            '- O widget da tela inicial: segure o dedo na tela inicial → Widgets → Ecoa.',
+            '- O aviso de "tocando" com os botões, que mantém a música tocando com o app minimizado.',
+            '',
+            'As novidades do app chegam junto com a versão publicada. A atualização instalada é identificada pelo número do APK; consulte Ajustes → Sobre → Atualização do app.',
+            '',
+            '## Última nota técnica',
+            atual ? `**Versão ${atual.versao} — ${atual.data}: ${atual.titulo}**` : 'Não há nota técnica cadastrada.',
+            ...(atual?.itens || []).flatMap((item) => ['', `- **${String(item.tipo || '').toUpperCase()}** — ${item.texto}`]),
+            ''
+          ];
+          writeFileSync(process.argv[3], linhas.join('\\n'));
+          NODE
           gh release delete android --cleanup-tag --yes 2>/dev/null || true
           gh release create android "$RUNNER_TEMP/Ecoa.apk" "$RUNNER_TEMP/Ecoa-versao.json" --title "Ecoa para Android" --notes-file "$RUNNER_TEMP/notas.md" --target "$GITHUB_SHA" --latest=false
