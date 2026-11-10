@@ -36,7 +36,8 @@ test('código QR: correção de erros e matriz do endereço do APK conferidas co
 test('convite: o texto, o endereço e o nome de quem convida', () => {
   const apk = dadosDoConvite({ android: true, site: 'https://kvsl11.github.io/Ecoa/', nome: 'Maria  Clara Souza' });
   assert.equal(apk.url, 'https://kvsl11.github.io/Ecoa/Ecoa.apk');
-  assert.equal(apk.endereco, 'kvsl11.github.io/Ecoa/Ecoa.apk');
+  // (o cartão do APK não mostra o endereço da hospedagem: o link baixa o arquivo direto)
+  assert.equal(apk.endereco, 'Download direto do aplicativo');
   assert.equal(apk.quem, 'Maria');
   assert.match(apk.texto, /Baixe para Android:$/);
   const web = dadosDoConvite({ site: 'https://kvsl11.github.io/Ecoa/' });

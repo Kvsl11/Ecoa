@@ -27,8 +27,9 @@ export function dadosDoConvite({ android = false, site = '', nome = '' } = {}) {
     ].join('\n'),
     chamada: android ? 'Baixe para Android' : 'Abra no navegador',
     instrucao: 'Aponte a câmera para o código',
-    // (o endereço como aparece no cartão: sem o https:// e sem a barra do fim)
-    endereco: url.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+    // (a última linha do cartão. No APK, o link já baixa o arquivo do aplicativo, sem abrir página nenhuma: o cartão
+    // diz isso em vez de mostrar o endereço da hospedagem. No navegador, o endereço do site, sem o https://)
+    endereco: android ? 'Download direto do aplicativo' : url.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     recursos: ['Letra sincronizada', 'Cifras e acordes', 'Karaokê', 'Músicas offline'],
   };
 }
