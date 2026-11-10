@@ -5,6 +5,12 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 614, data: '2026-11-10', titulo: 'Remoção da repetição de trecho do player',
+    itens: [
+      { tipo: 'melhoria', texto: 'A função "Repetir um trecho", adicionada ao menu de opções do player na versão 613, foi removida a pedido. O menu, a barra de tempo e a transição entre músicas (crossfade e automix) voltaram ao comportamento da versão 612. A função não guardava dados nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
+    ],
+  },
+  {
     versao: 613, data: '2026-11-10', titulo: 'Repetição de trecho no player para ensaio',
     itens: [
       { tipo: 'novo', texto: 'Foi adicionada ao menu de opções do player (⋯ do Tocando agora) a função "Repetir um trecho". Nas músicas com letra sincronizada, as partes da gravação (Verse, Chorus, Bridge e demais marcações da cifra) passam a ser listadas com o instante de início e de fim, calculados a partir da letra sincronizada, e a parte escolhida é reproduzida em repetição contínua até ser desligada. Numa gravação de 10 min 47 s usada na verificação, foram identificadas 8 partes.' },
@@ -71,14 +77,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Em "Músicas curtidas" (celular, tablet, web e aplicativo Android), a busca e o botão de ordem passaram a ficar acima do título, fora da área visível ao abrir a página; ambos aparecem ao puxar a página para baixo e desaparecem gradualmente ao rolar. O campo passou a se chamar "Buscar na playlist", com fundo translúcido sobre o degradê, e o botão de ordem passou a se chamar "Ordenar". Com poucas músicas, a página recebe a altura necessária para que a busca permaneça oculta ao abrir.' },
       { tipo: 'novo', texto: 'Tocar no campo de busca abre o modo de busca: a seta de voltar e o campo ficam fixos no topo, seguidos dos filtros e da lista filtrada; o título, os botões e "Adicionar a esta playlist" são ocultados até a saída pela seta, que também limpa o texto digitado.' },
       { tipo: 'novo', texto: '"Ordenar" passou a abrir a folha "Ordenar por", com as opções Título, Artista, Álbum e Adicionadas recentemente; a ordem em uso aparece em destaque, com o sinal de confirmação. Antes, o botão alternava apenas entre a ordem recente e a alfabética.' },
-    ],
-  },
-  {
-    versao: 604, data: '2026-11-07', titulo: 'Indicadores de fixação e de download na biblioteca',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na biblioteca (celular e tablet), o alfinete verde dos itens fixados foi ampliado de 13 px para 16 px (de 11 px para 15 px na grade do celular), alinhado à linha "Playlist • n músicas".' },
-      { tipo: 'novo', texto: 'Playlists e repertórios cujas músicas com áudio ou vídeo estão todas baixadas no aparelho passaram a exibir, ao lado do alfinete, o círculo verde com a seta de download, no mesmo tamanho. O indicador também aparece em "Músicas curtidas", quando todas estão baixadas.' },
-      { tipo: 'melhoria', texto: 'O cartão fixo "Baixadas" foi removido da biblioteca (celular, tablet, web e aplicativo Android), por repetir as músicas já reunidas em "Músicas curtidas", que passou a indicar quando estão todas baixadas. A lista das músicas baixadas continua acessível em Configurações → Músicas baixadas; o filtro "Baixadas" da biblioteca passou a listar apenas as playlists e os repertórios inteiramente baixados.' },
     ],
   },
 ];

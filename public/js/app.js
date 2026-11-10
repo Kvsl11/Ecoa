@@ -31,7 +31,6 @@ import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './li
 import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice } from './lib/fila.js';
-import { relogio, secoesDaLetra, trechoMarcado, voltaDoTrecho } from './lib/trechos.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -3920,7 +3919,6 @@ const semLinhasDeAcordes = (sinc) => {
   let tempos = null;
   let fins = null; // o fim de cada frase cantada, para achar as partes só de música (fimCantado)
   let linhasDaLetra = [];
-  let secoesLetra = { de: '', secoes: [] };
   // a frase cantada acima do nome passa como no Spotify: a de antes sobe e some, e a nova sobe de baixo no lugar dela
   // (só o movimento e a transparência: o resto da tela não é redesenhado)
   const trocarFrase = (texto) => {
@@ -3984,8 +3982,6 @@ const semLinhasDeAcordes = (sinc) => {
     const nota = (id) => `<p class="pl-pausa" data-pausa="${id}" aria-label="Só música"><i>♪</i><i>♪</i><i>♪</i></p>`;
     fins = tempos ? tempos.map((x, k) => fimCantado(tempos, linhas, k)) : null;
     const pausaAntes = (k) => tempos && (k === 0 ? tempos[0].inicio >= PAUSA_INICIO : tempos[k].inicio - fins[k - 1] >= PAUSA_MEIO);
-    // as partes da música (para repetir um trecho no ensaio: veja abrirTrecho), da letra sincronizada desta gravação
-    secoesLetra = { de: atual?.youtube, secoes: tempos ? secoesDaLetra({ tempos, marcas, pausas: new Set(linhas.map((_, k) => k).filter(pausaAntes)), fins, duracao }) : [] };
     $('.pl-linhas', el).innerHTML = linhas.map((l, k) => `${marcas.has(k) ? `<h4 class="pl-parte">${esc(marcas.get(k))}</h4>` : ''}${pausaAntes(k) ? nota(k) : ''}<p data-k="${k}">${esc(l)}</p>`).join('')
       + (tempos?.length && duracao > 0 && duracao - tempos[tempos.length - 1].fim >= PAUSA_MUSICA ? nota('fim') : '');
     desenharCifra();
@@ -5479,7 +5475,6 @@ const semLinhasDeAcordes = (sinc) => {
     },
     fechar() {
       telinha(false); // a telinha da página volta a mostrar a miniatura
-      trecho = null; marcaA = null; pintarTrecho(); // (a repetição do trecho acaba com o player)
       tirarDaTelinha();
       if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }
       sessaoDe = '';
@@ -5632,65 +5627,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (duracao > 0 && ms.setPositionState) { try { ms.setPositionState({ duration: duracao, position: Math.min(duracao, Math.max(0, tempo)), playbackRate: 1 }); } catch { /* fora do intervalo */ } }
   };
   // a música acabou: repete, vai para a próxima (na ordem ou aleatória) ou para
-  // ---- Repetir um trecho (o ensaio, no ⋯ do player; como as "Song Sections" do Moises): uma parte da música (as da
-  // letra sincronizada: Verse, Chorus, Bridge…) ou o trecho marcado à mão (o começo e o fim) fica repetindo até
-  // desligar. Vale para a gravação que está tocando: trocou de música ou de versão, a repetição acaba. Não fica
-  // guardado. A conta está em lib/trechos.js; o trecho aparece pintado na barra do tempo (#player.com-trecho)
-  let trecho = null; // { nome, inicio, fim, de: o vídeo ou áudio em que vale }
-  let marcaA = null; // o começo marcado à mão, esperando o fim: { t, de }
-  const pintarTrecho = () => {
-    const ativo = Boolean(trecho && duracao > 0);
-    el.classList.toggle('com-trecho', ativo);
-    if (!ativo) return;
-    el.style.setProperty('--trecho-a', `${Math.min(100, (100 * trecho.inicio) / duracao)}%`);
-    el.style.setProperty('--trecho-l', `${Math.max(0, Math.min(100, (100 * (trecho.fim - trecho.inicio)) / duracao))}%`);
-  };
-  const repetirTrecho = (t) => {
-    trecho = t && atual ? { ...t, de: atual.youtube } : null;
-    marcaA = null;
-    pintarTrecho();
-    if (trecho) { api.irPara(trecho.inicio); toast(`Repetindo: ${trecho.nome} (${relogio(trecho.inicio)} – ${relogio(trecho.fim)})`); }
-    else toast('Repetição do trecho desligada');
-  };
-  const abrirTrecho = async () => {
-    if (!atual) return;
-    if (marcaA && marcaA.de !== atual.youtube) marcaA = null;
-    const agora = api.tempoAgora;
-    const secoes = !emVideo() && secoesLetra.de === atual.youtube ? secoesLetra.secoes : [];
-    const v = await escolherNaLista({
-      titulo: 'Repetir um trecho',
-      opcoes: [
-        trecho && { valor: 'parar', rotulo: 'Parar de repetir', sub: `${trecho.nome} · ${relogio(trecho.inicio)} – ${relogio(trecho.fim)}`, ic: 'x' },
-        marcaA ? { valor: 'b', rotulo: `Marcar o fim aqui (${relogio(agora)})`, sub: `Começo marcado em ${relogio(marcaA.t)}`, ic: 'clock' }
-          : { valor: 'a', rotulo: `Marcar o começo aqui (${relogio(agora)})`, sub: 'Depois marque o fim: o trecho entre os dois fica repetindo', ic: 'clock' },
-        marcaA && { valor: 'desmarcar', rotulo: 'Desfazer o começo marcado', ic: 'x' },
-        ...secoes.map((x, i) => ({ valor: `s${i}`, rotulo: x.nome, dir: `${relogio(x.inicio)} – ${relogio(x.fim)}`, ic: 'repeat' })),
-      ].filter(Boolean),
-    });
-    if (v === undefined || !atual) return;
-    if (v === 'parar') { repetirTrecho(null); return; }
-    if (v === 'desmarcar') { marcaA = null; return; }
-    if (v === 'a') { marcaA = { t: agora, de: atual.youtube }; toast(`Começo marcado em ${relogio(agora)}. No ponto do fim, abra de novo e marque o fim`); return; }
-    if (v === 'b') {
-      const t = marcaA && trechoMarcado(marcaA.t, api.tempoAgora, duracao);
-      if (!t) { toast('O trecho precisa ter pelo menos 2 segundos'); return; }
-      repetirTrecho(t);
-      return;
-    }
-    const sec = secoes[Number(String(v).slice(1))];
-    if (sec) repetirTrecho(sec);
-  };
-  setInterval(() => {
-    if (!trecho) return;
-    if (!atual || atual.youtube !== trecho.de) { trecho = null; marcaA = null; pintarTrecho(); return; }
-    pintarTrecho(); // (a duração pode ter chegado depois)
-    if (estado !== 'tocando' || anuncio || pendente !== null || trocando) return;
-    const volta = voltaDoTrecho(trecho, api.tempoAgora);
-    if (volta !== null) api.irPara(volta);
-  }, 200);
   const fimDaMusica = () => {
-    // (repetindo um trecho que vai até o fim da gravação: volta ao começo dele, sem passar para a próxima)
-    if (trecho && atual?.youtube === trecho.de) { api.irPara(trecho.inicio); return true; }
     if (repetir === 'uma' || (repetir === 'todas' && !fila())) { api.irPara(0); return true; }
     return pular(1);
   };
@@ -5878,7 +5815,6 @@ const semLinhasDeAcordes = (sinc) => {
     if (transicao) { andarTransicao(); return; }
     const modo = modoTransicao();
     if (!modo || !atual || atual.semVideo || estado !== 'tocando' || anuncio || pendente !== null || trocando || !(duracao > 20)) return;
-    if (trecho) return; // (repetindo um trecho: a próxima música não entra por baixo)
     const falta = duracao - api.tempoAgora;
     if (falta > 45 || falta < 0.6) return;
     if (repetir === 'uma' || !fila() || (vizinha(1) < 0 && repetir !== 'todas')) return;
@@ -6354,8 +6290,6 @@ const semLinhasDeAcordes = (sinc) => {
       !naLetra && (atual.href || atual.abrir) && !telaDeCelular() && { valor: 'abrir', rotulo: 'Abrir a música', ic: 'external' },
       salva ? { valor: 'add-repertorio', rotulo: 'Adicionar a um repertório', ic: 'plus' } : { valor: 'salva', rotulo: 'Salvar na biblioteca', ic: 'download' },
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
-      // o ensaio: repetir uma parte da música ou um trecho marcado
-      !atual.semVideo && { valor: 'trecho', rotulo: trecho ? 'Repetindo um trecho' : 'Repetir um trecho', ic: 'repeat', dir: trecho ? trecho.nome : '' },
       // o karaokê (o mesmo microfone da letra na tela toda)
       fonteKaraokeAgora() && { valor: 'karaoke', rotulo: karaokeLigado ? 'Desligar o karaokê' : 'Karaokê (tirar a voz)', svg: MICROFONE_KARAOKE },
       fonteKaraokeAgora() && karaokeDe(fonteKaraokeAgora()) && !karaokeLigado && { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê do aparelho', ic: 'trash' },
@@ -6379,7 +6313,6 @@ const semLinhasDeAcordes = (sinc) => {
     const v = await escolherNaLista({ menu: true, titulo: atual.titulo || 'Tocando agora', cabeca: `${capaMenu}<span class="lista-txt"><b>${esc(atual.titulo || 'Tocando agora')}</b><small>${esc(atual.artista || 'Tocando agora')}</small></span>`, opcoes });
     if (!v || !atual) return;
     if (v === 'diagnostico') { void abrirDiagnostico(); return; }
-    if (v === 'trecho') { void abrirTrecho(); return; }
     if (v === 'copiar-letra' || v === 'copiar-cifra') {
       void copiarLetra(song, { comCifra: v === 'copiar-cifra', transpose: song?.transpose || 0, capo: song?.capo || 0, titulo: atual?.titulo, artista: atual?.artista });
       return;
