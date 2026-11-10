@@ -945,7 +945,7 @@ public class EcoaPlugin extends Plugin {
 
         paint.setColor(0xFF16445A);
         canvas.drawCircle(540, 370, 178, paint);
-        android.graphics.drawable.Drawable logo = ctx.getPackageManager().getApplicationIcon(ctx.getPackageName());
+        android.graphics.drawable.Drawable logo = ctx.getApplicationInfo().loadIcon(ctx.getPackageManager());
         logo.setBounds(410, 240, 670, 500);
         logo.draw(canvas);
 

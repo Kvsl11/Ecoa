@@ -5,12 +5,34 @@ import { LOCAIS } from './lib/sincronia-conta.js';
 const KEY = 'songbook.v1';
 const DEFAULT_PREFS = { theme: 'dark', fontScale: 1, showChords: true, scrollSpeed: 3, destaqueCifra: 'forte', videoFundo: true };
 
+// Os ajustes (qualidade do áudio e do vídeo, tema, tamanho da letra…) ficam também numa chave só deles. Antes ficavam
+// apenas dentro do bloco da biblioteca inteira (KEY): com a biblioteca grande, o bloco passa do limite do localStorage,
+// a gravação falha e, ao abrir o app de novo (por exemplo, depois de uma atualização), os ajustes voltavam ao que
+// estava na última gravação que coube. A chave dos ajustes é pequena e é gravada primeiro; ao abrir, ela vale mais
+// que os ajustes do bloco
+const KEY_PREFS = 'songbook.prefs';
+// marca de que o bloco não coube no localStorage: a cópia do IndexedDB é a mais nova e é ela que abre o app
+const KEY_NAO_COUBE = 'songbook.naoCoube';
+function prefsGuardadas() {
+  try {
+    const p = JSON.parse(localStorage.getItem(KEY_PREFS) || 'null');
+    return p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+  } catch { return {}; }
+}
+// o estado a partir do JSON guardado (do localStorage ou da cópia); null se não é uma biblioteca
+function estadoDe(json) {
+  try {
+    const data = JSON.parse(json || 'null');
+    if (data && Array.isArray(data.songs)) return { sets: [], ...data, prefs: { ...DEFAULT_PREFS, ...data.prefs, ...prefsGuardadas() } };
+  } catch { /* corrompido */ }
+  return null;
+}
 function load() {
   try {
-    const data = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (data && Array.isArray(data.songs)) return { sets: [], ...data, prefs: { ...DEFAULT_PREFS, ...data.prefs } };
-  } catch { /* armazenamento indisponível ou corrompido */ }
-  return { songs: [], sets: [], prefs: { ...DEFAULT_PREFS } };
+    const estado = estadoDe(localStorage.getItem(KEY));
+    if (estado) return estado;
+  } catch { /* armazenamento indisponível */ }
+  return { songs: [], sets: [], prefs: { ...DEFAULT_PREFS, ...prefsGuardadas() } };
 }
 
 let state = load();
@@ -18,11 +40,16 @@ let state = load();
 for (const s of state.songs) if ((s.youtube === undefined || s.parte === undefined) && s.content) Object.assign(s, metaFrom(s.content));
 
 function persist() {
+  // (os ajustes primeiro: pequenos, cabem mesmo quando o bloco da biblioteca não cabe)
+  try { localStorage.setItem(KEY_PREFS, JSON.stringify(state.prefs)); } catch { /* sem armazenamento */ }
   const json = JSON.stringify(state);
   try {
     localStorage.setItem(KEY, json);
+    if (naoCoube) { naoCoube = false; localStorage.removeItem(KEY_NAO_COUBE); }
   } catch (e) {
     console.warn('Não foi possível salvar', e);
+    // o bloco não coube: fica marcado, e a cópia do IndexedDB (gravada logo abaixo) passa a ser a que abre o app
+    if (!naoCoube) { naoCoube = true; try { localStorage.setItem(KEY_NAO_COUBE, '1'); } catch { /* sem armazenamento */ } }
   }
   copiaSegura(json);
   // a conta Google (conta.js) sobe o que mudou para a nuvem
@@ -48,23 +75,31 @@ function copiaSegura(json) {
     const tx = b.transaction('dados', 'readwrite');
     tx.objectStore('dados').put(json, KEY);
     tx.oncomplete = tx.onerror = () => b.close();
-  }).catch(() => {}), 400);
+  // (com o bloco fora do localStorage, a cópia é a única gravação: vai na hora)
+  }).catch(() => {}), naoCoube ? 0 : 400);
 }
 const tinhaDados = (() => { try { return Boolean(localStorage.getItem(KEY)); } catch { return false; } })();
+let naoCoube = (() => { try { return Boolean(localStorage.getItem(KEY_NAO_COUBE)); } catch { return false; } })();
+const lerCopia = () => abrirBanco().then((b) => new Promise((ok) => {
+  const r = b.transaction('dados').objectStore('dados').get(KEY);
+  r.onsuccess = () => { b.close(); ok(r.result); };
+  r.onerror = () => { b.close(); ok(null); };
+}));
 if (typeof navigator !== 'undefined' && navigator.storage?.persist) navigator.storage.persisted?.().then((ja) => ja || navigator.storage.persist()).catch(() => {});
 if (typeof indexedDB !== 'undefined') {
-  if (!tinhaDados) {
-    // o localStorage voltou vazio: a cópia, se tiver músicas ou repertórios, volta para ele e o app recomeça com ela
-    abrirBanco().then((b) => new Promise((ok) => {
-      const r = b.transaction('dados').objectStore('dados').get(KEY);
-      r.onsuccess = () => { b.close(); ok(r.result); };
-      r.onerror = () => { b.close(); ok(null); };
-    })).then((json) => {
-      const data = json && JSON.parse(json);
-      if (!data || !Array.isArray(data.songs) || !(data.songs.length || data.sets?.length) || state.songs.length || state.sets.length) return;
-      localStorage.setItem(KEY, json);
-      location.reload();
-    }).catch(() => {});
+  if (naoCoube || !tinhaDados) {
+    // o localStorage voltou vazio (limpeza do navegador) ou a última gravação não coube nele: o app abre com a cópia
+    // do IndexedDB, que é a mais nova (o módulo espera por ela antes de o app começar). Antes, com a gravação que não
+    // coube, o app abria com o bloco antigo do localStorage e ainda regravava a cópia com ele
+    try {
+      const daCopia = estadoDe(await lerCopia());
+      if (daCopia && (naoCoube || ((daCopia.songs.length || daCopia.sets?.length) && !state.songs.length && !state.sets.length))) {
+        state = daCopia;
+        for (const s of state.songs) if ((s.youtube === undefined || s.parte === undefined) && s.content) Object.assign(s, metaFrom(s.content));
+        // (se agora couber, o localStorage volta a ter o bloco inteiro)
+        try { localStorage.setItem(KEY, JSON.stringify(state)); naoCoube = false; localStorage.removeItem(KEY_NAO_COUBE); } catch { /* continua na cópia */ }
+      }
+    } catch { /* sem a cópia: fica o que o localStorage tinha */ }
   } else copiaSegura(localStorage.getItem(KEY));
 }
 

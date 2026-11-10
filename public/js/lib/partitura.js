@@ -622,7 +622,9 @@ export function estimarTom(notas) {
       if (r > melhor.r) melhor = { r, raiz, modo };
     }
   }
-  return tomDaCifra(SUST[melhor.raiz] + (melhor.modo === 'minor' ? 'm' : '')) || { fifths: 0, modo: 'major' };
+  const tom = tomDaCifra(SUST[melhor.raiz] + (melhor.modo === 'minor' ? 'm' : '')) || { fifths: 0, modo: 'major' };
+  // Ré#, Sol# e Lá# maior não existem como armadura (8 a 10 sustenidos): são Mi♭, Lá♭ e Si♭
+  return tom.fifths > 7 ? { ...tom, fifths: tom.fifths - 12 } : tom;
 }
 
 // andamento pelos intervalos entre os começos das notas: o que melhor encaixa os intervalos em meios tempos (depois,

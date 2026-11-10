@@ -183,6 +183,36 @@ export function separarPeloLado(meio, lado, { graveDaBanda = 45, agudoDaVoz = 88
   return { voz, banda };
 }
 
+// a mesma separação, sem ouvir o lado com a IA (a segunda passada do modelo dobrava o tempo): a força de cada nota do
+// meio é medida direto no som do meio e do lado, na frequência dela (Goertzel). O instrumento aberto para
+// um lado soa no lado quase tanto quanto no meio (razão perto de 1; aberto só em parte, ~0,55); a voz, no centro, quase
+// não soa no lado, e a voz que canta a mesma nota do violão fica em ~0,3: o corte é 0,45
+function forcaNaNota(sinal, sr, ini, fim, freq) {
+  const i0 = Math.max(0, Math.floor(ini * sr));
+  const i1 = Math.min(sinal.length, Math.max(i0 + 256, Math.min(Math.ceil(fim * sr), i0 + Math.floor(0.6 * sr))));
+  const n = i1 - i0;
+  if (n < 64) return 0;
+  // (só a fundamental: na oitava da nota pode estar cantando outra voz)
+  const k = 2 * Math.cos((2 * Math.PI * freq) / sr);
+  let s1 = 0;
+  let s2 = 0;
+  // (janela de Hann: sem ela, a nota vizinha vaza para esta frequência)
+  for (let i = 0; i < n; i++) { const s0 = sinal[i0 + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1))) + k * s1 - s2; s2 = s1; s1 = s0; }
+  return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - k * s1 * s2)) / n;
+}
+export function separarPelaEnergia(notas, meio, lado, sr = 22050, { graveDaBanda = 45, agudoDaVoz = 88, razao = 0.45 } = {}) {
+  const voz = [];
+  const banda = [];
+  for (const n of notas) {
+    const freq = 440 * 2 ** ((n.alt - 69) / 12);
+    const noMeio = forcaNaNota(meio, sr, n.ini, n.fim, freq);
+    const noLado = forcaNaNota(lado, sr, n.ini, n.fim, freq);
+    if (n.alt < graveDaBanda || n.alt > agudoDaVoz || noLado >= noMeio * razao) banda.push({ ...n, fonte: 'banda' });
+    else voz.push({ ...n, fonte: 'voz' });
+  }
+  return { voz, banda };
+}
+
 // a afinação quadro a quadro pelo YIN (de Cheveigné e Kawahara): a altura da voz que mais soa (MIDI) e se ali há voz
 // (som periódico e não silêncio). Ouve em ~11 kHz (o áudio a 22050 Hz cai pela metade), de "fmin" a "fmax"
 export function afinacaoYin(amostras, sr = 22050, { fmin = 65, fmax = 1100, passo = 0.0232, limite = 0.15 } = {}) {
@@ -267,8 +297,9 @@ export function rearticulacoes(onsets, { fps = 22050 / 256, limite = 0.6 } = {})
 // toda a limpeza. meio/lado: as notas do Basic Pitch no meio e no lado do estéreo (lado vazio: áudio mono); afin: a
 // afinação do meio; quebraMeio/quebraLado: onde começa nota nova em cada um. Devolve as notas para o app, com a voz
 // acima da banda na força (o app escolhe a melodia pela força), e o que se ouviu ("solo", "coral" ou "mistura")
-export function limpar({ meio, lado = [], afin = null, quebraMeio = null, quebraLado = null, separado = true }) {
-  if (!separado || !lado.length) {
+// "partes": a voz e a banda já separadas (separarPelaEnergia), no lugar das notas do lado
+export function limpar({ meio, lado = [], afin = null, quebraMeio = null, quebraLado = null, separado = true, partes = null }) {
+  if (!partes && (!separado || !lado.length)) {
     // mono: a música junta. A nota que a afinação confirma (a voz, o som que mais se ouve) vai para cima na força
     let juntas = tirarEstalos(juntarPedacos(tirarHarmonicos(meio), { quebra: quebraMeio }));
     if (afin) {
@@ -283,7 +314,7 @@ export function limpar({ meio, lado = [], afin = null, quebraMeio = null, quebra
     }
     return { notas: paraApp(juntas), tipo: 'mistura' };
   }
-  let { voz, banda } = separarPeloLado(meio, lado);
+  let { voz, banda } = partes || separarPeloLado(meio, lado);
   voz = tirarEstalos(juntarPedacos(tirarHarmonicos(voz), { vibrato: true, quebra: quebraMeio }));
   banda = tirarEstalos(juntarPedacos(tirarHarmonicos(banda), { quebra: quebraLado || quebraMeio }), { curta: 0.08, fraca: 0.2 });
   const tipo = polifonia(voz) > 0.2 ? 'coral' : 'solo';
