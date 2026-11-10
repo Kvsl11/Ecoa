@@ -18,6 +18,7 @@ import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo, matizDoTitulo } 
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
+import { dadosDoConvite, desenharConvite, LARGURA as LARGURA_DO_CONVITE, ALTURA as ALTURA_DO_CONVITE } from './lib/convite.js';
 import { NOVIDADES, APP_VERSAO, versaoMostrada, novidadesQueChegam, versaoDoAppDaNovidade } from './lib/novidades.js';
 import { apagarTudoDaConta, editarNomeDaConta, entrarComGoogle, estadoConta, iniciarConta, sairDaConta, sincronizar, usuarioConta } from './conta.js';
 import { baseDoServidor, baixarArquivoDoServidor, receberArquivo, cabecalhos, casarLinhas, chamar, chamarComEtapas, erroExplicado, linhaNoTempo, linhaSemCifra } from './lib/servidor-ia.js';
@@ -585,6 +586,73 @@ async function copiarLetra(song, { comCifra = false, transpose = 0, capo = 0, ti
   if (!texto) { toast('Esta música ainda não tem a letra'); return; }
   toast((await copiarTexto(texto)) ? (comCifra ? 'Cifra copiada: é só colar onde quiser' : 'Letra copiada: é só colar onde quiser') : 'Não consegui copiar');
 }
+// "Compartilhar o Ecoa" (os ⋮ da conta): a folha com a prévia do cartão do convite (lib/convite.js) e as formas de
+// enviar. No APK, a imagem e o texto saem pelo compartilhamento do Android (o plugin); no navegador, pelo do sistema,
+// com a imagem onde ele aceita arquivos. Sem nenhum dos dois (PC), dá para baixar a imagem e copiar o link.
+async function compartilharOEcoa(u) {
+  const dados = dadosDoConvite({ android: noApk(), site: new URL('./', location.href).href, nome: u?.nome });
+  const mensagem = `${dados.texto}\n${dados.url}`;
+  let imagem = null;
+  try {
+    // (a letra do app precisa estar carregada antes de desenhar; sem rede, o cartão sai com a letra do aparelho)
+    await Promise.race([document.fonts?.load?.('800 132px Figtree'), new Promise((ok) => setTimeout(ok, 1500))]).catch(() => {});
+    const canvas = desenharConvite(document.createElement('canvas'), dados);
+    imagem = await new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.92));
+  } catch { /* sem a imagem, o convite vai só com o texto e o link */ }
+  const previa = imagem ? URL.createObjectURL(imagem) : '';
+  const nativo = noApk() ? pluginEcoa() : null;
+  const enviaPeloSistema = !!(nativo?.compartilharApp || navigator.share);
+  await openDialog(`
+    <h3>Compartilhar o Ecoa</h3>
+    ${previa ? `<img class="convite-previa" src="${previa}" alt="Cartão do convite do Ecoa, com o código QR do endereço" width="${LARGURA_DO_CONVITE}" height="${ALTURA_DO_CONVITE}">` : ''}
+    <p class="convite-texto">${!enviaPeloSistema ? 'Baixe a imagem ou copie o link para enviar.' : previa ? 'A imagem vai junto com o texto e o link.' : 'O convite vai com o texto e o link.'} ${noApk() ? 'Quem receber baixa o aplicativo para Android pelo link ou pelo código QR.' : 'Quem receber abre o Ecoa pelo link ou pelo código QR.'}</p>
+    <p class="convite-estado" role="status" hidden></p>
+    <div class="convite-acoes">
+      ${enviaPeloSistema ? `<button class="btn primary" data-c="enviar">${icon('enviarApp', 18)} Compartilhar</button>` : ''}
+      ${!enviaPeloSistema && previa ? `<a class="btn primary" href="${previa}" download="convite-ecoa.jpg">${icon('download', 18)} Baixar a imagem</a>` : ''}
+      <button class="btn" data-c="copiar">${icon('copy', 18)} <span>Copiar o link</span></button>
+    </div>`,
+  (dlg) => {
+    const estado = dlg.querySelector('.convite-estado');
+    const avisar = (texto) => { estado.textContent = texto; estado.hidden = !texto; };
+    dlg.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-c]');
+      if (!b || b.disabled) return;
+      avisar('');
+      if (b.dataset.c === 'copiar') {
+        try {
+          await navigator.clipboard.writeText(dados.url);
+          const rotulo = b.querySelector('span');
+          rotulo.textContent = 'Link copiado';
+          setTimeout(() => { rotulo.textContent = 'Copiar o link'; }, 2200);
+        } catch { avisar(`Não foi possível copiar. O endereço é ${dados.url}`); }
+        return;
+      }
+      b.disabled = true;
+      try {
+        if (nativo?.compartilharApp) {
+          await nativo.compartilharApp({ texto: dados.texto, url: dados.url, ...(imagem ? { imagem: await base64DoBlob(imagem), tipo: imagem.type } : {}) });
+        } else {
+          const arquivo = imagem && typeof File === 'function' ? new File([imagem], 'convite-ecoa.jpg', { type: imagem.type }) : null;
+          if (arquivo && navigator.canShare?.({ files: [arquivo] })) await navigator.share({ files: [arquivo], title: dados.titulo, text: mensagem });
+          else await navigator.share({ title: dados.titulo, text: dados.texto, url: dados.url });
+        }
+      } catch (erro) {
+        // (fechar a lista de aplicativos sem escolher não é falha)
+        if (erro?.name !== 'AbortError') avisar(`Não foi possível compartilhar${erro?.message ? `: ${erro.message}` : '.'} O link pode ser copiado abaixo.`);
+      }
+      b.disabled = false;
+    });
+  }, { folha: true });
+  if (previa) URL.revokeObjectURL(previa);
+}
+const base64DoBlob = (blob) => new Promise((ok, falha) => {
+  const leitor = new FileReader();
+  leitor.onload = () => ok(String(leitor.result).split(',')[1] || '');
+  leitor.onerror = () => falha(leitor.error);
+  leitor.readAsDataURL(blob);
+});
+
 // compartilhar pelo sistema (WhatsApp, e-mail…); sem isso, copia o texto
 async function compartilhar(dados) {
   if (navigator.share) {
@@ -18830,27 +18898,8 @@ function viewConta() {
       <button class="pg-item pg-sair" data-v="sair">${icon('sair', 22)}<span>Sair da conta</span></button>
     </div>`,
   (dlg, done) => dlg.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) done(b.dataset.v); }), { folha: true }).then(async (v) => {
-    if (v === 'compartilhar') {
-      if (noApk()) {
-        const url = 'https://kvsl11.github.io/Songbook/Ecoa.apk';
-        const mensagem = 'Conheça o Ecoa! 🎵\nCifras, letras sincronizadas, acordes e recursos para seus momentos de música.\nBaixe o app para Android:';
-        const nativo = pluginEcoa();
-        if (nativo?.compartilharApp) {
-          try { await nativo.compartilharApp({ texto: mensagem, url }); }
-          catch (e) { await ask({ title: 'Não foi possível compartilhar', text: String(e?.message || e), ok: 'Entendi', cancel: false }); }
-        } else if (navigator.share) {
-          await navigator.share({ title: 'Ecoa — Ouça, cante e ecoe', text: mensagem + '\n\n' + url, url }).catch(() => {});
-        } else {
-          await navigator.clipboard?.writeText(mensagem + '\n\n' + url);
-          toast('Link de download copiado');
-        }
-      } else {
-        // No navegador, mantém o compartilhamento atual da versão Web.
-        const url = new URL('./', location.href).href;
-        if (navigator.share) navigator.share({ title: 'Ecoa', text: 'Ouça e cante com o Ecoa', url }).catch(() => {});
-        else { navigator.clipboard?.writeText(url); toast('Link copiado'); }
-      }
-    } else if (v === 'sinc') sincronizar({ forcar: true });
+    if (v === 'compartilhar') compartilharOEcoa(u);
+    else if (v === 'sinc') sincronizar({ forcar: true });
     else if (v === 'sair') {
       if (!(await ask({ title: 'Sair da conta?', text: 'Para usar o Ecoa de novo, é só entrar com o Google. As suas músicas e os repertórios continuam guardados na sua conta.', ok: 'Sair' }))) return;
       await sairDaConta();

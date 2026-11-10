@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 617, data: '2026-11-10', titulo: 'Convite do Ecoa: cartão redesenhado com código QR e prévia antes do envio',
+    itens: [
+      { tipo: 'melhoria', texto: 'O cartão enviado por "Compartilhar o Ecoa" (menu de opções da conta) era desenhado pelo Android com um leiaute fixo e simples. O cartão passou a ser desenhado pela interface (1080 × 1350 pixels, proporção 4:5), com a marca, a frase do aplicativo, os recursos principais, o primeiro nome de quem convida e um código QR do endereço de download, que permite a instalação apontando a câmera de outro aparelho. A imagem passou a ser enviada em JPEG, com cerca de 150 kB. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'novo', texto: 'A opção "Compartilhar o Ecoa" passou a abrir uma folha com a prévia do cartão e as ações Compartilhar e Copiar o link, em vez de abrir diretamente a lista de aplicativos do sistema. No navegador, a imagem é enviada junto com o texto quando o sistema aceita arquivos no compartilhamento; onde não há compartilhamento do sistema, a folha oferece o download da imagem.' },
+      { tipo: 'correcao', texto: 'As falhas no compartilhamento e na cópia do link passaram a ser informadas na própria folha; antes, a confirmação da cópia do link não era exibida. O arquivo da imagem passou a receber um nome por envio, para que um convite novo não substitua o arquivo que outro aplicativo ainda está lendo. Disponível mediante atualização do aplicativo.' },
+    ],
+  },
+  {
     versao: 616, data: '2026-11-10', titulo: 'Cor da música: matiz predominante da capa e capa gerada no player',
     itens: [
       { tipo: 'correcao', texto: 'Nas músicas sem imagem de capa (por exemplo, as importadas), a lista exibia a capa gerada em degradê no matiz do título, mas a barra do player exibia um quadrado preto: a regra de estilo da capa na barra (fundo preto) tinha precedência sobre a da capa gerada. A capa sem imagem do player (barra e Tocando agora) passou a usar o mesmo degradê e o mesmo matiz da capa gerada da lista.' },
@@ -74,12 +82,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No aplicativo Android, a foto do artista variava entre aberturas: as fontes (canal do YouTube, Deezer e Cifra Club) eram consultadas juntas e prevalecia a que respondesse em até 1,2 s. No navegador, o canal do YouTube não responde e a foto do Deezer sempre prevalecia; no Android, que acessa o YouTube pela conexão do sistema, a foto alternava. Além disso, quando o Deezer limitava as consultas, o aplicativo tentava de novo apenas uma vez, e outra fonte substituía a foto guardada. A foto do Deezer passou a ser a principal em todas as telas, com as demais fontes apenas como reserva; a foto do Deezer já guardada não é substituída quando ele não responde; as novas tentativas e os tempos de espera passaram a ser os mesmos do site; e o artista passou a ser localizado pelo nome quando a faixa aberta não consta no Deezer, de modo que a foto não depende da música aberta primeiro. As fotos de outras fontes guardadas nas músicas da biblioteca são substituídas pela do Deezer em segundo plano.' },
       { tipo: 'correcao', texto: 'Na busca, a linha da música exibia a miniatura do vídeo até a capa oficial chegar e então a trocava, o que aparecia como uma capa sem relação piscando. Ao abrir a música, a capa era procurada novamente com o título e o artista da página da cifra, que podem ser escritos de forma diferente, e a música podia abrir com outra capa. A linha passou a exibir a capa oficial diretamente (a miniatura do vídeo só aparece quando não há capa oficial), a capa vista na busca passou a acompanhar a música aberta, e a capa já guardada passou a ser mantida enquanto continuar entre as capas corretas da gravação, sem depender de quais imagens carregam primeiro.' },
       { tipo: 'correcao', texto: 'No aplicativo Android, a tela Novidades e as demais correções podiam não chegar com o APK novo: a página é carregada dos arquivos do APK, mas o service worker continuava servindo o pacote guardado da versão anterior quando o número de versão do site não mudava, como ocorreu nos APKs 1.200 a 1.206. O service worker passou a ser registrado com o número do APK instalado, e cada APK novo substitui o pacote guardado pelo seu. Disponível mediante atualização do aplicativo.' },
-    ],
-  },
-  {
-    versao: 607, data: '2026-11-07', titulo: 'Tema automático passou a seguir o modo do aparelho no Android',
-    itens: [
-      { tipo: 'correcao', texto: 'No aplicativo Android, o tema "Automático" exibia o tema claro mesmo com o aparelho no modo escuro. O navegador interno do Android (WebView) informa à página o modo claro ou escuro a partir do tema declarado no aplicativo, e não a partir da configuração do aparelho; além disso, a tela não era recriada quando o modo do sistema mudava, de modo que a troca não era percebida. O aplicativo passou a informar à página o modo real do aparelho ao abrir, ao voltar do segundo plano e no momento em que o modo do sistema muda, e o último valor informado é usado desde o início da próxima abertura, sem alternância visível entre os temas. A escolha manual de Escuro ou Claro não foi alterada. Disponível mediante atualização do aplicativo.' },
     ],
   },
 ];
