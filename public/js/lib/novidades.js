@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 611, data: '2026-11-10', titulo: 'Integração Gemini padronizada e identidade da assistência simplificada',
+    itens: [
+      { tipo: 'melhoria', texto: 'O servidor passou a priorizar o Google Gemini quando a chave correspondente está configurada, inclusive quando há também uma chave do provedor alternativo. A seleção explícita de Claude continua disponível por configuração; na ausência da chave Gemini, mantém-se o provedor alternativo como reserva.' },
+      { tipo: 'correcao', texto: 'A API de síntese de fala deixou de receber parâmetros de gênero ou personagem. A seleção da voz passou a ser interna ao serviço, com configuração única para a síntese Gemini e para a voz neural de reserva, evitando que a interface envie escolhas de persona.' },
+      { tipo: 'melhoria', texto: 'A identidade visual da assistência foi simplificada com um símbolo inspirado no padrão visual do Gemini e ajustes de apresentação da conversa e do modo ao vivo. A conexão dos controles da interface à sessão nativa Gemini Live e a validação em aparelho permanecem etapas pendentes, não incluídas como recursos concluídos nesta versão.' },
+      { tipo: 'melhoria', texto: 'As instruções da assistência passaram a exigir que propostas de repertório sejam apresentadas antes da gravação e que o salvamento só seja confirmado após uma ação explícita e o retorno de sucesso do aplicativo. A interface de confirmação visual ainda depende da implementação dos cartões de ação.' },
+    ],
+  },
+  {
     versao: 610, data: '2026-11-08', titulo: 'Remoção definitiva do botão extra de geração musical',
     itens: [
       { tipo: 'correcao', texto: 'O botão separado de geração de letra e cifra foi removido da interface. A geração continua automática durante a importação da música, sem exigir um comando manual nem ocupar a área dos controles do player. O número do pacote offline foi atualizado para invalidar o cache antigo que ainda podia exibir a interface anterior.' },
