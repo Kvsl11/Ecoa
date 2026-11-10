@@ -22,3 +22,5 @@ Correções só de comportamento da tela (o que não fica guardado) não precisa
   "foi corrigido"), sem gíria nem tom de conversa. O que só chega com o APK novo termina com "Disponível mediante
   atualização do aplicativo."
 - `npm test` precisa passar.
+- A nota da versão deve descrever apenas o que realmente foi entregue. Recursos ainda sem ligação visual, teste ou publicação devem ser identificados como pendentes, nunca como concluídos.
+- O APK recebe `versionCode` e `versionName` automaticamente pelo número da execução do workflow Android; não fixe nem reutilize manualmente esses valores. O workflow gera `Ecoa-versao.json` a partir de `NOVIDADES`, e as notas da Release Android devem incluir a última nota técnica. Antes de encerrar uma atualização, confira que a versão do `sw.js`, a primeira entrada de `NOVIDADES` e o JSON do APK correspondem entre si.
