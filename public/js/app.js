@@ -14,7 +14,7 @@ import {
   mudarOitava, NOMES_NOTA, nomeDaAltura, nomeDoTom, nomeDuracao, novaPartitura, paraMusicXML, tiquesDoCompasso,
   claveDaVoz, estimarAndamento, estimarCompasso, estimarTom, faixaDoModo, FAIXA_CORAL, melodiaDasNotas, tempoDaGrade, tomDaCifra, vozesDasNotas, colocarLetra, letraEmSilabas, temLetra, silabasDaLetra, temCifra as temCifraNaPartitura,
 } from './lib/partitura.js';
-import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo } from './lib/cores.js';
+import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo, matizDoTitulo } from './lib/cores.js';
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
@@ -782,12 +782,12 @@ function abrirCalendario(ancora, valor, aoEscolher) {
   (cal.querySelector('[aria-pressed="true"]') || cal.querySelector('.hoje') || cal.querySelector('[data-dia]'))?.focus({ preventScroll: true });
 }
 
-const hue = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const hue = matizDoTitulo;
 const host = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 // sem capa: uma cor pelo título (matiz, saturação e brilho variam de música para música)
 const corDaMusica = (titulo) => corCss(corPeloTitulo(titulo));
 // cor da capa: as cores fortes da capa da música (ou da miniatura do vídeo) são calculadas uma vez por imagem e
-// guardadas; cada música escolhe uma delas, com um toque só dela (lib/cores.js), e ela vira o fundo da letra e do
+// guardadas; a música fica com a mais forte, no matiz da capa (lib/cores.js), e ela vira o fundo da letra e do
 // player. Sem capa, capa cinza ou sem internet, fica a cor pelo título
 // (v2: antes guardava só a cor mais forte; a chave nova faz as capas já vistas serem lidas de novo)
 const CORES_CAPA = 'songbook.coresCapa2';
@@ -3703,6 +3703,8 @@ const player = (() => {
     fundo.hidden = !q;
     fundoCasa.classList.toggle('ativo', Boolean(q) && fundoCasa.isConnected);
     el.classList.toggle('fundo-fora', Boolean(q) && fundoCasa.isConnected);
+    // (sem imagem, a capa gerada é a mesma da lista: o degradê no matiz do título)
+    if (semCapa) mini.style.setProperty('--h', hue(atual?.titulo || ''));
     const conteudo = semCapa ? 'nota' : q ? `q:${q}` : '';
     if (mini.dataset.conteudo !== conteudo) {
       mini.dataset.conteudo = conteudo;

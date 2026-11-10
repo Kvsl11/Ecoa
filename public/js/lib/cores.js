@@ -1,8 +1,7 @@
 // Cor da capa: as cores de uma imagem (os pixels já reduzidos, RGBA) viram o fundo da letra da música, do player e do
 // que mais usa a cor da música. Cada capa dá as suas cores fortes (os matizes que mais aparecem, contando mais os pixels
-// vivos), com a saturação e o brilho puxados delas, sempre escuros o bastante para o texto branco. Cada música escolhe
-// uma dessas cores e ganha um toque só dela (o matiz, a saturação e o brilho mudam um pouco), para as músicas não
-// ficarem todas com a mesma cor: capas parecidas (o tom de pele dos clipes, o roxo dos palcos) davam sempre o mesmo fundo.
+// vivos), com a saturação e o brilho puxados delas, sempre escuros o bastante para o texto branco. A música fica com a
+// mais forte delas, no matiz da capa; só a saturação e o brilho mudam um pouco de música para música.
 
 function hsvDe(r, g, b) {
   const max = Math.max(r, g, b);
@@ -93,28 +92,29 @@ function semente(texto) {
 }
 const limitar = (x, a, b) => Math.max(a, Math.min(b, x));
 
-// A cor da música: uma das cores fortes da capa (a mais forte é a mais provável, mas não a única) com um toque só da
-// música: o matiz anda até 14° para um lado ou outro, a saturação até 10 pontos e o brilho até 5 (sempre escuro o
-// bastante para o texto branco). A mesma música tem sempre a mesma cor
+// o matiz das capas geradas (as músicas sem imagem, nas listas): o mesmo sempre para o mesmo título
+export const matizDoTitulo = (titulo) => [...String(titulo)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+
+// A cor da música: a cor mais forte da capa (a predominante entre os pixels vivos), no matiz dela. Só a saturação (até
+// 6 pontos) e o brilho (até 4) mudam um pouco de música para música, sempre escuros o bastante para o texto branco.
+// (Antes a música sorteava uma entre as até 4 cores fortes da capa e ainda andava o matiz até 14°: uma capa quase toda
+// azul com um detalhe vermelho podia dar o fundo vermelho.) A mesma música tem sempre a mesma cor
 export function corDaMusicaNaCapa(cores, chave) {
   if (!cores?.length) return null;
-  const n = semente(chave);
-  const total = cores.reduce((a, c) => a + (c.p || 1), 0);
-  let sorteio = ((n % 1000) / 1000) * total;
-  let c = cores[0];
-  for (const x of cores) { sorteio -= x.p || 1; if (sorteio < 0) { c = x; break; } }
+  const c = cores[0];
   const m = semente(chave + '·tom');
   return {
-    h: Math.round((c.h + (m % 29) - 14 + 360) % 360),
-    s: limitar(c.s + ((m >>> 5) % 21) - 10, 22, 80),
-    l: limitar(c.l + ((m >>> 10) % 11) - 5, 18, 40),
+    h: Math.round(c.h) % 360,
+    s: limitar(c.s + ((m >>> 5) % 13) - 6, 22, 80),
+    l: limitar(c.l + ((m >>> 10) % 9) - 4, 18, 40),
   };
 }
 
-// sem capa: uma cor pelo título (matiz, saturação e brilho variam de música para música: 360 × 41 × 17 combinações)
+// sem capa: uma cor pelo título, no matiz da capa gerada das listas (a saturação e o brilho variam de música para
+// música). Antes o matiz saía de outra conta, e o player ficava de uma cor e a capa da lista de outra
 export function corPeloTitulo(titulo) {
   const n = semente(titulo);
-  return { h: n % 360, s: 30 + ((n >>> 9) % 41), l: 22 + ((n >>> 15) % 17) };
+  return { h: matizDoTitulo(titulo), s: 30 + ((n >>> 9) % 41), l: 22 + ((n >>> 15) % 17) };
 }
 
 export const corCss = ({ h, s, l }) => `hsl(${h} ${s}% ${l}%)`;

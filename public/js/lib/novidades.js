@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 616, data: '2026-11-10', titulo: 'Cor da música: matiz predominante da capa e capa gerada no player',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas músicas sem imagem de capa (por exemplo, as importadas), a lista exibia a capa gerada em degradê no matiz do título, mas a barra do player exibia um quadrado preto: a regra de estilo da capa na barra (fundo preto) tinha precedência sobre a da capa gerada. A capa sem imagem do player (barra e Tocando agora) passou a usar o mesmo degradê e o mesmo matiz da capa gerada da lista.' },
+      { tipo: 'correcao', texto: 'A cor de fundo das músicas sem capa era calculada por uma função diferente da usada na capa gerada, o que resultava em matizes distintos entre a lista e o player. O matiz passou a ser o mesmo nos dois casos; a saturação e a luminosidade continuam variando por título.' },
+      { tipo: 'correcao', texto: 'A cor da tela da música e do player era sorteada, por música, entre até 4 cores fortes da capa, com desvio adicional de até 14° no matiz; uma capa predominantemente azul com um detalhe vermelho podia resultar em fundo vermelho. A cor passou a ser sempre a mais forte da capa (a predominante entre os pixels vivos), sem desvio de matiz; apenas a saturação (até 6 pontos) e a luminosidade (até 4 pontos) variam entre músicas. A cor não é guardada nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
+      { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados e por renderização em navegador; a validação em aparelho Android ainda não foi realizada.' },
+    ],
+  },
+  {
     versao: 615, data: '2026-11-10', titulo: 'Sincronização de letras pelo Gemini no Android: fila, tolerância na resposta e causa da falha',
     itens: [
       { tipo: 'correcao', texto: 'A revisão das músicas salvas da versão 612 disparava, ao mesmo tempo, um download de áudio e um pedido ao Gemini para cada música sem letra sincronizada no LRCLIB e na NetEase. Os pedidos simultâneos esgotavam a cota por minuto do Google e a sincronização terminava sem resultado. Os pedidos em segundo plano passaram a ser atendidos um de cada vez; após uma resposta de cota esgotada (HTTP 429), ficam suspensos por 10 minutos. A música aberta na tela e o "Consertar agora" não aguardam a fila.' },
@@ -71,15 +80,6 @@ export const NOVIDADES = [
     versao: 607, data: '2026-11-07', titulo: 'Tema automático passou a seguir o modo do aparelho no Android',
     itens: [
       { tipo: 'correcao', texto: 'No aplicativo Android, o tema "Automático" exibia o tema claro mesmo com o aparelho no modo escuro. O navegador interno do Android (WebView) informa à página o modo claro ou escuro a partir do tema declarado no aplicativo, e não a partir da configuração do aparelho; além disso, a tela não era recriada quando o modo do sistema mudava, de modo que a troca não era percebida. O aplicativo passou a informar à página o modo real do aparelho ao abrir, ao voltar do segundo plano e no momento em que o modo do sistema muda, e o último valor informado é usado desde o início da próxima abertura, sem alternância visível entre os temas. A escolha manual de Escuro ou Claro não foi alterada. Disponível mediante atualização do aplicativo.' },
-    ],
-  },
-  {
-    versao: 606, data: '2026-11-07', titulo: 'Ajustes reorganizados, com ícones revistos e sem opções repetidas',
-    itens: [
-      { tipo: 'melhoria', texto: 'Os tópicos dos Ajustes passaram a ter ícones correspondentes ao conteúdo: Avançado deixou de usar o ícone de banco de dados (semelhante a uma memória) e passou a usar uma chave de ferramenta; Backup, que usava a seta de envio, passou a usar uma caixa de arquivo; Permissões passou a usar um escudo; PowerPoint, um quadro de apresentação; e Música e cifra, uma nota musical no lugar do sinal "#".' },
-      { tipo: 'melhoria', texto: 'As opções repetidas foram unificadas. A exportação e a importação dos downloads, que ficavam em Downloads, passaram para Backup, que agora reúne a cópia da biblioteca e a dos downloads, cada uma com a sua explicação. O tópico Qualidade de mídia, que repetia a linha "Qualidade dos downloads" da página de Downloads, foi retirado da lista; a opção continua dentro de Downloads e internet. Os três atalhos do alto dos Ajustes (Economia de dados, Sessão privada e Capa animada) foram removidos, pois repetiam opções das páginas.' },
-      { tipo: 'melhoria', texto: 'Música e cifra passou a ser dividida em Cifra (destaque e diagrama dos acordes), Reprodução (transição entre as músicas e capa animada) e Privacidade (sessão privada). Downloads e economia de dados passou a se chamar Downloads e internet, com a economia de dados e o download com dados móveis na seção Internet; a descrição da economia de dados passou a dizer o que ela faz: desliga a capa animada, toca do aparelho as músicas baixadas, até no modo vídeo, e evita que a busca carregue as músicas antes do toque.' },
-      { tipo: 'correcao', texto: 'A sessão privada não registrava as músicas tocadas, mas abrir a página de uma música ainda a colocava nos Recentes; isso foi corrigido. Como a sessão não dava nenhum sinal de estar ligada, passou a ser indicada em Recentes, nas Estatísticas e no menu do perfil, com um atalho para desligá-la, e a opção passou a explicar o seu efeito.' },
     ],
   },
 ];
