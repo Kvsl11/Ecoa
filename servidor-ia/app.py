@@ -827,7 +827,6 @@ async def ler_anexo(arquivo: UploadFile = File(...)):
 
 class PedidoFala(BaseModel):
     texto: str
-    voz: str = "feminina"
 
 
 @app.post("/falar", dependencies=[Depends(conferir_chave)])
