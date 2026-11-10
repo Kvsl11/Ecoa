@@ -607,10 +607,9 @@ public class EcoaPlugin extends Plugin {
     }
 
     private void iniciarLumenAoVivo(PluginCall call) {
-        String genero = call.getString("genero", "feminina");
         String instrucao = call.getString("instrucao",
             "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em português do Brasil, naturalmente e com frases curtas.");
-        GeminiLive.iniciar(genero, instrucao, ContextCompat.getMainExecutor(getContext()), new GeminiLive.Retorno() {
+        GeminiLive.iniciar(instrucao, ContextCompat.getMainExecutor(getContext()), new GeminiLive.Retorno() {
             @Override public void sucesso() {
                 JSObject r = new JSObject();
                 r.put("ativa", true);
