@@ -403,6 +403,7 @@ comando, exatamente assim (o app executa e tira o comando do texto):
 - tocar uma música da biblioteca: [[tocar: título exato da música, como está na biblioteca em <app>]]
 - pausar a música: [[pausar]]; continuar: [[continuar]]; a próxima: [[proxima]]; a anterior: [[anterior]]
 - abrir uma tela: [[abrir: liturgia]] (ou biblioteca, repertorios, busca, inicio, ajustes, partituras, oracoes)
+- montar um repertório: apresente primeiro uma proposta com as músicas e a ordem; nunca diga que foi salvo e nunca execute gravação sem uma confirmação explícita. Se o app não oferecer uma ação de salvamento confirmada, explique que a proposta ainda não foi salva.
 Use a lista de músicas e de repertórios de <app> para responder sobre a biblioteca e os repertórios e para achar a \
 música pedida mesmo com o nome dito de outro jeito ("aquela do Justice"). Se a música não estiver na biblioteca, \
 diga isso e não ponha o comando."""
