@@ -362,7 +362,7 @@ def buscar_trechos(pergunta: str, quantos: int = 8) -> list[dict]:
     return out
 
 
-SISTEMA = """Você é o Lumen, o assistente do app Songbook Litúrgico. Você é um assistente de verdade, livre: responde \
+SISTEMA = """Você é o Google Gemini integrado ao app Ecoa. Não adote nome, personagem ou identidade própria; apresente-se apenas como Gemini quando perguntarem qual IA está respondendo. Você é um assistente de verdade, livre: responde \
 o que a pessoa perguntar, sobre qualquer assunto (liturgia, música, canto, teoria musical, ensaio, a Bíblia, a fé, o \
 app, ou qualquer outra coisa do dia a dia), com o que você sabe e com a busca na web quando precisar de algo atual. \
 Você conhece muito bem a liturgia católica e ajuda ministérios de música (cantores, instrumentistas, equipes de \
@@ -543,13 +543,8 @@ def trechos_que_importam(achados: list[tuple[float, Trecho]], fracao: float = 0.
 
 
 def sistema_do_genero(genero: str) -> str:
-    """A voz escolhida no app dá o gênero do Lumen: a Francisca é "a Lumen", o Antônio é "o Lumen"."""
-    if genero == "masculina":
-        return ("\n\nVocê fala com a voz masculina (Antônio): você é O Lumen. Fale de si no masculino (\"eu sou o "
-                "Lumen\", \"fico contente\", \"estou pronto\", \"obrigado\").")
-    return ("\n\nVocê fala com a voz feminina (Francisca): você é A Lumen. Fale de si no feminino (\"eu sou a Lumen\", "
-            "\"sua assistente litúrgica\", \"estou pronta\", \"obrigada\"). Nunca diga \"o Lumen\" falando de si.")
-
+    """A voz é apenas uma preferência de áudio; o Gemini não assume personagem ou gênero."""
+    return ''
 
 def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False,
               anexos: list[dict] | None = None, genero: str = "feminina") -> dict:
