@@ -18,7 +18,7 @@ import com.google.firebase.ai.type.Voice;
 import java.util.concurrent.Executor;
 
 /**
- * Sessão de voz do Lúmen no próprio Android, usando Firebase AI Logic / Gemini Live.
+ * Sessão de voz do Gemini no Android, usando Firebase AI Logic / Gemini Live.
  * Nenhuma chave Gemini é armazenada no APK e nenhum servidor próprio é necessário.
  */
 final class GeminiLive {
@@ -33,7 +33,7 @@ final class GeminiLive {
 
     private GeminiLive() {}
 
-    static void iniciar(String genero, String instrucao, Executor executor, Retorno retorno) {
+    static void iniciar(String instrucao, Executor executor, Retorno retorno) {
         synchronized (GeminiLive.class) {
             if (sessao != null || iniciando) {
                 retorno.erro(new IllegalStateException("A conversa ao vivo já está iniciada."));
@@ -43,17 +43,16 @@ final class GeminiLive {
         }
 
         try {
-            // Mapeia as identidades do Lúmen para vozes suportadas pelo Gemini Live.
-            String voz = "masculina".equalsIgnoreCase(genero) ? "Charon" : "Aoede";
+            // Voz padrão do Gemini Live; não há personagem nem seleção de gênero.
             Content sistema = new Content.Builder()
                 .addText(instrucao == null || instrucao.trim().isEmpty()
-                    ? "Você é o Lúmen, assistente do Songbook Litúrgico. Responda em português do Brasil, com naturalidade, clareza e frases curtas."
+                    ? "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em português do Brasil, com naturalidade, clareza e frases curtas."
                     : instrucao)
                 .build();
 
             LiveGenerationConfig config = new LiveGenerationConfig.Builder()
                 .setResponseModality(ResponseModality.AUDIO)
-                .setSpeechConfig(new SpeechConfig(new Voice(voz)))
+                .setSpeechConfig(new SpeechConfig(new Voice("Aoede")))
                 .build();
 
             LiveGenerativeModel modelo = FirebaseAI
