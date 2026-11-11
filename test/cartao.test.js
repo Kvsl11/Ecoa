@@ -93,3 +93,20 @@ test('fundos animados: a volta se repete a cada DURACAO_DA_ANIMACAO e o acaso é
     assert.notDeepEqual(desenho(qual, 1.5), a, qual);
   }
 });
+
+test('o link compartilhado é o da música no Ecoa, e o do aplicativo leva o mesmo caminho', async () => {
+  const { linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, ENDERECO_DO_ECOA } = await import('../public/js/lib/cartao.js');
+  assert.equal(linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson'), `${ENDERECO_DO_ECOA}#/ouvir/Eu%20Seguirei/Frei%20Gilson`);
+  assert.equal(linkDaMusicaNoEcoa('  Só  Tu ', ''), `${ENDERECO_DO_ECOA}#/ouvir/S%C3%B3%20Tu`);
+  assert.equal(linkDaMusicaNoEcoa('', 'Alguém'), '');
+  // (a barra do nome não vira mais um pedaço do caminho, e os parênteses não cortam o link nas mensagens)
+  const l = linkDaMusicaNoEcoa("Die With A Smile (feat. Bruno Mars)", 'AC/DC');
+  assert.ok(!/[()'!*\s]/.test(l), l);
+  const [, t, a] = /#\/ouvir\/([^/]+)\/([^/]+)$/.exec(l);
+  assert.equal(decodeURIComponent(t), 'Die With A Smile (feat. Bruno Mars)');
+  assert.equal(decodeURIComponent(a), 'AC/DC');
+  const app = linkParaAbrirNoAplicativo('Eu Seguirei', 'Frei Gilson');
+  assert.ok(app.startsWith('intent://ouvir/Eu%20Seguirei/Frei%20Gilson#Intent;scheme=ecoa;package=br.ecoa.app;'), app);
+  assert.ok(app.includes(`S.browser_fallback_url=${encodeURIComponent(linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson'))}`));
+  assert.equal(linkParaAbrirNoAplicativo(''), '');
+});

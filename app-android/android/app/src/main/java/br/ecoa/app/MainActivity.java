@@ -67,6 +67,7 @@ public class MainActivity extends BridgeActivity {
         barras.setAppearanceLightNavigationBars(false);
 
         Acoes.daIntent(getIntent());
+        abrirLink(getIntent());
         pedirNotificacoes();
         // O texto do mesmo tamanho do site no Chrome: o WebView aumenta o texto pelo "Tamanho da fonte" do Android, e no
         // app tudo ficava maior, com textos quebrados, sobrepostos e telas espremidas (o site é feito para o tamanho normal)
@@ -223,5 +224,38 @@ public class MainActivity extends BridgeActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         Acoes.daIntent(intent);
+        abrirLink(intent);
+    }
+
+    // O link de uma música compartilhada que abriu o app: https://kvsl11.github.io/Ecoa/#/ouvir/<nome>/<artista> ou
+    // ecoa://ouvir/<nome>/<artista>. A página vai para a tela da música (a rota "#/ouvir/..."). Com o app abrindo
+    // agora, a página ainda não carregou: tenta de novo a cada meio segundo, por até 30 s.
+    private void abrirLink(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
+        android.net.Uri uri = intent.getData();
+        String rota = null;
+        if ("ecoa".equals(uri.getScheme()) && "ouvir".equals(uri.getHost())) {
+            String caminho = uri.getEncodedPath();
+            if (caminho != null && caminho.length() > 1) rota = "#/ouvir" + caminho;
+        } else if ("https".equals(uri.getScheme()) && "kvsl11.github.io".equals(uri.getHost())) {
+            String parte = uri.getEncodedFragment();
+            if (parte != null && parte.startsWith("/ouvir/")) rota = "#" + parte;
+        }
+        // (o link foi atendido: girar a tela ou voltar ao app não o abre de novo)
+        intent.setData(null);
+        if (rota == null) return;
+        final String js = "(function(){if(!window.__songbookOk)return 'nao';location.hash=" + org.json.JSONObject.quote(rota) + ";return 'ok'})()";
+        final int[] tentativas = { 0 };
+        final Runnable[] tentar = new Runnable[1];
+        tentar[0] = () -> {
+            WebView w = getBridge() == null ? null : getBridge().getWebView();
+            if (w == null) { if (tentativas[0]++ < 60) principal.postDelayed(tentar[0], 500); return; }
+            try {
+                w.evaluateJavascript(js, (r) -> { if (!"\"ok\"".equals(r) && tentativas[0]++ < 60) principal.postDelayed(tentar[0], 500); });
+            } catch (Exception e) {
+                if (tentativas[0]++ < 60) principal.postDelayed(tentar[0], 500);
+            }
+        };
+        principal.post(tentar[0]);
     }
 }

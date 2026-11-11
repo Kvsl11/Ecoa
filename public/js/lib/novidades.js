@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 634, data: '2026-11-11', titulo: 'Compartilhamento: link que abre a música no Ecoa e destinos Instagram, Telegram, Facebook e X',
+    itens: [
+      { tipo: 'correcao', texto: 'O link enviado com o cartão (e o copiado em "Copiar link") era o endereço do vídeo no YouTube. Passou a ser o endereço da música no Ecoa (kvsl11.github.io/Ecoa/#/ouvir/nome/artista), nos cartões Música, Letra e Vídeo. Quem abre o link chega à música: a da própria biblioteca, quando já a tem, ou a música trazida pelo nome e pelo artista, como as da busca. A biblioteca é individual; por isso o link leva o nome e o artista, e não o identificador da música de quem enviou.' },
+      { tipo: 'novo', texto: 'No navegador do Android, o link exibe uma tela com o botão "Abrir no aplicativo", que entrega a música ao aplicativo instalado, além de "Ouvir aqui" e "Procurar na busca". O aplicativo Android passou a receber os links de música (os do site e o endereço próprio ecoa://ouvir) e a abrir a música correspondente. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'novo', texto: 'Aos destinos do compartilhamento foram acrescentados Telegram, Facebook e X, com o símbolo oficial de cada um. O destino Instagram, antes exibido somente no aplicativo Android, passou a aparecer também no navegador que oferece o compartilhamento do sistema. No aplicativo, cada destino abre o aplicativo correspondente com o cartão; no navegador, Telegram, Facebook e X abrem a página de compartilhar de cada serviço com o link.' },
+      { tipo: 'melhoria', texto: 'Pendente: o Android só abre diretamente no aplicativo o link do site quando o endereço é conferido por um arquivo publicado na raiz de kvsl11.github.io (assetlinks.json), que fica fora deste repositório e não foi publicado; até lá, o link abre no navegador, com o botão "Abrir no aplicativo", ou diretamente no aplicativo se a opção "Abrir links compatíveis" for ligada nas configurações do Android. A rota e os destinos foram verificados em navegador; a parte Android não foi executada em aparelho.' },
+    ],
+  },
+  {
     versao: 633, data: '2026-11-11', titulo: 'Compartilhamento: fundos animados no cartão, enviado em vídeo',
     itens: [
       { tipo: 'novo', texto: 'A tela "Personalizar" do compartilhamento passou a ter a ferramenta "Animado", com cinco fundos em movimento para os cartões Música, Letra e Vídeo: Eco (anéis que se abrem a partir do centro), Ondas, Aurora, Bolhas e Brilhos. O movimento é desenhado sobre a cor escolhida, sobre a capa ou sobre a foto do aparelho, e é exibido na prévia do cartão. A opção "Parado" mantém o cartão em imagem, como antes.' },
@@ -76,18 +85,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'O atalho "Liturgia de hoje", o cartão da liturgia do dia e o filtro "Liturgia" foram retirados da página inicial, pois o mesmo conteúdo está na aba Liturgia. O lugar do atalho passou a ser ocupado por mais uma música recente (8 atalhos de músicas e repertórios, antes 7).' },
       { tipo: 'novo', texto: 'No lugar do cartão da liturgia, a página inicial passou a exibir "Suas mais tocadas": até 12 músicas da biblioteca, ordenadas pelo tempo ouvido nos últimos 30 dias (os mesmos dados das Estatísticas). A seção aparece a partir de 3 músicas ouvidas no período.' },
       { tipo: 'melhoria', texto: 'A liturgia de hoje, a do próximo domingo e as das datas dos repertórios futuros continuam sendo guardadas para uso sem internet ao abrir a página inicial.' },
-    ],
-  },
-  {
-    versao: 624, data: '2026-11-11', titulo: 'Controle de mídia do Android: comandos atendidos em segundo plano, botões sem abrir o aplicativo e aviso dispensável com a música pausada; cartões com a marca em uma cor e personalização nos três',
-    itens: [
-      { tipo: 'correcao', texto: 'Com o aplicativo em segundo plano e a música pausada, a página fica oculta e com os temporizadores suspensos; o comando de tocar, pular ou voltar enviado pelo aviso, pelo widget ou pelo fone só era processado quando o aplicativo voltava ao primeiro plano. A página passou a ser reativada por 12 segundos a cada comando recebido, antes da entrega dele. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'correcao', texto: 'O player do Android e os botões do fone enviavam "alternar" tanto para tocar quanto para pausar; um comando repetido ou atrasado invertia o estado (pausava o que deveria tocar). Passaram a enviar "tocar" e "pausar" explícitos, e a interface só age quando o estado atual difere do pedido. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'correcao', texto: 'Os botões do aviso de "tocando" e do widget abriam a tela do aplicativo a cada toque. Passaram a abrir uma tela invisível que entrega o comando e se fecha; a tela do aplicativo só vem para a frente quando o comando depende dela (aplicativo fechado, ou tocar e pular música reproduzida pelo YouTube, que não toca com a página oculta). Disponível mediante atualização do aplicativo.' },
-      { tipo: 'correcao', texto: 'O aviso de "tocando" pertencia a um serviço mantido em primeiro plano também com a música pausada, o que impedia dispensá-lo. O serviço passou a ficar em primeiro plano somente durante a reprodução; pausado, o aviso permanece com os botões e pode ser dispensado, o que encerra o serviço e retira a sessão do player do Android até a próxima reprodução. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'novo', texto: 'A tela "Personalizar" da folha de compartilhamento, antes restrita ao cartão da letra, passou a valer para os três cartões (Música, Letra e Vídeo) e a oferecer, como fundo, somente a cor, a capa escurecida ou uma foto escolhida no aparelho. O estilo e o alinhamento do texto continuam próprios do cartão da letra.' },
-      { tipo: 'melhoria', texto: 'A marca do Ecoa nos cartões passou a ser desenhada em uma só cor, a do texto do cartão (o símbolo sem o quadrado azul ao fundo e o nome ao lado).' },
-      { tipo: 'melhoria', texto: 'Pendente: as alterações do controle de mídia são do código nativo do Android e não foram executadas em aparelho; a compilação é conferida pela montagem do APK no workflow. A música reproduzida pelo YouTube continua sem tocar com o aplicativo em segundo plano (regra do YouTube).' },
     ],
   },
 ];

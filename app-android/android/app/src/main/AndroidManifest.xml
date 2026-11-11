@@ -22,6 +22,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- o link de uma música compartilhada (https://kvsl11.github.io/Ecoa/#/ouvir/...) abre o app na música.
+                 O Android só entrega o link do site direto ao app quando o endereço é conferido (assetlinks.json na
+                 raiz de kvsl11.github.io) ou quando a pessoa liga "Abrir links compatíveis" nos dados do app -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="kvsl11.github.io" android:pathPrefix="/Ecoa" />
+            </intent-filter>
+            <!-- e o endereço próprio (ecoa://ouvir/...), usado pelo botão "Abrir no aplicativo" da página do link -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ecoa" android:host="ouvir" />
+            </intent-filter>
+
         </activity>
 
         <!-- o widget da tela inicial e os botões dele (e do aviso de "tocando") -->
