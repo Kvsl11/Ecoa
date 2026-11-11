@@ -164,4 +164,54 @@ final class Capas {
         File f = arquivo(ctx);
         return f.exists() ? BitmapFactory.decodeFile(f.getAbsolutePath()) : null;
     }
+
+    // A capa para o widget: cortada em quadrado pelo meio, com 320 px de lado (o Android limita a memória das imagens
+    // do widget) e os cantos arredondados. null sem capa
+    static Bitmap paraWidget(Context ctx) {
+        try {
+            Bitmap capa = ler(ctx);
+            if (capa == null) return null;
+            int lado = Math.min(capa.getWidth(), capa.getHeight());
+            if (lado <= 0) return null;
+            final int saida = 320;
+            Bitmap redonda = Bitmap.createBitmap(saida, saida, Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(redonda);
+            android.graphics.Paint tinta = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+            android.graphics.BitmapShader capaComoTinta = new android.graphics.BitmapShader(capa, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+            android.graphics.Matrix m = new android.graphics.Matrix();
+            float escala = saida / (float) lado;
+            m.setTranslate(-(capa.getWidth() - lado) / 2f, -(capa.getHeight() - lado) / 2f);
+            m.postScale(escala, escala);
+            capaComoTinta.setLocalMatrix(m);
+            tinta.setShader(capaComoTinta);
+            float raio = saida * 0.11f;
+            c.drawRoundRect(new android.graphics.RectF(0, 0, saida, saida), raio, raio, tinta);
+            return redonda;
+        } catch (Throwable e) {
+            return null; // (sem memória ou arquivo estragado: o widget fica com a logo)
+        }
+    }
+
+    // A cor do fundo do widget: a média das cores da capa, escurecida e com a saturação contida (o texto branco lê
+    // bem por cima). A capa quase sem cor (cinza, preta, branca) fica com a cor padrão
+    static int corDoFundo(Bitmap capa, int padrao) {
+        try {
+            Bitmap pequena = Bitmap.createScaledBitmap(capa, 16, 16, true);
+            long r = 0, g = 0, b = 0, n = 0;
+            for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+                int p = pequena.getPixel(x, y);
+                if (android.graphics.Color.alpha(p) < 128) continue;
+                r += android.graphics.Color.red(p); g += android.graphics.Color.green(p); b += android.graphics.Color.blue(p); n++;
+            }
+            if (n == 0) return padrao;
+            float[] hsv = new float[3];
+            android.graphics.Color.RGBToHSV((int) (r / n), (int) (g / n), (int) (b / n), hsv);
+            if (hsv[1] < 0.12f) return padrao;
+            hsv[1] = Math.min(0.62f, Math.max(0.3f, hsv[1]));
+            hsv[2] = 0.3f;
+            return android.graphics.Color.HSVToColor(hsv);
+        } catch (Throwable e) {
+            return padrao;
+        }
+    }
 }

@@ -5,6 +5,30 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 628, data: '2026-11-11', titulo: 'Widget da tela inicial com a frase que está sendo cantada',
+    itens: [
+      { tipo: 'novo', texto: 'Os dois formatos maiores do widget passaram a exibir a frase que está sendo cantada, nas músicas com a letra sincronizada. No formato padrão (4 × 2), a frase ocupa uma linha, no lugar do artista (as duas linhas não cabem na altura mínima); no formato grande, a frase aparece em até duas linhas, abaixo do título e do artista. Entre uma frase e outra, e nas músicas sem a letra sincronizada, o widget fica como antes. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'A cada verso, somente o texto da frase é enviado ao widget (atualização parcial), sem reenviar a capa. A frase é atualizada enquanto a página do aplicativo está ativa: em primeiro plano ou, em segundo plano, com a música tocando do aparelho (baixada ou importada). Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: o envio da frase pela interface foi conferido por análise do código e a parte nativa não foi executada em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração é uma simulação do leiaute.' },
+    ],
+  },
+  {
+    versao: 627, data: '2026-11-11', titulo: 'Listas de músicas: fotos dos artistas agrupadas quando há mais de um',
+    itens: [
+      { tipo: 'novo', texto: 'Nas linhas das listas (biblioteca, playlists, repertórios e busca), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do primeiro e, sobreposta em parte a ela, a do segundo; com três ou mais artistas, após as duas fotos vem um marcador "+N" com a quantidade restante. São considerados os nomes separados por vírgula ou "&" e o participante indicado no título ("feat.", "part."). As duplas reconhecidas como um único artista e os cantos da liturgia continuam com uma foto só.' },
+      { tipo: 'melhoria', texto: 'A foto do segundo artista usa a última conhecida no aparelho; quando não há, é procurada assim que a linha aparece na tela, e entra no lugar do desenho padrão quando carrega. Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
+      { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, com as fotos simuladas; a busca real da foto do segundo artista e a validação em aparelho Android ainda não foram realizadas.' },
+    ],
+  },
+  {
+    versao: 626, data: '2026-11-11', titulo: 'Widget da tela inicial refeito: três formatos conforme o tamanho, capa arredondada e fundo na cor da capa',
+    itens: [
+      { tipo: 'correcao', texto: 'O widget tinha um único leiaute, com a capa em tamanho fixo (96 dp) e os botões alinhados à esquerda abaixo do texto; redimensionado, os elementos ficavam cortados ou desalinhados. Passou a ter três formatos, com as mesmas peças: uma linha (4 × 1), com a capa pequena, o nome, o artista e os botões à direita; o padrão (4 × 2), com a capa na altura inteira e os botões centralizados; e o grande (3 linhas ou mais), com a capa em cima. No Android 12 ou mais novo, o sistema troca o formato ao redimensionar; nas versões anteriores, o formato é escolhido pela altura do widget. O tamanho mínimo ao redimensionar passou de 250 × 110 dp para 180 × 50 dp. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'A capa do widget passou a ser recortada em quadrado, reduzida a 320 pixels e desenhada com os cantos arredondados; o fundo do widget recebe a cor média da capa, escurecida, e fica na cor padrão quando a capa quase não tem cor. Sem música ou sem capa, aparece um quadro com a logo do Ecoa. O botão de tocar e pausar passou a ser um círculo branco com o símbolo escuro, e os botões respondem ao toque. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: o widget é código e recursos nativos do Android e não foi executado em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração enviada é uma simulação do leiaute, não uma captura de tela.' },
+    ],
+  },
+  {
     versao: 625, data: '2026-11-11', titulo: 'Página inicial sem a liturgia do dia e com as músicas mais tocadas',
     itens: [
       { tipo: 'melhoria', texto: 'O atalho "Liturgia de hoje", o cartão da liturgia do dia e o filtro "Liturgia" foram retirados da página inicial, pois o mesmo conteúdo está na aba Liturgia. O lugar do atalho passou a ser ocupado por mais uma música recente (8 atalhos de músicas e repertórios, antes 7).' },
@@ -74,37 +98,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Quando o Deezer não responde (limite de pedidos ou falha de conexão), as bases de reserva não são consultadas, para que uma falha passageira não fixe uma capa de reserva no lugar da oficial; a busca é repetida depois.' },
       { tipo: 'melhoria', texto: 'As músicas já salvas sem a capa do álbum passam por uma revisão automática (revisão 33), em segundo plano, que repete a busca com as bases de reserva. A capa escolhida manualmente não é alterada.' },
       { tipo: 'melhoria', texto: 'Pendente: a seleção das capas foi verificada por testes automatizados e por consulta direta ao TheAudioDB e à MusicBrainz, e a busca completa foi executada em navegador com as respostas das bases simuladas (três músicas salvas: capa do TheAudioDB, capa da MusicBrainz e, com o Deezer em falha, nenhuma consulta às reservas); a consulta à discografia do Cifra Club foi verificada apenas com dados de teste, e o carregamento das imagens reais do Cover Art Archive e a validação em aparelho Android ainda não foram realizados.' },
-    ],
-  },
-  {
-    versao: 618, data: '2026-11-10', titulo: 'Partitura: arquivo pronto quando existe, geração em uma passada com acompanhamento, tela reorganizada; ajustes preservados entre aberturas',
-    itens: [
-      { tipo: 'novo', texto: 'Antes de gerar a partitura pelo áudio, o aplicativo passou a procurar um arquivo MIDI da música no acervo aberto BitMidi (busca pelo título, sem conta). Os arquivos cujo nome contém o título inteiro são listados, com prioridade para os que também trazem o artista; o arquivo escolhido é convertido em partitura com duas pautas (Melodia e Acompanhamento), com o andamento, o compasso e a armadura do próprio arquivo, e exibido com o player antes de ser salvo. A conversão de cinco arquivos do acervo (1.894 a 7.672 notas) levou de 7 a 45 ms. O acervo é mantido por envios de usuários e cobre melhor o repertório internacional; os nomes dos arquivos nem sempre informam o artista, razão pela qual a escolha e a audição ficam a cargo de quem usa. Sem resultado, sem conexão ou sem resposta em 7 segundos, a geração pelo áudio segue como antes.' },
-      { tipo: 'novo', texto: 'As telas "Gerar com IA" e "Criar a partitura" passaram a aceitar um arquivo MIDI (.mid, .midi, .kar) escolhido no aparelho, convertido da mesma forma.' },
-      { tipo: 'melhoria', texto: 'A partitura gerada pelo áudio passou a sair, por padrão, no formato "Completa": a melodia na clave de sol e, na clave de fá, o acompanhamento escrito pelos acordes da música (baixo no tempo forte e acorde nos demais tempos, conforme o compasso; nos compassos 6/8, 9/8 e 12/8, em grupos de três colcheias). O padrão anterior era o coral a quatro vozes. As opções "Melodia" e "Coral" permanecem; a opção "Coral do áudio" foi retirada da tela. Sem acordes na cifra nem no áudio, a partitura sai apenas com a melodia.' },
-      { tipo: 'melhoria', texto: 'Na geração no aparelho, a separação entre voz e instrumentos pelo estéreo exigia uma segunda execução do modelo de notas sobre a música inteira. A separação passou a ser feita pela medição da intensidade de cada nota nos canais central e lateral (algoritmo de Goertzel), com uma única execução do modelo. Em um áudio estéreo de 3 min 18 s, em navegador de computador, o tempo até a prévia caiu de 73 s para 40 s. O tempo em aparelhos Android não foi medido.' },
-      { tipo: 'correcao', texto: 'Na estimativa do tom pelas notas, os tons de Ré sustenido, Sol sustenido e Lá sustenido maior resultavam em armadura inexistente (8 a 10 sustenidos) e o nome do tom era exibido vazio. Passaram a ser escritos como Mi bemol, Lá bemol e Si bemol maior.' },
-      { tipo: 'correcao', texto: 'Os ajustes (qualidade de áudio e de vídeo, tema, tamanho da letra e os demais) eram gravados somente dentro do bloco único que guarda a biblioteca inteira. Quando esse bloco ultrapassa o limite do armazenamento local, a gravação é recusada e, na abertura seguinte do aplicativo (por exemplo, após uma atualização), valia o conteúdo da última gravação aceita, com os ajustes anteriores. Os ajustes passaram a ser gravados também em uma chave própria, que prevalece na abertura; quando o bloco da biblioteca não cabe, o aplicativo passa a abrir pela cópia mantida no IndexedDB, que antes era sobrescrita pelo bloco antigo. A falha foi reproduzida em teste com o armazenamento limitado; a ocorrência não foi confirmada em aparelho. Os ajustes voltam ao padrão apenas com a desinstalação ou com "Apagar tudo".' },
-      { tipo: 'melhoria', texto: 'A tela da partitura da música foi reorganizada: cabeçalho com a capa, o título, o artista e o botão Editar; resumo com o tom (atualizado conforme a transposição), o andamento, o compasso e o número de pautas; uma única barra com a alternância Desenhada/Original, a transposição, o tamanho (em porcentagem) e a exclusão; e a partitura em uma folha própria, separada do fundo.' },
-      { tipo: 'correcao', texto: 'A montagem do APK da versão 617 falhava na compilação: a leitura do ícone do aplicativo para o cartão de convite reserva usava uma chamada que exige o tratamento de uma exceção verificada (NameNotFoundException). A leitura passou a usar as informações do próprio aplicativo, sem essa exceção. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados e por execução em navegador (busca, conversão, geração pelo áudio com um arquivo sintético e reabertura com o armazenamento limitado); a validação em aparelho Android e com gravações reais ainda não foi realizada, e a montagem do APK será confirmada pela execução do workflow.' },
-    ],
-  },
-  {
-    versao: 617, data: '2026-11-10', titulo: 'Convite do Ecoa: cartão redesenhado com código QR e prévia antes do envio',
-    itens: [
-      { tipo: 'melhoria', texto: 'O cartão enviado por "Compartilhar o Ecoa" (menu de opções da conta) era desenhado pelo Android com um leiaute fixo e simples. O cartão passou a ser desenhado pela interface (1080 × 1350 pixels, proporção 4:5), com a marca, a frase do aplicativo, os recursos principais, o primeiro nome de quem convida e um código QR do endereço de download, que permite a instalação apontando a câmera de outro aparelho. A imagem passou a ser enviada em JPEG, com cerca de 150 kB. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'novo', texto: 'A opção "Compartilhar o Ecoa" passou a abrir uma folha com a prévia do cartão e as ações Compartilhar e Copiar o link, em vez de abrir diretamente a lista de aplicativos do sistema. No navegador, a imagem é enviada junto com o texto quando o sistema aceita arquivos no compartilhamento; onde não há compartilhamento do sistema, a folha oferece o download da imagem.' },
-      { tipo: 'correcao', texto: 'As falhas no compartilhamento e na cópia do link passaram a ser informadas na própria folha; antes, a confirmação da cópia do link não era exibida. O arquivo da imagem passou a receber um nome por envio, para que um convite novo não substitua o arquivo que outro aplicativo ainda está lendo. Disponível mediante atualização do aplicativo.' },
-    ],
-  },
-  {
-    versao: 616, data: '2026-11-10', titulo: 'Cor da música: matiz predominante da capa e capa gerada no player',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas músicas sem imagem de capa (por exemplo, as importadas), a lista exibia a capa gerada em degradê no matiz do título, mas a barra do player exibia um quadrado preto: a regra de estilo da capa na barra (fundo preto) tinha precedência sobre a da capa gerada. A capa sem imagem do player (barra e Tocando agora) passou a usar o mesmo degradê e o mesmo matiz da capa gerada da lista.' },
-      { tipo: 'correcao', texto: 'A cor de fundo das músicas sem capa era calculada por uma função diferente da usada na capa gerada, o que resultava em matizes distintos entre a lista e o player. O matiz passou a ser o mesmo nos dois casos; a saturação e a luminosidade continuam variando por título.' },
-      { tipo: 'correcao', texto: 'A cor da tela da música e do player era sorteada, por música, entre até 4 cores fortes da capa, com desvio adicional de até 14° no matiz; uma capa predominantemente azul com um detalhe vermelho podia resultar em fundo vermelho. A cor passou a ser sempre a mais forte da capa (a predominante entre os pixels vivos), sem desvio de matiz; apenas a saturação (até 6 pontos) e a luminosidade (até 4 pontos) variam entre músicas. A cor não é guardada nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
-      { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados e por renderização em navegador; a validação em aparelho Android ainda não foi realizada.' },
     ],
   },
 ];

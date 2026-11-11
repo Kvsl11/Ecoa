@@ -806,6 +806,8 @@ public class EcoaPlugin extends Plugin {
         Double duracao = call.getDouble("duracao", 0.0);
         Double tempo = call.getDouble("tempo", 0.0);
         SharedPreferences.Editor e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
+        // (outra música: a frase cantada da anterior sai do widget)
+        if (!titulo.equals(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("titulo", ""))) e.remove("frase");
         e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando)
             .putBoolean("doAparelho", Boolean.TRUE.equals(call.getBoolean("doAparelho", false)))
             .putFloat("duracao", duracao == null ? 0f : duracao.floatValue()).putFloat("tempo", tempo == null ? 0f : tempo.floatValue())
@@ -835,9 +837,23 @@ public class EcoaPlugin extends Plugin {
         call.resolve();
     }
 
+    // a frase que está sendo cantada (a letra sincronizada), para o widget: '' entre uma frase e outra, ou sem letra
+    @PluginMethod
+    public void frase(PluginCall call) {
+        Context ctx = getContext();
+        String texto = call.getString("texto", "");
+        SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!texto.equals(p.getString("frase", ""))) {
+            p.edit().putString("frase", texto).apply();
+            EcoaWidget.atualizarFrase(ctx);
+        }
+        call.resolve();
+    }
+
     @PluginMethod
     public void parou(PluginCall call) {
         EcoaWebView.definirTocando(false);
+        getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("frase").apply();
         TocandoService.desligar(getContext());
         Sessao.parar(getContext());
         call.resolve();

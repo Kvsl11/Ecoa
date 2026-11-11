@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O widget do Ecoa numa linha só (4 × 1): a capa pequena, o nome e o artista, e os botões à direita -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_raiz" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/w_fundo" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_fundo" android:scaleType="fitXY" android:importantForAccessibility="no" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:padding="8dp" android:gravity="center_vertical" android:baselineAligned="false">
+
+        <ImageView android:id="@+id/w_capa"
+            android:layout_width="wrap_content" android:layout_height="match_parent" android:maxWidth="72dp"
+            android:adjustViewBounds="true" android:scaleType="fitCenter"
+            android:src="@drawable/widget_sem_capa" android:contentDescription="Abrir o Ecoa" />
+
+        <LinearLayout android:id="@+id/w_textos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:orientation="vertical" android:paddingStart="10dp" android:paddingEnd="6dp">
+            <TextView android:id="@+id/w_titulo" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Ecoa" android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold"
+                android:maxLines="1" android:ellipsize="end" />
+            <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="12sp"
+                android:maxLines="1" android:ellipsize="end" />
+            <!-- (numa linha só não cabe a frase cantada: a peça existe, escondida, para os três formatos terem as mesmas) -->
+            <TextView android:id="@+id/w_frase" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageButton android:id="@+id/w_anterior" android:layout_width="36dp" android:layout_height="36dp"
+                android:src="@drawable/ic_anterior" android:background="@drawable/widget_toque" android:padding="6dp"
+                android:scaleType="fitCenter" android:contentDescription="Voltar" />
+            <ImageButton android:id="@+id/w_tocar" android:layout_width="40dp" android:layout_height="40dp"
+                android:layout_marginStart="4dp" android:layout_marginEnd="4dp"
+                android:src="@drawable/ic_tocar" android:tint="#FF121212" android:background="@drawable/widget_botao_play" android:padding="8dp"
+                android:scaleType="fitCenter" android:contentDescription="Tocar" />
+            <ImageButton android:id="@+id/w_proxima" android:layout_width="36dp" android:layout_height="36dp"
+                android:src="@drawable/ic_proxima" android:background="@drawable/widget_toque" android:padding="6dp"
+                android:scaleType="fitCenter" android:contentDescription="Pular" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

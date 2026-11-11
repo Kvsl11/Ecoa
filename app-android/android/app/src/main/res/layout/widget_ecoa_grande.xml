@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O widget do Ecoa grande (3 linhas ou mais): a capa em cima, ocupando o espaço que sobra; embaixo, o nome, o artista
+     e os botões -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_raiz" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/w_fundo" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_fundo" android:scaleType="fitXY" android:importantForAccessibility="no" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical" android:padding="14dp" android:gravity="center_horizontal">
+
+        <ImageView android:id="@+id/w_capa"
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:src="@drawable/widget_sem_capa" android:contentDescription="Abrir o Ecoa" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+            android:layout_marginTop="10dp" android:gravity="center_vertical">
+            <LinearLayout android:id="@+id/w_textos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView android:id="@+id/w_titulo" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="Ecoa" android:textColor="#FFFFFFFF" android:textSize="17sp" android:textStyle="bold"
+                    android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="14sp"
+                    android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" />
+                <!-- a frase que está sendo cantada (a letra sincronizada), em até duas linhas -->
+                <TextView android:id="@+id/w_frase" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textColor="#FFFFFFFF" android:textSize="17sp" android:textStyle="bold|italic"
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="6dp" android:visibility="gone" />
+            </LinearLayout>
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_marginStart="8dp"
+                android:src="@drawable/ic_ecoa" android:alpha="0.85" android:importantForAccessibility="no" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center" android:layout_marginTop="8dp">
+            <ImageButton android:id="@+id/w_anterior" android:layout_width="48dp" android:layout_height="48dp"
+                android:src="@drawable/ic_anterior" android:background="@drawable/widget_toque" android:padding="12dp"
+                android:scaleType="fitCenter" android:contentDescription="Voltar" />
+            <ImageButton android:id="@+id/w_tocar" android:layout_width="54dp" android:layout_height="54dp"
+                android:layout_marginStart="22dp" android:layout_marginEnd="22dp"
+                android:src="@drawable/ic_tocar" android:tint="#FF121212" android:background="@drawable/widget_botao_play" android:padding="15dp"
+                android:scaleType="fitCenter" android:contentDescription="Tocar" />
+            <ImageButton android:id="@+id/w_proxima" android:layout_width="48dp" android:layout_height="48dp"
+                android:src="@drawable/ic_proxima" android:background="@drawable/widget_toque" android:padding="12dp"
+                android:scaleType="fitCenter" android:contentDescription="Pular" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -1,39 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- O widget do Ecoa: a capa à esquerda e, ao lado, o nome, o artista e os botões (como o do Spotify) -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="horizontal" android:padding="12dp" android:gravity="center_vertical"
-    android:background="@drawable/widget_fundo">
+<!-- O widget do Ecoa, no tamanho padrão (4 × 2): a capa na altura toda à esquerda; à direita, o nome e o artista em
+     cima (com a logo no canto) e os botões embaixo, no meio. O fundo leva a cor da capa. Há mais dois formatos, que o
+     Android troca conforme o tamanho: widget_ecoa_pequeno (uma linha) e widget_ecoa_grande (a capa em cima) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_raiz" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/w_fundo" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_fundo" android:scaleType="fitXY" android:importantForAccessibility="no" />
 
-    <ImageView android:id="@+id/w_capa"
-        android:layout_width="96dp" android:layout_height="96dp"
-        android:scaleType="centerCrop" android:contentDescription="Capa da música" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:padding="12dp" android:baselineAligned="false">
 
-    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-        android:orientation="vertical" android:paddingStart="14dp" android:gravity="center_vertical">
+        <ImageView android:id="@+id/w_capa"
+            android:layout_width="wrap_content" android:layout_height="match_parent" android:maxWidth="168dp"
+            android:adjustViewBounds="true" android:scaleType="fitCenter"
+            android:src="@drawable/widget_sem_capa" android:contentDescription="Abrir o Ecoa" />
 
-        <LinearLayout android:id="@+id/w_textos" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical">
-            <TextView android:id="@+id/w_titulo" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textColor="#FFFFFFFF" android:textSize="17sp" android:textStyle="bold"
-                android:maxLines="1" android:ellipsize="end" />
-            <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textColor="#B3FFFFFF" android:textSize="14sp" android:maxLines="1" android:ellipsize="end"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+            android:orientation="vertical" android:paddingStart="14dp" android:paddingEnd="2dp">
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="10dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <LinearLayout android:id="@+id/w_textos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:orientation="vertical" android:paddingTop="2dp">
+                    <TextView android:id="@+id/w_titulo" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Ecoa" android:textColor="#FFFFFFFF" android:textSize="16sp" android:textStyle="bold"
+                        android:maxLines="1" android:ellipsize="end" />
+                    <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="13sp"
+                        android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" />
+                    <!-- a frase que está sendo cantada (a letra sincronizada); com ela, a linha do artista dá o lugar -->
+                    <TextView android:id="@+id/w_frase" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold|italic"
+                        android:maxLines="1" android:ellipsize="end" android:layout_marginTop="2dp" android:visibility="gone" />
+                </LinearLayout>
+                <ImageView android:layout_width="20dp" android:layout_height="20dp" android:layout_marginStart="8dp" android:layout_marginTop="2dp"
+                    android:src="@drawable/ic_ecoa" android:alpha="0.85" android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+                android:orientation="horizontal" android:gravity="center">
             <ImageButton android:id="@+id/w_anterior" android:layout_width="44dp" android:layout_height="44dp"
-                android:src="@drawable/ic_anterior" android:background="@android:color/transparent"
-                android:scaleType="centerInside" android:contentDescription="Voltar" />
-            <ImageButton android:id="@+id/w_tocar" android:layout_width="52dp" android:layout_height="52dp"
-                android:layout_marginStart="10dp" android:layout_marginEnd="10dp"
-                android:src="@drawable/ic_tocar" android:background="@drawable/widget_botao_play"
-                android:scaleType="centerInside" android:contentDescription="Tocar" />
+                android:src="@drawable/ic_anterior" android:background="@drawable/widget_toque" android:padding="10dp"
+                android:scaleType="fitCenter" android:contentDescription="Voltar" />
+            <ImageButton android:id="@+id/w_tocar" android:layout_width="48dp" android:layout_height="48dp"
+                android:layout_marginStart="18dp" android:layout_marginEnd="18dp"
+                android:src="@drawable/ic_tocar" android:tint="#FF121212" android:background="@drawable/widget_botao_play" android:padding="12dp"
+                android:scaleType="fitCenter" android:contentDescription="Tocar" />
             <ImageButton android:id="@+id/w_proxima" android:layout_width="44dp" android:layout_height="44dp"
-                android:src="@drawable/ic_proxima" android:background="@android:color/transparent"
-                android:scaleType="centerInside" android:contentDescription="Pular" />
+                android:src="@drawable/ic_proxima" android:background="@drawable/widget_toque" android:padding="10dp"
+                android:scaleType="fitCenter" android:contentDescription="Pular" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

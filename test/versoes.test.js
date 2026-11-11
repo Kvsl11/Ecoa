@@ -287,7 +287,9 @@ test('a foto do artista acompanha o salvamento e é persistida para a biblioteca
   assert.match(app, /preview\.fotoArtista \? \{ fotoArtista: preview\.fotoArtista \}/);
   assert.match(app, /db\.updateSong\(item\.id, \{ fotoArtista: url \}\)/, 'a foto corrigida que chega depois também é persistida');
   // (a guardada aparece na lista, menos a imagem padrão de site, que não é foto: fotoReal)
-  assert.match(app, /fotoReal\(s\.fotoArtista\) \? `<img src=/);
+  // (a linha passa a foto guardada, já filtrada, para miniDosArtistas, que desenha as fotinhas dos artistas)
+  assert.match(app, /miniDosArtistas\(s\.title, s\.artist \|\| '', fotoReal\(s\.fotoArtista\), ehDaLiturgia\(s\)\)/);
+  assert.match(app, /fotoPrincipal \? `<img src=/);
   const resolverFoto = app.slice(app.indexOf('function fotoDoArtista(nome'), app.indexOf('// A foto e a capa que já se conhece na hora'));
   assert.match(resolverFoto, /if \(!fotosArtistas\.has\(k\)\)/, 'existe uma única resolução por artista, não uma por música');
   assert.match(resolverFoto, /primeiraPorPreferencia\(\[\(\) => fotoDeezer\(nome, titulo\), \(\) => fotoDoCanalDeVerdade\(nome\), cifraClub\]/, 'as fontes vão ao mesmo tempo, na ordem de preferência (o Deezer primeiro)');
