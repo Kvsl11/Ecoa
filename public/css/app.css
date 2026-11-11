@@ -4402,23 +4402,19 @@ html.tablet .ver-fotos .vf-seta { display: none; }
 .tile-mix .tile-art { container-type: inline-size; }
 .tile-mix small { margin-top: 8px; font-size: 13px; }
 
-/* o repertório em destaque: cartão largo na cor dele (como os "Made for you" do Spotify) */
-.destaque {
-  display: flex; gap: 16px; padding: 14px; border-radius: 10px; align-items: stretch;
-  background: hsl(var(--h) 32% 30%);
-}
-:root[data-theme="light"] .destaque { background: hsl(var(--h) 45% 88%); }
-.destaque-capa { position: relative; flex: none; width: clamp(120px, 34%, 210px); text-decoration: none; container-type: inline-size; }
-.destaque-capa .cover { width: 100%; aspect-ratio: 1; border-radius: 6px; box-shadow: var(--shadow); }
-.destaque-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.destaque-nome { text-decoration: none; color: inherit; display: block; }
-.destaque-nome b { display: block; font-size: 17px; font-weight: 800; line-height: 1.25; }
-.destaque-nome small { color: var(--muted); font-size: 13px; }
-.destaque-info p { hyphens: manual; -webkit-hyphens: manual; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-:root:not([data-theme="light"]) .destaque-info p, :root:not([data-theme="light"]) .destaque-nome small { color: rgb(255 255 255 / 0.75); }
-.destaque-acoes { margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-.destaque-acoes .play-big { width: 44px; height: 44px; }
-@media (min-width: 700px) { .destaque { padding: 18px; gap: 20px; } .destaque-nome b { font-size: 20px; } .destaque-acoes .play-big { width: 52px; height: 52px; } }
+/* os videoclipes da página inicial: quadros 16:9 numa fileira que anda para o lado */
+.shelf.clipes { grid-auto-columns: min(64vw, 260px); }
+@media (min-width: 900px) { .shelf.clipes { grid-auto-columns: 280px; } }
+.tile-clipe { all: unset; box-sizing: border-box; position: relative; display: block; min-width: 0; padding: 10px; margin: -10px; border-radius: var(--radius); cursor: pointer; transition: background 0.2s; }
+.tile-clipe:hover { background: var(--bg-elev); }
+.tile-clipe:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.clipe-capa { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 8px; background: #2a2a2a center / cover no-repeat; overflow: hidden; box-shadow: var(--shadow); }
+.clipe-capa i { position: absolute; top: 6px; right: 6px; padding: 2px 6px; border-radius: 4px; background: rgb(0 0 0 / 0.72); color: #fff; font-style: normal; font-size: 11.5px; font-weight: 700; }
+.clipe-play { position: absolute; right: 8px; bottom: 8px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000; box-shadow: 0 2px 8px rgb(0 0 0 / 0.4); }
+.clipe-play svg { margin-left: 2px; }
+.tile-clipe:active .clipe-capa { transform: scale(0.98); }
+.tile-clipe small { display: block; white-space: nowrap; text-overflow: ellipsis; }
+.clipe-baixado { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 5px; border-radius: 50%; background: var(--accent); color: #fff; vertical-align: -2px; }
 
 @media (min-width: 700px) { .inicio .quick a { height: 64px; font-size: 14px; } .inicio .quick .cover { width: 64px; height: 64px; } }
 @media (max-width: 420px) { .inicio-filtros .chip { padding: 0 14px; } }
@@ -6534,6 +6530,13 @@ html:where([data-theme="light"]).pp #player .pl-artista-bio p { color: color-mix
 html:where([data-theme="light"]).pp #player .pl-artista-mais { color: var(--lt); }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-lado [data-pl="aparelhos"] { color: var(--lt); } }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-salva:not([hidden]) { border-color: color-mix(in srgb, var(--lt) 85%, transparent); color: var(--lt); } }
+/* (o fone conectado, na barra do celular: como o botão da música salva ao lado — o círculo na cor do app com o contorno
+   e o desenho escuros. Antes era só o traço na cor do app, claro demais sobre a barra clara) */
+@media (max-width: 899px) {
+  html[data-theme="light"]:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] { color: var(--lt); }
+  html[data-theme="light"]:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] svg { box-sizing: border-box; width: 26px; height: 26px; padding: 3px; border-radius: 50%;
+    background: var(--accent); border: 2px solid currentColor; }
+}
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); } }
 html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom { color: var(--lt); }
 html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom:active { background: color-mix(in srgb, var(--lt) 16%, transparent); }

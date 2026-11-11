@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 649, data: '2026-11-11', titulo: 'Tela inicial: fileiras de videoclipes no lugar do cartão do próximo repertório; fone conectado com contorno no modo claro; publicação do site aguardando o APK',
+    itens: [
+      { tipo: 'novo', texto: 'Na tela inicial, o cartão "Para o próximo repertório" (ou "Feito por você") foi removido; os repertórios continuam na fileira "Seus repertórios". No lugar dele, foram incluídas duas fileiras de quadros em 16:9. "Seus videoclipes" reúne até 12 clipes das músicas da biblioteca que têm videoclipe conferido, com as baixadas primeiro (marcadas com o selo de baixada). "Mais clipes dos seus artistas" reúne até 12 clipes do YouTube dos até 4 artistas com mais músicas baixadas (sem músicas baixadas, os da biblioteca), alternando entre os artistas e sem os clipes que já são músicas do aparelho; essa fileira depende de internet e só aparece quando a busca retorna resultados. Ao tocar em um quadro, a reprodução inicia no modo vídeo; o clipe de uma música da biblioteca toca a música de lá, com a letra, a cifra e os arquivos dela.' },
+      { tipo: 'melhoria', texto: 'No modo claro, o ícone do fone conectado, na barra de reprodução do celular, era desenhado apenas em traço na cor do aplicativo, com pouco contraste sobre a barra clara. Passou a ter o mesmo desenho do botão da música salva ao lado: círculo de 26 px preenchido com a cor do aplicativo, com contorno de 2 px e desenho no tom escuro da barra. O modo escuro não foi alterado.' },
+      { tipo: 'melhoria', texto: 'No modo claro, ícones, botões e rótulos na cor do aplicativo usavam a cor escurecida com 42% de preto (para o ciano padrão, #036a7b), um tom diferente do azul do botão da música salva (#06b6d4). O escurecimento passou a 18% (#0595ae, contraste de 3,5:1 sobre o branco), mais próximo do azul do botão. A cor idêntica não foi adotada em texto e traço finos porque o contraste sobre o branco seria de 2,4:1. Os acordes da cifra, que são texto de leitura, mantêm o escurecimento de 42%.' },
+      { tipo: 'correcao', texto: 'A publicação do site falhava com "release not found" (execução 1727) quando coincidia com a publicação do APK, que apaga e recria a release "android" no mesmo envio. A etapa que copia o APK para o site passou a aguardar a release ficar disponível, com até 20 tentativas a cada 15 s (5 min), antes de falhar. O conteúdo da versão 648 foi publicado pela execução seguinte (1728).' },
+      { tipo: 'melhoria', texto: 'Pendente: as fileiras e o botão do fone foram verificados em navegador (390 × 844, modos claro e escuro), com biblioteca de teste de 4 músicas e o fone simulado; não foram executados em aparelho nem com a biblioteca real. A espera pela release só é exercida na próxima publicação que coincidir com a do APK.' },
+    ],
+  },
+  {
     versao: 648, data: '2026-11-11', titulo: 'Cartão do artista: título "Sobre o artista" legível sobre qualquer foto, nos dois modos',
     itens: [
       { tipo: 'correcao', texto: 'No modo claro, o título "Sobre o artista", exibido sobre a foto do artista, herdava o tom escuro do texto do cartão e ficava ilegível sobre fotos escuras. O título passou a ser sempre branco, com sombra reforçada, e a faixa escurecida no alto da foto foi intensificada (de 45% para 62% de preto no topo, até desaparecer a 42% da altura), o que mantém a leitura sobre fotos escuras, claras ou coloridas, nos modos claro e escuro.' },
@@ -77,13 +87,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'A folha de compartilhar passou a exibir o botão "Com a música" nos cartões Letra e Vídeo quando a música está disponível; desligado, o cartão é enviado como antes (imagem, ou vídeo sem som com o fundo animado). O formato é MP4 (H.264 e AAC) onde o aparelho grava nesse formato e WebM nos demais; a geração leva o mesmo tempo do trecho, indicado na folha.' },
       { tipo: 'melhoria', texto: 'Condição: o áudio e a imagem vêm do arquivo baixado no aparelho, porque o player do YouTube não permite a gravação. O cartão Letra exige a música baixada e a letra sincronizada; o cartão Vídeo exige o videoclipe baixado. Sem o arquivo, o botão não é exibido e os cartões são enviados como antes. O cartão Música não foi alterado.' },
       { tipo: 'melhoria', texto: 'Pendente: a gravação foi verificada em navegador com mídia de teste (cartão Letra: 1080 × 1080, 10,2 s, com áudio; cartão Vídeo: 1080 × 920, 15 s, com imagem e áudio do clipe). Não foram executados a folha no aplicativo com uma música baixada, a gravação em aparelho Android nem o envio ao WhatsApp e ao Instagram.' },
-    ],
-  },
-  {
-    versao: 639, data: '2026-11-11', titulo: 'Folhas com botões: botões no pé da folha quando aberta na altura toda',
-    itens: [
-      { tipo: 'correcao', texto: 'Nas folhas com botões no pé (por exemplo, "Nova versão do app"), ao puxar a folha para cima até a altura toda, os botões acompanhavam o texto e permanecia uma área vazia abaixo deles, porque o conteúdo mantinha a própria altura dentro da folha ampliada. Com a folha na altura toda, o conteúdo passou a ocupar a altura da folha e os botões passaram a ficar no pé. Na folha de altura normal, nada foi alterado.' },
-      { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação da folha "Nova versão do app" (tela de 390 × 800: botões de 729 a 800, no pé); não foi executada em aparelho.' },
     ],
   },
 ];
