@@ -6610,3 +6610,11 @@ dialog.cs-dlg.cs-tela-toda .cs-personalizar { padding-top: calc(10px + env(safe-
 
 /* a marca do Ecoa na tela "Sobre": só o traço, na cor do texto (aparece no modo claro e no escuro) */
 .setting .ico.sobre-marca { color: var(--text); }
+
+/* a linha do andamento na barrinha de baixo do celular: de ponta a ponta do cartão, acompanhando os cantos
+   arredondados dele (o cartão corta a linha nos cantos). Antes começava e terminava 8 px para dentro */
+@media (max-width: 899px) {
+  html:not(.tablet):not(.pp) #player .pl-tempo { left: 0; right: 0; }
+  html:not(.tablet):not(.pp) #player .pl-prog { height: 3px; border-radius: 0; }
+  html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video { margin-bottom: 3px; border-radius: 8px 0 0 0; }
+}
