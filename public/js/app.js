@@ -4316,6 +4316,8 @@ const semLinhasDeAcordes = (sinc) => {
     const box = $('.pl-frase', el);
     if (box.dataset.texto === texto) return;
     box.dataset.texto = texto;
+    // (a frase cantada também vai para o widget do Android; a notinha entre as frases conta como sem frase)
+    dispatchEvent(new CustomEvent('ecoa:frase', { detail: texto === '♪' ? '' : texto }));
     box.querySelectorAll('.saindo').forEach((x) => x.remove());
     const velha = box.querySelector('span');
     const nova = document.createElement('span');
@@ -23097,6 +23099,8 @@ if (ecoaNativo) {
     void ecoaNativo.musica({ ...dados, duracao, tempo }).catch(() => {});
   };
   player.ouvir(mandar);
+  // a frase cantada agora, para o widget (os dois formatos maiores mostram): o app mais antigo não tem o método
+  addEventListener('ecoa:frase', (e) => { try { void ecoaNativo.frase?.({ texto: String(e.detail || '') })?.catch?.(() => {}); } catch { /* app antigo */ } });
   // (a duração só se sabe depois que a música abre, e o player não avisa quando ela chega: sem isto, o player do Android
   // ficava em 00:00 / 00:00 e a barra não andava. A cada 2 s confere; só manda de novo quando mudou de verdade)
   setInterval(() => { if (player.atual) mandar(); }, 2000);

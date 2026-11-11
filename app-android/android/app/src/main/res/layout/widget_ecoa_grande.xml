@@ -24,6 +24,10 @@
                 <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="14sp"
                     android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" />
+                <!-- a frase que está sendo cantada (a letra sincronizada), em até duas linhas -->
+                <TextView android:id="@+id/w_frase" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textColor="#FFFFFFFF" android:textSize="17sp" android:textStyle="bold|italic"
+                    android:maxLines="2" android:ellipsize="end" android:layout_marginTop="6dp" android:visibility="gone" />
             </LinearLayout>
             <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_marginStart="8dp"
                 android:src="@drawable/ic_ecoa" android:alpha="0.85" android:importantForAccessibility="no" />

@@ -21,6 +21,8 @@
             <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="12sp"
                 android:maxLines="1" android:ellipsize="end" />
+            <!-- (numa linha só não cabe a frase cantada: a peça existe, escondida, para os três formatos terem as mesmas) -->
+            <TextView android:id="@+id/w_frase" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
