@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 636, data: '2026-11-11', titulo: 'Link compartilhado: abertura direta na música, sem retorno ao Início, e com o vídeo de quem enviou',
+    itens: [
+      { tipo: 'correcao', texto: 'O link de uma música compartilhada podia abrir o Ecoa no Início, e não na música. Foram identificadas duas causas. Primeira: ao voltar ao aplicativo depois de mais de 2 minutos em segundo plano sem música tocando (ou 30 minutos), a tela retorna ao Início; quando era o link que trazia o aplicativo de volta, esse retorno ocorria logo após a chegada do link e o desfazia. Segunda: ao abrir o aplicativo ou o site, a tela guardada na saída é trocada pelo Início; o mesmo link aberto pela segunda vez coincidia com a tela guardada e era descartado. O link de música passou a ficar fora das duas regras e a não ser guardado como última tela.' },
+      { tipo: 'melhoria', texto: 'O link passou a levar também o identificador do vídeo da música de quem envia (kvsl11.github.io/Ecoa/#/ouvir/nome/artista/vídeo): quem abre recebe a música com esse mesmo vídeo, e não outra gravação de mesmo nome. A música que já está na biblioteca de quem abre continua sendo a aberta. A tela do link exibe a imagem do vídeo.' },
+      { tipo: 'melhoria', texto: 'A música abre sozinha sempre que o link chega, inclusive quando é o mesmo link da tela atual; ao voltar da música pela seta, a tela do link exibe o botão e não abre a música de novo. A parte Android passou a entregar o link por uma função própria da página. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: as duas causas foram reproduzidas e conferidas em navegador com a identificação do aplicativo; a abertura pelo link no aparelho Android não foi executada. Sem o arquivo de conferência na raiz de kvsl11.github.io, o link continua abrindo primeiro no navegador, com o botão "Abrir no aplicativo".' },
+    ],
+  },
+  {
     versao: 635, data: '2026-11-11', titulo: 'Aplicativo Android: zoom de página com os dois dedos desativado',
     itens: [
       { tipo: 'correcao', texto: 'No aplicativo Android, no celular e no tablet, a tela podia ser ampliada com os dois dedos (e com dois toques), como uma página de navegador: a página não declarava limite de ampliação e o WebView mantinha o zoom de página ligado. No aplicativo, a página passou a declarar a escala fixa (máxima 1, sem ampliação pelo usuário) e a aceitar somente o gesto de rolagem. Essa parte vale para o aplicativo já instalado, sem atualização.' },
@@ -77,14 +86,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Nas linhas das listas (biblioteca, playlists, repertórios e busca), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do primeiro e, sobreposta em parte a ela, a do segundo; com três ou mais artistas, após as duas fotos vem um marcador "+N" com a quantidade restante. São considerados os nomes separados por vírgula ou "&" e o participante indicado no título ("feat.", "part."). As duplas reconhecidas como um único artista e os cantos da liturgia continuam com uma foto só.' },
       { tipo: 'melhoria', texto: 'A foto do segundo artista usa a última conhecida no aparelho; quando não há, é procurada assim que a linha aparece na tela, e entra no lugar do desenho padrão quando carrega. Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
       { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, com as fotos simuladas; a busca real da foto do segundo artista e a validação em aparelho Android ainda não foram realizadas.' },
-    ],
-  },
-  {
-    versao: 626, data: '2026-11-11', titulo: 'Widget da tela inicial refeito: três formatos conforme o tamanho, capa arredondada e fundo na cor da capa',
-    itens: [
-      { tipo: 'correcao', texto: 'O widget tinha um único leiaute, com a capa em tamanho fixo (96 dp) e os botões alinhados à esquerda abaixo do texto; redimensionado, os elementos ficavam cortados ou desalinhados. Passou a ter três formatos, com as mesmas peças: uma linha (4 × 1), com a capa pequena, o nome, o artista e os botões à direita; o padrão (4 × 2), com a capa na altura inteira e os botões centralizados; e o grande (3 linhas ou mais), com a capa em cima. No Android 12 ou mais novo, o sistema troca o formato ao redimensionar; nas versões anteriores, o formato é escolhido pela altura do widget. O tamanho mínimo ao redimensionar passou de 250 × 110 dp para 180 × 50 dp. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'A capa do widget passou a ser recortada em quadrado, reduzida a 320 pixels e desenhada com os cantos arredondados; o fundo do widget recebe a cor média da capa, escurecida, e fica na cor padrão quando a capa quase não tem cor. Sem música ou sem capa, aparece um quadro com a logo do Ecoa. O botão de tocar e pausar passou a ser um círculo branco com o símbolo escuro, e os botões respondem ao toque. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Pendente: o widget é código e recursos nativos do Android e não foi executado em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração enviada é uma simulação do leiaute, não uma captura de tela.' },
     ],
   },
 ];

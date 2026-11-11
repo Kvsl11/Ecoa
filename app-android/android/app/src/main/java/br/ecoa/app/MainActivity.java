@@ -251,7 +251,8 @@ public class MainActivity extends BridgeActivity {
         // (o link foi atendido: girar a tela ou voltar ao app não o abre de novo)
         intent.setData(null);
         if (rota == null) return;
-        final String js = "(function(){if(!window.__songbookOk)return 'nao';location.hash=" + org.json.JSONObject.quote(rota) + ";return 'ok'})()";
+        final String js = "(function(){if(!window.__songbookOk)return 'nao';var r=" + org.json.JSONObject.quote(rota)
+            + ";if(window.ecoaAbrirLink)window.ecoaAbrirLink(r);else location.hash=r;return 'ok'})()";
         final int[] tentativas = { 0 };
         final Runnable[] tentar = new Runnable[1];
         tentar[0] = () -> {

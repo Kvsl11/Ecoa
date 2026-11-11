@@ -68,15 +68,22 @@ export function textoDoCartao({ titulo = '', artista = '', url = '', versos = []
 // (os parênteses, o "!", o "'" e o "*" também vão codificados: os aplicativos de mensagem cortam o link neles)
 export const ENDERECO_DO_ECOA = 'https://kvsl11.github.io/Ecoa/';
 const parteDoLink = (t) => encodeURIComponent(String(t || '').replace(/\s+/g, ' ').trim()).replace(/[!'()*]/g, (x) => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
-export function linkDaMusicaNoEcoa(titulo, artista = '') {
+// video: o identificador do vídeo no YouTube (11 caracteres) da música de quem envia — quem abre recebe a mesma
+// gravação, e não outra de mesmo nome. Sem o artista e com o vídeo, o lugar do artista leva "-"
+export function linkDaMusicaNoEcoa(titulo, artista = '', video = '') {
   const t = parteDoLink(titulo);
   if (!t) return '';
   const a = parteDoLink(artista);
-  return `${ENDERECO_DO_ECOA}#/ouvir/${t}${a ? `/${a}` : ''}`;
+  const v = /^[\w-]{11}$/.test(video || '') ? video : '';
+  return `${ENDERECO_DO_ECOA}#/ouvir/${t}${a || v ? `/${a || '-'}` : ''}${v ? `/${v}` : ''}`;
+}
+// as partes do endereço (já decodificadas) -> { titulo, artista, video }
+export function musicaDoLink(titulo = '', artista = '', video = '') {
+  return { titulo: String(titulo || '').trim(), artista: artista === '-' ? '' : String(artista || '').trim(), video: /^[\w-]{11}$/.test(video || '') ? video : '' };
 }
 // o mesmo, para abrir o aplicativo Android a partir do navegador (o Chrome entrega ao app instalado; sem ele, abre o site)
-export function linkParaAbrirNoAplicativo(titulo, artista = '') {
-  const web = linkDaMusicaNoEcoa(titulo, artista);
+export function linkParaAbrirNoAplicativo(titulo, artista = '', video = '') {
+  const web = linkDaMusicaNoEcoa(titulo, artista, video);
   if (!web) return '';
   return `intent://ouvir/${web.split('#/ouvir/')[1]}#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=${encodeURIComponent(web)};end`;
 }

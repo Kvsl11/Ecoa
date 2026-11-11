@@ -110,3 +110,15 @@ test('o link compartilhado é o da música no Ecoa, e o do aplicativo leva o mes
   assert.ok(app.includes(`S.browser_fallback_url=${encodeURIComponent(linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson'))}`));
   assert.equal(linkParaAbrirNoAplicativo(''), '');
 });
+
+test('o link leva o vídeo da música de quem envia, e as partes voltam como foram', async () => {
+  const { linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, musicaDoLink, ENDERECO_DO_ECOA } = await import('../public/js/lib/cartao.js');
+  assert.equal(linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson', 'o2QQWcLE7ac'), `${ENDERECO_DO_ECOA}#/ouvir/Eu%20Seguirei/Frei%20Gilson/o2QQWcLE7ac`);
+  assert.equal(linkDaMusicaNoEcoa('Aleluia', '', 'o2QQWcLE7ac'), `${ENDERECO_DO_ECOA}#/ouvir/Aleluia/-/o2QQWcLE7ac`);
+  // (o que não é um identificador do YouTube não entra)
+  assert.equal(linkDaMusicaNoEcoa('Aleluia', 'Coral', 'https://x.y/z'), `${ENDERECO_DO_ECOA}#/ouvir/Aleluia/Coral`);
+  assert.ok(linkParaAbrirNoAplicativo('Eu Seguirei', 'Frei Gilson', 'o2QQWcLE7ac').startsWith('intent://ouvir/Eu%20Seguirei/Frei%20Gilson/o2QQWcLE7ac#Intent;'));
+  assert.deepEqual(musicaDoLink('Eu Seguirei', 'Frei Gilson', 'o2QQWcLE7ac'), { titulo: 'Eu Seguirei', artista: 'Frei Gilson', video: 'o2QQWcLE7ac' });
+  assert.deepEqual(musicaDoLink('Aleluia', '-', 'o2QQWcLE7ac'), { titulo: 'Aleluia', artista: '', video: 'o2QQWcLE7ac' });
+  assert.deepEqual(musicaDoLink('Aleluia', 'Coral', 'curto'), { titulo: 'Aleluia', artista: 'Coral', video: '' });
+});

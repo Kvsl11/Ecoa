@@ -41,7 +41,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
+import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, musicaDoLink, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -783,7 +783,7 @@ async function compartilharMusica(musica) {
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   // O link que vai junto: o da música no Ecoa (abre o app, ou o site, na música), nos três cartões — e não o endereço
   // do vídeo no YouTube. Sem o nome da música, o endereço recebido
-  const link = linkDaMusicaNoEcoa(titulo, artista) || url;
+  const link = linkDaMusicaNoEcoa(titulo, artista, youtubeId(url) || idVideo) || url;
   const linkDe = () => link;
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
   const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual, t: tAnim,
@@ -9520,7 +9520,7 @@ function mesmaDaLista(meta, dados) {
 }
 async function abrirMusica(dados, back, el, { tela = false } = {}) {
   // já está na biblioteca: abre a música salva (com o botão marcado), sem trazer de novo
-  const ja = (!dados.video || dados.cifra || dados.letra) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
+  const ja = (!dados.video || dados.cifra || dados.letra || dados.videoCerto) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
   if (ja) { if (tela) abrirTocando(ja.id); else irParaMusica(ja.id); return; }
   // (com o player aberto: a música é preparada e só passa a tocar nele, sem abrir a tela)
   const noPlayer = !tela && playerAberto();
@@ -9538,7 +9538,8 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     // (a letra sincronizada já começa a ser procurada agora, junto com a cifra e o vídeo)
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
-      let r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
+      // (videoCerto: o nome, o artista e o vídeo vêm de um link compartilhado — a música é essa, com esse vídeo)
+      let r = dados.video && !dados.cifra && !dados.letra && !dados.videoCerto ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
       if (chegando && chegando.meu !== abrindoDaBusca) return;
       // A música que abre é a que a lista mostrou. A cifra ou a letra trazida de outra música (outro título, ou outro
       // artista quando o da lista é certo) não entra: a música abre com o nome, o artista e o vídeo da lista, sem a
@@ -19671,21 +19672,26 @@ addEventListener('songbook:nuvem', () => {
   if (/^#?\/?(biblioteca(\/[^/]*)?|repertorios|repertorio\/[^/]+)?$/.test(location.hash)) route();
 });
 
-// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>): abre a música — a da biblioteca, se a pessoa
-// já a tem; senão, trazida pelo nome e pelo artista, como as da busca. Abre sozinha na primeira vez; voltando a esta
-// tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta. No navegador do Android, a
-// tela oferece antes abrir no aplicativo instalado
-function viewOuvir(titulo = '', artista = '') {
+// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>/<vídeo>): abre a música — a da biblioteca, se a
+// pessoa já a tem; senão, trazida pelo nome e pelo artista, com o mesmo vídeo de quem enviou. Abre sozinha ao chegar
+// pelo link; voltando a esta tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta (a
+// entrada do histórico fica marcada). No navegador do Android, a tela oferece antes abrir no aplicativo instalado
+let linkAbertoEm = 0; // (quando um link de música chegou: a volta ao Início de quem ficou fora do app não vale para ele)
+function viewOuvir(tituloDoLink = '', artistaDoLink = '', videoDoLink = '') {
+  const { titulo, artista, video } = musicaDoLink(tituloDoLink, artistaDoLink, videoDoLink);
   if (!titulo) return viewNotFound();
+  linkAbertoEm = Date.now();
   setTab('inicio');
   setHeader('Música compartilhada', { back: '#/' });
   const noNavegadorDoAndroid = /Android/i.test(navigator.userAgent) && !noApk();
-  const abrir = () => { void abrirMusica({ titulo, artista }, '#/'); };
+  const abrir = () => {
+    void abrirMusica({ titulo, artista, ...(video ? { video: { id: video, url: `https://www.youtube.com/watch?v=${video}`, titulo: [artista, titulo].filter(Boolean).join(' - ') }, videoCerto: true } : {}) }, '#/');
+  };
   view.innerHTML = `<section class="ouvir-link">
-    <div class="cover">${icon('music', 44)}</div>
+    <div class="cover">${video ? `<img src="https://i.ytimg.com/vi/${esc(video)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="">` : icon('music', 44)}</div>
     <h2>${esc(titulo)}</h2>${artista ? `<p class="muted">${esc(artista)}</p>` : ''}
     <div class="ouvir-acoes">
-      ${noNavegadorDoAndroid ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
+      ${noNavegadorDoAndroid ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista, video))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
       <button class="btn${noNavegadorDoAndroid ? '' : ' primary'}" data-ouvir>${icon('play', 18)} ${noNavegadorDoAndroid ? 'Ouvir aqui' : 'Abrir a música'}</button>
       <button class="btn" data-procurar>${icon('search', 18)} Procurar na busca</button>
     </div></section>`;
@@ -19695,9 +19701,18 @@ function viewOuvir(titulo = '', artista = '') {
     sessionStorage.setItem('buscaFiltro', 'musicas');
     location.hash = '#/buscar';
   };
-  const chave = `ouvir:${titulo}|${artista}`;
-  if (!noNavegadorDoAndroid && sessionStorage.getItem('ouvirAberta') !== chave) { sessionStorage.setItem('ouvirAberta', chave); abrir(); }
+  if (noNavegadorDoAndroid || history.state?.ouvirAberta) return;
+  try { history.replaceState({ ...(history.state || {}), ouvirAberta: true }, ''); } catch { /* sem histórico: abre de novo ao voltar */ }
+  abrir();
 }
+// o link de música que chegou com o aplicativo já aberto (a parte Android chama): vai para a tela dele — também quando
+// é o mesmo link da tela em que se está, que não mudaria o endereço
+window.ecoaAbrirLink = (rota) => {
+  if (!/^#\/ouvir\//.test(String(rota || ''))) return false;
+  linkAbertoEm = Date.now();
+  if (location.hash === rota) { try { history.replaceState(null, ''); } catch { /* segue */ } route(); } else location.hash = rota;
+  return true;
+};
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início
   if (rotaInicial) {
@@ -23075,7 +23090,7 @@ function route() {
     case 'permissoes': if (noApk()) { location.replace('#/ajustes'); return; } return viewPermissoes();
     case 'partituras': return viewPartituras();
     case 'compartilhado': return viewCompartilhado();
-    case 'ouvir': return viewOuvir(b, c);
+    case 'ouvir': return viewOuvir(b, c, d);
     case 'oracoes': return viewOracoes();
     case 'oracao': return viewOracao(b);
     case 'fontes': return viewFontes();
@@ -23161,7 +23176,7 @@ try {
   const novaSessao = !sessionStorage.getItem('songbook.sessao');
   sessionStorage.setItem('songbook.sessao', '1');
   const aqui = location.hash || '#/';
-  if (novaSessao && aqui !== '#/' && aqui === localStorage.getItem(CHAVE_ULTIMA_TELA)) history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+  if (novaSessao && aqui !== '#/' && !/^#\/ouvir\//.test(aqui) && aqui === localStorage.getItem(CHAVE_ULTIMA_TELA)) history.replaceState(null, '', `${location.pathname}${location.search}#/`);
 } catch { /* sem armazenamento: abre onde o endereço diz */ }
 route();
 // o app carregou inteiro: a rede de segurança do index.html não precisa agir
@@ -23172,13 +23187,16 @@ rotaInicial = false;
 // a tela em que a pessoa estava ao sair (para, abrindo de novo, começar no Início) e, voltando ao app depois de um tempo
 // fora (mais de 2 minutos sem música tocando, ou meia hora), o Início também — menos no meio de uma edição
 let saiuEm = 0;
-const guardarTelaAoSair = () => { try { localStorage.setItem(CHAVE_ULTIMA_TELA, location.hash || '#/'); } catch { /* sem espaço */ } };
+// (a tela de um link de música não fica guardada: o mesmo link, aberto de novo, tem de abrir a música, e não o Início)
+const guardarTelaAoSair = () => { try { localStorage.setItem(CHAVE_ULTIMA_TELA, /^#\/ouvir\//.test(location.hash) ? '#/' : location.hash || '#/'); } catch { /* sem espaço */ } };
 addEventListener('pagehide', guardarTelaAoSair);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { saiuEm = Date.now(); guardarTelaAoSair(); return; }
   const fora = saiuEm ? Date.now() - saiuEm : 0;
   saiuEm = 0;
   const editando = /^#\/(editar|musica\/[^/]+\/(compor|partitura))/.test(location.hash);
+  // (um link de música acabou de trazer a pessoa de volta ao app: fica na música dele, e não no Início)
+  if (Date.now() - linkAbertoEm < 60e3 || /^#\/ouvir\//.test(location.hash)) return;
   if (!editando && (location.hash || '#/') !== '#/' && (fora > 30 * 60e3 || (fora > 2 * 60e3 && player.estado !== 'tocando'))) location.hash = '#/';
 });
 
