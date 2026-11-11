@@ -5,6 +5,24 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 633, data: '2026-11-11', titulo: 'Compartilhamento: fundos animados no cartão, enviado em vídeo',
+    itens: [
+      { tipo: 'novo', texto: 'A tela "Personalizar" do compartilhamento passou a ter a ferramenta "Animado", com cinco fundos em movimento para os cartões Música, Letra e Vídeo: Eco (anéis que se abrem a partir do centro), Ondas, Aurora, Bolhas e Brilhos. O movimento é desenhado sobre a cor escolhida, sobre a capa ou sobre a foto do aparelho, e é exibido na prévia do cartão. A opção "Parado" mantém o cartão em imagem, como antes.' },
+      { tipo: 'novo', texto: 'Com um fundo animado, o cartão passou a ser enviado em vídeo, e não em imagem: uma volta completa da animação, de 6 segundos, a 30 quadros por segundo, no tamanho do cartão (1080 × 1920 na Música, 1080 × 1080 na Letra e 1080 × 920 no Vídeo), sem som. O fim do vídeo coincide com o começo, para a repetição contínua. O formato é MP4 (H.264) onde o aparelho grava nesse formato e WebM nos demais; onde não há gravação de vídeo, é enviada a imagem, com aviso. A geração leva os mesmos 6 segundos, indicados na folha.' },
+      { tipo: 'melhoria', texto: 'A parte Android do compartilhamento passou a aceitar o arquivo de vídeo, além da imagem, para o WhatsApp, o Instagram e os demais aplicativos. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: os cinco fundos foram criados sem o vídeo de referência indicado, que não foi recebido; a correspondência com ele ainda não foi conferida. A geração foi verificada em navegador (MP4 H.264, 1080 × 1080, 181 quadros, 6,03 s, 2,2 MB); o envio do vídeo ao WhatsApp e ao Instagram no aparelho Android, e a aceitação do arquivo por esses aplicativos, ainda não foram testados.' },
+    ],
+  },
+  {
+    versao: 632, data: '2026-11-11', titulo: 'Compartilhamento: folha sem espaço vazio na altura toda, telas de ajuste abertas por inteiro e símbolos oficiais do WhatsApp e do Instagram',
+    itens: [
+      { tipo: 'correcao', texto: 'Na folha de compartilhar, puxada para a altura toda (94% da tela), o conteúdo mantinha a altura original e restava uma área vazia abaixo dos destinos. O conteúdo passou a ocupar a altura inteira: o cartão cresce (até 86% da largura da tela ou 440 pixels) e fica centrado no espaço disponível, e as abas, as cores e os destinos ficam no pé da folha.' },
+      { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" tinham altura limitada (640 pixels na primeira) e também deixavam área vazia. Passaram a abrir com a folha na altura toda: a lista de versos vai até o pé e, no "Personalizar", o cartão ocupa o espaço entre o título e as ferramentas. Ao voltar aos cartões, a folha retorna ao tamanho em que estava.' },
+      { tipo: 'correcao', texto: 'Os destinos WhatsApp e Instagram usavam desenhos aproximados, em traço. Passaram a exibir o símbolo oficial de cada aplicativo (conjunto Simple Icons, de domínio público), preenchido, sobre a cor da marca; o fundo do Instagram passou ao degradê oficial.' },
+      { tipo: 'melhoria', texto: 'Pendente: os fundos animados e as demais opções de fundo solicitados com base em um vídeo de referência não foram implementados, pois o vídeo não foi recebido. A verificação foi feita em navegador com tela de celular; o destino Instagram só existe no aplicativo Android e não foi executado em aparelho.' },
+    ],
+  },
+  {
     versao: 631, data: '2026-11-11', titulo: 'Prévia da playlist: hashtag vazia ("#...") deixou de ser exibida',
     itens: [
       { tipo: 'correcao', texto: 'Na prévia da playlist, algumas músicas exibiam uma hashtag sem texto, apenas "#...". A base consultada para o clima e o tema da música (TheAudioDB) devolve "..." no campo que não foi preenchido, e esse valor era usado como hashtag. Passou a ser aceita somente a hashtag que contém ao menos uma letra; a vaga é ocupada pela hashtag seguinte, e o mínimo de 6 por música foi mantido.' },
@@ -70,23 +88,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'A tela "Personalizar" da folha de compartilhamento, antes restrita ao cartão da letra, passou a valer para os três cartões (Música, Letra e Vídeo) e a oferecer, como fundo, somente a cor, a capa escurecida ou uma foto escolhida no aparelho. O estilo e o alinhamento do texto continuam próprios do cartão da letra.' },
       { tipo: 'melhoria', texto: 'A marca do Ecoa nos cartões passou a ser desenhada em uma só cor, a do texto do cartão (o símbolo sem o quadrado azul ao fundo e o nome ao lado).' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações do controle de mídia são do código nativo do Android e não foram executadas em aparelho; a compilação é conferida pela montagem do APK no workflow. A música reproduzida pelo YouTube continua sem tocar com o aplicativo em segundo plano (regra do YouTube).' },
-    ],
-  },
-  {
-    versao: 623, data: '2026-11-11', titulo: 'Compartilhamento refeito: carrossel com os cartões Música, Letra e Vídeo, escolha dos versos em tela própria e personalização do cartão da letra',
-    itens: [
-      { tipo: 'novo', texto: 'A folha de compartilhamento passou a exibir os cartões em carrossel: o cartão central em destaque, os vizinhos visíveis nas laterais e a passagem de um para outro por arrasto ou pelas abas, cujo marcador desliza até a aba escolhida. Antes havia uma única prévia, trocada sem transição.' },
-      { tipo: 'novo', texto: 'Foi incluído o cartão "Vídeo" (1080 × 920 pixels), com o quadro do videoclipe, a capa, o título, o artista e a duração; o link compartilhado é o do videoclipe. O cartão só é oferecido às músicas com videoclipe. Aberta pelo player em modo vídeo, a folha inicia nesse cartão.' },
-      { tipo: 'melhoria', texto: 'O cartão "Música" passou ao formato vertical de 1080 × 1920 pixels, com a capa, o título e o artista em um painel escuro sobre a cor escolhida; o cartão "Letra" passou a 1080 × 1080 pixels, com os versos em corpo de até 104 pixels (antes 96), reduzido conforme a quantidade de texto.' },
-      { tipo: 'novo', texto: 'A escolha dos versos passou a ocupar uma tela própria, na cor da música, com os versos em corpo maior e os escolhidos em destaque (até 5). A nova tela "Personalizar" do cartão da letra oferece a cor, a capa escurecida como fundo, quatro estilos de texto (Clássico, Largo, Estreito e Inclinado) e o alinhamento à esquerda ou centralizado.' },
-      { tipo: 'melhoria', texto: 'Pendente: os três cartões, a troca entre eles, a escolha dos versos, a personalização e a gravação da imagem (JPEG de cerca de 150 kB) foram verificados em navegador com tela de celular; o arrasto do carrossel por toque e o envio pela parte nativa (WhatsApp, Instagram e lista do sistema) não foram validados em aparelho Android. Figurinhas sobre o cartão não foram implementadas.' },
-    ],
-  },
-  {
-    versao: 622, data: '2026-11-11', titulo: 'Troca de música em vídeo sem o quadro cinza do Android',
-    itens: [
-      { tipo: 'correcao', texto: 'Na troca de uma música para a outra no modo vídeo, o elemento de vídeo ficava por um instante sem imagem (arquivo ainda em carregamento), e o WebView do Android desenhava nesse intervalo o seu cartaz padrão: um quadro cinza com o triângulo de reprodução. Os vídeos do player, da capa animada e das prévias de playlist passaram a receber um cartaz transparente de 1 × 1 pixel; no intervalo fica apenas o fundo preto do vídeo, até a chegada do primeiro quadro.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada por testes automatizados e pela conferência do atributo nos elementos; o quadro cinza é desenhado somente pelo WebView do Android e a ausência dele ainda não foi confirmada em aparelho.' },
     ],
   },
 ];

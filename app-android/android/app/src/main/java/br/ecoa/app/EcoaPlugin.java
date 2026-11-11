@@ -952,7 +952,13 @@ public class EcoaPlugin extends Plugin {
         String titulo = call.getString("titulo", "");
         String imagem = call.getString("imagem", "");
         String pacote = call.getString("pacote", "");
-        boolean jpeg = "image/jpeg".equals(call.getString("tipo", "image/jpeg"));
+        // (o cartão com o fundo animado chega em vídeo: MP4 ou, onde o aparelho não grava MP4, WebM)
+        String tipo = call.getString("tipo", "image/jpeg");
+        if (tipo == null) tipo = "image/jpeg";
+        int pontoEVirgula = tipo.indexOf(';');
+        if (pontoEVirgula > 0) tipo = tipo.substring(0, pontoEVirgula).trim();
+        String extensao = "video/mp4".equals(tipo) ? ".mp4" : "video/webm".equals(tipo) ? ".webm" : "image/png".equals(tipo) ? ".png" : ".jpg";
+        if (".jpg".equals(extensao)) tipo = "image/jpeg";
         try {
             Context ctx = getContext();
             android.content.Intent enviar = new android.content.Intent(android.content.Intent.ACTION_SEND);
@@ -963,11 +969,11 @@ public class EcoaPlugin extends Plugin {
                 if (antigos != null) for (File f : antigos) if (System.currentTimeMillis() - f.lastModified() > 3600_000L) f.delete();
                 byte[] bytes = android.util.Base64.decode(imagem, android.util.Base64.DEFAULT);
                 if (bytes.length == 0) throw new IllegalStateException("A imagem chegou vazia.");
-                File arquivo = new File(pasta, "ecoa-musica-" + System.currentTimeMillis() + (jpeg ? ".jpg" : ".png"));
+                File arquivo = new File(pasta, "ecoa-musica-" + System.currentTimeMillis() + extensao);
                 try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) { saida.write(bytes); }
                 android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
                     ctx, ctx.getPackageName() + ".fileprovider", arquivo);
-                enviar.setType(jpeg ? "image/jpeg" : "image/png");
+                enviar.setType(tipo);
                 enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
                 enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), "Música do Ecoa", uri));
                 enviar.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);

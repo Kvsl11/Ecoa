@@ -5548,6 +5548,8 @@ dialog.cs-dlg .dlg { padding-left: 0; padding-right: 0; overflow-x: hidden; }
 .cs-cor[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
 .cs-linha .chip { gap: 6px; cursor: pointer; }
 .cs-estado { margin: 0; padding: 0 22px; text-align: center; font-size: 13.5px; color: #f87171 !important; }
+.cs-estado.neutro { color: var(--muted) !important; }
+.cs-nota { flex: 1 1 100%; text-align: center; font-size: 12.5px; color: var(--muted); }
 .cs-destinos { display: flex; gap: 6px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; }
 .cs-destinos::-webkit-scrollbar { display: none; }
 .cs-destino { all: unset; box-sizing: border-box; flex: none; display: grid; justify-items: center; gap: 6px; width: 76px; padding: 4px 0; border-radius: 12px; cursor: pointer; }
@@ -5555,8 +5557,26 @@ dialog.cs-dlg .dlg { padding-left: 0; padding-right: 0; overflow-x: hidden; }
 .cs-destino small { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.2; }
 .cs-bola { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--surface-3); color: var(--text); }
 .cs-whats .cs-bola { background: #25d366; color: #fff; }
-.cs-insta .cs-bola { background: linear-gradient(45deg, #f9a825, #e1306c 55%, #7b3fe4); color: #fff; }
+.cs-insta .cs-bola { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%); color: #fff; }
+.cs-marca { display: block; }
 .cs-vago { width: 40px; }
+/* A folha na altura toda (puxada para cima, ou nas telas de ajustar): o conteúdo ocupa a altura inteira, sem sobrar um
+   espaço vazio embaixo. Nos cartões, o carrossel cresce e os controles ficam no pé; nos versos, a lista vai até o pé;
+   no "Personalizar", o cartão fica no meio do espaço que sobra */
+dialog.cs-dlg.folha-cheia[open] { display: flex; flex-direction: column; overflow: hidden; }
+dialog.cs-dlg.folha-cheia .folha-cab { flex: none; }
+dialog.cs-dlg.folha-cheia .dlg { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+dialog.cs-dlg.folha-cheia .cs { height: 100%; min-height: 0; }
+dialog.cs-dlg.folha-cheia .cs-cartoes { height: 100%; grid-template-rows: minmax(0, 1fr); grid-auto-rows: auto; }
+dialog.cs-dlg.folha-cheia .cs-trilho { height: 100%; min-height: 0; }
+dialog.cs-dlg.folha-cheia .cs-slide { display: flex; align-items: center; height: 100%; }
+dialog.cs-dlg.folha-cheia .cs-slide canvas { max-height: calc(100% - 28px); max-width: min(86vw, 440px); }
+dialog.cs-dlg.folha-cheia .cs-versos { height: calc(100% + 30px); }
+dialog.cs-dlg.folha-cheia .cs[data-tela="personalizar"] .cs-personalizar { display: flex; flex-direction: column; align-items: center; height: 100%; }
+dialog.cs-dlg.folha-cheia .cs-pers-palco { flex: 1; min-height: 0; width: 100%; display: grid; place-items: center; }
+dialog.cs-dlg.folha-cheia .cs-pers-palco canvas, dialog.cs-dlg.folha-cheia .cs-pers-palco[data-modo="musica"] canvas { width: auto; height: auto; max-width: min(86vw, 440px); max-height: 100%; }
+dialog.cs-dlg.folha-cheia .cs-pers-cab, dialog.cs-dlg.folha-cheia .cs-pers-opcoes, dialog.cs-dlg.folha-cheia .cs-ferrs, dialog.cs-dlg.folha-cheia .cs-personalizar .cs-continuar { flex: none; }
+dialog.cs-dlg.folha-cheia .cs-personalizar .cs-continuar { align-self: center; }
 /* escolher os versos: a tela na cor da música, os versos grandes e os escolhidos em destaque */
 .cs-versos { grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; height: min(78dvh, 640px); margin: -8px 0 -22px; padding: 12px 16px 18px; border-radius: 18px 18px 0 0; color: #fff;
   background: linear-gradient(180deg, var(--cs-cor), var(--cs-cor2)); }
