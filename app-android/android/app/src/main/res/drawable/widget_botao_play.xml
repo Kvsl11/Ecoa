@@ -1,3 +1,4 @@
+<!-- o botão de tocar/pausar: um círculo branco (o desenho dentro fica escuro) -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-  <solid android:color="#33FFFFFF"/>
+  <solid android:color="#FFFFFFFF"/>
 </shape>
