@@ -924,6 +924,57 @@ public class EcoaPlugin extends Plugin {
         }
     }
 
+    // Compartilha uma música ou um trecho da letra: o cartão desenhado pela interface (lib/cartao.js, em base64) como
+    // anexo e o texto (o nome, o artista, o endereço) na legenda. Sem a imagem, vai só o texto. Com "pacote", abre
+    // direto o aplicativo pedido (WhatsApp, Instagram); sem ele instalado, recusa com o código "sem-app" e a
+    // interface abre a lista de aplicativos do sistema.
+    @PluginMethod
+    public void compartilharCartao(PluginCall call) {
+        String texto = call.getString("texto", "");
+        String titulo = call.getString("titulo", "");
+        String imagem = call.getString("imagem", "");
+        String pacote = call.getString("pacote", "");
+        boolean jpeg = "image/jpeg".equals(call.getString("tipo", "image/jpeg"));
+        try {
+            Context ctx = getContext();
+            android.content.Intent enviar = new android.content.Intent(android.content.Intent.ACTION_SEND);
+            if (imagem != null && !imagem.isEmpty()) {
+                File pasta = new File(ctx.getCacheDir(), "compartilhar");
+                if (!pasta.exists() && !pasta.mkdirs()) throw new IllegalStateException("Não foi possível preparar a imagem.");
+                File[] antigos = pasta.listFiles();
+                if (antigos != null) for (File f : antigos) if (System.currentTimeMillis() - f.lastModified() > 3600_000L) f.delete();
+                byte[] bytes = android.util.Base64.decode(imagem, android.util.Base64.DEFAULT);
+                if (bytes.length == 0) throw new IllegalStateException("A imagem chegou vazia.");
+                File arquivo = new File(pasta, "ecoa-musica-" + System.currentTimeMillis() + (jpeg ? ".jpg" : ".png"));
+                try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) { saida.write(bytes); }
+                android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                    ctx, ctx.getPackageName() + ".fileprovider", arquivo);
+                enviar.setType(jpeg ? "image/jpeg" : "image/png");
+                enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
+                enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), "Música do Ecoa", uri));
+                enviar.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } else {
+                enviar.setType("text/plain");
+            }
+            if (texto != null && !texto.isEmpty()) enviar.putExtra(android.content.Intent.EXTRA_TEXT, texto);
+            if (titulo != null && !titulo.isEmpty()) enviar.putExtra(android.content.Intent.EXTRA_SUBJECT, titulo);
+            if (pacote != null && !pacote.isEmpty()) {
+                enviar.setPackage(pacote);
+                try {
+                    getActivity().startActivity(enviar);
+                } catch (android.content.ActivityNotFoundException e) {
+                    call.reject("O aplicativo não está instalado.", "sem-app");
+                    return;
+                }
+            } else {
+                getActivity().startActivity(android.content.Intent.createChooser(enviar, "Compartilhar"));
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Não foi possível preparar o compartilhamento: " + String.valueOf(e.getMessage()), "compartilhar");
+        }
+    }
+
     // O cartão de reserva do convite, desenhado no Android (para quando a interface não manda a imagem).
     private static void desenharConviteSimples(Context ctx, File arquivo) throws java.io.IOException {
         android.graphics.Bitmap card = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888);

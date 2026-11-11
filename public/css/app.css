@@ -317,7 +317,8 @@ a.chip.sm { cursor: pointer; }
 
 /* capas */
 .cover { position: relative; overflow: hidden; background: var(--surface-2); flex: none; container-type: inline-size; }
-.cover img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.05); }
+/* (sem ampliação: a imagem ocupava 105% do quadro e a capa perdia 2,4% de cada lado, cortando a borda e o texto dela) */
+.cover img { width: 100%; height: 100%; object-fit: cover; }
 .cover.gen { display: grid; place-items: center; color: rgb(255 255 255 / 0.92); background: linear-gradient(135deg, hsl(var(--h) 55% 46%), hsl(calc(var(--h) + 40) 60% 22%)); }
 .cover.gen .ic { width: 42%; height: 42%; }
 .cover.mosaic { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
@@ -5476,6 +5477,39 @@ dialog.folha.pk-dlg .dlg > .acts { position: static; }
 .perfil-folha-lista { display: grid; padding-top: 6px; }
 .perfil-folha-lista .pg-item { padding: 14px 4px; border-radius: 8px; }
 .pg-item.pg-sair, .pg-item.pg-sair svg { color: #f87171; }
+/* "Compartilhar" a música ou a letra: a prévia do cartão (4:5), a escolha entre Música e Letra, as cores, os versos e
+   os destinos em bolinhas (uma linha que rola para o lado) */
+.cs { display: grid; gap: 14px; }
+.cs-previa { display: block; width: auto; height: auto; max-width: min(100%, 300px); max-height: 44dvh; aspect-ratio: 4 / 5; margin: 0 auto; border-radius: 18px;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38); }
+.cs-controles { display: grid; gap: 14px; }
+.cs-modos { display: flex; justify-content: center; gap: 4px; margin: 0 auto; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.cs-modos button { all: unset; box-sizing: border-box; min-width: 88px; height: 34px; padding: 0 16px; border-radius: 999px; text-align: center; font-size: 14px; font-weight: 600;
+  color: var(--muted); cursor: pointer; }
+.cs-modos button[aria-selected="true"] { background: var(--text); color: var(--bg); }
+.cs-modos button:disabled { opacity: 0.4; cursor: default; }
+.cs-modos button:focus-visible, .cs-cor:focus-visible, .cs-destino:focus-visible, .cs-verso:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cs-linha { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 18px; min-height: 34px; }
+.cs-cores { display: flex; gap: 12px; }
+.cs-cor { all: unset; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; background: var(--c); border: 2px solid color-mix(in srgb, var(--text) 28%, transparent); cursor: pointer; }
+.cs-cor[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.cs-editar { gap: 6px; cursor: pointer; }
+.cs-estado { margin: 0; text-align: center; font-size: 13.5px; color: #f87171 !important; }
+.cs-destinos { display: flex; gap: 6px; margin: 0 -22px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; }
+.cs-destinos::-webkit-scrollbar { display: none; }
+.cs-destino { all: unset; box-sizing: border-box; flex: none; display: grid; justify-items: center; gap: 6px; width: 76px; padding: 4px 0; border-radius: 12px; cursor: pointer; }
+.cs-destino:disabled { opacity: 0.5; }
+.cs-destino small { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.2; }
+.cs-bola { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--surface-3); color: var(--text); }
+.cs-whats .cs-bola { background: #25d366; color: #fff; }
+.cs-insta .cs-bola { background: linear-gradient(45deg, #f9a825, #e1306c 55%, #7b3fe4); color: #fff; }
+.cs-versos { display: grid; gap: 12px; }
+.cs-versos-cab { display: flex; align-items: baseline; justify-content: space-between; }
+.cs-versos-cab small { color: var(--muted); font-size: 13px; }
+.cs-versos-lista { display: grid; gap: 6px; max-height: 52dvh; overflow-y: auto; margin: 0 -6px; padding: 2px 6px; }
+.cs-verso { all: unset; box-sizing: border-box; padding: 10px 14px; border-radius: 12px; font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--muted); cursor: pointer; }
+.cs-verso[aria-selected="true"] { background: var(--text); color: var(--bg); }
+.cs-versos-ok { justify-self: center; min-width: 160px; justify-content: center; }
 /* "Compartilhar o Ecoa": a prévia do cartão do convite (4:5) e, embaixo, as formas de enviar */
 .convite-previa { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: 46dvh; aspect-ratio: 4 / 5; margin: 0 auto; border-radius: 18px;
   box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38); }

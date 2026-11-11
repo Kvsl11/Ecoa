@@ -41,6 +41,8 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
+import { LARGURA_DO_CARTAO, ALTURA_DO_CARTAO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao } from './lib/cartao.js';
+import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
@@ -657,11 +659,170 @@ const base64DoBlob = (blob) => new Promise((ok, falha) => {
 });
 
 // compartilhar pelo sistema (WhatsApp, e-mail…); sem isso, copia o texto
+// (no APK, o WebView não tem o compartilhamento do navegador: vai pela parte nativa, compartilharCartao)
 async function compartilhar(dados) {
+  const nativo = noApk() ? pluginEcoa() : null;
+  if (nativo?.compartilharCartao) {
+    try { await nativo.compartilharCartao({ titulo: dados.title || '', texto: [dados.text, dados.url].filter(Boolean).join('\n') }); return; } catch { /* segue para a cópia */ }
+  }
   if (navigator.share) {
     try { await navigator.share(dados); return; } catch (e) { if (e?.name === 'AbortError') return; }
   }
-  try { await navigator.clipboard.writeText([dados.text, dados.url].filter(Boolean).join('\n')); toast('Copiado: é só colar onde quiser'); } catch { toast('Não consegui compartilhar'); }
+  toast((await copiarTexto([dados.text, dados.url].filter(Boolean).join('\n'))) ? 'Copiado: é só colar onde quiser' : 'Não consegui compartilhar');
+}
+
+// a música salva, para a folha de compartilhar: a letra é a sincronizada ou, sem ela, a da cifra sem os acordes
+function dadosParaCompartilhar(song) {
+  let linhas = Array.isArray(song.sincronia?.linhas) ? song.sincronia.linhas : [];
+  if (!linhas.length && song.content) {
+    // (sem a primeira linha, que é o nome da música com o artista)
+    try { linhas = textoParaCopiar(song.content, { comCifra: false, key: song.key || '', titulo: song.title || '', artista: song.artist || '' }).split('\n'); } catch { linhas = []; }
+    if (linhas[0] && linhas[0].startsWith(song.title || '\u0000')) linhas = linhas.slice(1);
+  }
+  return {
+    titulo: song.title || '', artista: song.artist || '', capa: capaDaMusica(song).replace('/mqdefault.jpg', '/hqdefault.jpg'), cor: corDe(song),
+    url: song.youtube ? `https://www.youtube.com/watch?v=${song.youtube}` : /^https?:/.test(song.source || '') ? song.source : '',
+    linhas,
+  };
+}
+// A capa da música como imagem que o canvas pode desenhar e exportar: direto (o site deixa ler) ou, se não deixa, por
+// um redimensionador público (como na cor da capa). null sem capa, sem internet ou sem resposta em 6 s
+async function imagemDaCapaParaCartao(src) {
+  if (!src) return null;
+  const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=900&h=900&fit=cover&output=jpg`];
+  for (const url of tentativas) {
+    try {
+      const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout?.(6000) });
+      if (r.ok) return await createImageBitmap(await r.blob());
+    } catch { /* tenta a próxima */ }
+  }
+  return null;
+}
+// "Compartilhar" a música ou a letra (o botão do player, o da letra, os ⋮ da música): a folha com a prévia do cartão
+// (lib/cartao.js), a escolha entre Música e Letra, a cor do cartão, os versos que entram e os destinos (copiar o link,
+// WhatsApp, Instagram, salvar a imagem, os outros aplicativos). musica: { titulo, artista, capa, url, linhas (a
+// letra), linhaAtual (a que está sendo cantada), cor (a da música), modo ('musica' | 'letra') }
+async function compartilharMusica(musica) {
+  const { titulo = '', artista = '', url = '' } = musica;
+  const linhas = linhasParaEscolher(musica.linhas);
+  const cores = coresDoCartao(musica.cor || corDe({ title: titulo, artist: artista, cover: musica.capa }));
+  let modo = musica.modo === 'letra' && linhas.length ? 'letra' : 'musica';
+  let cor = 0;
+  let marcados = versosIniciais(linhas, musica.linhaAtual ?? -1);
+  let capaImg = null;
+  const nativo = noApk() ? pluginEcoa() : null;
+  const canvas = document.createElement('canvas');
+  const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
+  const texto = () => textoDoCartao({ titulo, artista, url, versos: versos() });
+  const imagem = () => new Promise((ok) => {
+    try { desenharCartao(canvas, { modo, titulo, artista, capa: capaImg, versos: versos(), cor: cores[cor] }); canvas.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
+  });
+  await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
+  const podeEnviar = Boolean(nativo?.compartilharCartao || navigator.share);
+  const destino = (v, ic, rotulo, cls = '') => `<button class="cs-destino ${cls}" data-cs="${v}"><span class="cs-bola">${icon(ic, 22)}</span><small>${rotulo}</small></button>`;
+  await openDialog(`
+    <div class="cs">
+      <div class="cs-palco" data-cs-palco><canvas class="cs-previa" width="${LARGURA_DO_CARTAO}" height="${ALTURA_DO_CARTAO}" role="img" aria-label="Prévia do cartão"></canvas></div>
+      <div class="cs-versos" data-cs-versos hidden>
+        <div class="cs-versos-cab"><b>Escolher os versos</b><small data-cs-conta></small></div>
+        <div class="cs-versos-lista" role="listbox" aria-multiselectable="true">${linhas.map((l, i) => `<button class="cs-verso" role="option" data-i="${i}">${esc(l)}</button>`).join('')}</div>
+        <button class="btn primary cs-versos-ok" data-cs="versos-ok">Continuar</button>
+      </div>
+      <div class="cs-controles" data-cs-controles>
+        <div class="cs-modos" role="tablist">
+          <button role="tab" data-modo="musica">Música</button>
+          <button role="tab" data-modo="letra"${linhas.length ? '' : ' disabled title="Esta música ainda não tem a letra"'}>Letra</button>
+        </div>
+        <div class="cs-linha">
+          <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
+          <button class="chip cs-editar" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
+        </div>
+        <p class="cs-estado" role="status" hidden></p>
+        <div class="cs-destinos">
+          ${url ? destino('link', 'link', 'Copiar link') : ''}
+          ${destino('whatsapp', 'whatsapp', 'WhatsApp', 'cs-whats')}
+          ${nativo?.compartilharCartao ? destino('instagram', 'instagram', 'Instagram', 'cs-insta') : ''}
+          ${linhas.length ? destino('texto', 'copy', 'Copiar letra') : ''}
+          ${nativo ? '' : destino('salvar', 'download', 'Salvar imagem')}
+          ${podeEnviar ? destino('mais', 'enviarApp', 'Mais') : ''}
+        </div>
+      </div>
+    </div>`,
+  (dlg) => {
+    const previa = $('.cs-previa', dlg);
+    const estado = $('.cs-estado', dlg);
+    const avisar = (t) => { estado.textContent = t; estado.hidden = !t; };
+    const desenhar = () => {
+      try { desenharCartao(previa, { modo, titulo, artista, capa: capaImg, versos: versos(), cor: cores[cor] }); } catch { /* sem canvas: fica a folha sem a prévia */ }
+      dlg.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.modo === modo)));
+      dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor)));
+      $('.cs-editar', dlg).hidden = modo !== 'letra';
+    };
+    const marcar = () => {
+      dlg.querySelectorAll('.cs-verso').forEach((b) => b.setAttribute('aria-selected', String(marcados.includes(Number(b.dataset.i)))));
+      $('[data-cs-conta]', dlg).textContent = `${marcados.length} de ${MAXIMO_DE_VERSOS}`;
+      $('.cs-versos-ok', dlg).disabled = !marcados.length;
+    };
+    const escolhendo = (sim) => {
+      $('[data-cs-versos]', dlg).hidden = !sim;
+      $('[data-cs-palco]', dlg).hidden = sim;
+      $('[data-cs-controles]', dlg).hidden = sim;
+      if (sim) { marcar(); dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' }); } else desenhar();
+    };
+    desenhar();
+    imagemDaCapaParaCartao(musica.capa).then((img) => { if (img && dlg.isConnected) { capaImg = img; desenhar(); } });
+    // envia a imagem e o texto: pela parte nativa (com o aplicativo de destino, se pedido) ou pelo navegador
+    const enviar = async (pacote = '') => {
+      const blob = await imagem();
+      if (nativo?.compartilharCartao) {
+        await nativo.compartilharCartao({ titulo, texto: texto(), pacote, ...(blob ? { imagem: await base64DoBlob(blob), tipo: blob.type } : {}) });
+        return;
+      }
+      const arquivo = blob && typeof File === 'function' ? new File([blob], 'ecoa-musica.jpg', { type: blob.type }) : null;
+      if (arquivo && navigator.canShare?.({ files: [arquivo] })) await navigator.share({ files: [arquivo], title: titulo, text: texto() });
+      else await navigator.share({ title: titulo, text: texto() });
+    };
+    dlg.addEventListener('click', async (e) => {
+      const v = e.target.closest('.cs-verso');
+      if (v) { marcados = alternarVerso(marcados, Number(v.dataset.i)); marcar(); return; }
+      const m = e.target.closest('[data-modo]');
+      if (m && !m.disabled) { modo = m.dataset.modo; desenhar(); return; }
+      const c = e.target.closest('[data-cor]');
+      if (c) { cor = Number(c.dataset.cor); desenhar(); return; }
+      const b = e.target.closest('[data-cs]');
+      if (!b || b.disabled) return;
+      const acao = b.dataset.cs;
+      avisar('');
+      if (acao === 'versos') { escolhendo(true); return; }
+      if (acao === 'versos-ok') { escolhendo(false); return; }
+      if (acao === 'link') { toast((await copiarTexto(url)) ? 'Link copiado' : 'Não consegui copiar'); return; }
+      if (acao === 'texto') { toast((await copiarTexto(textoDoCartao({ titulo, artista, versos: marcados.length && modo === 'letra' ? versos() : linhas }))) ? 'Letra copiada: é só colar onde quiser' : 'Não consegui copiar'); return; }
+      b.disabled = true;
+      try {
+        if (acao === 'salvar') {
+          const blob = await imagem();
+          if (!blob) throw new Error('a imagem não pôde ser gerada');
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${(titulo || 'musica').replace(/[\\/:*?"<>|]+/g, ' ').trim()} - Ecoa.jpg`;
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        } else if (acao === 'whatsapp' && !nativo?.compartilharCartao) {
+          window.open(`https://wa.me/?text=${encodeURIComponent(texto())}`, '_blank', 'noopener');
+        } else if (acao === 'whatsapp' || acao === 'instagram') {
+          const pacote = acao === 'whatsapp' ? 'com.whatsapp' : 'com.instagram.android';
+          // (sem o aplicativo instalado: a lista de aplicativos do sistema)
+          await enviar(pacote).catch((erro) => { if (erro?.code === 'sem-app') return enviar(); throw erro; });
+        } else await enviar();
+      } catch (erro) {
+        if (erro?.name !== 'AbortError') avisar(`Não foi possível compartilhar${erro?.message ? `: ${erro.message}` : '.'}`);
+      }
+      b.disabled = false;
+    });
+  }, { folha: true });
+  capaImg?.close?.();
 }
 
 
@@ -7100,8 +7261,14 @@ const semLinhasDeAcordes = (sinc) => {
     if (b.dataset.pl === 'proxima') pular(1);
     if (b.dataset.pl === 'anterior-letra') pular(-1); // (na letra, a seta sempre vai à música anterior, sem voltar ao início)
     if (b.dataset.pl === 'troca') mudarModo();
-    if (b.dataset.pl === 'compartilhar' && atual) compartilhar({ title: atual.titulo || 'Vídeo', text: [atual.titulo, atual.artista].filter(Boolean).join(' — '), ...(ytDaCapa() ? { url: `https://www.youtube.com/watch?v=${ytDaCapa()}` } : {}) });
-    if (b.dataset.pl === 'compartilhar-letra' && atual) compartilhar({ title: atual.titulo || 'Letra', text: `${[atual.titulo, atual.artista].filter(Boolean).join(' — ')}\n\n${linhasDaLetra.join('\n')}` });
+    if ((b.dataset.pl === 'compartilhar' || b.dataset.pl === 'compartilhar-letra') && atual) {
+      const capaDela = atual.capaOficial || (atual.capa && /^(https?:|data:)/.test(atual.capa) ? atual.capa : '') || (ytDaCapa() ? `https://i.ytimg.com/vi/${ytDaCapa()}/hqdefault.jpg` : '');
+      void compartilharMusica({
+        titulo: atual.titulo || '', artista: atual.artista || '', capa: capaDela, cor: atual.cor || '',
+        url: ytDaCapa() ? `https://www.youtube.com/watch?v=${ytDaCapa()}` : '',
+        linhas: linhasDaLetra, linhaAtual: linhaAcesa, modo: b.dataset.pl === 'compartilhar-letra' ? 'letra' : 'musica',
+      });
+    }
     // ouvir em outro aparelho: o vídeo abre no YouTube (de lá vai para a TV ou a caixa de som), do ponto em que está
     if (b.dataset.pl === 'aparelhos' && atual) abrirAparelhos();
     if (b.dataset.pl === 'fila') abrirFila();
@@ -8004,8 +8171,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
   ].filter(Boolean);
   const v = await escolherNaLista({ menu: true, cabeca: `${capa(song)}<span class="lista-txt"><b>${esc(song.title)}</b><small>${esc(song.artist || (song.source ? host(song.source) : 'Cifra própria'))}</small></span>`, opcoes });
   if (v === 'compartilhar') {
-    const url = /^https?:/.test(song.source || '') ? song.source : song.youtube ? `https://www.youtube.com/watch?v=${song.youtube}` : '';
-    compartilhar({ title: song.title, text: [song.title, song.artist].filter(Boolean).join(' — '), ...(url ? { url } : {}) });
+    void compartilharMusica(dadosParaCompartilhar(song));
   }
   if (v === 'playlist') addToSetDialog(song.id, set?.items[i]?.label || '');
   if (v === 'baixar') baixarMusica(db.song(song.id), { avisar: true });
@@ -8923,7 +9089,8 @@ function nomesSeparadosDoTitulo(cru, artistaSabido = '', semFeat = (x) => x) {
 async function musicaDoVideo(v, conhecido = {}) {
   const cru = tituloCruDoVideo(v.titulo);
   const noVideo = ` ${normalizar(cru)} `;
-  const artistaConhecido = String(conhecido.artista || '').trim();
+  // (o artista que a lista mostrou sem certeza — o nome do canal de uma gravadora — não vale como sabido)
+  const artistaConhecido = conhecido.artistaIncerto ? '' : String(conhecido.artista || '').trim();
   const quem = `${quemNoVideo(v)}${normalizar(artistaConhecido)} `;
   const lista = await buscarMusicas(cru.replace(/\s(?:[|–—-]|\/\/)\s/g, ' ')).catch(() => []);
   const tit = (r) => normalizar(tituloLimpo(r.titulo));
@@ -9037,7 +9204,12 @@ async function trazerMusica({ titulo, artista = '', cifra = '', letra = null, vi
     if (!item && artista) item = mesmaMusica(await buscarLetras(tituloLimpo(titulo)).catch(() => []), titulo, artista, artistaIncerto);
     if (item) { const l = await trazerLetra(item); return { ...l, url: l.url || item.url }; }
     // fora do Letras: LRCLIB e Vagalume
-    return await letraReserva(tituloLimpo(titulo), artistaIncerto ? '' : artista);
+    const reserva = await letraReserva(tituloLimpo(titulo), artistaIncerto ? '' : artista);
+    // (com o artista certo, a letra de mesmo título de outro artista não serve: é outra música. "Blood In Your Eyes",
+    // da Tove Lo, abria com a letra e o nome da "Blood in Your Eyes" do Rocky Votolato)
+    if (reserva && artista && !artistaIncerto && reserva.artista
+      && !artistasDe(titulo, artista).some((a) => artistasDe(reserva.titulo || '', reserva.artista).some((b) => mesmoNome(a, b) || parecidoNome(a, b)))) return null;
+    return reserva;
   })().catch(() => null);
   const c = await pCifra;
   let content;
@@ -9103,6 +9275,21 @@ function telaChegando(dados) {
   return { meu, fechar: (desistiu) => { removeEventListener('keydown', aoTeclar); fechar(desistiu); } };
 }
 
+// a música trazida (o título e o artista da cifra ou da letra) é a que a lista da busca mostrou?
+function mesmaDaLista(meta, dados) {
+  const t = tituloLimpo(dados.titulo || '');
+  if (!t) return true; // (aberta só pelo endereço da cifra: o nome vem dela)
+  const tm = tituloLimpo(meta.title || '');
+  // (o título também vale dentro do nome inteiro da lista ou do vídeo: "Deus Está Aqui (Noites Traiçoeiras)")
+  const onde = ` ${normalizar(`${dados.titulo || ''} ${dados.video?.titulo || ''}`)} `;
+  if (!tm || !(mesmoNome(tm, t) || parecidoNome(tm, t) || onde.includes(` ${normalizar(tm)} `))) return false;
+  if (!dados.artista || dados.artistaIncerto) return true;
+  const quem = meta.artist || meta.subtitle || '';
+  if (!quem) return true;
+  const daLista = artistasDe(dados.titulo, dados.artista);
+  const daMusica = artistasDe(meta.title || '', quem);
+  return daLista.some((a) => daMusica.some((b) => mesmoNome(a, b) || parecidoNome(a, b)));
+}
 async function abrirMusica(dados, back, el, { tela = false } = {}) {
   // já está na biblioteca: abre a música salva (com o botão marcado), sem trazer de novo
   const ja = (!dados.video || dados.cifra || dados.letra) && musicaSalva({ titulo: dados.titulo, artista: dados.artista, cifra: dados.cifra || '', letra: dados.letra?.url || '' });
@@ -9123,8 +9310,16 @@ async function abrirMusica(dados, back, el, { tela = false } = {}) {
     // (a letra sincronizada já começa a ser procurada agora, junto com a cifra e o vídeo)
     if (dados.titulo && dados.artista && !dados.artistaIncerto) void letraSincronizadaJa(dados.titulo, dados.artista).catch(() => null);
     try {
-      const r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
+      let r = dados.video && !dados.cifra && !dados.letra ? await trazerMusica(await musicaDoVideo(dados.video, dados)) : await trazerMusicaJa(dados);
       if (chegando && chegando.meu !== abrindoDaBusca) return;
+      // A música que abre é a que a lista mostrou. A cifra ou a letra trazida de outra música (outro título, ou outro
+      // artista quando o da lista é certo) não entra: a música abre com o nome, o artista e o vídeo da lista, sem a
+      // letra, em vez de abrir como outra música
+      if (!mesmaDaLista(renderSong(r.content).meta, dados)) {
+        let content = `{title: ${dados.titulo}}\n${dados.artista && !dados.artistaIncerto ? `{artist: ${dados.artista}}\n` : ''}\n{comment: Não achei a letra nem a cifra: toque em Editar → Trazer da internet}\n`;
+        if (dados.video?.url) content = definirMeta(content, 'youtube', dados.video.url);
+        r = { content, source: '', video: dados.video ? Promise.resolve([dados.video]) : r.video };
+      }
       await abrirPrevia(r.content, r.source, back, r.video, aoPreparar, { noPlayer, vez: chegando?.meu, capaDaBusca: capaAutomatica(dados.capa) ? dados.capa : '' });
     } finally { el?.removeAttribute('aria-busy'); el?.removeAttribute('aria-description'); }
   } catch (e) {
@@ -9436,13 +9631,38 @@ function juntarVideos(musicas, videos) {
     // ficava o primeiro achado, que podia ser o de letra)
     if (m) { if (!m.video || notaDoVideo(v, m.titulo) > notaDoVideo(m.video, m.titulo)) m.video = v; } else sobra.push(v);
   }
-  return [...lista, ...sobra.map((v) => ({ titulo: tituloDoVideo(v.titulo) || v.titulo, artista: v.canal || '', capa: v.capa, video: v }))];
+  // Os vídeos que não são de nenhuma música da lista entram como músicas: com o nome e o artista tirados do título do
+  // vídeo ("Tove Lo - Blood In Your Eyes (From…)", no canal da gravadora, é "Blood In Your Eyes" · "Tove Lo"), e não
+  // mais com o título inteiro do vídeo e o canal no lugar do artista. É com esse nome e esse artista que a música abre.
+  // Os vídeos da mesma música (o clipe, o áudio do canal automático, o envio de um fã) viram uma linha só, com o
+  // melhor vídeo; e a outra versão de uma música que já está na lista (remix, instrumental, com a letra, cover) sai
+  const extras = [];
+  for (const v of sobra) {
+    const n = nomesDoVideo({ ...v, titulo: String(v.titulo || '').replace(/\s*#\S+/g, '') });
+    // ("Tu és Santo - Coral dos Adolescentes", no canal do coral: o artista é o lado do traço que é o canal)
+    const invertido = Boolean(v.canal) && !canalDeGravadora(v.canal) && mesmoNome(n.titulo, v.canal) && !mesmoNome(n.artista, v.canal);
+    const titulo = (invertido ? tituloLimpo(n.artista) || n.artista : n.titulo) || tituloDoVideo(v.titulo) || v.titulo;
+    const artista = (invertido ? n.titulo : n.artista) || v.canal || '';
+    // (o artista que é só o nome de um canal de gravadora ou de vários artistas não é certo)
+    // (o que veio escrito no título do vídeo, "Tove Lo - …", é certo mesmo no canal da gravadora)
+    const artistaIncerto = !artista || (normalizar(artista) === normalizar(v.canal || '') && canalDeGravadora(v.canal));
+    const k = `${normalizar(tituloLimpo(titulo))}|${normalizar(artista)}`;
+    const igual = extras.find((x) => x.k === k);
+    if (igual) { if (notaDoVideo(v, titulo) > notaDoVideo(igual.m.video, titulo)) igual.m.video = v; continue; }
+    const noTitulo = ` ${normalizar(tituloCruDoVideo(v.titulo))} `;
+    const outraVersao = notaDoVideo(v) < 0 && [...lista, ...extras.map((x) => x.m)].some((x) => tit(x).length >= 6 && noTitulo.includes(` ${tit(x)} `));
+    if (outraVersao) continue;
+    extras.push({ k, m: { titulo, artista, capa: v.capa, video: v, ...(artistaIncerto ? { artistaIncerto: true } : {}) } });
+  }
+  return [...lista, ...extras.map((x) => x.m)];
 }
 // cifra, letra e vídeo de um resultado da busca, já juntos
 const buscarTudo = (termo, nMusicas = 8, nVideos = 6) => {
   const pVideos = buscarYoutube(termo).catch(() => []);
   return buscarMusicas(termo).catch(async (e) => { if ((await noMaximo(pVideos, 2200, [])).length) return []; throw e; })
-    .then(async (ms) => juntarVideos(ms.slice(0, nMusicas), (await noMaximo(pVideos, 2200, [])).slice(0, nVideos)));
+    .then(async (ms) => juntarVideos(ms.slice(0, nMusicas), (await noMaximo(pVideos, 2200, [])).slice(0, nVideos)))
+    // (só o que tem a ver com a busca: lib/busca.js)
+    .then((lista) => soOsDaBusca(lista, termo, (r) => `${r.titulo || ''} ${r.artista || ''} ${r.video?.titulo || ''} ${r.video?.canal || ''}`));
 };
 // artista (Cifra Club): foto redonda; abre a página dele com as músicas mais tocadas
 // (a foto já é a definitiva: a preparada antes de desenhar (prepararFotosArtistas) ou a última guardada. A do Cifra Club
@@ -17332,7 +17552,7 @@ function previaDaPlaylist(set, inicio = 0) {
     const { i, s } = faixas[Number(slide.dataset.k)];
     if (e.target.closest('.pv-nome')) { fechar(); return; }
     if (e.target.closest('[data-compartilhar]')) {
-      compartilhar({ title: s.title, text: [s.title, s.artist].filter(Boolean).join(' — '), url: `https://www.youtube.com/watch?v=${s.youtube}` });
+      void compartilharMusica(dadosParaCompartilhar(s));
       return;
     }
     if (e.target.closest('[data-mais]')) { menuDaMusica(s, { set, i }); return; }
