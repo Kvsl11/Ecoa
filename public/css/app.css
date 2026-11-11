@@ -6546,6 +6546,9 @@ html:where([data-theme="light"]).pp #player .pl-artista-mais { color: var(--lt);
 .ic-contorno > svg:first-child { display: none; }
 @media (max-width: 899px) {
   html[data-theme="light"]:not(.tablet):not(.pp) #player :is(.pl-lado, .pl-onde) .ic-contorno > svg:first-child { display: block; color: var(--lt); stroke-width: 4.6; }
+  /* (o botão da música salva: o contorno no mesmo tom, inteiro. Antes era 85% do tom sobre o azul do botão — o
+     contorno é pintado por cima do fundo —, e saía esverdeado, diferente do contorno do fone ao lado) */
+  html[data-theme="light"]:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { border-color: var(--lt); color: var(--lt); }
   html[data-theme="light"]:not(.tablet):not(.pp) #player .pl-onde span:not(.ic-contorno) { -webkit-text-stroke: 1.5px var(--lt); paint-order: stroke fill; }
 }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); } }
