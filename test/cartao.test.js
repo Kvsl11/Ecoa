@@ -141,3 +141,16 @@ test('o link de música aberto no navegador do Android é entregue ao aplicativo
   const inicio = link.split('#')[0] + '#/biblioteca';
   assert.equal(abrir(inicio, android).foi, inicio);
 });
+
+test('o trecho da música dos versos escolhidos: do começo do primeiro ao fim do último, entre 4 e 30 s', async () => {
+  const { indicesParaEscolher, trechoDosVersos } = await import('../public/js/lib/cartao.js');
+  const linhas = ['[Verso]', 'a b', '', 'c d', 'e f', '♪', 'g h'];
+  assert.deepEqual(indicesParaEscolher(linhas), [1, 3, 4, 6]); // (as mesmas linhas de linhasParaEscolher, pelo índice)
+  assert.equal(indicesParaEscolher(linhas).length, linhasParaEscolher(linhas).length);
+  const tempos = [{ inicio: 8 }, { inicio: 10, fim: 13 }, { inicio: 13 }, { inicio: 14, fim: 17 }, { inicio: 17, fim: 21 }, { inicio: 21 }, { inicio: 60, fim: 61 }];
+  assert.deepEqual(trechoDosVersos(tempos, [1, 3, 4]), { inicio: 9.7, segundos: 11.7 }); // (0,3 s antes; 0,4 s depois do fim)
+  assert.deepEqual(trechoDosVersos(tempos, [6]), { inicio: 59.7, segundos: 4 }); // (o mínimo)
+  assert.deepEqual(trechoDosVersos(tempos, [1, 6]), { inicio: 9.7, segundos: 30 }); // (o máximo)
+  assert.equal(trechoDosVersos(tempos, []), null);
+  assert.equal(trechoDosVersos(null, [1]), null);
+});

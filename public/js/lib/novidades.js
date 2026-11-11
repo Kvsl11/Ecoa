@@ -5,6 +5,24 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 641, data: '2026-11-11', titulo: 'Modo claro no player ("Tocando agora" e barra de reprodução) e tela "Sobre o artista" na cor da música',
+    itens: [
+      { tipo: 'melhoria', texto: 'A tela "Tocando agora", o cartão da letra, os cartões abaixo dele e a barra de reprodução tinham uma única aparência, escura (a cor da música misturada com preto e o conteúdo em branco), usada também no modo claro. No modo claro, passaram a ter versão própria: a cor da música misturada com branco (em degradê até o branco na tela "Tocando agora"; 24% da cor na barra de reprodução; 30% no cartão da letra) e o texto, os botões e a barra de tempo em um tom escuro da mesma cor. O que fica sobre imagem (o vídeo, a capa, a foto do artista e o topo sobre a capa animada) e os itens na cor do aplicativo (música salva, aleatório e repetir ligados, fone conectado) não foram alterados. O modo escuro não foi alterado.' },
+      { tipo: 'melhoria', texto: 'A tela "Sobre o artista" tinha fundo cinza-escuro fixo (#121212) nos dois modos. O fundo passou a usar a cor predominante da música em reprodução, a mesma da letra na tela toda: no modo escuro, a cor misturada com preto (de 80% a 62% da cor); no modo claro, a cor misturada com branco, em degradê, com o texto em um tom escuro da mesma cor.' },
+      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em páginas de teste com a marcação do player e da tela do artista, no celular, nos dois modos; não foram executadas no aplicativo com uma música em reprodução, no tablet nem em aparelho. A capa animada (quadros do clipe atrás do topo) foi verificada com uma imagem de teste.' },
+    ],
+  },
+  {
+    versao: 640, data: '2026-11-11', titulo: 'Compartilhamento: cartões Letra e Vídeo enviados com a música (áudio do trecho dos versos e trecho do refrão do clipe)',
+    itens: [
+      { tipo: 'novo', texto: 'O cartão Letra passou a poder ser enviado em vídeo com o áudio da música: o trecho em que os versos escolhidos são cantados, obtido pela letra sincronizada, do início do primeiro verso (0,3 segundo antes) ao fim do último, com duração entre 4 e 30 segundos. O som entra e sai gradualmente. O cartão mantém a cor, a imagem de fundo e o fundo animado escolhidos.' },
+      { tipo: 'novo', texto: 'O cartão Vídeo passou a poder ser enviado com 15 segundos do videoclipe, a partir do refrão (identificado pela letra sincronizada; sem ela, a 30% da música), com a imagem do clipe em movimento no quadro do cartão e o som do próprio clipe.' },
+      { tipo: 'novo', texto: 'A folha de compartilhar passou a exibir o botão "Com a música" nos cartões Letra e Vídeo quando a música está disponível; desligado, o cartão é enviado como antes (imagem, ou vídeo sem som com o fundo animado). O formato é MP4 (H.264 e AAC) onde o aparelho grava nesse formato e WebM nos demais; a geração leva o mesmo tempo do trecho, indicado na folha.' },
+      { tipo: 'melhoria', texto: 'Condição: o áudio e a imagem vêm do arquivo baixado no aparelho, porque o player do YouTube não permite a gravação. O cartão Letra exige a música baixada e a letra sincronizada; o cartão Vídeo exige o videoclipe baixado. Sem o arquivo, o botão não é exibido e os cartões são enviados como antes. O cartão Música não foi alterado.' },
+      { tipo: 'melhoria', texto: 'Pendente: a gravação foi verificada em navegador com mídia de teste (cartão Letra: 1080 × 1080, 10,2 s, com áudio; cartão Vídeo: 1080 × 920, 15 s, com imagem e áudio do clipe). Não foram executados a folha no aplicativo com uma música baixada, a gravação em aparelho Android nem o envio ao WhatsApp e ao Instagram.' },
+    ],
+  },
+  {
     versao: 639, data: '2026-11-11', titulo: 'Folhas com botões: botões no pé da folha quando aberta na altura toda',
     itens: [
       { tipo: 'correcao', texto: 'Nas folhas com botões no pé (por exemplo, "Nova versão do app"), ao puxar a folha para cima até a altura toda, os botões acompanhavam o texto e permanecia uma área vazia abaixo deles, porque o conteúdo mantinha a própria altura dentro da folha ampliada. Com a folha na altura toda, o conteúdo passou a ocupar a altura da folha e os botões passaram a ficar no pé. Na folha de altura normal, nada foi alterado.' },
@@ -69,22 +87,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" tinham altura limitada (640 pixels na primeira) e também deixavam área vazia. Passaram a abrir com a folha na altura toda: a lista de versos vai até o pé e, no "Personalizar", o cartão ocupa o espaço entre o título e as ferramentas. Ao voltar aos cartões, a folha retorna ao tamanho em que estava.' },
       { tipo: 'correcao', texto: 'Os destinos WhatsApp e Instagram usavam desenhos aproximados, em traço. Passaram a exibir o símbolo oficial de cada aplicativo (conjunto Simple Icons, de domínio público), preenchido, sobre a cor da marca; o fundo do Instagram passou ao degradê oficial.' },
       { tipo: 'melhoria', texto: 'Pendente: os fundos animados e as demais opções de fundo solicitados com base em um vídeo de referência não foram implementados, pois o vídeo não foi recebido. A verificação foi feita em navegador com tela de celular; o destino Instagram só existe no aplicativo Android e não foi executado em aparelho.' },
-    ],
-  },
-  {
-    versao: 631, data: '2026-11-11', titulo: 'Prévia da playlist: hashtag vazia ("#...") deixou de ser exibida',
-    itens: [
-      { tipo: 'correcao', texto: 'Na prévia da playlist, algumas músicas exibiam uma hashtag sem texto, apenas "#...". A base consultada para o clima e o tema da música (TheAudioDB) devolve "..." no campo que não foi preenchido, e esse valor era usado como hashtag. Passou a ser aceita somente a hashtag que contém ao menos uma letra; a vaga é ocupada pela hashtag seguinte, e o mínimo de 6 por música foi mantido.' },
-      { tipo: 'melhoria', texto: 'As hashtags são calculadas a cada exibição e não ficam guardadas na música; portanto, a correção vale para as músicas já salvas, sem revisão. Foi acrescentado um teste automatizado para o caso.' },
-    ],
-  },
-  {
-    versao: 630, data: '2026-11-11', titulo: 'Fotos dos artistas na lista da playlist e na prévia, agrupadas quando há mais de um',
-    itens: [
-      { tipo: 'novo', texto: 'As linhas das músicas na página da playlist exibiam somente o nome do artista, sem a foto presente nas demais listas (biblioteca, Músicas curtidas e busca). Passaram a exibir a foto do artista antes do nome e, na música com mais de um artista, a foto do segundo sobreposta em parte à do primeiro; com três ou mais, após as duas fotos vem o marcador "+N" com a quantidade restante.' },
-      { tipo: 'novo', texto: 'Na prévia da playlist (os clipes em tela cheia), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do segundo sobreposta em parte à do primeiro e, com três ou mais artistas, o marcador "+N", no mesmo arranjo das listas.' },
-      { tipo: 'melhoria', texto: 'A foto do primeiro artista é a guardada na música ou a última conhecida no aparelho; a do segundo é a última conhecida e, quando não há, é procurada assim que a linha ou a prévia aparece na tela (requer conexão). Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
-      { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, em uma playlist de teste com três músicas; a validação em aparelho Android ainda não foi realizada.' },
     ],
   },
 ];

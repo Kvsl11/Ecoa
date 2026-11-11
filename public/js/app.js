@@ -41,7 +41,8 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
+import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
+import { indicesParaEscolher, trechoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -684,7 +685,7 @@ function dadosParaCompartilhar(song) {
     if (linhas[0] && linhas[0].startsWith(song.title || '\u0000')) linhas = linhas.slice(1);
   }
   return {
-    titulo: song.title || '', artista: song.artist || '', capa: capaDaMusica(song).replace('/mqdefault.jpg', '/hqdefault.jpg'), cor: corDe(song),
+    songId: song.id, titulo: song.title || '', artista: song.artist || '', capa: capaDaMusica(song).replace('/mqdefault.jpg', '/hqdefault.jpg'), cor: corDe(song),
     url: song.youtube ? `https://www.youtube.com/watch?v=${song.youtube}` : /^https?:/.test(song.source || '') ? song.source : '',
     linhas,
     // (o cartão do vídeo: só com videoclipe de verdade)
@@ -727,45 +728,17 @@ const PAGINA_DO_DESTINO = {
 const marcaDoDestino = (qual, tam = 26) => `<svg class="cs-marca" width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${MARCA_DO_DESTINO[qual]}"/></svg>`;
 // A extensão do arquivo do cartão pelo tipo: a imagem (jpg) ou o vídeo (mp4, ou webm onde o aparelho não grava mp4)
 const extensaoDoCartao = (tipo) => (/^video\/mp4/.test(tipo) ? 'mp4' : /^video\/webm/.test(tipo) ? 'webm' : /png/.test(tipo) ? 'png' : 'jpg');
-// O cartão animado em vídeo: o canvas é redesenhado a cada quadro (desenhar(canvas, t), t em segundos) e gravado pelo
-// navegador durante os segundos pedidos. Sai em MP4 (H.264) onde o aparelho grava; senão, em WebM. null onde não há
-// gravação de vídeo do canvas
-async function videoDoCartao(desenhar, segundos, { fps = 30 } = {}) {
-  if (typeof MediaRecorder !== 'function') return null;
-  const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((x) => MediaRecorder.isTypeSupported(x));
-  const canvas = document.createElement('canvas');
-  try {
-    desenhar(canvas, 0);
-    if (!tipo || !canvas.captureStream) return null;
-    const fluxo = canvas.captureStream(fps);
-    const gravador = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 6_000_000 });
-    const partes = [];
-    gravador.ondataavailable = (e) => { if (e.data?.size) partes.push(e.data); };
-    const fim = new Promise((ok, falha) => { gravador.onstop = ok; gravador.onerror = (e) => falha(e.error || new Error('a gravação falhou')); });
-    gravador.start();
-    await new Promise((ok) => {
-      const inicio = performance.now();
-      const passo = (agora) => {
-        const t = (agora - inicio) / 1000;
-        if (t >= segundos) { ok(); return; }
-        desenhar(canvas, t);
-        requestAnimationFrame(passo);
-      };
-      requestAnimationFrame(passo);
-    });
-    gravador.stop();
-    await fim;
-    fluxo.getTracks().forEach((x) => x.stop());
-    const blob = new Blob(partes, { type: tipo.split(';')[0] });
-    return blob.size ? blob : null;
-  } catch { return null; }
-}
 // "Compartilhar" a música, a letra ou o vídeo (o botão do player, o da letra, os ⋮ da música): a folha com os cartões
 // (lib/cartao.js) num carrossel — Música, Letra e Vídeo, um ao lado do outro, deslizando de um para o outro —, as cores
 // do cartão, a tela para escolher os versos, a tela para personalizar o cartão da letra (a cor, a capa de fundo, o
 // estilo e o alinhamento do texto) e os destinos (copiar o link, WhatsApp, Instagram, salvar a imagem, os outros
 // aplicativos). musica: { titulo, artista, capa, url, linhas (a letra), linhaAtual (a que está sendo cantada), cor (a
-// da música), modo ('musica' | 'letra' | 'video'), video (o id do videoclipe no YouTube), duracao (segundos) }
+// da música), modo ('musica' | 'letra' | 'video'), video (o id do videoclipe no YouTube), duracao (segundos), songId (a
+// música salva: com ela baixada no aparelho, os cartões da letra e do vídeo vão com a música) }
+// Com a música: o cartão da Letra sai em vídeo com o áudio do trecho em que os versos escolhidos são cantados (pela
+// letra sincronizada), e o do Vídeo, com o trecho do refrão do clipe (a imagem e o som). O som e a imagem vêm do arquivo
+// baixado no aparelho: o player do YouTube não deixa gravar. Sem o arquivo, os cartões saem como antes
+const SEGUNDOS_DO_CLIPE = 15;
 async function compartilharMusica(musica) {
   const { titulo = '', artista = '', url = '' } = musica;
   const linhas = linhasParaEscolher(musica.linhas);
@@ -781,6 +754,42 @@ async function compartilharMusica(musica) {
   let quadroImg = null;
   let fotoImg = null; // (a foto do aparelho escolhida para o fundo)
   const nativo = noApk() ? pluginEcoa() : null;
+  const song = musica.songId && musica.songId !== 'previa' ? db.song(musica.songId) : null;
+  const sinc = song?.sincronia?.tempos?.length ? song.sincronia : null;
+  // (os tempos valem quando a letra da folha é a sincronizada: uma linha para cada tempo)
+  const temposDaLetra = sinc && (musica.linhas || []).length === sinc.tempos.length ? sinc.tempos : null;
+  const origem = indicesParaEscolher(musica.linhas);
+  let comMusica = true;
+  // o arquivo com o som da letra: o da versão que a letra acompanha ou, sem ele, a outra versão baixada (com o tempo
+  // levado para ela)
+  const somDaLetra = () => {
+    if (!temposDaLetra) return null;
+    const vs = versoesDe(song);
+    const daLetra = sinc.video || videoDaLetra(song);
+    if (ehArquivo(daLetra)) return { chave: song.id, t: (x) => x };
+    if (daLetra && baixadoDe(daLetra)) return { chave: chaveBaixada(daLetra), t: (x) => x };
+    const outra = vs?.pares ? [vs.audio, vs.video].find((v) => v && v !== daLetra && !ehArquivo(v) && baixadoDe(v)) : '';
+    return outra ? { chave: chaveBaixada(outra), t: (x) => Math.max(0, outra === vs.video ? tempoNoVideo(vs.pares, x) : tempoNoAudio(vs.pares, x)) } : null;
+  };
+  const clipeBaixado = () => (idVideo && song?.youtube && String(baixadoDe(song.youtube)?.tipo || '').startsWith('video/') ? song.youtube : '');
+  const temMusica = (m) => (m === 'letra' ? Boolean(somDaLetra()) : m === 'video' ? Boolean(clipeBaixado()) : false);
+  // a mídia do aparelho parada no começo do trecho: { el, url, segundos, clipe }, ou null (sem a música, ou desligada)
+  const trechoDaMusica = async (m) => {
+    if (!comMusica || !temMusica(m)) return null;
+    let chave; let inicio; let segundos;
+    if (m === 'letra') {
+      const f = somDaLetra();
+      const tr = trechoDosVersos(temposDaLetra, marcados.map((i) => origem[i]));
+      if (!tr) return null;
+      chave = f.chave; inicio = f.t(tr.inicio); segundos = tr.segundos;
+    } else { chave = chaveBaixada(clipeBaixado()); inicio = tempoDoRefrao(song).tVideo; segundos = SEGUNDOS_DO_CLIPE; }
+    const blob = await lerAudio(chave).catch(() => null);
+    if (!blob) return null;
+    const url = URL.createObjectURL(blob);
+    const el = await prepararTrecho(url, 'video', inicio);
+    if (!el) { URL.revokeObjectURL(url); return null; }
+    return { el, url, clipe: m === 'video', segundos: Math.min(segundos, Math.max(2, (el.duration || 1e9) - el.currentTime - 0.2)) };
+  };
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   // O link que vai junto: o da música no Ecoa (abre o app, ou o site, na música), nos três cartões — e não o endereço
   // do vídeo no YouTube. Sem o nome da música, o endereço recebido
@@ -795,18 +804,24 @@ async function compartilharMusica(musica) {
   const imagem = () => new Promise((ok) => {
     try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
   });
-  // O que é enviado: com o fundo animado, o cartão em vídeo (uma volta da animação: o fim emenda no começo); sem ele,
-  // a imagem. Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
+  // O que é enviado: com a música (o trecho da letra ou do clipe) ou com o fundo animado, o cartão em vídeo; sem eles,
+  // a imagem. O vídeo dura o trecho da música ou, só com o fundo animado, uma volta da animação (o fim emenda no
+  // começo). Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
   const arquivoDoCartao = async (avisarProgresso = () => {}) => {
-    if (!visuais[modo].animacao) return imagem();
+    const trecho = await trechoDaMusica(modo);
+    if (!visuais[modo].animacao && !trecho) return imagem();
     gravando = true;
     try {
-      avisarProgresso(`Gerando o vídeo (${DURACAO_DA_ANIMACAO} s)…`);
-      const video = await videoDoCartao((canvas, t) => desenharCartao(canvas, { ...dadosDo(modo), t }), DURACAO_DA_ANIMACAO);
-      if (video) { avisarProgresso(''); return video; }
+      const segundos = trecho ? trecho.segundos : DURACAO_DA_ANIMACAO;
+      avisarProgresso(`Gerando o vídeo${trecho ? ' com a música' : ''} (${Math.round(segundos)} s)…`);
+      const video = await videoDoCartao((canvas, t) => desenharCartao(canvas, { ...dadosDo(modo), t, ...(trecho?.clipe ? { quadro: trecho.el } : {}) }), segundos, { som: trecho?.el || null });
+      if (video) { avisarProgresso(trecho && !video.comSom ? 'Este aparelho não gravou o som: o vídeo foi enviado sem a música.' : ''); return video.blob; }
       avisarProgresso('Este aparelho não gera o vídeo do cartão: foi enviada a imagem.');
       return imagem();
-    } finally { gravando = false; }
+    } finally {
+      gravando = false;
+      if (trecho) { try { trecho.el.pause(); trecho.el.removeAttribute('src'); trecho.el.load(); } catch { /* já solto */ } URL.revokeObjectURL(trecho.url); }
+    }
   };
   await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
   const podeEnviar = Boolean(nativo?.compartilharCartao || navigator.share);
@@ -822,6 +837,7 @@ async function compartilharMusica(musica) {
           <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
           <button class="chip cs-so-letra" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
           <button class="chip" data-cs="personalizar">${icon('sparkles', 14)} Personalizar</button>
+          <button class="chip cs-com-musica" data-cs="com-musica" aria-pressed="true" title="Enviar o cartão em vídeo, com o trecho da música" hidden>${icon('music', 14)} Com a música</button>
         </div>
         <p class="cs-estado" role="status" hidden></p>
         <div class="cs-destinos">
@@ -896,6 +912,9 @@ async function compartilharMusica(musica) {
       dlg.querySelectorAll('.cs-slide').forEach((x) => x.classList.toggle('ativa', x.dataset.slide === modo));
       dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === corDo[modo])));
       dlg.querySelectorAll('.cs-so-letra').forEach((b) => { b.hidden = modo !== 'letra'; });
+      const chipDaMusica = $('.cs-com-musica', dlg);
+      chipDaMusica.hidden = !temMusica(modo);
+      chipDaMusica.setAttribute('aria-pressed', String(comMusica));
     };
     const irPara = (m, suave = true) => {
       const slide = $(`[data-slide="${m}"]`, dlg);
@@ -1013,6 +1032,11 @@ async function compartilharMusica(musica) {
       avisar('');
       if (acao === 'versos') { mostrarTela('versos'); return; }
       if (acao === 'personalizar') { mostrarTela('personalizar'); return; }
+      if (acao === 'com-musica') {
+        comMusica = !comMusica; marcarModo();
+        avisar(comMusica ? (modo === 'video' ? `O cartão vai em vídeo, com ${SEGUNDOS_DO_CLIPE} s do refrão do clipe.` : 'O cartão vai em vídeo, com o áudio do trecho dos versos escolhidos.') : 'O cartão vai sem a música.', true);
+        return;
+      }
       if (acao === 'versos-ok' || acao === 'pers-ok') { if (!marcados.length) marcados = versosIniciais(linhas, musica.linhaAtual ?? -1); mostrarTela('cartoes'); return; }
       if (acao === 'link') { toast((await copiarTexto(link)) ? 'Link copiado' : 'Não consegui copiar'); return; }
       if (acao === 'texto') { toast((await copiarTexto(textoDoCartao({ titulo, artista, versos: marcados.length && modo === 'letra' ? versos() : linhas }))) ? 'Letra copiada: é só colar onde quiser' : 'Não consegui copiar'); return; }
@@ -7507,7 +7531,7 @@ const semLinhasDeAcordes = (sinc) => {
     if ((b.dataset.pl === 'compartilhar' || b.dataset.pl === 'compartilhar-letra') && atual) {
       const capaDela = atual.capaOficial || (atual.capa && /^(https?:|data:)/.test(atual.capa) ? atual.capa : '') || (ytDaCapa() ? `https://i.ytimg.com/vi/${ytDaCapa()}/hqdefault.jpg` : '');
       void compartilharMusica({
-        titulo: atual.titulo || '', artista: atual.artista || '', capa: capaDela, cor: atual.cor || '',
+        songId: atual.songId || '', titulo: atual.titulo || '', artista: atual.artista || '', capa: capaDela, cor: atual.cor || '',
         url: ytDaCapa() ? `https://www.youtube.com/watch?v=${ytDaCapa()}` : '',
         linhas: linhasDaLetra, linhaAtual: linhaAcesa, modo: b.dataset.pl === 'compartilhar-letra' ? 'letra' : emVideo() ? 'video' : 'musica',
         video: atual.soMusica || atual.semVideo ? '' : atual.video || atual.youtube || '', duracao: Number(db.song(atual.songId || '')?.duracao) || 0,
@@ -11394,6 +11418,9 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   tela.className = 'sobre-artista carregando'; // (carregando: o círculo no meio da tela, até chegarem as fotos e o texto)
   tela.setAttribute('role', 'dialog');
   tela.setAttribute('aria-label', `Sobre ${nome}`);
+  // (o fundo na cor da música que está tocando, a mesma da letra na tela toda; sem o player, a cor da página)
+  const corDaTela = getComputedStyle(document.querySelector('#player') || document.documentElement).getPropertyValue('--cor-musica').trim();
+  if (corDaTela) tela.style.setProperty('--cor-musica', corDaTela);
   tela.innerHTML = `<header class="sa-topo"><button class="icon-btn" data-sa="voltar" aria-label="Voltar">${icon('back', 24)}</button><b>${esc(nome)}</b><span></span></header>
     <div class="sa-fotos"></div><div class="sa-numeros" hidden></div><div class="sa-texto">${esqueleto('texto', 'Carregando…', 5)}</div><div class="sa-links"></div>`;
   document.body.append(tela);
