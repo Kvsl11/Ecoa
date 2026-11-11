@@ -365,7 +365,7 @@ document.addEventListener('error', (e) => {
 document.addEventListener('error', (e) => {
   const img = e.target;
   if (img.tagName !== 'IMG') return;
-  const mini = img.closest('[data-artista-mini]');
+  const mini = img.closest('[data-artista-mini], [data-artista-extra]');
   if (!mini) return;
   const src = img.getAttribute('src') || '';
   mini.classList.remove('com-foto');
@@ -7899,7 +7899,7 @@ function indicadores(s) {
 
 const linhaMusica = (s, extra = '') => `
   <li class="track clickable" data-id="${s.id}" style="grid-template-columns:auto 1fr auto">
-    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${fotoReal(s.fotoArtista) ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(primeiroArtistaDe(s.artist || ''))}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${fotoReal(s.fotoArtista) ? `<img src="${esc(s.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
+    ${capa(s)}<div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}${miniDosArtistas(s.title, s.artist || '', fotoReal(s.fotoArtista), ehDaLiturgia(s))}${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>${extra}</li>`;
 
 // Escolhe uma música: da biblioteca ou procurando na internet (Cifra Club, cantos da missa, letras,
 // vídeos do YouTube). O que vem da internet é salvo na biblioteca. Devolve o id, 'nova' ou null.
@@ -10465,6 +10465,48 @@ function porSeloExplicita(linha, titulo, artista) {
   else if (ind) ind.insertAdjacentHTML('afterbegin', seloExplicita(titulo, artista));
   else s.insertAdjacentHTML('afterbegin', seloExplicita(titulo, artista));
 }
+// As fotinhas dos artistas ao lado do nome, nas linhas das listas: a do primeiro artista e, grudada nela, a do segundo
+// (o "feat." do título e os nomes separados por vírgula ou "&": "Tove Lo, Grand Theft Auto VI", "Lady Gaga feat.
+// Bruno Mars"). Com três ou mais, depois das duas fotos vem a bolinha "+N" com quantos faltam: a linha não cresce, e
+// o nome de todos está ao lado e na tela da música. A do primeiro é a de sempre (guardada na música); a dos outros é
+// a última conhecida e, sem ela, é procurada quando a linha aparece (preencherFotosDosOutros)
+function miniDosArtistas(titulo, artista, fotoPrincipal, liturgia = false) {
+  const principal = primeiroArtistaDe(artista || '');
+  const primeira = `<span class="artista-mini${fotoPrincipal ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(principal)}"${liturgia ? ' data-liturgia="1"' : ''}>${fotoPrincipal ? `<img src="${esc(fotoPrincipal)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>`;
+  // (nos cantos da liturgia o "artista" costuma ser quem compôs: fica só a primeira bolinha)
+  let outros = [];
+  if (!liturgia && artista) {
+    const vistos = new Set([normalizar(principal)]);
+    for (const n of artistasDe(titulo || '', artista)) { const k = normalizar(n); if (k && !vistos.has(k)) { vistos.add(k); outros.push(n); } }
+  }
+  if (!outros.length) return primeira;
+  const segundo = outros[0];
+  const conhecida = fotoReal(fotoConhecida(segundo));
+  const segunda = `<span class="artista-mini extra${conhecida ? ' com-foto' : ''}" data-artista-extra data-nome="${esc(segundo)}" data-titulo="${esc(titulo || '')}" title="${esc(segundo)}">${conhecida ? `<img src="${esc(conhecida)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>`;
+  const mais = outros.length > 1 ? `<span class="artista-mini extra mais" title="${esc(outros.slice(1).join(', '))}" aria-label="e mais ${outros.length - 1}">+${outros.length - 1}</span>` : '';
+  return `<span class="artistas-mini">${primeira}${segunda}${mais}</span>`;
+}
+// A foto do segundo artista das linhas (miniDosArtistas) que ainda não é conhecida: procurada quando a linha entra na
+// tela, uma vez por linha. As linhas chegam de muitas telas (a biblioteca, os repertórios, a busca, o artista): em vez
+// de cada uma chamar, um observador da página acha as bolinhas novas
+function preencherFotosDosOutros() {
+  document.querySelectorAll('[data-artista-extra]:not([data-pedida])').forEach((el) => {
+    el.dataset.pedida = '1';
+    if (el.querySelector('img') || !navigator.onLine) return;
+    fotoDaPessoa(el.dataset.nome || '', { titulo: el.dataset.titulo || '' }).then((url) => {
+      if (!url || !el.isConnected) return;
+      const img = imagemSemReferer();
+      img.alt = '';
+      img.onload = () => { if (el.isConnected) { el.replaceChildren(img); el.classList.add('com-foto'); } };
+      img.src = url;
+    }).catch(() => {});
+  });
+}
+let procurandoOutros = 0;
+new MutationObserver(() => {
+  if (procurandoOutros) return;
+  procurandoOutros = setTimeout(() => { procurandoOutros = 0; preencherFotosDosOutros(); }, 400);
+}).observe(document.body, { childList: true, subtree: true });
 function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
   if (!container || !Array.isArray(itens)) return;
   itens.forEach((item, i) => {
@@ -11505,7 +11547,7 @@ const indicadoresWeb = (r) => {
 };
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
-    ${capa({ titulo: r.titulo, capa: r.capa || (r.semCapaOficial ? r.video?.capa : '') })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}<span class="artista-mini" data-artista-mini data-nome="${esc(primeiroArtistaDe(r.artista || ''))}"${ehDaLiturgia(r) ? ' data-liturgia="1"' : ''}>${fotoReal(r.fotoArtista) ? `<img src="${esc(r.fotoArtista)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
+    ${capa({ titulo: r.titulo, capa: r.capa || (r.semCapaOficial ? r.video?.capa : '') })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}${miniDosArtistas(r.titulo, r.artista || '', fotoReal(r.fotoArtista), ehDaLiturgia(r))}${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
     <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
@@ -12845,10 +12887,9 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   if (ordemMus === 'album') itens.sort((a, b) => Number(!album(a)) - Number(!album(b)) || pt(album(a), album(b)) || pt(a.title, b.title));
   const marca = () => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const linha = (s) => {
-    const nomeArtista = primeiroArtistaDe(s.artist || '');
     const foto = fotoReal(s.fotoArtista);
     return `<li class="track clickable lib-item" data-k="${s.id}">${marca(s.id)}${capa(s)}
-        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}<span class="artista-mini${foto ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(nomeArtista)}"${ehDaLiturgia(s) ? ' data-liturgia="1"' : ''}>${foto ? `<img src="${esc(foto)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
+        <div class="info"><div class="t">${esc(s.title)}</div><div class="s">${indicadores(s)}${miniDosArtistas(s.title, s.artist || '', foto, ehDaLiturgia(s))}${esc(s.artist || (s.source ? host(s.source) : 'Cifra própria'))}</div></div>
         <span class="acts">${s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}</span></li>`;
   };
   const vazio = !todas.length ? `<div class="empty"><div class="bubble">${icon('music', 32)}</div><h3>Sua biblioteca está vazia</h3>

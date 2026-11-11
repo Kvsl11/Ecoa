@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 627, data: '2026-11-11', titulo: 'Listas de músicas: fotos dos artistas agrupadas quando há mais de um',
+    itens: [
+      { tipo: 'novo', texto: 'Nas linhas das listas (biblioteca, playlists, repertórios e busca), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do primeiro e, sobreposta em parte a ela, a do segundo; com três ou mais artistas, após as duas fotos vem um marcador "+N" com a quantidade restante. São considerados os nomes separados por vírgula ou "&" e o participante indicado no título ("feat.", "part."). As duplas reconhecidas como um único artista e os cantos da liturgia continuam com uma foto só.' },
+      { tipo: 'melhoria', texto: 'A foto do segundo artista usa a última conhecida no aparelho; quando não há, é procurada assim que a linha aparece na tela, e entra no lugar do desenho padrão quando carrega. Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
+      { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, com as fotos simuladas; a busca real da foto do segundo artista e a validação em aparelho Android ainda não foram realizadas.' },
+    ],
+  },
+  {
     versao: 626, data: '2026-11-11', titulo: 'Widget da tela inicial refeito: três formatos conforme o tamanho, capa arredondada e fundo na cor da capa',
     itens: [
       { tipo: 'correcao', texto: 'O widget tinha um único leiaute, com a capa em tamanho fixo (96 dp) e os botões alinhados à esquerda abaixo do texto; redimensionado, os elementos ficavam cortados ou desalinhados. Passou a ter três formatos, com as mesmas peças: uma linha (4 × 1), com a capa pequena, o nome, o artista e os botões à direita; o padrão (4 × 2), com a capa na altura inteira e os botões centralizados; e o grande (3 linhas ou mais), com a capa em cima. No Android 12 ou mais novo, o sistema troca o formato ao redimensionar; nas versões anteriores, o formato é escolhido pela altura do widget. O tamanho mínimo ao redimensionar passou de 250 × 110 dp para 180 × 50 dp. Disponível mediante atualização do aplicativo.' },
@@ -96,14 +104,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A tela da partitura da música foi reorganizada: cabeçalho com a capa, o título, o artista e o botão Editar; resumo com o tom (atualizado conforme a transposição), o andamento, o compasso e o número de pautas; uma única barra com a alternância Desenhada/Original, a transposição, o tamanho (em porcentagem) e a exclusão; e a partitura em uma folha própria, separada do fundo.' },
       { tipo: 'correcao', texto: 'A montagem do APK da versão 617 falhava na compilação: a leitura do ícone do aplicativo para o cartão de convite reserva usava uma chamada que exige o tratamento de uma exceção verificada (NameNotFoundException). A leitura passou a usar as informações do próprio aplicativo, sem essa exceção. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados e por execução em navegador (busca, conversão, geração pelo áudio com um arquivo sintético e reabertura com o armazenamento limitado); a validação em aparelho Android e com gravações reais ainda não foi realizada, e a montagem do APK será confirmada pela execução do workflow.' },
-    ],
-  },
-  {
-    versao: 617, data: '2026-11-10', titulo: 'Convite do Ecoa: cartão redesenhado com código QR e prévia antes do envio',
-    itens: [
-      { tipo: 'melhoria', texto: 'O cartão enviado por "Compartilhar o Ecoa" (menu de opções da conta) era desenhado pelo Android com um leiaute fixo e simples. O cartão passou a ser desenhado pela interface (1080 × 1350 pixels, proporção 4:5), com a marca, a frase do aplicativo, os recursos principais, o primeiro nome de quem convida e um código QR do endereço de download, que permite a instalação apontando a câmera de outro aparelho. A imagem passou a ser enviada em JPEG, com cerca de 150 kB. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'novo', texto: 'A opção "Compartilhar o Ecoa" passou a abrir uma folha com a prévia do cartão e as ações Compartilhar e Copiar o link, em vez de abrir diretamente a lista de aplicativos do sistema. No navegador, a imagem é enviada junto com o texto quando o sistema aceita arquivos no compartilhamento; onde não há compartilhamento do sistema, a folha oferece o download da imagem.' },
-      { tipo: 'correcao', texto: 'As falhas no compartilhamento e na cópia do link passaram a ser informadas na própria folha; antes, a confirmação da cópia do link não era exibida. O arquivo da imagem passou a receber um nome por envio, para que um convite novo não substitua o arquivo que outro aplicativo ainda está lendo. Disponível mediante atualização do aplicativo.' },
     ],
   },
 ];
