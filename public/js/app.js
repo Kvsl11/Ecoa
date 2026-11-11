@@ -3481,6 +3481,9 @@ const player = (() => {
   // sai inteiro pela esquerda a cópia está exatamente onde ele começou: o giro recomeça sem pular)
   const ESPACO_DO_GIRO = 48;
   const medirNomes = () => requestAnimationFrame(() => {
+    // (as linhas do mesmo lugar — o nome e o artista — andam juntas: a mesma distância, a mesma duração e a mesma
+    // largada. Antes cada uma tinha a sua distância e o seu tempo, e uma parava no meio da volta da outra)
+    const grupos = new Map();
     el.querySelectorAll('.pl-txt b, .pl-txt small, .pl-fixo-txt b, .pl-letra-nome b').forEach((linha) => {
       const r = linha.querySelector(':scope > .rolar:not(.eco)');
       if (!r || !linha.clientWidth) return;
@@ -3497,15 +3500,27 @@ const player = (() => {
         eco.__de = html;
         linha.append(eco);
       }
-      const giro = Math.round(r.offsetWidth + ESPACO_DO_GIRO);
-      if (linha.__giro !== giro) {
-        linha.__giro = giro;
-        linha.style.setProperty('--giro', `${-giro}px`);
-        // (uns 32 px por segundo, com uma parada curta no começo de cada volta)
-        linha.style.setProperty('--tempo-anda', `${(giro / 32 / 0.85).toFixed(1)}s`);
-      }
-      linha.classList.add('anda');
+      const grupo = grupos.get(linha.parentElement) || [];
+      grupo.push({ linha, eco, largura: r.offsetWidth });
+      grupos.set(linha.parentElement, grupo);
     });
+    for (const grupo of grupos.values()) {
+      // (o giro do grupo é o da linha mais comprida; na mais curta, o espaço até a cópia cresce para dar a mesma volta)
+      const giro = Math.round(Math.max(...grupo.map((x) => x.largura)) + ESPACO_DO_GIRO);
+      const mudou = grupo.some((x) => x.linha.__giro !== giro || !x.linha.classList.contains('anda'));
+      for (const { linha, eco, largura } of grupo) {
+        eco.style.marginLeft = `${giro - largura}px`;
+        if (linha.__giro !== giro) {
+          linha.__giro = giro;
+          linha.style.setProperty('--giro', `${-giro}px`);
+          // (uns 32 px por segundo, com uma parada curta no começo de cada volta)
+          linha.style.setProperty('--tempo-anda', `${(giro / 32 / 0.85).toFixed(1)}s`);
+        }
+      }
+      // (mudou algo numa linha: todas recomeçam do início, juntas)
+      if (mudou && grupo.length > 1) { grupo.forEach((x) => x.linha.classList.remove('anda')); void grupo[0].linha.offsetWidth; }
+      grupo.forEach((x) => x.linha.classList.add('anda'));
+    }
   });
   const medirNomeDaBarrinha = medirNomes;
   // (mudou o tamanho: a barrinha virou o Tocando agora, a tela girou)

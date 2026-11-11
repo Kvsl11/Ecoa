@@ -3238,8 +3238,8 @@ html.pp #player .pl-letra-topo .pl-leitura { display: grid; place-items: center;
 html.pp #player .pl-letra-topo .pl-leitura svg { width: 17px; height: 17px; }
 html.pp #player .pl-letra-topo .pl-leitura[aria-pressed="true"] { background: #fff; color: #111; }
 @media (prefers-reduced-motion: reduce) { #player .pl-ver-cifra::before { transition: none; } }
-/* só a letra (para ler): sem o nome, o aviso da sincronia e a barra de baixo; sem a cifra, nem as ferramentas */
-html.pp #player.letra-cheia.so-letra .pl-letra-nome { visibility: hidden; }
+/* só a letra (para ler): sem o aviso da sincronia e a barra de baixo (o tempo, o play); sem a cifra, nem as ferramentas.
+   O nome da música e o artista ficam */
 html.pp #player.letra-cheia.so-letra .pl-letra-pe,
 html.pp #player.letra-cheia.so-letra:not(.cifra-on) .pl-ferr { display: none !important; }
 html.pp #player .pl-letra-nome { min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -5989,6 +5989,9 @@ button.ct-linha { cursor: pointer; }
 .ap-este { margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .ap-barras i { animation: none; } }
 .pl-trilho { scroll-padding-inline: 18px; }
+/* (dentro do cartão, o trilho acaba 10 px antes da borda, dos dois lados, com os cantos arredondados: o vídeo cortado
+   na rolagem não encosta mais na borda do cartão) */
+.pl-cartao .pl-trilho { margin: 0 -8px; padding: 2px 8px 6px; scroll-padding-inline: 8px; border-radius: 10px; }
 .creditos-todos .menu-cab { display: grid; justify-items: center; }
 .creditos-todos .ct-cab { width: 100%; }
 /* (o play da barrinha de cima no tamanho dela, e não no dos controles grandes do celular) */
@@ -6213,7 +6216,11 @@ dialog.yt-dlg .yt-acts [data-rm] { min-width: 0; padding: 0 14px; gap: 8px; }
 /* Nome da música na letra: mesma rolagem contínua do mini player, em qualquer tamanho de tela. */
 #player .pl-letra-nome { flex: 1 1 0; min-width: 0; max-width: 100%; overflow: hidden; }
 #player .pl-letra-nome b { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: clip; }
-#player .pl-letra-nome b.anda { text-overflow: clip; }
+/* (com as reticências ligadas, o navegador esconde inteira a cópia que vem atrás do nome: o nome saía pela esquerda, a
+   linha ficava vazia e ele reaparecia de uma vez. A regra precisa valer mais que a das reticências do nome parado) */
+html.pp #player .pl-letra-nome b.anda, #player .pl-letra-nome b.anda { text-overflow: clip;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
 #player .pl-letra-nome b.anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
 @media (prefers-reduced-motion: reduce) {
   #player .pl-letra-nome b.anda .rolar { animation: none; }
