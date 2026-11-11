@@ -1,10 +1,16 @@
 // O cartão para compartilhar uma música ou um trecho da letra (o botão de compartilhar do player, da letra e dos ⋮ da
 // música): uma imagem 4:5 com a capa, o nome e o artista ("Música") ou com os versos escolhidos ("Letra"), na cor da
-// música ou em outra das cores oferecidas, e o texto que vai junto na mensagem.
+// música ou em outra das cores oferecidas, ou com o quadro do videoclipe ("Vídeo"), e o texto que vai junto na mensagem.
 import { fonte, retangulo, simbolo } from './convite.js';
 
-export const LARGURA_DO_CARTAO = 1080;
-export const ALTURA_DO_CARTAO = 1350;
+// o tamanho de cada cartão: a música em pé (como um story), a letra quadrada e o vídeo deitado
+export const TAMANHOS_DO_CARTAO = { musica: { l: 1080, a: 1920 }, letra: { l: 1080, a: 1080 }, video: { l: 1080, a: 920 } };
+export const tamanhoDoCartao = (modo) => TAMANHOS_DO_CARTAO[modo] || TAMANHOS_DO_CARTAO.musica;
+// os estilos do texto da letra (a tela "Personalizar") e os alinhamentos
+export const ESTILOS_DO_TEXTO = [['classico', 'Clássico'], ['largo', 'Largo'], ['estreito', 'Estreito'], ['inclinado', 'Inclinado']];
+export const proximoDe = (lista, atual) => lista[(lista.indexOf(atual) + 1) % lista.length];
+// "4:03" a partir dos segundos; '' sem a duração
+export const duracaoDoCartao = (s) => (Number(s) > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 export const MAXIMO_DE_VERSOS = 5;
 
 // "hsl(210 60% 40%)" (o formato de lib/cores.js) -> { h, s, l }; null se não for
@@ -86,91 +92,153 @@ export function umaLinha(medir, texto, largura) {
   return `${t}…`;
 }
 
-// a capa (uma imagem já carregada) cortada em quadrado, com os cantos arredondados; sem ela, um quadro com a nota
-function desenharCapa(c, capa, x, y, lado, raio, cor) {
+// uma imagem já carregada cortada para caber no retângulo (como o object-fit: cover), com os cantos arredondados; sem
+// ela, um quadro com a nota
+function desenharImagem(c, img, x, y, l, a, raio, cor) {
   c.save();
-  retangulo(c, x, y, lado, lado, raio);
+  retangulo(c, x, y, l, a, raio);
   c.clip();
-  if (capa) {
-    const l = capa.width; const a = capa.height; const m = Math.min(l, a);
-    c.drawImage(capa, (l - m) / 2, (a - m) / 2, m, m, x, y, lado, lado);
+  if (img) {
+    const escala = Math.max(l / img.width, a / img.height);
+    const sl = l / escala; const sa = a / escala;
+    c.drawImage(img, (img.width - sl) / 2, (img.height - sa) / 2, sl, sa, x, y, l, a);
   } else {
     c.fillStyle = cor.texto === '#fff' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)';
-    c.fillRect(x, y, lado, lado);
+    c.fillRect(x, y, l, a);
     c.fillStyle = cor.suave;
-    c.font = fonte(700, lado * 0.42);
+    c.font = fonte(700, Math.min(l, a) * 0.42);
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText('♪', x + lado / 2, y + lado / 2);
+    c.fillText('♪', x + l / 2, y + a / 2);
     c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
   c.restore();
 }
+// a marca do Ecoa (o símbolo e o nome), com a base em y
+function marca(c, x, y, cor, lado = 56) {
+  simbolo(c, x, y - lado, lado);
+  c.fillStyle = cor.texto;
+  c.font = fonte(800, lado * 0.68);
+  c.textAlign = 'left';
+  c.fillText('Ecoa', x + lado + 16, y - lado * 0.27);
+}
 
-// Desenha o cartão no canvas. dados: { modo: 'musica' | 'letra', titulo, artista, capa (imagem carregada ou null),
-// versos (os textos, no modo letra), cor (uma de coresDoCartao) }
-export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor } = {}) {
-  const L = LARGURA_DO_CARTAO; const A = ALTURA_DO_CARTAO; const M = 84;
+// Desenha o cartão no canvas. dados: { modo: 'musica' | 'letra' | 'video', titulo, artista, capa (imagem carregada ou
+// null), versos (os textos, no modo letra), cor (uma de coresDoCartao), estilo ('classico' | 'largo' | 'estreito' |
+// 'inclinado'), alinhar ('esquerda' | 'centro'), fundo ('cor' | 'imagem': a capa escurecida atrás da letra), quadro (a
+// imagem do videoclipe), duracao (segundos) }
+export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor, estilo = 'classico', alinhar = 'esquerda', fundo = 'cor', quadro = null, duracao = 0 } = {}) {
+  if (modo === 'letra' && !versos.length) modo = 'musica';
+  const { l: L, a: A } = tamanhoDoCartao(modo);
   canvas.width = L; canvas.height = A;
   const c = canvas.getContext('2d');
   const medir = (t) => c.measureText(t).width;
-  const fundo = c.createLinearGradient(0, 0, 0, A);
-  fundo.addColorStop(0, cor.fundo); fundo.addColorStop(1, cor.fundo2);
-  c.fillStyle = fundo;
+  const M = 72;
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+  const degrade = c.createLinearGradient(0, 0, 0, A);
+  degrade.addColorStop(0, cor.fundo); degrade.addColorStop(1, cor.fundo2);
+  c.fillStyle = degrade;
   c.fillRect(0, 0, L, A);
-  c.textBaseline = 'alphabetic';
 
-  // a marca, no pé
-  const pe = A - M;
-  simbolo(c, M, pe - 60, 60);
-  c.fillStyle = cor.texto;
-  c.font = fonte(800, 40);
-  c.fillText('Ecoa', M + 78, pe - 16);
-
-  if (modo === 'letra' && versos.length) {
-    // em cima: a capa pequena, o nome e o artista
-    desenharCapa(c, capa, M, M, 132, 22, cor);
-    const tx = M + 132 + 30; const tl = L - M - tx;
-    c.fillStyle = cor.texto;
-    c.font = fonte(700, 42);
-    c.fillText(umaLinha(medir, titulo, tl), tx, M + 60);
-    c.fillStyle = cor.suave;
-    c.font = fonte(500, 34);
-    c.fillText(umaLinha(medir, artista, tl), tx, M + 108);
-    // os versos, na maior letra em que cabem
-    const topo = M + 132 + 70; const altura = pe - 60 - 60 - topo; const larg = L - 2 * M;
-    // (um respiro entre um verso e outro: o verso que quebra em duas linhas não se confunde com dois versos)
-    let tamanho = 96; let blocos = []; let total = 0;
-    const medirBlocos = () => {
-      c.font = fonte(800, tamanho);
-      blocos = versos.map((v) => quebrarTexto(medir, v, larg));
-      total = blocos.reduce((n, b) => n + b.length, 0) * tamanho * 1.16 + (blocos.length - 1) * tamanho * 0.3;
-    };
-    for (medirBlocos(); total > altura && tamanho > 40; medirBlocos()) tamanho -= 4;
-    const passo = tamanho * 1.16;
-    c.fillStyle = cor.texto;
-    let y = topo + Math.max(0, (altura - total) / 2) + tamanho * 0.9;
-    for (const bloco of blocos) {
-      for (const l of bloco) { if (y > topo + altura + tamanho * 0.3) break; c.fillText(l, M, y); y += passo; }
-      y += tamanho * 0.3;
+  if (modo === 'letra') {
+    let tinta = cor;
+    // (a capa de fundo: cobre o cartão, escurecida, e a letra fica branca por cima)
+    if (fundo === 'imagem' && capa) {
+      desenharImagem(c, capa, 0, 0, L, A, 0, cor);
+      c.fillStyle = 'rgba(0,0,0,0.56)';
+      c.fillRect(0, 0, L, A);
+      tinta = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.78)' };
     }
+    // em cima: a capa pequena, o nome e "Música · artista"
+    desenharImagem(c, capa, M, M, 112, 112, 18, tinta);
+    const tx = M + 112 + 26; const tl = L - M - tx;
+    c.fillStyle = tinta.texto;
+    c.font = fonte(700, 40);
+    c.fillText(umaLinha(medir, titulo, tl), tx, M + 50);
+    c.fillStyle = tinta.suave;
+    c.font = fonte(500, 32);
+    c.fillText(umaLinha(medir, ['Música', artista].filter(Boolean).join(' · '), tl), tx, M + 96);
+    marca(c, M, A - M, tinta);
+    // os versos, na maior letra em que cabem, no estilo e no alinhamento escolhidos
+    const topo = M + 112 + 56; const altura = A - M - 56 - 48 - topo;
+    const aperto = estilo === 'estreito' ? 0.8 : 1; // (a letra estreita: o texto desenhado com a largura reduzida)
+    const larg = (L - 2 * M) / aperto;
+    const peso = estilo === 'largo' ? 700 : 800;
+    const fonteDoVerso = (tam) => `${estilo === 'inclinado' ? 'italic ' : ''}${fonte(peso, tam)}`;
+    if ('letterSpacing' in c) c.letterSpacing = estilo === 'largo' ? '5px' : estilo === 'estreito' ? '0px' : '-1.5px';
+    const texto = (v) => (estilo === 'largo' ? String(v).toUpperCase() : v);
+    let tamanho = 104; let blocos = []; let total = 0;
+    const medirBlocos = () => {
+      c.font = fonteDoVerso(tamanho);
+      blocos = versos.map((v) => quebrarTexto(medir, texto(v), larg));
+      total = blocos.reduce((n, b) => n + b.length, 0) * tamanho * 1.14 + (blocos.length - 1) * tamanho * 0.24;
+    };
+    for (medirBlocos(); total > altura && tamanho > 36; medirBlocos()) tamanho -= 4;
+    const passo = tamanho * 1.14;
+    c.fillStyle = tinta.texto;
+    c.textAlign = alinhar === 'centro' ? 'center' : 'left';
+    const x = alinhar === 'centro' ? L / 2 / aperto : M / aperto;
+    let y = topo + Math.max(0, (altura - total) / 2) + tamanho * 0.9;
+    c.save();
+    c.scale(aperto, 1);
+    for (const bloco of blocos) {
+      for (const linha of bloco) { if (y > topo + altura + tamanho * 0.3) break; c.fillText(linha, x, y); y += passo; }
+      y += tamanho * 0.24;
+    }
+    c.restore();
+    c.textAlign = 'left';
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
     return canvas;
   }
 
-  // a música: a capa grande, o nome e o artista
-  const lado = L - 2 * 130; const cx = 130; const cy = 118;
+  if (modo === 'video') {
+    // o quadro do clipe em cima (16:9) e, embaixo, a capa pequena, o nome, o artista, a marca e a duração
+    const ql = L - 2 * 44; const qa = Math.round(ql * 9 / 16);
+    desenharImagem(c, quadro || capa, 44, 44, ql, qa, 30, cor);
+    const y0 = 44 + qa + 44;
+    desenharImagem(c, capa, M, y0, 120, 120, 18, cor);
+    const tx = M + 120 + 28; const tl = L - M - tx;
+    c.fillStyle = cor.texto;
+    c.font = fonte(800, 44);
+    c.fillText(umaLinha(medir, titulo, tl), tx, y0 + 54);
+    c.fillStyle = cor.suave;
+    c.font = fonte(500, 36);
+    c.fillText(umaLinha(medir, artista, tl), tx, y0 + 104);
+    marca(c, M, A - 52, cor, 52);
+    const rotulo = ['Videoclipe', duracaoDoCartao(duracao)].filter(Boolean).join(' · ');
+    c.fillStyle = cor.texto;
+    c.font = fonte(700, 32);
+    c.textAlign = 'right';
+    c.fillText(rotulo, L - M, A - 68);
+    // (o triângulo do play, antes do rótulo)
+    const lr = medir(rotulo); const px = L - M - lr - 46; const py = A - 80;
+    c.strokeStyle = cor.texto; c.lineWidth = 4;
+    retangulo(c, px - 6, py - 18, 40, 34, 8); c.stroke();
+    c.beginPath(); c.moveTo(px + 8, py - 9); c.lineTo(px + 22, py - 1); c.lineTo(px + 8, py + 7); c.closePath(); c.fill();
+    c.textAlign = 'left';
+    return canvas;
+  }
+
+  // a música: um painel escuro com a capa grande, o nome, o artista e a marca, no meio do cartão colorido
+  const pl = L - 2 * 96; const px = 96;
+  c.font = fonte(800, 60);
+  const nomes = limitarLinhas(medir, quebrarTexto(medir, titulo, pl - 2 * 56), 2, pl - 2 * 56);
+  const capaLado = pl - 2 * 56;
+  const pa = 56 + capaLado + 56 + nomes.length * 72 + 62 + 64 + 56 + 44;
+  const py = Math.round((A - pa) / 2);
   c.save();
-  c.shadowColor = 'rgba(0,0,0,0.38)'; c.shadowBlur = 60; c.shadowOffsetY = 26;
-  c.fillStyle = cor.fundo2;
-  retangulo(c, cx, cy, lado, lado, 40); c.fill();
+  c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 70; c.shadowOffsetY = 30;
+  c.fillStyle = 'rgba(12,12,14,0.86)';
+  retangulo(c, px, py, pl, pa, 44); c.fill();
   c.restore();
-  desenharCapa(c, capa, cx, cy, lado, 40, cor);
-  const larg = L - 2 * M;
-  c.fillStyle = cor.texto;
-  c.font = fonte(800, 62);
-  let y = cy + lado + 104;
-  for (const l of limitarLinhas(medir, quebrarTexto(medir, titulo, larg), 2, larg)) { c.fillText(l, M, y); y += 72; }
-  c.fillStyle = cor.suave;
-  c.font = fonte(500, 40);
-  c.fillText(umaLinha(medir, artista, larg), M, y - 6);
+  const claro = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.72)' };
+  desenharImagem(c, capa, px + 56, py + 56, capaLado, capaLado, 20, claro);
+  let y = py + 56 + capaLado + 56 + 50;
+  c.fillStyle = '#fff';
+  c.font = fonte(800, 60);
+  for (const linha of nomes) { c.fillText(linha, px + 56, y); y += 72; }
+  c.fillStyle = claro.suave;
+  c.font = fonte(500, 42);
+  c.fillText(umaLinha(medir, artista, pl - 2 * 56), px + 56, y - 2);
+  marca(c, px + 56, py + pa - 50, claro, 52);
   return canvas;
 }

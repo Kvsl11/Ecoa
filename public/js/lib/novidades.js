@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 623, data: '2026-11-11', titulo: 'Compartilhamento refeito: carrossel com os cartões Música, Letra e Vídeo, escolha dos versos em tela própria e personalização do cartão da letra',
+    itens: [
+      { tipo: 'novo', texto: 'A folha de compartilhamento passou a exibir os cartões em carrossel: o cartão central em destaque, os vizinhos visíveis nas laterais e a passagem de um para outro por arrasto ou pelas abas, cujo marcador desliza até a aba escolhida. Antes havia uma única prévia, trocada sem transição.' },
+      { tipo: 'novo', texto: 'Foi incluído o cartão "Vídeo" (1080 × 920 pixels), com o quadro do videoclipe, a capa, o título, o artista e a duração; o link compartilhado é o do videoclipe. O cartão só é oferecido às músicas com videoclipe. Aberta pelo player em modo vídeo, a folha inicia nesse cartão.' },
+      { tipo: 'melhoria', texto: 'O cartão "Música" passou ao formato vertical de 1080 × 1920 pixels, com a capa, o título e o artista em um painel escuro sobre a cor escolhida; o cartão "Letra" passou a 1080 × 1080 pixels, com os versos em corpo de até 104 pixels (antes 96), reduzido conforme a quantidade de texto.' },
+      { tipo: 'novo', texto: 'A escolha dos versos passou a ocupar uma tela própria, na cor da música, com os versos em corpo maior e os escolhidos em destaque (até 5). A nova tela "Personalizar" do cartão da letra oferece a cor, a capa escurecida como fundo, quatro estilos de texto (Clássico, Largo, Estreito e Inclinado) e o alinhamento à esquerda ou centralizado.' },
+      { tipo: 'melhoria', texto: 'Pendente: os três cartões, a troca entre eles, a escolha dos versos, a personalização e a gravação da imagem (JPEG de cerca de 150 kB) foram verificados em navegador com tela de celular; o arrasto do carrossel por toque e o envio pela parte nativa (WhatsApp, Instagram e lista do sistema) não foram validados em aparelho Android. Figurinhas sobre o cartão não foram implementadas.' },
+    ],
+  },
+  {
     versao: 622, data: '2026-11-11', titulo: 'Troca de música em vídeo sem o quadro cinza do Android',
     itens: [
       { tipo: 'correcao', texto: 'Na troca de uma música para a outra no modo vídeo, o elemento de vídeo ficava por um instante sem imagem (arquivo ainda em carregamento), e o WebView do Android desenhava nesse intervalo o seu cartaz padrão: um quadro cinza com o triângulo de reprodução. Os vídeos do player, da capa animada e das prévias de playlist passaram a receber um cartaz transparente de 1 × 1 pixel; no intervalo fica apenas o fundo preto do vídeo, até a chegada do primeiro quadro.' },
@@ -92,15 +102,6 @@ export const NOVIDADES = [
     versao: 614, data: '2026-11-10', titulo: 'Remoção da repetição de trecho do player',
     itens: [
       { tipo: 'melhoria', texto: 'A função "Repetir um trecho", adicionada ao menu de opções do player na versão 613, foi removida a pedido. O menu, a barra de tempo e a transição entre músicas (crossfade e automix) voltaram ao comportamento da versão 612. A função não guardava dados nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
-    ],
-  },
-  {
-    versao: 613, data: '2026-11-10', titulo: 'Repetição de trecho no player para ensaio',
-    itens: [
-      { tipo: 'novo', texto: 'Foi adicionada ao menu de opções do player (⋯ do Tocando agora) a função "Repetir um trecho". Nas músicas com letra sincronizada, as partes da gravação (Verse, Chorus, Bridge e demais marcações da cifra) passam a ser listadas com o instante de início e de fim, calculados a partir da letra sincronizada, e a parte escolhida é reproduzida em repetição contínua até ser desligada. Numa gravação de 10 min 47 s usada na verificação, foram identificadas 8 partes.' },
-      { tipo: 'novo', texto: 'Em qualquer música, o trecho a repetir também pode ser marcado manualmente: o início e o fim são definidos no ponto em que a reprodução se encontra, com duração mínima de 2 segundos. O trecho ativo é destacado na barra de tempo e indicado no menu.' },
-      { tipo: 'melhoria', texto: 'Durante a repetição de um trecho, a transição entre músicas (crossfade e automix) e a passagem para a faixa seguinte ficam suspensas. A repetição não é guardada: é encerrada ao trocar de música, ao trocar entre o clipe e o áudio ou ao fechar o player.' },
-      { tipo: 'melhoria', texto: 'Pendências do modo de ensaio, ainda não entregues: separação em quatro faixas (voz, bateria, baixo e demais instrumentos) com mixer, alteração de velocidade e de tom do áudio, metrônomo e contagem inicial. O retorno automático ao início do trecho foi validado por testes automatizados; a validação com reprodução real em aparelho permanece pendente.' },
     ],
   },
 ];

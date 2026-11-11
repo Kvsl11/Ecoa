@@ -5503,25 +5503,40 @@ dialog.folha.pk-dlg .dlg > .acts { position: static; }
 .perfil-folha-lista { display: grid; padding-top: 6px; }
 .perfil-folha-lista .pg-item { padding: 14px 4px; border-radius: 8px; }
 .pg-item.pg-sair, .pg-item.pg-sair svg { color: #f87171; }
-/* "Compartilhar" a música ou a letra: a prévia do cartão (4:5), a escolha entre Música e Letra, as cores, os versos e
-   os destinos em bolinhas (uma linha que rola para o lado) */
-.cs { display: grid; gap: 14px; }
-.cs-previa { display: block; width: auto; height: auto; max-width: min(100%, 300px); max-height: 44dvh; aspect-ratio: 4 / 5; margin: 0 auto; border-radius: 18px;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38); }
-.cs-controles { display: grid; gap: 14px; }
-.cs-modos { display: flex; justify-content: center; gap: 4px; margin: 0 auto; padding: 4px; border-radius: 999px; background: var(--surface-2); }
-.cs-modos button { all: unset; box-sizing: border-box; min-width: 88px; height: 34px; padding: 0 16px; border-radius: 999px; text-align: center; font-size: 14px; font-weight: 600;
-  color: var(--muted); cursor: pointer; }
-.cs-modos button[aria-selected="true"] { background: var(--text); color: var(--bg); }
-.cs-modos button:disabled { opacity: 0.4; cursor: default; }
-.cs-modos button:focus-visible, .cs-cor:focus-visible, .cs-destino:focus-visible, .cs-verso:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.cs-linha { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 18px; min-height: 34px; }
+/* "Compartilhar" a música, a letra ou o vídeo: os cartões num carrossel (o do meio em destaque, os vizinhos aparecendo
+   dos lados), as abas com o fundo que desliza, as cores, os destinos em bolinhas; e duas telas que entram por cima: a
+   de escolher os versos (na cor da música) e a de personalizar o cartão da letra */
+dialog.cs-dlg .dlg { padding-left: 0; padding-right: 0; overflow-x: hidden; }
+.cs { position: relative; }
+.cs-cartoes { display: grid; gap: 14px; }
+.cs-versos, .cs-personalizar { display: none; }
+.cs[data-tela="versos"] .cs-cartoes, .cs[data-tela="personalizar"] .cs-cartoes { display: none; }
+.cs[data-tela="versos"] .cs-versos { display: grid; animation: cs-sobe 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.cs[data-tela="personalizar"] .cs-personalizar { display: grid; animation: cs-sobe 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.cs[data-tela="cartoes"] .cs-cartoes { animation: cs-surge 0.24s ease; }
+@keyframes cs-sobe { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes cs-surge { from { opacity: 0; } to { opacity: 1; } }
+.cs-trilho { --alto: min(44dvh, 360px); display: flex; align-items: center; gap: 14px; height: calc(var(--alto) + 16px); overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; padding: 0 50%; outline: none; }
+.cs-trilho::-webkit-scrollbar { display: none; }
+.cs-slide { flex: none; scroll-snap-align: center; scroll-snap-stop: always; cursor: pointer; opacity: 0.5; transform: scale(0.9);
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.32s; }
+.cs-slide.ativa { opacity: 1; transform: none; cursor: default; }
+.cs-slide canvas { display: block; height: auto; width: auto; max-height: var(--alto); max-width: min(78vw, 340px); border-radius: 16px; box-shadow: 0 14px 34px rgb(0 0 0 / 0.4); }
+.cs-modos { position: relative; display: flex; justify-content: center; gap: 0; margin: 0 auto; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.cs-modos[hidden] { display: none; }
+.cs-modos-fundo { position: absolute; top: 4px; left: 0; height: 34px; border-radius: 999px; background: var(--text); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.3s; }
+.cs-modos button { all: unset; box-sizing: border-box; position: relative; z-index: 1; min-width: 84px; height: 34px; padding: 0 16px; border-radius: 999px; text-align: center;
+  font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; transition: color 0.25s; }
+.cs-modos button[aria-selected="true"] { color: var(--bg); }
+.cs-modos button:focus-visible, .cs-cor:focus-visible, .cs-destino:focus-visible, .cs-verso:focus-visible, .cs-ferr:focus-visible, .cs-continuar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cs-linha { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; min-height: 34px; padding: 0 22px; }
 .cs-cores { display: flex; gap: 12px; }
-.cs-cor { all: unset; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; background: var(--c); border: 2px solid color-mix(in srgb, var(--text) 28%, transparent); cursor: pointer; }
+.cs-cor { all: unset; box-sizing: border-box; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--c); border: 2px solid color-mix(in srgb, var(--text) 28%, transparent); cursor: pointer; }
 .cs-cor[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
-.cs-editar { gap: 6px; cursor: pointer; }
-.cs-estado { margin: 0; text-align: center; font-size: 13.5px; color: #f87171 !important; }
-.cs-destinos { display: flex; gap: 6px; margin: 0 -22px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; }
+.cs-linha .chip { gap: 6px; cursor: pointer; }
+.cs-estado { margin: 0; padding: 0 22px; text-align: center; font-size: 13.5px; color: #f87171 !important; }
+.cs-destinos { display: flex; gap: 6px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; }
 .cs-destinos::-webkit-scrollbar { display: none; }
 .cs-destino { all: unset; box-sizing: border-box; flex: none; display: grid; justify-items: center; gap: 6px; width: 76px; padding: 4px 0; border-radius: 12px; cursor: pointer; }
 .cs-destino:disabled { opacity: 0.5; }
@@ -5529,13 +5544,40 @@ dialog.folha.pk-dlg .dlg > .acts { position: static; }
 .cs-bola { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--surface-3); color: var(--text); }
 .cs-whats .cs-bola { background: #25d366; color: #fff; }
 .cs-insta .cs-bola { background: linear-gradient(45deg, #f9a825, #e1306c 55%, #7b3fe4); color: #fff; }
-.cs-versos { display: grid; gap: 12px; }
-.cs-versos-cab { display: flex; align-items: baseline; justify-content: space-between; }
-.cs-versos-cab small { color: var(--muted); font-size: 13px; }
-.cs-versos-lista { display: grid; gap: 6px; max-height: 52dvh; overflow-y: auto; margin: 0 -6px; padding: 2px 6px; }
-.cs-verso { all: unset; box-sizing: border-box; padding: 10px 14px; border-radius: 12px; font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--muted); cursor: pointer; }
-.cs-verso[aria-selected="true"] { background: var(--text); color: var(--bg); }
-.cs-versos-ok { justify-self: center; min-width: 160px; justify-content: center; }
+.cs-vago { width: 40px; }
+/* escolher os versos: a tela na cor da música, os versos grandes e os escolhidos em destaque */
+.cs-versos { grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; height: min(78dvh, 640px); margin: -8px 0 -22px; padding: 12px 16px 18px; border-radius: 18px 18px 0 0; color: #fff;
+  background: linear-gradient(180deg, var(--cs-cor), var(--cs-cor2)); }
+.cs-versos-cab, .cs-pers-cab { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; text-align: center; }
+.cs-versos-cab span { display: grid; }
+.cs-versos-cab small { color: rgb(255 255 255 / 0.78); font-size: 13px; }
+.cs-versos-cab .icon-btn { color: #fff; }
+.cs-versos-lista { display: grid; align-content: start; gap: 4px; overflow-y: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); padding: 12px 0; }
+.cs-versos-lista::-webkit-scrollbar { display: none; }
+.cs-verso { all: unset; box-sizing: border-box; padding: 9px 14px; border-radius: 12px; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; color: #fff; cursor: pointer;
+  transition: background 0.18s, color 0.18s; }
+.cs-verso[aria-selected="true"] { background: #fff; color: #111; }
+.cs-continuar { all: unset; box-sizing: border-box; justify-self: center; min-width: 150px; height: 46px; padding: 0 26px; border-radius: 999px; background: #fff; color: #111; font-weight: 800; text-align: center; cursor: pointer; }
+.cs-continuar:disabled { opacity: 0.45; cursor: default; }
+/* personalizar o cartão da letra: o cartão grande no meio e, embaixo, as ferramentas (cor, imagem, texto) */
+.cs-personalizar { gap: 14px; padding: 0 16px; justify-items: center; }
+.cs-pers-cab { width: 100%; }
+.cs-pers-palco canvas { display: block; width: min(72vw, 320px); height: auto; border-radius: 16px; box-shadow: 0 14px 34px rgb(0 0 0 / 0.4); }
+.cs-pers-opcoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
+.cs-pers-opcoes[hidden] { display: none; }
+.cs-pers-opcoes .chip { cursor: pointer; }
+.cs-pers-opcoes .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.cs-sep { flex: 1 1 100%; height: 0; }
+.cs-ferrs { display: flex; gap: 8px; }
+.cs-ferr { all: unset; box-sizing: border-box; display: grid; justify-items: center; align-content: center; gap: 6px; width: 72px; height: 68px; border-radius: 12px; background: var(--surface-2); cursor: pointer; }
+.cs-ferr[aria-pressed="true"] { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--text); }
+.cs-ferr span { display: grid; place-items: center; height: 24px; }
+.cs-ferr small { font-size: 12px; color: var(--muted); }
+.cs-ferr-cor { display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 2px solid var(--text); }
+.cs-ferr-a { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--text); color: var(--bg); font-size: 15px; }
+.cs-personalizar .cs-continuar { background: var(--text); color: var(--bg); }
+@media (prefers-reduced-motion: reduce) { .cs-slide, .cs-modos-fundo, .cs-verso { transition: none; } .cs[data-tela] > * { animation: none !important; } }
 /* "Compartilhar o Ecoa": a prévia do cartão do convite (4:5) e, embaixo, as formas de enviar */
 .convite-previa { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: 46dvh; aspect-ratio: 4 / 5; margin: 0 auto; border-radius: 18px;
   box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38); }

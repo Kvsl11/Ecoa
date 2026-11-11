@@ -41,7 +41,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { LARGURA_DO_CARTAO, ALTURA_DO_CARTAO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao } from './lib/cartao.js';
+import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -687,63 +687,72 @@ function dadosParaCompartilhar(song) {
     titulo: song.title || '', artista: song.artist || '', capa: capaDaMusica(song).replace('/mqdefault.jpg', '/hqdefault.jpg'), cor: corDe(song),
     url: song.youtube ? `https://www.youtube.com/watch?v=${song.youtube}` : /^https?:/.test(song.source || '') ? song.source : '',
     linhas,
+    // (o cartão do vídeo: só com videoclipe de verdade)
+    video: song.semClipe || song.audioProprio ? '' : versoesDe(song)?.video || song.youtube || '', duracao: Number(song.duracao) || 0,
   };
 }
 // A capa da música como imagem que o canvas pode desenhar e exportar: direto (o site deixa ler) ou, se não deixa, por
 // um redimensionador público (como na cor da capa). null sem capa, sem internet ou sem resposta em 6 s
-async function imagemDaCapaParaCartao(src) {
+async function imagemDaCapaParaCartao(src, { largura = 0 } = {}) {
   if (!src) return null;
   const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=900&h=900&fit=cover&output=jpg`];
   for (const url of tentativas) {
     try {
       const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout?.(6000) });
-      if (r.ok) return await createImageBitmap(await r.blob());
+      if (!r.ok) continue;
+      const img = await createImageBitmap(await r.blob());
+      // (o endereço que não tem a imagem pedida devolve uma miniatura genérica: menor que o pedido, não serve)
+      if (img.width >= largura) return img;
+      img.close?.();
     } catch { /* tenta a próxima */ }
   }
   return null;
 }
-// "Compartilhar" a música ou a letra (o botão do player, o da letra, os ⋮ da música): a folha com a prévia do cartão
-// (lib/cartao.js), a escolha entre Música e Letra, a cor do cartão, os versos que entram e os destinos (copiar o link,
-// WhatsApp, Instagram, salvar a imagem, os outros aplicativos). musica: { titulo, artista, capa, url, linhas (a
-// letra), linhaAtual (a que está sendo cantada), cor (a da música), modo ('musica' | 'letra') }
+// "Compartilhar" a música, a letra ou o vídeo (o botão do player, o da letra, os ⋮ da música): a folha com os cartões
+// (lib/cartao.js) num carrossel — Música, Letra e Vídeo, um ao lado do outro, deslizando de um para o outro —, as cores
+// do cartão, a tela para escolher os versos, a tela para personalizar o cartão da letra (a cor, a capa de fundo, o
+// estilo e o alinhamento do texto) e os destinos (copiar o link, WhatsApp, Instagram, salvar a imagem, os outros
+// aplicativos). musica: { titulo, artista, capa, url, linhas (a letra), linhaAtual (a que está sendo cantada), cor (a
+// da música), modo ('musica' | 'letra' | 'video'), video (o id do videoclipe no YouTube), duracao (segundos) }
 async function compartilharMusica(musica) {
   const { titulo = '', artista = '', url = '' } = musica;
   const linhas = linhasParaEscolher(musica.linhas);
   const cores = coresDoCartao(musica.cor || corDe({ title: titulo, artist: artista, cover: musica.capa }));
-  let modo = musica.modo === 'letra' && linhas.length ? 'letra' : 'musica';
+  const idVideo = /^[\w-]{11}$/.test(musica.video || '') ? musica.video : '';
+  const modos = [['musica', 'Música'], ...(linhas.length ? [['letra', 'Letra']] : []), ...(idVideo ? [['video', 'Vídeo']] : [])];
+  let modo = modos.some(([m]) => m === musica.modo) ? musica.modo : 'musica';
   let cor = 0;
   let marcados = versosIniciais(linhas, musica.linhaAtual ?? -1);
+  const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor' }; // (o cartão da letra, na tela "Personalizar")
   let capaImg = null;
+  let quadroImg = null;
   const nativo = noApk() ? pluginEcoa() : null;
-  const canvas = document.createElement('canvas');
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
-  const texto = () => textoDoCartao({ titulo, artista, url, versos: versos() });
+  const linkDe = (m) => (m === 'video' && idVideo ? `https://www.youtube.com/watch?v=${idVideo}` : url);
+  const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
+  const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual,
+    versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
   const imagem = () => new Promise((ok) => {
-    try { desenharCartao(canvas, { modo, titulo, artista, capa: capaImg, versos: versos(), cor: cores[cor] }); canvas.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
+    try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
   });
   await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
   const podeEnviar = Boolean(nativo?.compartilharCartao || navigator.share);
   const destino = (v, ic, rotulo, cls = '') => `<button class="cs-destino ${cls}" data-cs="${v}"><span class="cs-bola">${icon(ic, 22)}</span><small>${rotulo}</small></button>`;
+  const ferramenta = (v, ic, rotulo) => `<button class="cs-ferr" data-ferr="${v}" aria-pressed="false"><span>${ic}</span><small>${rotulo}</small></button>`;
+  const tela = (m) => { const t = tamanhoDoCartao(m); return `<canvas width="${t.l}" height="${t.a}" style="aspect-ratio:${t.l}/${t.a}"></canvas>`; };
   await openDialog(`
-    <div class="cs">
-      <div class="cs-palco" data-cs-palco><canvas class="cs-previa" width="${LARGURA_DO_CARTAO}" height="${ALTURA_DO_CARTAO}" role="img" aria-label="Prévia do cartão"></canvas></div>
-      <div class="cs-versos" data-cs-versos hidden>
-        <div class="cs-versos-cab"><b>Escolher os versos</b><small data-cs-conta></small></div>
-        <div class="cs-versos-lista" role="listbox" aria-multiselectable="true">${linhas.map((l, i) => `<button class="cs-verso" role="option" data-i="${i}">${esc(l)}</button>`).join('')}</div>
-        <button class="btn primary cs-versos-ok" data-cs="versos-ok">Continuar</button>
-      </div>
-      <div class="cs-controles" data-cs-controles>
-        <div class="cs-modos" role="tablist">
-          <button role="tab" data-modo="musica">Música</button>
-          <button role="tab" data-modo="letra"${linhas.length ? '' : ' disabled title="Esta música ainda não tem a letra"'}>Letra</button>
-        </div>
+    <div class="cs" data-tela="cartoes">
+      <div class="cs-cartoes">
+        <div class="cs-trilho" data-cs-trilho>${modos.map(([m, nome]) => `<div class="cs-slide" data-slide="${m}" role="img" aria-label="Cartão: ${nome}">${tela(m)}</div>`).join('')}</div>
+        <div class="cs-modos" role="tablist"${modos.length < 2 ? ' hidden' : ''}><i class="cs-modos-fundo" aria-hidden="true"></i>${modos.map(([m, nome]) => `<button role="tab" data-modo="${m}">${nome}</button>`).join('')}</div>
         <div class="cs-linha">
           <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
-          <button class="chip cs-editar" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
+          <button class="chip cs-so-letra" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
+          <button class="chip cs-so-letra" data-cs="personalizar" hidden>${icon('sparkles', 14)} Personalizar</button>
         </div>
         <p class="cs-estado" role="status" hidden></p>
         <div class="cs-destinos">
-          ${url ? destino('link', 'link', 'Copiar link') : ''}
+          ${url || idVideo ? destino('link', 'link', 'Copiar link') : ''}
           ${destino('whatsapp', 'whatsapp', 'WhatsApp', 'cs-whats')}
           ${nativo?.compartilharCartao ? destino('instagram', 'instagram', 'Instagram', 'cs-insta') : ''}
           ${linhas.length ? destino('texto', 'copy', 'Copiar letra') : ''}
@@ -751,30 +760,93 @@ async function compartilharMusica(musica) {
           ${podeEnviar ? destino('mais', 'enviarApp', 'Mais') : ''}
         </div>
       </div>
+      <div class="cs-versos" style="--cs-cor:${cores[0].fundo};--cs-cor2:${cores[0].fundo2}">
+        <div class="cs-versos-cab"><button class="icon-btn" data-cs="versos-ok" aria-label="Voltar">${icon('down', 22)}</button><span><b>Escolher os versos</b><small data-cs-conta></small></span><span class="cs-vago"></span></div>
+        <div class="cs-versos-lista" role="listbox" aria-multiselectable="true">${linhas.map((l, i) => `<button class="cs-verso" role="option" data-i="${i}">${esc(l)}</button>`).join('')}</div>
+        <button class="cs-continuar" data-cs="versos-ok">Continuar</button>
+      </div>
+      <div class="cs-personalizar">
+        <div class="cs-pers-cab"><button class="icon-btn" data-cs="pers-ok" aria-label="Voltar">${icon('back', 22)}</button><b>Personalizar</b><span class="cs-vago"></span></div>
+        <div class="cs-pers-palco">${tela('letra')}</div>
+        <div class="cs-pers-opcoes" data-cs-opcoes hidden></div>
+        <div class="cs-ferrs">
+          ${ferramenta('cor', '<i class="cs-ferr-cor"></i>', 'Cor')}
+          ${ferramenta('imagem', icon('imagem', 20), 'Imagem')}
+          ${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}
+        </div>
+        <button class="cs-continuar" data-cs="pers-ok">Concluir</button>
+      </div>
     </div>`,
   (dlg) => {
-    const previa = $('.cs-previa', dlg);
+    dlg.classList.add('cs-dlg');
+    const raiz = $('.cs', dlg);
+    const trilho = $('[data-cs-trilho]', dlg);
     const estado = $('.cs-estado', dlg);
+    const opcoes = $('[data-cs-opcoes]', dlg);
     const avisar = (t) => { estado.textContent = t; estado.hidden = !t; };
+    const telaDo = (m) => $(`[data-slide="${m}"] canvas`, dlg);
+    const desenharUm = (m, canvas = telaDo(m)) => { try { if (canvas) desenharCartao(canvas, dadosDo(m)); } catch { /* sem canvas: a folha fica sem a prévia */ } };
     const desenhar = () => {
-      try { desenharCartao(previa, { modo, titulo, artista, capa: capaImg, versos: versos(), cor: cores[cor] }); } catch { /* sem canvas: fica a folha sem a prévia */ }
-      dlg.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.modo === modo)));
-      dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor)));
-      $('.cs-editar', dlg).hidden = modo !== 'letra';
+      modos.forEach(([m]) => desenharUm(m));
+      if (raiz.dataset.tela === 'personalizar') desenharUm('letra', $('.cs-pers-palco canvas', dlg));
     };
+    // o que acompanha o cartão do meio: a aba marcada (o fundo dela desliza), as cores e os botões da letra
+    const marcarModo = () => {
+      const abas = [...dlg.querySelectorAll('[data-modo]')];
+      abas.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.modo === modo)));
+      const aba = abas.find((b) => b.dataset.modo === modo);
+      const fundo = $('.cs-modos-fundo', dlg);
+      if (aba && fundo) { fundo.style.width = `${aba.offsetWidth}px`; fundo.style.transform = `translateX(${aba.offsetLeft}px)`; }
+      dlg.querySelectorAll('.cs-slide').forEach((x) => x.classList.toggle('ativa', x.dataset.slide === modo));
+      dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor)));
+      dlg.querySelectorAll('.cs-so-letra').forEach((b) => { b.hidden = modo !== 'letra'; });
+    };
+    const irPara = (m, suave = true) => {
+      const slide = $(`[data-slide="${m}"]`, dlg);
+      if (!slide) return;
+      trilho.scrollTo({ left: slide.offsetLeft - (trilho.clientWidth - slide.offsetWidth) / 2, behavior: suave ? 'smooth' : 'auto' });
+    };
+    // (arrastando o carrossel, vale o cartão mais perto do meio)
+    let medindo = 0;
+    trilho.addEventListener('scroll', () => {
+      cancelAnimationFrame(medindo);
+      medindo = requestAnimationFrame(() => {
+        const meio = trilho.scrollLeft + trilho.clientWidth / 2;
+        const perto = [...dlg.querySelectorAll('.cs-slide')].map((x) => ({ m: x.dataset.slide, d: Math.abs(x.offsetLeft + x.offsetWidth / 2 - meio) })).sort((a, b) => a.d - b.d)[0];
+        if (perto && perto.m !== modo) { modo = perto.m; marcarModo(); }
+      });
+    }, { passive: true });
     const marcar = () => {
       dlg.querySelectorAll('.cs-verso').forEach((b) => b.setAttribute('aria-selected', String(marcados.includes(Number(b.dataset.i)))));
-      $('[data-cs-conta]', dlg).textContent = `${marcados.length} de ${MAXIMO_DE_VERSOS}`;
-      $('.cs-versos-ok', dlg).disabled = !marcados.length;
+      const n = marcados.length;
+      $('[data-cs-conta]', dlg).textContent = `${n} ${n === 1 ? 'verso escolhido' : 'versos escolhidos'} (até ${MAXIMO_DE_VERSOS})`;
+      dlg.querySelectorAll('[data-cs="versos-ok"].cs-continuar').forEach((b) => { b.disabled = !n; });
     };
-    const escolhendo = (sim) => {
-      $('[data-cs-versos]', dlg).hidden = !sim;
-      $('[data-cs-palco]', dlg).hidden = sim;
-      $('[data-cs-controles]', dlg).hidden = sim;
-      if (sim) { marcar(); dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' }); } else desenhar();
+    const mostrarTela = (qual) => {
+      raiz.dataset.tela = qual;
+      if (qual === 'versos') { marcar(); requestAnimationFrame(() => dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' })); }
+      if (qual === 'personalizar') { opcoes.hidden = true; dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', 'false')); }
+      desenhar();
+      if (qual === 'cartoes') requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
+    };
+    // as opções de cada ferramenta da tela "Personalizar"
+    const abrirFerramenta = (qual) => {
+      dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ferr === qual)));
+      const op = (attr, valor, rotulo, ligado) => `<button class="chip" ${attr}="${valor}" aria-pressed="${ligado}">${rotulo}</button>`;
+      opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === cor}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
+        : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visual.fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visual.fundo === 'imagem')
+          : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visual.estilo === k)).join('')
+            + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visual.alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visual.alinhar === 'centro')}`;
+      opcoes.hidden = false;
     };
     desenhar();
+    requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
     imagemDaCapaParaCartao(musica.capa).then((img) => { if (img && dlg.isConnected) { capaImg = img; desenhar(); } });
+    if (idVideo) {
+      // (o quadro do clipe: o grande, quando o vídeo tem; senão o de sempre)
+      (async () => await imagemDaCapaParaCartao(`https://i.ytimg.com/vi/${idVideo}/maxresdefault.jpg`, { largura: 400 }) || imagemDaCapaParaCartao(`https://i.ytimg.com/vi/${idVideo}/mqdefault.jpg`))()
+        .then((img) => { if (img && dlg.isConnected) { quadroImg = img; desenhar(); } });
+    }
     // envia a imagem e o texto: pela parte nativa (com o aplicativo de destino, se pedido) ou pelo navegador
     const enviar = async (pacote = '') => {
       const blob = await imagem();
@@ -790,16 +862,30 @@ async function compartilharMusica(musica) {
       const v = e.target.closest('.cs-verso');
       if (v) { marcados = alternarVerso(marcados, Number(v.dataset.i)); marcar(); return; }
       const m = e.target.closest('[data-modo]');
-      if (m && !m.disabled) { modo = m.dataset.modo; desenhar(); return; }
+      if (m) { modo = m.dataset.modo; marcarModo(); irPara(modo); return; }
+      const slide = e.target.closest('.cs-slide');
+      if (slide && slide.dataset.slide !== modo) { modo = slide.dataset.slide; marcarModo(); irPara(modo); return; }
       const c = e.target.closest('[data-cor]');
-      if (c) { cor = Number(c.dataset.cor); desenhar(); return; }
+      if (c) { cor = Number(c.dataset.cor); desenhar(); marcarModo(); if (raiz.dataset.tela === 'personalizar') abrirFerramenta('cor'); return; }
+      const ferr = e.target.closest('[data-ferr]');
+      if (ferr) { if (ferr.getAttribute('aria-pressed') === 'true') { ferr.setAttribute('aria-pressed', 'false'); opcoes.hidden = true; } else abrirFerramenta(ferr.dataset.ferr); return; }
+      const opcao = e.target.closest('[data-estilo], [data-alinhar], [data-fundo]');
+      if (opcao) {
+        if (opcao.dataset.estilo) visual.estilo = opcao.dataset.estilo;
+        if (opcao.dataset.alinhar) visual.alinhar = opcao.dataset.alinhar;
+        if (opcao.dataset.fundo) visual.fundo = opcao.dataset.fundo;
+        desenhar();
+        abrirFerramenta(opcao.dataset.fundo ? 'imagem' : 'texto');
+        return;
+      }
       const b = e.target.closest('[data-cs]');
       if (!b || b.disabled) return;
       const acao = b.dataset.cs;
       avisar('');
-      if (acao === 'versos') { escolhendo(true); return; }
-      if (acao === 'versos-ok') { escolhendo(false); return; }
-      if (acao === 'link') { toast((await copiarTexto(url)) ? 'Link copiado' : 'Não consegui copiar'); return; }
+      if (acao === 'versos') { mostrarTela('versos'); return; }
+      if (acao === 'personalizar') { mostrarTela('personalizar'); return; }
+      if (acao === 'versos-ok' || acao === 'pers-ok') { if (!marcados.length) marcados = versosIniciais(linhas, musica.linhaAtual ?? -1); mostrarTela('cartoes'); return; }
+      if (acao === 'link') { toast((await copiarTexto(linkDe(modo) || url)) ? 'Link copiado' : 'Não consegui copiar'); return; }
       if (acao === 'texto') { toast((await copiarTexto(textoDoCartao({ titulo, artista, versos: marcados.length && modo === 'letra' ? versos() : linhas }))) ? 'Letra copiada: é só colar onde quiser' : 'Não consegui copiar'); return; }
       b.disabled = true;
       try {
@@ -827,6 +913,7 @@ async function compartilharMusica(musica) {
     });
   }, { folha: true });
   capaImg?.close?.();
+  quadroImg?.close?.();
 }
 
 
@@ -7287,7 +7374,8 @@ const semLinhasDeAcordes = (sinc) => {
       void compartilharMusica({
         titulo: atual.titulo || '', artista: atual.artista || '', capa: capaDela, cor: atual.cor || '',
         url: ytDaCapa() ? `https://www.youtube.com/watch?v=${ytDaCapa()}` : '',
-        linhas: linhasDaLetra, linhaAtual: linhaAcesa, modo: b.dataset.pl === 'compartilhar-letra' ? 'letra' : 'musica',
+        linhas: linhasDaLetra, linhaAtual: linhaAcesa, modo: b.dataset.pl === 'compartilhar-letra' ? 'letra' : emVideo() ? 'video' : 'musica',
+        video: atual.soMusica || atual.semVideo ? '' : atual.video || atual.youtube || '', duracao: Number(db.song(atual.songId || '')?.duracao) || 0,
       });
     }
     // ouvir em outro aparelho: o vídeo abre no YouTube (de lá vai para a TV ou a caixa de som), do ponto em que está
