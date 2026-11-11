@@ -10472,15 +10472,19 @@ function porSeloExplicita(linha, titulo, artista) {
 // Bruno Mars"). Com três ou mais, depois das duas fotos vem a bolinha "+N" com quantos faltam: a linha não cresce, e
 // o nome de todos está ao lado e na tela da música. A do primeiro é a de sempre (guardada na música); a dos outros é
 // a última conhecida e, sem ela, é procurada quando a linha aparece (preencherFotosDosOutros)
+// os artistas da música além do primeiro, sem repetir (para as fotinhas das linhas e as fotos da prévia da playlist)
+function outrosArtistasDe(titulo, artista) {
+  const outros = [];
+  if (!artista) return outros;
+  const vistos = new Set([normalizar(primeiroArtistaDe(artista))]);
+  for (const n of artistasDe(titulo || '', artista)) { const k = normalizar(n); if (k && !vistos.has(k)) { vistos.add(k); outros.push(n); } }
+  return outros;
+}
 function miniDosArtistas(titulo, artista, fotoPrincipal, liturgia = false) {
   const principal = primeiroArtistaDe(artista || '');
   const primeira = `<span class="artista-mini${fotoPrincipal ? ' com-foto' : ''}" data-artista-mini data-nome="${esc(principal)}"${liturgia ? ' data-liturgia="1"' : ''}>${fotoPrincipal ? `<img src="${esc(fotoPrincipal)}" referrerpolicy="no-referrer" alt="" loading="lazy">` : semFotoArtista(14)}</span>`;
   // (nos cantos da liturgia o "artista" costuma ser quem compôs: fica só a primeira bolinha)
-  let outros = [];
-  if (!liturgia && artista) {
-    const vistos = new Set([normalizar(principal)]);
-    for (const n of artistasDe(titulo || '', artista)) { const k = normalizar(n); if (k && !vistos.has(k)) { vistos.add(k); outros.push(n); } }
-  }
+  const outros = liturgia ? [] : outrosArtistasDe(titulo, artista);
   if (!outros.length) return primeira;
   const segundo = outros[0];
   const conhecida = fotoReal(fotoConhecida(segundo));
@@ -17228,7 +17232,7 @@ function linhaDaPlaylist(set, it, i, comVideo) {
   const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="" loading="lazy"></div>` : capa(s || {});
   return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
     <div class="info"><div class="t">${esc(s?.title || '(música removida)')}</div>
-      <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${esc(s?.artist || '')}</div></div>
+      <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${s?.artist ? miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s)) : ''}${esc(s?.artist || '')}</div></div>
     <span class="acts">${s ? botaoMais(s.title) : `<button class="icon-btn danger" data-rm aria-label="Remover da playlist" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
 }
 function viewPlaylist(set) {
@@ -17566,11 +17570,16 @@ function previaDaPlaylist(set, inicio = 0) {
       <button class="icon-btn" data-som aria-label="Tirar o som" title="Tirar o som">${icon('som', 22)}</button></div>
     <div class="pv-feed">${faixas.map(({ s }, k) => {
       const foto = fotoReal(s.fotoArtista) || fotoConhecida(s.artist);
+      // com mais de um artista, a foto do segundo grudada na do primeiro e, com três ou mais, a bolinha "+N" (como
+      // nas linhas das listas; a foto que falta é procurada por preencherFotosDosOutros)
+      const outros = ehDaLiturgia(s) ? [] : outrosArtistasDe(s.title, s.artist || '');
+      const fotoDoSegundo = outros.length ? fotoReal(fotoConhecida(outros[0])) : '';
+      const maisFotos = outros.length ? `<span class="pv-foto extra" data-artista-extra data-nome="${esc(outros[0])}" data-titulo="${esc(s.title || '')}" title="${esc(outros[0])}">${fotoDoSegundo ? `<img src="${esc(fotoDoSegundo)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${outros.length > 1 ? `<span class="pv-foto extra mais" title="${esc(outros.slice(1).join(', '))}" aria-label="e mais ${outros.length - 1}">+${outros.length - 1}</span>` : ''}` : '';
       return `<section class="pv-slide" data-k="${k}">
       <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" referrerpolicy="no-referrer" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
         <div class="pv-meta">
-          <div class="pv-artista">${s.artist ? `<span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>
+          <div class="pv-artista">${s.artist ? `<span class="pv-fotos"><span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${maisFotos}</span>
             <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><small class="pv-seg" hidden></small></span>` : ''}</div>
           <button class="icon-btn pv-compartilhar" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
           <div class="pv-tags" hidden></div>
