@@ -132,16 +132,88 @@ function marca(c, x, y, cor, lado = 56) {
   c.fillText('Ecoa', x + lado * 0.86, y - lado * 0.27);
 }
 
+// Os fundos animados do cartão (a tela "Personalizar"): desenhados por cima da cor (ou da imagem de fundo), na cor do
+// texto do cartão, bem transparentes — servem a qualquer uma das cores. O cartão animado sai como vídeo, e o movimento
+// se repete a cada DURACAO_DA_ANIMACAO segundos: tudo anda um número inteiro de voltas nesse tempo, e o fim do vídeo
+// emenda no começo
+export const FUNDOS_ANIMADOS = [['eco', 'Eco'], ['ondas', 'Ondas'], ['aurora', 'Aurora'], ['bolhas', 'Bolhas'], ['brilhos', 'Brilhos']];
+export const DURACAO_DA_ANIMACAO = 6;
+// um número entre 0 e 1 tirado de dois inteiros (sempre o mesmo: as bolhas e os brilhos não mudam de lugar a cada quadro)
+export const acaso = (i, k = 0) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+// a volta da animação no instante t: de 0 a 1, e de novo
+export const voltaDaAnimacao = (t) => { const v = (Number(t) || 0) / DURACAO_DA_ANIMACAO; return v - Math.floor(v); };
+export function desenharFundoAnimado(c, L, A, tinta, qual, t = 0) {
+  const v = voltaDaAnimacao(t);
+  const DOIS_PI = Math.PI * 2;
+  c.save();
+  c.fillStyle = tinta; c.strokeStyle = tinta;
+  if (qual === 'eco') {
+    // os anéis do eco saindo do meio do cartão, apagando conforme crescem
+    const raio = Math.hypot(L, A) * 0.62; const n = 6;
+    for (let i = 0; i < n; i++) {
+      const p = (v + i / n) % 1;
+      c.globalAlpha = 0.2 * (1 - p) ** 1.4;
+      c.lineWidth = 10 + 26 * p;
+      c.beginPath(); c.arc(L / 2, A / 2, 30 + p * raio, 0, DOIS_PI); c.stroke();
+    }
+  } else if (qual === 'ondas') {
+    // quatro ondas no pé do cartão, cada uma num passo
+    for (let i = 0; i < 4; i++) {
+      const base = A * (0.52 + i * 0.12); const alto = A * (0.035 - i * 0.004); const fase = DOIS_PI * v * (i % 2 ? -1 : 1) * (1 + (i >> 1)) + i * 1.7;
+      c.globalAlpha = 0.07 + i * 0.02;
+      c.beginPath(); c.moveTo(0, A);
+      for (let x = 0; x <= L; x += 24) c.lineTo(x, base + Math.sin((x / L) * DOIS_PI * (1.2 + i * 0.35) + fase) * alto + Math.sin((x / L) * DOIS_PI * 2.6 - fase) * alto * 0.35);
+      c.lineTo(L, A); c.closePath(); c.fill();
+    }
+  } else if (qual === 'aurora') {
+    // três clarões grandes passeando devagar
+    for (let i = 0; i < 3; i++) {
+      const a = DOIS_PI * (v + i / 3);
+      const x = L * (0.5 + 0.34 * Math.cos(a * (i === 1 ? -1 : 1) + i)); const y = A * (0.5 + 0.36 * Math.sin(a + i * 2.1));
+      const r = Math.max(L, A) * (0.42 + 0.06 * Math.sin(a * 2 + i));
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, tinta); g.addColorStop(1, tinta === '#fff' ? 'rgba(255,255,255,0)' : 'rgba(17,17,17,0)');
+      c.globalAlpha = 0.2;
+      c.fillStyle = g;
+      c.fillRect(0, 0, L, A);
+    }
+  } else if (qual === 'bolhas') {
+    // as bolhas subindo, cada uma no seu tamanho e na sua velocidade (uma ou duas subidas por volta)
+    for (let i = 0; i < 26; i++) {
+      const r = 14 + acaso(i, 1) * 58; const vezes = 1 + Math.floor(acaso(i, 2) * 2);
+      const p = (v * vezes + acaso(i, 3)) % 1;
+      const x = acaso(i, 4) * L + Math.sin(DOIS_PI * (v * vezes + acaso(i, 5))) * 30;
+      const y = A + r - p * (A + 2 * r);
+      c.globalAlpha = (0.06 + acaso(i, 6) * 0.12) * Math.min(1, p * 6, (1 - p) * 6);
+      c.beginPath(); c.arc(x, y, r, 0, DOIS_PI); c.fill();
+    }
+  } else if (qual === 'brilhos') {
+    // os pontos de luz piscando
+    for (let i = 0; i < 70; i++) {
+      const vezes = 1 + Math.floor(acaso(i, 1) * 3);
+      const pisca = Math.sin(Math.PI * ((v * vezes + acaso(i, 2)) % 1)) ** 2;
+      const r = (2.5 + acaso(i, 3) * 6) * (0.6 + 0.4 * pisca);
+      c.globalAlpha = 0.55 * pisca;
+      c.beginPath(); c.arc(acaso(i, 4) * L, acaso(i, 5) * A, r, 0, DOIS_PI); c.fill();
+    }
+  }
+  c.restore();
+}
+
 // Desenha o cartão no canvas. dados: { modo: 'musica' | 'letra' | 'video', titulo, artista, capa (imagem carregada ou
 // null), versos (os textos, no modo letra), cor (uma de coresDoCartao), estilo ('classico' | 'largo' | 'estreito' |
 // 'inclinado'), alinhar ('esquerda' | 'centro'), fundo (uma imagem carregada — a capa ou uma foto do aparelho — que
-// cobre o cartão, escurecida, no lugar da cor; null: a cor), quadro (a imagem do videoclipe), duracao (segundos) }
-export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0 } = {}) {
+// cobre o cartão, escurecida, no lugar da cor; null: a cor), quadro (a imagem do videoclipe), duracao (segundos),
+// animacao (um dos FUNDOS_ANIMADOS, ou '': o fundo parado) e t (o instante da animação, em segundos) }
+export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0, animacao = '', t = 0 } = {}) {
   let cor = corPedida;
   if (modo === 'letra' && !versos.length) modo = 'musica';
   const { l: L, a: A } = tamanhoDoCartao(modo);
-  canvas.width = L; canvas.height = A;
+  // (o tamanho só é posto quando muda: pôr de novo a cada quadro apagaria o canvas que está sendo gravado em vídeo)
+  if (canvas.width !== L || canvas.height !== A) { canvas.width = L; canvas.height = A; }
   const c = canvas.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalAlpha = 1;
   const medir = (t) => c.measureText(t).width;
   const M = 72;
   c.textBaseline = 'alphabetic'; c.textAlign = 'left';
@@ -156,6 +228,7 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     c.fillRect(0, 0, L, A);
     cor = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.78)' };
   }
+  if (FUNDOS_ANIMADOS.some(([k]) => k === animacao)) desenharFundoAnimado(c, L, A, cor.texto, animacao, t);
 
   if (modo === 'letra') {
     const tinta = cor;

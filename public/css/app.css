@@ -5548,6 +5548,8 @@ dialog.cs-dlg .dlg { padding-left: 0; padding-right: 0; overflow-x: hidden; }
 .cs-cor[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
 .cs-linha .chip { gap: 6px; cursor: pointer; }
 .cs-estado { margin: 0; padding: 0 22px; text-align: center; font-size: 13.5px; color: #f87171 !important; }
+.cs-estado.neutro { color: var(--muted) !important; }
+.cs-nota { flex: 1 1 100%; text-align: center; font-size: 12.5px; color: var(--muted); }
 .cs-destinos { display: flex; gap: 6px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; }
 .cs-destinos::-webkit-scrollbar { display: none; }
 .cs-destino { all: unset; box-sizing: border-box; flex: none; display: grid; justify-items: center; gap: 6px; width: 76px; padding: 4px 0; border-radius: 12px; cursor: pointer; }

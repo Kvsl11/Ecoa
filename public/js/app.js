@@ -41,7 +41,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao } from './lib/cartao.js';
+import { tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -715,6 +715,41 @@ const MARCA_DO_DESTINO = {
   instagram: 'M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077',
 };
 const marcaDoDestino = (qual, tam = 26) => `<svg class="cs-marca" width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${MARCA_DO_DESTINO[qual]}"/></svg>`;
+// A extensão do arquivo do cartão pelo tipo: a imagem (jpg) ou o vídeo (mp4, ou webm onde o aparelho não grava mp4)
+const extensaoDoCartao = (tipo) => (/^video\/mp4/.test(tipo) ? 'mp4' : /^video\/webm/.test(tipo) ? 'webm' : /png/.test(tipo) ? 'png' : 'jpg');
+// O cartão animado em vídeo: o canvas é redesenhado a cada quadro (desenhar(canvas, t), t em segundos) e gravado pelo
+// navegador durante os segundos pedidos. Sai em MP4 (H.264) onde o aparelho grava; senão, em WebM. null onde não há
+// gravação de vídeo do canvas
+async function videoDoCartao(desenhar, segundos, { fps = 30 } = {}) {
+  if (typeof MediaRecorder !== 'function') return null;
+  const tipo = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((x) => MediaRecorder.isTypeSupported(x));
+  const canvas = document.createElement('canvas');
+  try {
+    desenhar(canvas, 0);
+    if (!tipo || !canvas.captureStream) return null;
+    const fluxo = canvas.captureStream(fps);
+    const gravador = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 6_000_000 });
+    const partes = [];
+    gravador.ondataavailable = (e) => { if (e.data?.size) partes.push(e.data); };
+    const fim = new Promise((ok, falha) => { gravador.onstop = ok; gravador.onerror = (e) => falha(e.error || new Error('a gravação falhou')); });
+    gravador.start();
+    await new Promise((ok) => {
+      const inicio = performance.now();
+      const passo = (agora) => {
+        const t = (agora - inicio) / 1000;
+        if (t >= segundos) { ok(); return; }
+        desenhar(canvas, t);
+        requestAnimationFrame(passo);
+      };
+      requestAnimationFrame(passo);
+    });
+    gravador.stop();
+    await fim;
+    fluxo.getTracks().forEach((x) => x.stop());
+    const blob = new Blob(partes, { type: tipo.split(';')[0] });
+    return blob.size ? blob : null;
+  } catch { return null; }
+}
 // "Compartilhar" a música, a letra ou o vídeo (o botão do player, o da letra, os ⋮ da música): a folha com os cartões
 // (lib/cartao.js) num carrossel — Música, Letra e Vídeo, um ao lado do outro, deslizando de um para o outro —, as cores
 // do cartão, a tela para escolher os versos, a tela para personalizar o cartão da letra (a cor, a capa de fundo, o
@@ -730,7 +765,7 @@ async function compartilharMusica(musica) {
   let modo = modos.some(([m]) => m === musica.modo) ? musica.modo : 'musica';
   let cor = 0;
   let marcados = versosIniciais(linhas, musica.linhaAtual ?? -1);
-  const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor' }; // (o cartão da letra, na tela "Personalizar")
+  const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor', animacao: '' }; // (o cartão da letra, na tela "Personalizar")
   let capaImg = null;
   let quadroImg = null;
   let fotoImg = null; // (a foto do aparelho escolhida para o fundo)
@@ -738,12 +773,27 @@ async function compartilharMusica(musica) {
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   const linkDe = (m) => (m === 'video' && idVideo ? `https://www.youtube.com/watch?v=${idVideo}` : url);
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
-  const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual,
+  const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual, t: tAnim,
     fundo: visual.fundo === 'foto' ? fotoImg : visual.fundo === 'imagem' ? capaImg : null,
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
+  let tAnim = 0; // (o instante da animação do fundo, em segundos)
+  let gravando = false;
   const imagem = () => new Promise((ok) => {
     try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
   });
+  // O que é enviado: com o fundo animado, o cartão em vídeo (uma volta da animação: o fim emenda no começo); sem ele,
+  // a imagem. Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
+  const arquivoDoCartao = async (avisarProgresso = () => {}) => {
+    if (!visual.animacao) return imagem();
+    gravando = true;
+    try {
+      avisarProgresso(`Gerando o vídeo (${DURACAO_DA_ANIMACAO} s)…`);
+      const video = await videoDoCartao((canvas, t) => desenharCartao(canvas, { ...dadosDo(modo), t }), DURACAO_DA_ANIMACAO);
+      if (video) { avisarProgresso(''); return video; }
+      avisarProgresso('Este aparelho não gera o vídeo do cartão: foi enviada a imagem.');
+      return imagem();
+    } finally { gravando = false; }
+  };
   await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
   const podeEnviar = Boolean(nativo?.compartilharCartao || navigator.share);
   const destino = (v, ic, rotulo, cls = '') => `<button class="cs-destino ${cls}" data-cs="${v}"><span class="cs-bola">${MARCA_DO_DESTINO[ic] ? marcaDoDestino(ic) : icon(ic, 22)}</span><small>${rotulo}</small></button>`;
@@ -782,6 +832,7 @@ async function compartilharMusica(musica) {
         <div class="cs-ferrs">
           ${ferramenta('cor', '<i class="cs-ferr-cor"></i>', 'Cor')}
           ${ferramenta('imagem', icon('imagem', 20), 'Imagem')}
+          ${ferramenta('animado', icon('sparkles', 20), 'Animado')}
           <span data-cs-so-texto>${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}</span>
         </div>
         <button class="cs-continuar" data-cs="pers-ok">Concluir</button>
@@ -793,13 +844,31 @@ async function compartilharMusica(musica) {
     const trilho = $('[data-cs-trilho]', dlg);
     const estado = $('.cs-estado', dlg);
     const opcoes = $('[data-cs-opcoes]', dlg);
-    const avisar = (t) => { estado.textContent = t; estado.hidden = !t; };
+    const avisar = (t, neutro = false) => { estado.textContent = t; estado.hidden = !t; estado.classList.toggle('neutro', neutro); };
     const telaDo = (m) => $(`[data-slide="${m}"] canvas`, dlg);
     const desenharUm = (m, canvas = telaDo(m)) => { try { if (canvas) desenharCartao(canvas, dadosDo(m)); } catch { /* sem canvas: a folha fica sem a prévia */ } };
     const desenhar = () => {
       modos.forEach(([m]) => desenharUm(m));
       if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
     };
+    // Com o fundo animado, o cartão do meio (e o da tela "Personalizar") é redesenhado a cada quadro; os outros ficam
+    // parados. Para sozinho quando a animação é tirada, durante a gravação do vídeo e ao fechar a folha
+    let quadroDaAnimacao = 0;
+    const animar = () => {
+      cancelAnimationFrame(quadroDaAnimacao);
+      if (!visual.animacao || !dlg.isConnected) return;
+      const passo = (agora) => {
+        if (!visual.animacao || !dlg.isConnected) return;
+        if (!gravando) {
+          tAnim = (agora / 1000) % DURACAO_DA_ANIMACAO;
+          if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
+          else if (raiz.dataset.tela === 'cartoes') desenharUm(modo);
+        }
+        quadroDaAnimacao = requestAnimationFrame(passo);
+      };
+      quadroDaAnimacao = requestAnimationFrame(passo);
+    };
+    dlg.addEventListener('close', () => cancelAnimationFrame(quadroDaAnimacao));
     // o que acompanha o cartão do meio: a aba marcada (o fundo dela desliza), as cores e os botões da letra
     const marcarModo = () => {
       const abas = [...dlg.querySelectorAll('[data-modo]')];
@@ -859,6 +928,8 @@ async function compartilharMusica(musica) {
       opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === cor}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
         : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visual.fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visual.fundo === 'imagem')
           + op('data-fundo', 'foto', `${icon('imagem', 14)} Foto do aparelho`, visual.fundo === 'foto')
+          : qual === 'animado' ? op('data-animacao', '', 'Parado', !visual.animacao) + FUNDOS_ANIMADOS.map(([k, nome]) => op('data-animacao', k, nome, visual.animacao === k)).join('')
+            + '<small class="cs-nota">Com o fundo animado, o cartão é enviado em vídeo.</small>'
           : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visual.estilo === k)).join('')
             + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visual.alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visual.alinhar === 'centro')}`;
       opcoes.hidden = false;
@@ -886,12 +957,12 @@ async function compartilharMusica(musica) {
     }
     // envia a imagem e o texto: pela parte nativa (com o aplicativo de destino, se pedido) ou pelo navegador
     const enviar = async (pacote = '') => {
-      const blob = await imagem();
+      const blob = await arquivoDoCartao((t) => avisar(t, true));
       if (nativo?.compartilharCartao) {
         await nativo.compartilharCartao({ titulo, texto: texto(), pacote, ...(blob ? { imagem: await base64DoBlob(blob), tipo: blob.type } : {}) });
         return;
       }
-      const arquivo = blob && typeof File === 'function' ? new File([blob], 'ecoa-musica.jpg', { type: blob.type }) : null;
+      const arquivo = blob && typeof File === 'function' ? new File([blob], `ecoa-musica.${extensaoDoCartao(blob.type)}`, { type: blob.type }) : null;
       if (arquivo && navigator.canShare?.({ files: [arquivo] })) await navigator.share({ files: [arquivo], title: titulo, text: texto() });
       else await navigator.share({ title: titulo, text: texto() });
     };
@@ -906,6 +977,8 @@ async function compartilharMusica(musica) {
       if (c) { cor = Number(c.dataset.cor); desenhar(); marcarModo(); if (raiz.dataset.tela === 'personalizar') abrirFerramenta('cor'); return; }
       const ferr = e.target.closest('[data-ferr]');
       if (ferr) { if (ferr.getAttribute('aria-pressed') === 'true') { ferr.setAttribute('aria-pressed', 'false'); opcoes.hidden = true; } else abrirFerramenta(ferr.dataset.ferr); return; }
+      const anim = e.target.closest('[data-animacao]');
+      if (anim) { visual.animacao = anim.dataset.animacao; tAnim = 0; desenhar(); animar(); abrirFerramenta('animado'); return; }
       const opcao = e.target.closest('[data-estilo], [data-alinhar], [data-fundo]');
       if (opcao) {
         if (opcao.dataset.estilo) visual.estilo = opcao.dataset.estilo;
@@ -929,11 +1002,11 @@ async function compartilharMusica(musica) {
       b.disabled = true;
       try {
         if (acao === 'salvar') {
-          const blob = await imagem();
+          const blob = await arquivoDoCartao((t) => avisar(t, true));
           if (!blob) throw new Error('a imagem não pôde ser gerada');
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = `${(titulo || 'musica').replace(/[\\/:*?"<>|]+/g, ' ').trim()} - Ecoa.jpg`;
+          a.download = `${(titulo || 'musica').replace(/[\\/:*?"<>|]+/g, ' ').trim()} - Ecoa.${extensaoDoCartao(blob.type)}`;
           document.body.append(a);
           a.click();
           a.remove();

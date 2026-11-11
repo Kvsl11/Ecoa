@@ -66,3 +66,30 @@ test('o tamanho de cada cartão, a duração escrita e a volta pelos estilos do 
   assert.equal(proximoDe(chaves, 'classico'), 'largo');
   assert.equal(proximoDe(chaves, 'inclinado'), 'classico');
 });
+
+test('fundos animados: a volta se repete a cada DURACAO_DA_ANIMACAO e o acaso é sempre o mesmo', async () => {
+  const { FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO, voltaDaAnimacao, acaso, desenharFundoAnimado } = await import('../public/js/lib/cartao.js');
+  assert.deepEqual(FUNDOS_ANIMADOS.map(([k]) => k), ['eco', 'ondas', 'aurora', 'bolhas', 'brilhos']);
+  assert.equal(voltaDaAnimacao(0), 0);
+  assert.equal(voltaDaAnimacao(DURACAO_DA_ANIMACAO), 0);
+  assert.ok(Math.abs(voltaDaAnimacao(DURACAO_DA_ANIMACAO * 1.5) - 0.5) < 1e-9);
+  assert.equal(acaso(3, 2), acaso(3, 2));
+  for (let i = 0; i < 50; i++) assert.ok(acaso(i, 1) >= 0 && acaso(i, 1) < 1);
+  // o que é desenhado no fim da volta é igual ao do começo (o vídeo emenda) e nada é desenhado fora do save/restore
+  const desenho = (qual, t) => {
+    const ops = [];
+    const grad = { addColorStop() {} };
+    const c = new Proxy({}, { get: (_, k) => (k === 'createRadialGradient' ? (...a) => { ops.push([k, ...a.map((n) => Math.round(n * 100))]); return grad; }
+      : (...a) => { ops.push([k, ...a.map((n) => (typeof n === 'number' ? Math.round(n * 100) : n))]); }), set: () => true });
+    desenharFundoAnimado(c, 1080, 1080, '#fff', qual, t);
+    return ops;
+  };
+  for (const [qual] of FUNDOS_ANIMADOS) {
+    const a = desenho(qual, 0);
+    assert.ok(a.length > 4, qual);
+    assert.equal(a[0][0], 'save');
+    assert.equal(a.at(-1)[0], 'restore');
+    assert.deepEqual(desenho(qual, DURACAO_DA_ANIMACAO), a, qual);
+    assert.notDeepEqual(desenho(qual, 1.5), a, qual);
+  }
+});
