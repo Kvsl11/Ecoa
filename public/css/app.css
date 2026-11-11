@@ -5563,6 +5563,7 @@ dialog.cs-dlg .dlg { padding-left: 0; padding-right: 0; overflow-x: hidden; }
 /* personalizar o cartão da letra: o cartão grande no meio e, embaixo, as ferramentas (cor, imagem, texto) */
 .cs-personalizar { gap: 14px; padding: 0 16px; justify-items: center; }
 .cs-pers-cab { width: 100%; }
+.cs-pers-palco[data-modo="musica"] canvas { width: auto; height: min(46dvh, 380px); }
 .cs-pers-palco canvas { display: block; width: min(72vw, 320px); height: auto; border-radius: 16px; box-shadow: 0 14px 34px rgb(0 0 0 / 0.4); }
 .cs-pers-opcoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
 .cs-pers-opcoes[hidden] { display: none; }

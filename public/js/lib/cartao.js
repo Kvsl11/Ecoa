@@ -1,7 +1,7 @@
 // O cartão para compartilhar uma música ou um trecho da letra (o botão de compartilhar do player, da letra e dos ⋮ da
 // música): uma imagem 4:5 com a capa, o nome e o artista ("Música") ou com os versos escolhidos ("Letra"), na cor da
 // música ou em outra das cores oferecidas, ou com o quadro do videoclipe ("Vídeo"), e o texto que vai junto na mensagem.
-import { fonte, retangulo, simbolo } from './convite.js';
+import { fonte, retangulo } from './convite.js';
 
 // o tamanho de cada cartão: a música em pé (como um story), a letra quadrada e o vídeo deitado
 export const TAMANHOS_DO_CARTAO = { musica: { l: 1080, a: 1920 }, letra: { l: 1080, a: 1080 }, video: { l: 1080, a: 920 } };
@@ -113,20 +113,31 @@ function desenharImagem(c, img, x, y, l, a, raio, cor) {
   }
   c.restore();
 }
-// a marca do Ecoa (o símbolo e o nome), com a base em y
+// a marca do Ecoa (o símbolo e o nome), com a base em y: numa cor só, a do texto do cartão — o "e" e as duas ondas do
+// símbolo, sem o quadrado azul atrás, e o nome ao lado
 function marca(c, x, y, cor, lado = 56) {
-  simbolo(c, x, y - lado, lado);
+  c.save();
+  c.translate(x - lado * 0.16, y - lado);
+  c.scale(lado / 64, lado / 64);
+  c.strokeStyle = cor.texto;
+  c.lineCap = 'round';
+  const traco = (d, largura, opacidade) => { c.globalAlpha = opacidade; c.lineWidth = largura; c.stroke(new Path2D(d)); };
+  traco('M14.5 32H39.5A12.5 12.5 0 1 0 36.29 40.36', 6.4, 1);
+  traco('M43.15 19.38A20.5 20.5 0 0 1 43.15 44.62', 4.2, 0.8);
+  traco('M50.75 17.16A28 28 0 0 1 50.75 46.84', 3.6, 0.55);
+  c.restore();
   c.fillStyle = cor.texto;
   c.font = fonte(800, lado * 0.68);
   c.textAlign = 'left';
-  c.fillText('Ecoa', x + lado + 16, y - lado * 0.27);
+  c.fillText('Ecoa', x + lado * 0.86, y - lado * 0.27);
 }
 
 // Desenha o cartão no canvas. dados: { modo: 'musica' | 'letra' | 'video', titulo, artista, capa (imagem carregada ou
 // null), versos (os textos, no modo letra), cor (uma de coresDoCartao), estilo ('classico' | 'largo' | 'estreito' |
-// 'inclinado'), alinhar ('esquerda' | 'centro'), fundo ('cor' | 'imagem': a capa escurecida atrás da letra), quadro (a
-// imagem do videoclipe), duracao (segundos) }
-export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor, estilo = 'classico', alinhar = 'esquerda', fundo = 'cor', quadro = null, duracao = 0 } = {}) {
+// 'inclinado'), alinhar ('esquerda' | 'centro'), fundo (uma imagem carregada — a capa ou uma foto do aparelho — que
+// cobre o cartão, escurecida, no lugar da cor; null: a cor), quadro (a imagem do videoclipe), duracao (segundos) }
+export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0 } = {}) {
+  let cor = corPedida;
   if (modo === 'letra' && !versos.length) modo = 'musica';
   const { l: L, a: A } = tamanhoDoCartao(modo);
   canvas.width = L; canvas.height = A;
@@ -138,16 +149,16 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
   degrade.addColorStop(0, cor.fundo); degrade.addColorStop(1, cor.fundo2);
   c.fillStyle = degrade;
   c.fillRect(0, 0, L, A);
+  // (a imagem de fundo: cobre o cartão, escurecida, e o texto fica branco por cima)
+  if (fundo) {
+    desenharImagem(c, fundo, 0, 0, L, A, 0, cor);
+    c.fillStyle = 'rgba(0,0,0,0.56)';
+    c.fillRect(0, 0, L, A);
+    cor = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.78)' };
+  }
 
   if (modo === 'letra') {
-    let tinta = cor;
-    // (a capa de fundo: cobre o cartão, escurecida, e a letra fica branca por cima)
-    if (fundo === 'imagem' && capa) {
-      desenharImagem(c, capa, 0, 0, L, A, 0, cor);
-      c.fillStyle = 'rgba(0,0,0,0.56)';
-      c.fillRect(0, 0, L, A);
-      tinta = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.78)' };
-    }
+    const tinta = cor;
     // em cima: a capa pequena, o nome e "Música · artista"
     desenharImagem(c, capa, M, M, 112, 112, 18, tinta);
     const tx = M + 112 + 26; const tl = L - M - tx;

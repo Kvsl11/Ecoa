@@ -726,11 +726,13 @@ async function compartilharMusica(musica) {
   const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor' }; // (o cartão da letra, na tela "Personalizar")
   let capaImg = null;
   let quadroImg = null;
+  let fotoImg = null; // (a foto do aparelho escolhida para o fundo)
   const nativo = noApk() ? pluginEcoa() : null;
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   const linkDe = (m) => (m === 'video' && idVideo ? `https://www.youtube.com/watch?v=${idVideo}` : url);
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
   const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual,
+    fundo: visual.fundo === 'foto' ? fotoImg : visual.fundo === 'imagem' ? capaImg : null,
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
   const imagem = () => new Promise((ok) => {
     try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
@@ -748,7 +750,7 @@ async function compartilharMusica(musica) {
         <div class="cs-linha">
           <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
           <button class="chip cs-so-letra" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
-          <button class="chip cs-so-letra" data-cs="personalizar" hidden>${icon('sparkles', 14)} Personalizar</button>
+          <button class="chip" data-cs="personalizar">${icon('sparkles', 14)} Personalizar</button>
         </div>
         <p class="cs-estado" role="status" hidden></p>
         <div class="cs-destinos">
@@ -767,12 +769,13 @@ async function compartilharMusica(musica) {
       </div>
       <div class="cs-personalizar">
         <div class="cs-pers-cab"><button class="icon-btn" data-cs="pers-ok" aria-label="Voltar">${icon('back', 22)}</button><b>Personalizar</b><span class="cs-vago"></span></div>
-        <div class="cs-pers-palco">${tela('letra')}</div>
+        <div class="cs-pers-palco"><canvas></canvas></div>
+        <input type="file" accept="image/*" data-cs-foto hidden>
         <div class="cs-pers-opcoes" data-cs-opcoes hidden></div>
         <div class="cs-ferrs">
           ${ferramenta('cor', '<i class="cs-ferr-cor"></i>', 'Cor')}
           ${ferramenta('imagem', icon('imagem', 20), 'Imagem')}
-          ${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}
+          <span data-cs-so-texto>${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}</span>
         </div>
         <button class="cs-continuar" data-cs="pers-ok">Concluir</button>
       </div>
@@ -788,7 +791,7 @@ async function compartilharMusica(musica) {
     const desenharUm = (m, canvas = telaDo(m)) => { try { if (canvas) desenharCartao(canvas, dadosDo(m)); } catch { /* sem canvas: a folha fica sem a prévia */ } };
     const desenhar = () => {
       modos.forEach(([m]) => desenharUm(m));
-      if (raiz.dataset.tela === 'personalizar') desenharUm('letra', $('.cs-pers-palco canvas', dlg));
+      if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
     };
     // o que acompanha o cartão do meio: a aba marcada (o fundo dela desliza), as cores e os botões da letra
     const marcarModo = () => {
@@ -825,7 +828,15 @@ async function compartilharMusica(musica) {
     const mostrarTela = (qual) => {
       raiz.dataset.tela = qual;
       if (qual === 'versos') { marcar(); requestAnimationFrame(() => dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' })); }
-      if (qual === 'personalizar') { opcoes.hidden = true; dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', 'false')); }
+      if (qual === 'personalizar') {
+        opcoes.hidden = true;
+        dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+        // (o estilo e o alinhamento do texto são do cartão da letra)
+        $('[data-cs-so-texto]', dlg).hidden = modo !== 'letra';
+        const t = tamanhoDoCartao(modo);
+        $('.cs-pers-palco canvas', dlg).style.aspectRatio = `${t.l}/${t.a}`;
+        $('.cs-pers-palco', dlg).dataset.modo = modo;
+      }
       desenhar();
       if (qual === 'cartoes') requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
     };
@@ -835,9 +846,23 @@ async function compartilharMusica(musica) {
       const op = (attr, valor, rotulo, ligado) => `<button class="chip" ${attr}="${valor}" aria-pressed="${ligado}">${rotulo}</button>`;
       opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === cor}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
         : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visual.fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visual.fundo === 'imagem')
+          + op('data-fundo', 'foto', `${icon('imagem', 14)} Foto do aparelho`, visual.fundo === 'foto')
           : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visual.estilo === k)).join('')
             + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visual.alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visual.alinhar === 'centro')}`;
       opcoes.hidden = false;
+    };
+    $('[data-cs-foto]', dlg).onchange = async (e) => {
+      const arquivo = e.target.files[0];
+      e.target.value = '';
+      if (!arquivo) return;
+      try {
+        const img = await createImageBitmap(arquivo);
+        fotoImg?.close?.();
+        fotoImg = img;
+        visual.fundo = 'foto';
+        desenhar();
+        abrirFerramenta('imagem');
+      } catch { toast('Não foi possível abrir esta imagem'); }
     };
     desenhar();
     requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
@@ -873,6 +898,8 @@ async function compartilharMusica(musica) {
       if (opcao) {
         if (opcao.dataset.estilo) visual.estilo = opcao.dataset.estilo;
         if (opcao.dataset.alinhar) visual.alinhar = opcao.dataset.alinhar;
+        // (a foto do aparelho: abre a escolha de imagens; a escolhida fica para a próxima vez)
+        if (opcao.dataset.fundo === 'foto') { $('[data-cs-foto]', dlg).click(); if (!fotoImg) return; }
         if (opcao.dataset.fundo) visual.fundo = opcao.dataset.fundo;
         desenhar();
         abrirFerramenta(opcao.dataset.fundo ? 'imagem' : 'texto');
@@ -914,6 +941,7 @@ async function compartilharMusica(musica) {
   }, { folha: true });
   capaImg?.close?.();
   quadroImg?.close?.();
+  fotoImg?.close?.();
 }
 
 
