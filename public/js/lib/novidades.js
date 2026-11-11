@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 631, data: '2026-11-11', titulo: 'Prévia da playlist: hashtag vazia ("#...") deixou de ser exibida',
+    itens: [
+      { tipo: 'correcao', texto: 'Na prévia da playlist, algumas músicas exibiam uma hashtag sem texto, apenas "#...". A base consultada para o clima e o tema da música (TheAudioDB) devolve "..." no campo que não foi preenchido, e esse valor era usado como hashtag. Passou a ser aceita somente a hashtag que contém ao menos uma letra; a vaga é ocupada pela hashtag seguinte, e o mínimo de 6 por música foi mantido.' },
+      { tipo: 'melhoria', texto: 'As hashtags são calculadas a cada exibição e não ficam guardadas na música; portanto, a correção vale para as músicas já salvas, sem revisão. Foi acrescentado um teste automatizado para o caso.' },
+    ],
+  },
+  {
     versao: 630, data: '2026-11-11', titulo: 'Fotos dos artistas na lista da playlist e na prévia, agrupadas quando há mais de um',
     itens: [
       { tipo: 'novo', texto: 'As linhas das músicas na página da playlist exibiam somente o nome do artista, sem a foto presente nas demais listas (biblioteca, Músicas curtidas e busca). Passaram a exibir a foto do artista antes do nome e, na música com mais de um artista, a foto do segundo sobreposta em parte à do primeiro; com três ou mais, após as duas fotos vem o marcador "+N" com a quantidade restante.' },
@@ -80,19 +87,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na troca de uma música para a outra no modo vídeo, o elemento de vídeo ficava por um instante sem imagem (arquivo ainda em carregamento), e o WebView do Android desenhava nesse intervalo o seu cartaz padrão: um quadro cinza com o triângulo de reprodução. Os vídeos do player, da capa animada e das prévias de playlist passaram a receber um cartaz transparente de 1 × 1 pixel; no intervalo fica apenas o fundo preto do vídeo, até a chegada do primeiro quadro.' },
       { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada por testes automatizados e pela conferência do atributo nos elementos; o quadro cinza é desenhado somente pelo WebView do Android e a ausência dele ainda não foi confirmada em aparelho.' },
-    ],
-  },
-  {
-    versao: 621, data: '2026-11-10', titulo: 'Tela de edição reorganizada; "Editar" nos menus; opção única de karaokê; nome longo em laço contínuo e em sincronia',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela de edição foi reorganizada. Antes do texto havia cinco faixas de controles (modos, desfazer e prévia, partes, acordes e estrutura). Os modos passaram a se chamar "Letra", "Letra e cifra" e "Colchetes", com uma frase que descreve o modo escolhido; a alternância entre edição e prévia recebeu os rótulos "Editar" e "Ver como fica"; as partes, os acordes, o tom e a estrutura foram reunidos no bloco recolhível "Partes, acordes e ferramentas", cujo estado (aberto ou fechado) é lembrado. Com o bloco fechado, o texto passou a começar 39 pixels acima em uma tela de 412 pixels de largura. O rodapé com Cancelar e Salvar deixou de exibir o texto entre ele e a barra do aplicativo.' },
-      { tipo: 'melhoria', texto: 'A opção "Editar cifra" (ou "Editar a cifra") dos menus da música passou a se chamar "Editar", pois a tela edita o título, o artista, a letra e a cifra. No menu do player, a opção, antes exibida somente com a letra em tela cheia, passou a aparecer sempre que a música está salva na biblioteca.' },
-      { tipo: 'melhoria', texto: 'O menu do player exibia duas opções de karaokê ("Karaokê (tirar a voz)" ou "Desligar o karaokê" e, em separado, "Apagar o karaokê do aparelho"). Passou a exibir uma única: "Gerar karaokê" enquanto a música não tem o karaokê no aparelho e "Apagar o karaokê" depois de gerado (apagar com o karaokê ligado desliga-o antes). Ligar, desligar e ajustar o volume da voz continuam no microfone da letra em tela cheia.' },
-      { tipo: 'correcao', texto: 'Na letra em tela cheia, o nome longo da música saía pela esquerda, a linha ficava vazia e o nome reaparecia de uma vez: a regra das reticências do nome parado tinha precedência e ocultava a cópia que vem atrás do nome. A regra foi corrigida e o nome passou a girar em laço contínuo, como na barra do player (reproduzido e conferido em navegador, quadro a quadro).' },
-      { tipo: 'correcao', texto: 'O nome da música e o do artista, quando longos, giravam cada um com a sua distância e a sua duração, e um parava no meio da volta do outro. As linhas do mesmo bloco passaram a usar a distância da mais comprida (a mais curta recebe um espaço maior até a cópia), com a mesma duração e a mesma largada; em medição no navegador, as duas linhas apresentaram o mesmo deslocamento em todos os instantes amostrados.' },
-      { tipo: 'melhoria', texto: 'No modo de leitura da letra (botão do olho), o nome da música e o artista passaram a permanecer no topo; continuam ocultos a barra de progresso, o tempo, o play e os demais controles do rodapé.' },
-      { tipo: 'melhoria', texto: 'Nos cartões do player com rolagem lateral ("Vídeos relacionados" e os demais), o trilho passou a terminar 10 pixels antes da borda do cartão, dos dois lados, com os cantos arredondados; antes, o vídeo cortado pela rolagem encostava na borda do cartão.' },
-      { tipo: 'melhoria', texto: 'Pendente: a tela de edição e o giro do nome foram verificados em navegador; as opções de edição e de karaokê do menu do player, o modo de leitura e o trilho dos cartões não foram exercitados em execução, e nada desta versão foi validado em aparelho Android.' },
     ],
   },
 ];

@@ -111,7 +111,9 @@ export function hashtagsDaMusica({ musica = {}, generoArtista = '', generos = []
   const tags = [];
   // (sem repetir: com #happy, o #happy pop não entra)
   const repete = (t) => tags.some((x) => x === t || ` ${t} `.includes(` ${x} `) || ` ${x} `.includes(` ${t} `));
-  const pos = (t) => { if (t && !repete(t)) tags.push(t); };
+  // (só entra o que tem ao menos uma letra: a TheAudioDB devolve "..." no clima ou no tema que não foi preenchido, e
+  // isso virava a hashtag "#...")
+  const pos = (t) => { if (t && /\p{L}/u.test(t) && !repete(t)) tags.push(t); };
   const por = (t) => {
     const x = String(t || '').toLowerCase().replace(/[#_]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (x) pos(ingles ? x : PT[x]);
