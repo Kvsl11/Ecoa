@@ -5386,6 +5386,11 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-meta.pronta .pv-seg, .pv-meta.pronta .pv-tags { opacity: 1; }
 .pv-foto { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; overflow: hidden; background: rgb(255 255 255 / 0.2); }
 .pv-foto img { width: 100%; height: 100%; object-fit: cover; }
+/* mais de um artista: as fotos grudadas (a seguinte por cima da anterior, com um fio escuro separando) e a "+N" */
+.pv-fotos { display: flex; align-items: center; flex: none; }
+.pv-foto.extra { margin-left: -14px; background: #3a3a3a; color: #fff; box-shadow: 0 0 0 2px rgb(18 18 18 / 0.6); }
+.pv-foto.mais { font-size: 13px; font-weight: 800; letter-spacing: -0.02em; }
+html.tablet .pv-foto.extra { margin-left: -17px; }
 .pv-nome { color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
 .pv-cartao { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px 12px 8px; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 14px; background: rgb(255 255 255 / 0.12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
 .pv-cartao .cover { width: 52px; height: 52px; flex: none; border-radius: 8px; }
