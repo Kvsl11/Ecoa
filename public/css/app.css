@@ -4152,6 +4152,11 @@ html.pp #player .pl-artista-bio.so-mais .pl-artista-mais { position: static; pad
 .pl-fundo .pl-canvas { position: absolute; z-index: 1; left: 50%; top: 50%; border: 0; pointer-events: none; opacity: 0; transition: opacity 0.42s ease;
   width: max(100cqw, 177.78cqh); height: max(100cqh, 56.25cqw); transform: translate(-50%, -50%) scale(var(--zoom, 1.18)); object-fit: cover; background: transparent; }
 .pl-fundo .pl-canvas.pronto { opacity: 1; }
+/* (o clipe baixado: o vídeo ocupa a caixa do fundo inteira, do alto — atrás da barra de status — até o pé, e o próprio
+   vídeo se recorta para preencher. O tamanho não depende mais das medidas do contêiner (cqw/cqh): onde elas não eram
+   resolvidas pela altura do fundo, o vídeo ficava mais baixo que a caixa, com uma faixa sem vídeo no alto e a borda
+   de baixo aparente) */
+.pl-fundo video.pl-canvas { left: 0; top: 0; width: 100%; height: 100%; transform: scale(var(--zoom, 1.18)); }
 /* o clipe pelo YouTube (sem o download): mais zoom, para cortar o logotipo e o título nas bordas */
 .pl-fundo .pl-canvas-yt { --zoom: 1.4; }
 /* dois vídeos se cruzam: o próximo só ganha opacidade depois de ter o primeiro quadro decodificado */
@@ -4247,10 +4252,12 @@ html.pp #player .pl-fundo:not([hidden]), html.pp .pl-fundo-casa .pl-fundo:not([h
    do fundo inteira, e a borda que corta as imagens não aparece. Cortadas na borda do próprio fundo, elas passavam por
    baixo do degradê no último pixel (numa tela de densidade quebrada a borda cai no meio de um pixel): uma linha clara
    logo acima do cartão da letra */
-.pl-fundo-caixa { position: absolute; left: 0; right: 0; top: 0; bottom: 24px; overflow: hidden; }
-/* (a cor do fundo já inteira nos últimos 40 px, e não só no último: a emenda com o fundo do player não aparece) */
+.pl-fundo-caixa { position: absolute; left: 0; right: 0; top: 0; bottom: 64px; overflow: hidden; }
+/* (a cor do fundo já inteira dos 88 aos 56 px finais: a borda onde o vídeo é cortado, a 64 px do fim, fica sob a cor
+   cheia. Dali até o fim, a cor se desfaz no fundo do player, em vez de terminar numa borda reta: com cores muito claras,
+   no modo claro, qualquer diferença entre a cor do pé da capa e a do fundo logo abaixo aparecia como uma linha) */
 html.pp .pl-fundo::after { background: linear-gradient(180deg, rgb(0 0 0 / 0.35) 0%, transparent 22%, transparent 45%,
-  color-mix(in srgb, var(--pe-fundo) 55%, transparent) 72%, color-mix(in srgb, var(--pe-fundo) 90%, transparent) 85%, var(--pe-fundo) calc(100% - 40px), var(--pe-fundo) 100%); }
+  color-mix(in srgb, var(--pe-fundo) 55%, transparent) 72%, color-mix(in srgb, var(--pe-fundo) 90%, transparent) 85%, var(--pe-fundo) calc(100% - 88px), var(--pe-fundo) calc(100% - 56px), transparent 100%); }
 /* (o fundo: a cor da música em cima, a cor do pé da capa onde ela acaba e o escuro mais embaixo; no celular ele rola
    junto com o conteúdo, como a capa) */
 html.pp:not(.tablet) #player.modo-capa:has(> .pl-fundo:not([hidden])) {
@@ -6530,12 +6537,23 @@ html:where([data-theme="light"]).pp #player .pl-artista-bio p { color: color-mix
 html:where([data-theme="light"]).pp #player .pl-artista-mais { color: var(--lt); }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-lado [data-pl="aparelhos"] { color: var(--lt); } }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-salva:not([hidden]) { border-color: color-mix(in srgb, var(--lt) 85%, transparent); color: var(--lt); } }
-/* (o fone conectado, na barra do celular: como o botão da música salva ao lado — o círculo na cor do app com o contorno
-   e o desenho escuros. Antes era só o traço na cor do app, claro demais sobre a barra clara) */
+/* (o fone conectado, na barra do celular, no modo claro: o desenho e o nome do fone continuam na cor do app, com um
+   contorno nítido no tom escuro da barra, como o contorno do botão da música salva ao lado. O ícone tem duas camadas
+   (.ic-contorno): a de baixo, com o traço mais grosso e escuro, só aparece aqui. Só na cor do app eles ficavam claros
+   demais sobre a barra clara) */
+.ic-contorno { display: inline-grid; flex: none; }
+.ic-contorno > svg { grid-area: 1 / 1; }
+.ic-contorno > svg:first-child { display: none; }
+/* (no modo escuro, o mesmo contorno em branco, o tom do texto da barra: --contorno) */
 @media (max-width: 899px) {
-  html[data-theme="light"]:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] { color: var(--lt); }
-  html[data-theme="light"]:not(.tablet):not(.pp) #player.com-fone .pl-lado [data-pl="aparelhos"] svg { box-sizing: border-box; width: 26px; height: 26px; padding: 3px; border-radius: 50%;
-    background: var(--accent); border: 2px solid currentColor; }
+  html:not(.tablet):not(.pp) #player { --contorno: #fff; }
+  html[data-theme="light"]:not(.tablet):not(.pp) #player { --contorno: var(--lt); }
+  html:not(.tablet):not(.pp) #player :is(.pl-lado, .pl-onde) .ic-contorno > svg:first-child { display: block; color: var(--contorno); stroke-width: 4.6; }
+  /* (o botão da música salva: o contorno no mesmo tom, inteiro. No modo claro era 85% do tom sobre o azul do botão — o
+     contorno é pintado por cima do fundo —, e saía esverdeado; no escuro, era da cor do próprio botão, sem contorno) */
+  html:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { border-color: var(--contorno); }
+  html[data-theme="light"]:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { color: var(--lt); }
+  html:not(.tablet):not(.pp) #player .pl-onde span:not(.ic-contorno) { -webkit-text-stroke: 1.5px var(--contorno); paint-order: stroke fill; }
 }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); } }
 html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom { color: var(--lt); }
