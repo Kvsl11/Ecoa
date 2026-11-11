@@ -5,6 +5,19 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 621, data: '2026-11-10', titulo: 'Tela de edição reorganizada; "Editar" nos menus; opção única de karaokê; nome longo em laço contínuo e em sincronia',
+    itens: [
+      { tipo: 'melhoria', texto: 'A tela de edição foi reorganizada. Antes do texto havia cinco faixas de controles (modos, desfazer e prévia, partes, acordes e estrutura). Os modos passaram a se chamar "Letra", "Letra e cifra" e "Colchetes", com uma frase que descreve o modo escolhido; a alternância entre edição e prévia recebeu os rótulos "Editar" e "Ver como fica"; as partes, os acordes, o tom e a estrutura foram reunidos no bloco recolhível "Partes, acordes e ferramentas", cujo estado (aberto ou fechado) é lembrado. Com o bloco fechado, o texto passou a começar 39 pixels acima em uma tela de 412 pixels de largura. O rodapé com Cancelar e Salvar deixou de exibir o texto entre ele e a barra do aplicativo.' },
+      { tipo: 'melhoria', texto: 'A opção "Editar cifra" (ou "Editar a cifra") dos menus da música passou a se chamar "Editar", pois a tela edita o título, o artista, a letra e a cifra. No menu do player, a opção, antes exibida somente com a letra em tela cheia, passou a aparecer sempre que a música está salva na biblioteca.' },
+      { tipo: 'melhoria', texto: 'O menu do player exibia duas opções de karaokê ("Karaokê (tirar a voz)" ou "Desligar o karaokê" e, em separado, "Apagar o karaokê do aparelho"). Passou a exibir uma única: "Gerar karaokê" enquanto a música não tem o karaokê no aparelho e "Apagar o karaokê" depois de gerado (apagar com o karaokê ligado desliga-o antes). Ligar, desligar e ajustar o volume da voz continuam no microfone da letra em tela cheia.' },
+      { tipo: 'correcao', texto: 'Na letra em tela cheia, o nome longo da música saía pela esquerda, a linha ficava vazia e o nome reaparecia de uma vez: a regra das reticências do nome parado tinha precedência e ocultava a cópia que vem atrás do nome. A regra foi corrigida e o nome passou a girar em laço contínuo, como na barra do player (reproduzido e conferido em navegador, quadro a quadro).' },
+      { tipo: 'correcao', texto: 'O nome da música e o do artista, quando longos, giravam cada um com a sua distância e a sua duração, e um parava no meio da volta do outro. As linhas do mesmo bloco passaram a usar a distância da mais comprida (a mais curta recebe um espaço maior até a cópia), com a mesma duração e a mesma largada; em medição no navegador, as duas linhas apresentaram o mesmo deslocamento em todos os instantes amostrados.' },
+      { tipo: 'melhoria', texto: 'No modo de leitura da letra (botão do olho), o nome da música e o artista passaram a permanecer no topo; continuam ocultos a barra de progresso, o tempo, o play e os demais controles do rodapé.' },
+      { tipo: 'melhoria', texto: 'Nos cartões do player com rolagem lateral ("Vídeos relacionados" e os demais), o trilho passou a terminar 10 pixels antes da borda do cartão, dos dois lados, com os cantos arredondados; antes, o vídeo cortado pela rolagem encostava na borda do cartão.' },
+      { tipo: 'melhoria', texto: 'Pendente: a tela de edição e o giro do nome foram verificados em navegador; as opções de edição e de karaokê do menu do player, o modo de leitura e o trilho dos cartões não foram exercitados em execução, e nada desta versão foi validado em aparelho Android.' },
+    ],
+  },
+  {
     versao: 620, data: '2026-11-10', titulo: 'Compartilhamento de música e de letra em cartão; busca restrita ao termo e música aberta igual à da lista; capas sem corte',
     itens: [
       { tipo: 'correcao', texto: 'Os botões de compartilhar do player, da letra e do menu da música dependiam do compartilhamento do navegador (navigator.share), inexistente no WebView do aplicativo Android; nele, o toque resultava apenas na cópia do texto ou em falha. O envio passou a ser feito pela parte nativa do aplicativo (método compartilharCartao), com a imagem anexada e o texto na legenda. Disponível mediante atualização do aplicativo.' },
@@ -87,15 +100,6 @@ export const NOVIDADES = [
     versao: 612, data: '2026-11-10', titulo: 'Sincronização de letras ajustada à duração da gravação',
     itens: [
       { tipo: 'correcao', texto: 'O cache das consultas de letras sincronizadas passou a distinguir buscas antecipadas sem duração das consultas realizadas após a identificação do áudio. Com isso, resultados do LRCLIB e da reserva NetEase deixam de ser reutilizados entre edições com durações diferentes, reduzindo deslocamentos de tempo causados por masters incompatíveis. As sincronias automáticas já salvas serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas. Quando LRCLIB e NetEase não fornecem uma letra sincronizada correspondente, o Gemini no Android continua como alternativa, seguido pelo servidor configurado.' },
-    ],
-  },
-  {
-    versao: 611, data: '2026-11-10', titulo: 'Integração Gemini padronizada e identidade da assistência simplificada',
-    itens: [
-      { tipo: 'melhoria', texto: 'O servidor passou a priorizar o Google Gemini quando a chave correspondente está configurada, inclusive quando há também uma chave do provedor alternativo. A seleção explícita de Claude continua disponível por configuração; na ausência da chave Gemini, mantém-se o provedor alternativo como reserva.' },
-      { tipo: 'correcao', texto: 'A API de síntese de fala deixou de receber parâmetros de gênero ou personagem. A seleção da voz passou a ser interna ao serviço, com configuração única para a síntese Gemini e para a voz neural de reserva, evitando que a interface envie escolhas de persona.' },
-      { tipo: 'melhoria', texto: 'A identidade visual da assistência foi simplificada com um símbolo inspirado no padrão visual do Gemini e ajustes de apresentação da conversa e do modo ao vivo. A conexão dos controles da interface à sessão nativa Gemini Live e a validação em aparelho permanecem etapas pendentes, não incluídas como recursos concluídos nesta versão.' },
-      { tipo: 'melhoria', texto: 'As instruções da assistência passaram a exigir que propostas de repertório sejam apresentadas antes da gravação e que o salvamento só seja confirmado após uma ação explícita e o retorno de sucesso do aplicativo. A interface de confirmação visual ainda depende da implementação dos cartões de ação.' },
     ],
   },
 ];

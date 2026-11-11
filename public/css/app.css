@@ -837,6 +837,32 @@ body.no-lumen .main-col { margin: 0 !important; }
 .ed2 .editor-split textarea { min-height: 280px; overflow-y: hidden; border-radius: 12px; background: var(--bg-elev); font-size: 15px; line-height: 1.75; caret-color: var(--accent); tab-size: 4; }
 .ed2 .editor-prev { border-radius: 12px; }
 .ed2 .editor-split:not(.so-previa) .editor-prev, .ed2 .editor-split.so-previa textarea { display: none; }
+/* a edição reorganizada: em cima, o que editar (Letra, Letra e cifra, Colchetes) com uma frase que explica o escolhido;
+   as partes, os acordes e a estrutura ficam recolhidos em "Partes, acordes e ferramentas"; o texto vem logo depois */
+.ed-abas button span { font-size: 13px; }
+.ed-modo-dica { margin: 0; padding: 0 6px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.ed-card > * { min-width: 0; }
+.ed-ferramentas { min-width: 0; border-radius: 12px; background: var(--surface-2); }
+.ed-ferramentas .chord-pal .chip { background: var(--surface-3); }
+.ed-ferramentas summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; cursor: pointer; list-style: none; }
+.ed-ferramentas summary::-webkit-details-marker { display: none; }
+.ed-ferramentas summary > span { display: grid; flex: 1; min-width: 0; }
+.ed-ferramentas summary b { font-size: 14px; }
+.ed-ferramentas summary small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-ferramentas summary > .ic:first-child { color: var(--accent-ink); }
+.ed-ferramentas summary > .ic:last-child { transition: transform 0.2s; }
+.ed-ferramentas[open] summary > .ic:last-child { transform: rotate(180deg); }
+.ed-ferramentas summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+.ed-ferramentas > :not(summary) { margin: 0 10px 8px; }
+.ed-ferramentas > :not(summary):last-child { margin-bottom: 10px; }
+.ed2.cheio .ed-modo-dica { display: none; }
+@media (max-width: 600px) {
+  /* no celular: os jeitos de editar numa linha; embaixo, Editar / Ver como fica à esquerda e desfazer, refazer e tela cheia à direita */
+  .ed-abas button { padding: 0 10px !important; }
+}
+/* (o rodapé cobre o que passa por baixo dele até a barra do app: o texto não reaparece entre o Salvar e o menu) */
+.ed-rodape::after { content: ''; position: absolute; z-index: -1; left: -24px; right: -24px; top: calc(100% - 1px); height: 160px; background: var(--bg); pointer-events: none; }
+.ed2.cheio .ed-rodape::after { display: none; }
 .ed-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 0 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .ed-salvo { color: var(--accent-ink); }
 .ed-dica { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -3212,8 +3238,8 @@ html.pp #player .pl-letra-topo .pl-leitura { display: grid; place-items: center;
 html.pp #player .pl-letra-topo .pl-leitura svg { width: 17px; height: 17px; }
 html.pp #player .pl-letra-topo .pl-leitura[aria-pressed="true"] { background: #fff; color: #111; }
 @media (prefers-reduced-motion: reduce) { #player .pl-ver-cifra::before { transition: none; } }
-/* só a letra (para ler): sem o nome, o aviso da sincronia e a barra de baixo; sem a cifra, nem as ferramentas */
-html.pp #player.letra-cheia.so-letra .pl-letra-nome { visibility: hidden; }
+/* só a letra (para ler): sem o aviso da sincronia e a barra de baixo (o tempo, o play); sem a cifra, nem as ferramentas.
+   O nome da música e o artista ficam */
 html.pp #player.letra-cheia.so-letra .pl-letra-pe,
 html.pp #player.letra-cheia.so-letra:not(.cifra-on) .pl-ferr { display: none !important; }
 html.pp #player .pl-letra-nome { min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -5963,6 +5989,9 @@ button.ct-linha { cursor: pointer; }
 .ap-este { margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .ap-barras i { animation: none; } }
 .pl-trilho { scroll-padding-inline: 18px; }
+/* (dentro do cartão, o trilho acaba 10 px antes da borda, dos dois lados, com os cantos arredondados: o vídeo cortado
+   na rolagem não encosta mais na borda do cartão) */
+.pl-cartao .pl-trilho { margin: 0 -8px; padding: 2px 8px 6px; scroll-padding-inline: 8px; border-radius: 10px; }
 .creditos-todos .menu-cab { display: grid; justify-items: center; }
 .creditos-todos .ct-cab { width: 100%; }
 /* (o play da barrinha de cima no tamanho dela, e não no dos controles grandes do celular) */
@@ -6187,7 +6216,11 @@ dialog.yt-dlg .yt-acts [data-rm] { min-width: 0; padding: 0 14px; gap: 8px; }
 /* Nome da música na letra: mesma rolagem contínua do mini player, em qualquer tamanho de tela. */
 #player .pl-letra-nome { flex: 1 1 0; min-width: 0; max-width: 100%; overflow: hidden; }
 #player .pl-letra-nome b { display: block; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: clip; }
-#player .pl-letra-nome b.anda { text-overflow: clip; }
+/* (com as reticências ligadas, o navegador esconde inteira a cópia que vem atrás do nome: o nome saía pela esquerda, a
+   linha ficava vazia e ele reaparecia de uma vez. A regra precisa valer mais que a das reticências do nome parado) */
+html.pp #player .pl-letra-nome b.anda, #player .pl-letra-nome b.anda { text-overflow: clip;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
 #player .pl-letra-nome b.anda .rolar { animation: pl-anda var(--tempo-anda, 9s) linear 1s infinite; }
 @media (prefers-reduced-motion: reduce) {
   #player .pl-letra-nome b.anda .rolar { animation: none; }
