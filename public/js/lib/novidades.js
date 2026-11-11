@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 643, data: '2026-11-11', titulo: 'Modo claro: barra fixa do topo do "Tocando agora" com fundo claro e textos dos cartões legíveis',
+    itens: [
+      { tipo: 'correcao', texto: 'A barra fixa do topo do "Tocando agora" (exibida ao rolar a tela) permanecia com fundo escuro no modo claro, com o nome da música, os botões e a linha de progresso, já em tom escuro, ilegíveis. A regra do modo claro incluída na versão 642 tinha precedência menor que a regra original da barra e não era aplicada. A regra foi reescrita com a mesma forma da original: a barra passou a ter fundo claro (24% da cor da música), com o texto e a linha de progresso visíveis.' },
+      { tipo: 'correcao', texto: 'No modo claro, nos cartões abaixo do player, o botão "Explorar", os papéis na lista de créditos e o nome do artista nos vídeos relacionados mantinham a cor branca do modo escuro e ficavam quase invisíveis sobre o cartão claro. Passaram a usar o tom escuro da cor da música.' },
+      { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com a marcação da barra e do cartão (cor de fundo calculada da barra: clara); não foi executada no aplicativo nem em aparelho.' },
+    ],
+  },
+  {
     versao: 642, data: '2026-11-11', titulo: 'Compartilhamento com a música por padrão e prévia em reprodução na folha; modo claro em "Por trás da música", "Sobre o artista", "ver mais" e na barra fixa do player',
     itens: [
       { tipo: 'melhoria', texto: 'O botão "Com a música" foi removido da folha de compartilhar. Os cartões Letra e Vídeo passaram a ser enviados sempre com a música quando ela está disponível no aparelho (a música baixada com a letra sincronizada, no cartão Letra; o videoclipe baixado, no cartão Vídeo). Sem o arquivo, os cartões são enviados como antes.' },
@@ -81,15 +89,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'No navegador do Android, o link exibe uma tela com o botão "Abrir no aplicativo", que entrega a música ao aplicativo instalado, além de "Ouvir aqui" e "Procurar na busca". O aplicativo Android passou a receber os links de música (os do site e o endereço próprio ecoa://ouvir) e a abrir a música correspondente. Disponível mediante atualização do aplicativo.' },
       { tipo: 'novo', texto: 'Aos destinos do compartilhamento foram acrescentados Telegram, Facebook e X, com o símbolo oficial de cada um. O destino Instagram, antes exibido somente no aplicativo Android, passou a aparecer também no navegador que oferece o compartilhamento do sistema. No aplicativo, cada destino abre o aplicativo correspondente com o cartão; no navegador, Telegram, Facebook e X abrem a página de compartilhar de cada serviço com o link.' },
       { tipo: 'melhoria', texto: 'Pendente: o Android só abre diretamente no aplicativo o link do site quando o endereço é conferido por um arquivo publicado na raiz de kvsl11.github.io (assetlinks.json), que fica fora deste repositório e não foi publicado; até lá, o link abre no navegador, com o botão "Abrir no aplicativo", ou diretamente no aplicativo se a opção "Abrir links compatíveis" for ligada nas configurações do Android. A rota e os destinos foram verificados em navegador; a parte Android não foi executada em aparelho.' },
-    ],
-  },
-  {
-    versao: 633, data: '2026-11-11', titulo: 'Compartilhamento: fundos animados no cartão, enviado em vídeo',
-    itens: [
-      { tipo: 'novo', texto: 'A tela "Personalizar" do compartilhamento passou a ter a ferramenta "Animado", com cinco fundos em movimento para os cartões Música, Letra e Vídeo: Eco (anéis que se abrem a partir do centro), Ondas, Aurora, Bolhas e Brilhos. O movimento é desenhado sobre a cor escolhida, sobre a capa ou sobre a foto do aparelho, e é exibido na prévia do cartão. A opção "Parado" mantém o cartão em imagem, como antes.' },
-      { tipo: 'novo', texto: 'Com um fundo animado, o cartão passou a ser enviado em vídeo, e não em imagem: uma volta completa da animação, de 6 segundos, a 30 quadros por segundo, no tamanho do cartão (1080 × 1920 na Música, 1080 × 1080 na Letra e 1080 × 920 no Vídeo), sem som. O fim do vídeo coincide com o começo, para a repetição contínua. O formato é MP4 (H.264) onde o aparelho grava nesse formato e WebM nos demais; onde não há gravação de vídeo, é enviada a imagem, com aviso. A geração leva os mesmos 6 segundos, indicados na folha.' },
-      { tipo: 'melhoria', texto: 'A parte Android do compartilhamento passou a aceitar o arquivo de vídeo, além da imagem, para o WhatsApp, o Instagram e os demais aplicativos. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Pendente: os cinco fundos foram criados sem o vídeo de referência indicado, que não foi recebido; a correspondência com ele ainda não foi conferida. A geração foi verificada em navegador (MP4 H.264, 1080 × 1080, 181 quadros, 6,03 s, 2,2 MB); o envio do vídeo ao WhatsApp e ao Instagram no aparelho Android, e a aceitação do arquivo por esses aplicativos, ainda não foram testados.' },
     ],
   },
 ];

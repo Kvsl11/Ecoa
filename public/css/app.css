@@ -6576,3 +6576,12 @@ html[data-theme="light"].pp #player .pl-artista-mais { background: linear-gradie
 html[data-theme="light"].pp #player .pl-artista-bio.so-mais .pl-artista-mais { background: none; }
 html[data-theme="light"] #player .pl-fixo-barra { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 24%, #fff); box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); }
 html[data-theme="light"] #player .pl-fixo-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); }
+
+/* ============================================================ a barra fixa do topo do "Tocando agora" no modo claro
+   A regra do modo claro da versão 642 era mais fraca que a regra da barra (escrita com :is) e não valia: o fundo
+   continuava escuro, com o texto e a linha do tempo, já escuros, por cima. Agora com a mesma forma da regra original */
+:is(html[data-theme="light"].tablet body:not(.painel-recolhido), html[data-theme="light"].pp:not(.tablet) body.painel-cheio) #player .pl-fixo-barra {
+  background: color-mix(in srgb, var(--cor-musica, var(--tint)) 24%, #fff); box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); }
+/* (nos cartões de baixo, o que ainda era branco fixo: os papéis nos créditos, o artista dos vídeos e o "Explorar") */
+html[data-theme="light"].pp #player :is(.pl-cr-linha small, .pl-video-rel small) { color: color-mix(in srgb, var(--lt) 66%, transparent); }
+html[data-theme="light"].pp #player .pl-cartao .ref-explorar { border-color: color-mix(in srgb, var(--lt) 55%, transparent); color: var(--lt); }
