@@ -6585,3 +6585,9 @@ html[data-theme="light"] #player .pl-fixo-prog { background: color-mix(in srgb, 
 /* (nos cartões de baixo, o que ainda era branco fixo: os papéis nos créditos, o artista dos vídeos e o "Explorar") */
 html[data-theme="light"].pp #player :is(.pl-cr-linha small, .pl-video-rel small) { color: color-mix(in srgb, var(--lt) 66%, transparent); }
 html[data-theme="light"].pp #player .pl-cartao .ref-explorar { border-color: color-mix(in srgb, var(--lt) 55%, transparent); color: var(--lt); }
+
+/* ============================================================ o vídeo na barrinha de baixo (o mini player) preenche o
+   lugar dele: o vídeo baixado cortando a sobra (antes inteiro, com faixas pretas dos lados quando o lugar era mais
+   largo que 16:9) e o do YouTube na largura toda, centrado na altura */
+#pl-tela.na-barra video.pl-local { object-fit: cover; }
+#pl-tela.na-barra iframe { inset: 50% auto auto 0; height: auto; min-height: 100%; aspect-ratio: 16 / 9; transform: translateY(-50%); }

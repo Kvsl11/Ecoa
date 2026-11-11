@@ -3762,6 +3762,12 @@ const player = (() => {
     const p = naMini ? el.getBoundingClientRect() : null;
     poeEstilo('clipPath', p ? `inset(${Math.max(0, p.top - r.top)}px ${Math.max(0, r.right - p.right)}px ${Math.max(0, r.bottom - p.bottom)}px ${Math.max(0, p.left - r.left)}px)` : '');
     if (tela.classList.contains('no-palco') !== noPalco()) tela.classList.toggle('no-palco', noPalco());
+    // Na barrinha de baixo (o mini player), o vídeo toma o canto do lugar dele e preenche o lugar inteiro (cortando a
+    // sobra): com o canto próprio (6 px) e o vídeo inteiro dentro de um lugar mais largo que 16:9, sobravam faixas
+    // pretas nas bordas, visíveis sobre a barrinha clara do modo claro
+    const naBarra = a === mini && !naMini;
+    if (tela.classList.contains('na-barra') !== naBarra) tela.classList.toggle('na-barra', naBarra);
+    poeEstilo('borderRadius', naBarra ? getComputedStyle(a).borderRadius : '');
   };
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   const avisar = () => ouvintes.forEach((fn) => fn());
