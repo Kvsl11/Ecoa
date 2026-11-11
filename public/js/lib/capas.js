@@ -97,3 +97,71 @@ export function escolherCapa(validas) {
   const mesmas = album ? ordem.filter((c) => norm(c.album) === album) : [melhor];
   return mesmas.sort((a, b) => (b.largura * b.altura) - (a.largura * a.altura) || a.i - b.i)[0];
 }
+
+// ---- as capas de reserva: quando nem o Deezer nem o iTunes têm a música (o repertório católico e o independente
+// faltam muito lá), a capa do álbum é procurada em outras bases abertas: o TheAudioDB, a MusicBrainz (com a imagem no
+// Cover Art Archive) e a discografia do artista no Cifra Club. Passam pelo mesmo filtro de título e artista.
+// O endereço da capa de reserva leva uma marca no fim (depois do "#", que não vai para o servidor da imagem): por ela o
+// app sabe que foi ele quem pôs a capa, e não a pessoa, qualquer que seja o site da imagem
+export const MARCA_RESERVA = '#capa-reserva';
+export const ehCapaReserva = (u) => String(u || '').endsWith(MARCA_RESERVA);
+const comMarca = (u) => (u && !ehCapaReserva(u) ? `${u}${MARCA_RESERVA}` : u || '');
+
+// A busca de gravações da MusicBrainz (ws/2/recording?query=…&fmt=json) -> as capas dos lançamentos oficiais em que a
+// gravação saiu, uma por grupo de lançamento (o álbum, com todas as edições dele): a imagem da frente no Cover Art
+// Archive. O álbum de estúdio e o single antes do ao vivo e da coletânea
+export function capasDaMusicBrainz(json, musica) {
+  const TIPO = { album: 300, single: 250, ep: 200 };
+  const itens = [];
+  for (const g of json?.recordings || []) {
+    const artista = g['artist-credit']?.[0]?.name || g['artist-credit']?.[0]?.artist?.name || '';
+    for (const l of g.releases || []) {
+      const grupo = l['release-group'];
+      if (!grupo?.id || (l.status && l.status !== 'Official')) continue;
+      const outros = (grupo['secondary-types'] || []).map((x) => String(x).toLowerCase());
+      const rank = outros.includes('compilation') ? 50 : outros.length ? 150 : TIPO[String(grupo['primary-type'] || '').toLowerCase()] || 100;
+      itens.push({
+        url: comMarca(`https://coverartarchive.org/release-group/${grupo.id}/front-500`),
+        album: grupo.title || l.title || '', titulo: g.title || '', artista, rank, fonte: 'MusicBrainz', reserva: true,
+      });
+    }
+  }
+  return ordenarCapas(itens, musica);
+}
+
+// A busca de faixas do TheAudioDB (searchtrack.php) -> as faixas que são a música, da melhor para a pior, com o número
+// do álbum de cada uma (a capa do álbum vem em outro pedido: album.php?m=idAlbum) e a imagem da própria faixa, se houver
+export function faixasDaAudioDb(json, musica) {
+  const itens = (json?.track || []).map((x) => ({
+    url: `audiodb:${x.idTrack || ''}`, idAlbum: x.idAlbum || '', imagem: x.strTrackThumb || '',
+    album: x.strAlbum || '', titulo: x.strTrack || '', artista: x.strArtist || '', rank: Number(x.intTotalListeners) || 1,
+  }));
+  return ordenarCapas(itens, musica);
+}
+// a capa de uma faixa do TheAudioDB: a do álbum (a resposta de album.php), ou a imagem da faixa; null sem nenhuma
+export function capaDaAudioDb(faixa, albumJson) {
+  const a = (albumJson?.album || [])[0];
+  const url = a?.strAlbumThumbHQ || a?.strAlbumThumb || faixa?.imagem || '';
+  if (!url) return null;
+  return { url: comMarca(url), album: a?.strAlbum || faixa.album, titulo: faixa.titulo, artista: faixa.artista, rank: faixa.rank, fonte: 'TheAudioDB', reserva: true };
+}
+
+// A discografia do artista no Cifra Club (lib/web.js, parseDiscografiaCifraClub) -> as capas dos álbuns que têm a
+// música entre as faixas. O artista já foi conferido pelo nome ao achar a página dele; por isso vale o da música
+export function capasDaDiscografia(albuns, musica) {
+  const t = norm(musica?.titulo);
+  const tb = base(musica?.titulo) || t;
+  const TIPO = { album: 3, single: 2, ep: 2 };
+  const itens = [];
+  for (const a of albuns || []) {
+    const imagem = a?.capaGrande || a?.capa || '';
+    if (!imagem || /\.svg(\?|#|$)|thumb-art|\/img\//i.test(imagem)) continue;
+    const faixa = (a.faixas || []).find((f) => [f.titulo, f.nome].some((n) => n && (norm(n) === t || base(n) === tb)));
+    if (!faixa) continue;
+    itens.push({
+      url: comMarca(imagem), album: a.titulo || '', titulo: faixa.nome || faixa.titulo, artista: musica.artista,
+      rank: (TIPO[String(a.tipo || '').toLowerCase()] || 1) * 1000 + (Number(faixa.popularidade) > 0 ? 1 : 0), fonte: 'Cifra Club', reserva: true,
+    });
+  }
+  return ordenarCapas(itens, musica);
+}

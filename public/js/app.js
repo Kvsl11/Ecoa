@@ -41,7 +41,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
-import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem } from './lib/capas.js';
+import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
@@ -932,8 +932,9 @@ const capaTrocavel = (u) => !u || capaAutomatica(u) || /(^https?:\/\/(i\d?\.ytim
 // abrir o app, ao tocar, nas listas): a capa do álbum que a música já tem fica. Antes a automática era procurada de
 // novo a cada vez e trocada quando vinha outra, e a capa mudava sozinha de uma hora para outra
 const capaProvisoria = (u) => capaTrocavel(u) && !capaAutomatica(u);
-// a capa que o próprio app pôs (a oficial, do Deezer ou do iTunes)
-const capaAutomatica = (u) => /^https?:\/\/([^/]+\.)?(dzcdn\.net|mzstatic\.com)\//.test(u || '');
+// a capa que o próprio app pôs (a oficial, do Deezer ou do iTunes; ou a de reserva, de outra base, quando as duas não
+// têm a música: lib/capas.js, ehCapaReserva)
+const capaAutomatica = (u) => /^https?:\/\/([^/]+\.)?(dzcdn\.net|mzstatic\.com)\//.test(u || '') || ehCapaReserva(u);
 // troca a capa da música (guardada na cifra, como as outras informações dela), na tela e no player. escolhida: a
 // pessoa escolheu (fica, mesmo sendo do Deezer: as revisões e a capa automática não trocam mais)
 function trocarCapaDaMusica(song, url, { escolhida } = {}) {
@@ -2243,6 +2244,7 @@ window.addEventListener('songbook:downloads', () => {
 //   rebaixar: 'video' | 'audio' | true — baixa de novo esses arquivos de todas as músicas baixadas (quando o próprio
 //             download mudou: a qualidade, o formato…)
 //   karaokeCelular: o karaokê feito no celular (APK) com um modelo que não é o de agora é feito de novo, no celular
+//   capaQueFalta: a música sem a capa do álbum (o quadro do vídeo, a foto do artista, nenhuma) procura a capa de novo
 //   quais(song): opcional, só as músicas em que a correção faz diferença
 const REVISOES = [
   // v385: a primeira, para todas: a letra que faltava, o áudio oficial que não foi achado e os downloads incompletos,
@@ -2363,6 +2365,10 @@ const REVISOES = [
   // minuto acabava; a linha devolvida com a numeração da lista era recusada). As músicas que ficaram sem a letra
   // sincronizada tentam de novo, uma de cada vez. A sincronizada à mão fica
   { rev: 32, letra: true, quais: (s) => Boolean(s.youtube) && !s.audioProprio && !sincOkDe(s) && !(s.sincronia && s.sincronia.fonte !== 'lrclib') },
+  // v619: a capa só era procurada no Deezer e no iTunes; a música que as duas não têm ficava com o quadro do vídeo, a
+  // foto do artista ou o desenho do app. Agora há as bases de reserva (TheAudioDB, MusicBrainz/Cover Art Archive e a
+  // discografia do Cifra Club): as salvas sem a capa do álbum a procuram de novo. A escolhida pela pessoa fica
+  { rev: 33, capaQueFalta: true, quais: (s) => !s.capaEscolhida && capaProvisoria(s.cover) && Boolean(s.title && s.artist) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -2464,6 +2470,17 @@ async function revisarMusica(id, pendentes, chaves) {
       s = db.song(id);
       if (!s) return true;
     }
+  }
+  // a música sem a capa do álbum: procurada de novo (agora também nas bases de reserva). Sem achar, fica como está
+  if (quer('capaQueFalta') && s.title && s.artist && !s.capaEscolhida && capaProvisoria(s.cover)) {
+    if (!navigator.onLine) completa = false;
+    else {
+      const u = await noMaximo(capaOficial(s.title, s.artist), 45000, '');
+      s = db.song(id);
+      if (!s) return true;
+      if (u && !s.capaEscolhida && capaProvisoria(s.cover) && s.cover !== u) trocarCapaDaMusica(s, u);
+    }
+    s = db.song(id);
   }
   // a capa automática escolhida de novo, pela regra nova
   if (quer('capa') && s.title && s.artist) {
@@ -6466,7 +6483,7 @@ const semLinhasDeAcordes = (sinc) => {
           const nomes = { coletanea: 'é de uma coletânea, não do disco da música', outra: 'é de outra gravação (karaokê, cover, tributo…)', 'nao-achada': 'não aparece mais na busca do Deezer e do iTunes' };
           item('Agora', c.atual ? de(c.atual) : 'não achada na busca de hoje', c.trocar ? 'erro' : c.problema ? 'aviso' : 'ok', c.trocar ? `a capa ${nomes[c.problema]}` : '');
           if (c.certa) item('A certa', chaveDaImagem(c.certa.url) === chaveDaImagem(cv) ? 'é a de agora' : de(c.certa), c.trocar ? 'aviso' : 'ok');
-          else item('A certa', 'nenhuma capa achada no Deezer nem no iTunes', 'aviso');
+          else item('A certa', 'nenhuma capa achada no Deezer, no iTunes nem nas bases de reserva', 'aviso');
         }
       }
     }
@@ -8032,7 +8049,7 @@ function escolherCapaDaMusica(song) {
       if (atualUrl && !opcoes.some((c) => c.url === atualUrl) && /^https?:/.test(atualUrl)) opcoes.unshift({ url: atualUrl, album: 'A de agora' });
       grade.innerHTML = opcoes.length ? opcoes.slice(0, 12).map((c) => `<button class="capa-op${c.url === atualUrl ? ' atual' : ''}" data-url="${esc(c.url)}" aria-pressed="${c.url === atualUrl}" title="${esc(c.album || '')}">
           <img src="${esc(c.url.replace(/1000x1000/, '500x500'))}" referrerpolicy="no-referrer" alt="" loading="lazy"><small>${esc(c.album || c.titulo || '')}${c.fonte ? ` · ${esc(c.fonte)}` : ''}</small></button>`).join('')
-        : '<p class="muted">Nenhuma capa achada no Deezer nem no iTunes. Escolha uma foto do aparelho.</p>';
+        : '<p class="muted">Nenhuma capa achada no Deezer, no iTunes nem nas bases de reserva (TheAudioDB, MusicBrainz, Cifra Club). Escolha uma foto do aparelho.</p>';
     }) : (grade.innerHTML = '<p class="muted">Sem internet: escolha uma foto do aparelho.</p>');
     grade.addEventListener('click', (e) => { const b = e.target.closest('[data-url]'); if (b) escolher(b.dataset.url, true); });
     $('[data-foto]', dlg).onclick = () => $('[data-arquivo]', dlg).click();
@@ -8051,14 +8068,14 @@ function escolherCapaDaMusica(song) {
       if (!navigator.onLine) { mostrarAchado(`<b>${icon('info', 16)} Sem internet</b><p class="muted">A busca da capa precisa da internet.</p>`); return; }
       auto.disabled = true;
       auto.innerHTML = '<span class="spin"></span> Procurando…';
-      mostrarAchado(`<p class="muted"><span class="spin"></span> Procurando a capa de “${esc(song.title)}” no Deezer e no iTunes…</p>`);
+      mostrarAchado(`<p class="muted"><span class="spin"></span> Procurando a capa de “${esc(song.title)}” no Deezer, no iTunes e nas bases de reserva…</p>`);
       const s = db.song(song.id) || song;
       const r = await conferirCapa({ ...s, cover: s.capaEscolhida ? '' : s.cover }).catch(() => null);
       auto.disabled = false;
       auto.innerHTML = `${icon('search', 16)} Achar a capa certa`;
       if (!dlg.isConnected) return;
       if (!r) { mostrarAchado(`<b>${icon('alerta', 16)} Não deu para procurar</b><p class="muted">O Deezer e o iTunes não responderam. A capa de agora continua. Tente de novo daqui a pouco.</p>`); return; }
-      if (!r.certa) { mostrarAchado(`<b>${icon('info', 16)} Nenhuma capa achada</b><p class="muted">O Deezer e o iTunes não têm esta música com este artista. A capa de agora continua; você pode escolher uma foto do aparelho.</p>`); return; }
+      if (!r.certa) { mostrarAchado(`<b>${icon('info', 16)} Nenhuma capa achada</b><p class="muted">O Deezer, o iTunes e as bases de reserva (TheAudioDB, MusicBrainz, Cifra Club) não têm esta música com este artista. A capa de agora continua; você pode escolher uma foto do aparelho.</p>`); return; }
       const de = `${r.certa.album ? `“${esc(r.certa.album)}”` : 'álbum sem nome'} · ${esc(r.certa.fonte || '')}${r.certa.largura ? ` · ${r.certa.largura}×${r.certa.altura}` : ''}`;
       const igual = !s.capaEscolhida && chaveDaImagem(r.certa.url) === chaveDaImagem(s.cover);
       if (!igual) trocarCapaDaMusica(s, r.certa.url, { escolhida: false });
@@ -10277,13 +10294,55 @@ function capasCandidatas(titulo, artista) {
       // A escolha final é feita pela dimensão real carregada, não só pelo tamanho escrito na URL.
       // (as que são a gravação da música, de qualquer das duas, antes das coletâneas e das outras gravações: o iTunes só
       // com a coletânea não passa à frente do single do Deezer)
+      // Sem a música no Deezer nem no iTunes, as bases de reserva (capasDeReserva). Só com a resposta do Deezer: a
+      // falha passageira dele não pode deixar guardada uma capa de reserva no lugar da oficial.
+      const oficiais = [...itunes, ...deezer];
+      const todas = oficiais.length || !Array.isArray(dz?.data) ? oficiais : await capasDeReserva(musica).catch(() => []);
       const peso = { '': 0, coletanea: 1, outra: 2 };
-      return [...itunes, ...deezer].map((c, i) => ({ c, i, p: peso[problemaDaCapa(c, musica)] ?? 0 }))
+      return todas.map((c, i) => ({ c, i, p: peso[problemaDaCapa(c, musica)] ?? 0 }))
         .sort((x, y) => x.p - y.p || x.i - y.i).map((x) => x.c);
     })().catch(() => []);
     capasDaBusca.set(k, busca.then((l) => { if (!l.length) capasDaBusca.delete(k); return l; }));
   }
   return capasDaBusca.get(k);
+}
+// As capas de reserva (lib/capas.js), para a música que o Deezer e o iTunes não têm: o TheAudioDB, a MusicBrainz (a
+// imagem vem do Cover Art Archive) e a discografia do artista no Cifra Club, pedidos juntos, cada um com o seu tempo
+// limite. A discografia fica guardada por artista enquanto o app está aberto (as outras músicas dele usam a mesma)
+const discografiasDasCapas = new Map();
+// (a MusicBrainz aceita um pedido por segundo: os daqui vão um depois do outro)
+let filaDaMusicBrainz = Promise.resolve();
+const jsonDaWeb = (url, tempo = 10000) => fetch(url, { signal: AbortSignal.timeout?.(tempo) }).then((r) => (r.ok ? r.json() : null));
+async function capasDeReserva(musica) {
+  const { titulo, artista } = musica;
+  const aspas = (x) => String(x).replace(/["\\]/g, ' ');
+  const doAudioDb = (async () => {
+    const j = await jsonDaWeb(`https://www.theaudiodb.com/api/v1/json/123/searchtrack.php?s=${encodeURIComponent(artista)}&t=${encodeURIComponent(titulo)}`);
+    const capas = [];
+    for (const f of faixasDaAudioDb(j, musica).slice(0, 2)) {
+      const album = f.idAlbum ? await jsonDaWeb(`https://www.theaudiodb.com/api/v1/json/123/album.php?m=${encodeURIComponent(f.idAlbum)}`).catch(() => null) : null;
+      const c = capaDaAudioDb(f, album);
+      if (c) capas.push(c);
+    }
+    return capas;
+  })();
+  const daMusicBrainz = (() => {
+    const q = `recording:"${aspas(titulo)}" AND artist:"${aspas(artista)}" AND status:official`;
+    const vez = filaDaMusicBrainz.then(() => jsonDaWeb(`https://musicbrainz.org/ws/2/recording?query=${encodeURIComponent(q)}&fmt=json&limit=25`));
+    filaDaMusicBrainz = vez.catch(() => null).then(() => new Promise((ok) => setTimeout(ok, 1100)));
+    return vez.then((j) => capasDaMusicBrainz(j, musica));
+  })();
+  const doCifraClub = (async () => {
+    const k = normalizar(artista);
+    if (!discografiasDasCapas.has(k)) {
+      discografiasDasCapas.set(k, buscarArtistasCifraClub(artista).then((l) => artistaCerto(l, artista))
+        .then((a) => (a?.slug ? getDiscografiaCifraClub(a.slug) : []))
+        .catch(() => { discografiasDasCapas.delete(k); return []; }));
+    }
+    return capasDaDiscografia(await discografiasDasCapas.get(k), musica);
+  })();
+  const [adb, mb, cc] = await Promise.all([noMaximo(doAudioDb, 15000, []), noMaximo(daMusicBrainz, 20000, []), noMaximo(doCifraClub, 20000, [])]);
+  return [...(adb || []), ...(mb || []), ...(cc || [])];
 }
 async function maiorCapaDisponivel(candidatas) {
   const testar = (c, i) => new Promise((resolve) => {
@@ -10291,12 +10350,15 @@ async function maiorCapaDisponivel(candidatas) {
     const img = imagemSemReferer();
     let terminou = false;
     const fim = (valor) => { if (terminou) return; terminou = true; resolve(valor); };
-    img.onload = () => fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
+    // (as de reserva valem a partir de 300 px: as bases abertas nem sempre têm a imagem grande, e ela ainda é a capa do
+    // álbum, melhor que o quadro do vídeo)
+    const minimo = c.reserva ? 300 : 500;
+    const medida = () => (img.naturalWidth >= minimo && img.naturalHeight >= minimo
       ? { ...c, i, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+    img.onload = () => fim(medida());
     img.onerror = () => fim(null);
     img.src = c.url;
-    if (img.complete) fim(img.naturalWidth >= 500 && img.naturalHeight >= 500
-      ? { ...c, i, largura: img.naturalWidth, altura: img.naturalHeight } : null);
+    if (img.complete) fim(medida());
   });
   // Testa algumas candidatas por fonte; não confia no "1000x1000" do endereço se o servidor entregar miniatura.
   // (a escolhida é a primeira da ordem que abre; o tamanho só desempata o mesmo álbum: lib/capas.js, escolherCapa)
