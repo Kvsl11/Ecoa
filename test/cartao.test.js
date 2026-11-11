@@ -154,3 +154,14 @@ test('o trecho da música dos versos escolhidos: do começo do primeiro ao fim d
   assert.equal(trechoDosVersos(tempos, []), null);
   assert.equal(trechoDosVersos(null, [1]), null);
 });
+
+test('os versos enchem conforme são cantados: de 0 a 1 cada um, do começo ao fim do verso', async () => {
+  const { preenchimentoDosVersos } = await import('../public/js/lib/cartao.js');
+  const tempos = [{ inicio: 8 }, { inicio: 10, fim: 14 }, { inicio: 14 }, { inicio: 20 }];
+  assert.deepEqual(preenchimentoDosVersos(tempos, [1, 2, 3], 9), [0, 0, 0]);
+  assert.deepEqual(preenchimentoDosVersos(tempos, [1, 2, 3], 12), [0.5, 0, 0]);
+  assert.deepEqual(preenchimentoDosVersos(tempos, [1, 2, 3], 17), [1, 0.5, 0]); // (sem o fim: o começo da linha seguinte)
+  assert.deepEqual(preenchimentoDosVersos(tempos, [3], 22.5), [0.5]); // (a última linha, sem fim: 5 s)
+  assert.deepEqual(preenchimentoDosVersos(tempos, [1, 9], 30), [1, 1]); // (sem o tempo da linha: cheia)
+  assert.equal(preenchimentoDosVersos(null, [1], 3), null);
+});

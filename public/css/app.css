@@ -4083,15 +4083,15 @@ html.pp #player .pl-artista-mais { all: unset; position: absolute; right: 0; bot
 
 /* a tela "Sobre o artista" (o "ver mais"): por cima de tudo, como a do Spotify: o nome em cima, as fotos passando para
    o lado, os números grandes, o texto inteiro e os atalhos */
-/* (o fundo na cor predominante da música, como a letra na tela toda: antes era o cinza-escuro fixo, #121212) */
+/* (no modo escuro, o cinza-escuro fixo, #121212; no claro, branca: as regras ficam no fim do arquivo) */
 .sobre-artista { position: fixed; inset: 0; z-index: 200; overflow-y: auto; overscroll-behavior: contain; color: #fff;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #000) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 62%, #000) 100%);
+  background: #121212;
   padding: 0 0 calc(32px + env(safe-area-inset-bottom)); animation: sa-entra 0.22s ease-out; }
 .sobre-artista.saindo { animation: sa-sai 0.18s ease-in forwards; }
 @keyframes sa-entra { from { transform: translateY(24px); opacity: 0; } }
 @keyframes sa-sai { to { transform: translateY(24px); opacity: 0; } }
 .sa-topo { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 8px 8px;
-  background: color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #000); }
+  background: #121212; }
 .sa-topo b { text-align: center; font-size: 17px; font-weight: 800; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sa-topo .icon-btn { color: #fff; }
 .sa-fotos { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px 16px 4px; scrollbar-width: none; }
@@ -6542,13 +6542,37 @@ html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom:active { backg
 html:where([data-theme="light"]).pp #player .pl-fixo-play, html:where([data-theme="light"]).pp body.painel-cheio #player .pl-fixo-play, html:where([data-theme="light"]).pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { color: var(--lt); }
 :where([data-theme="light"]) #player .pl-art-junto { color: color-mix(in srgb, var(--lt) 78%, transparent); }
 
-/* ============================================================ "Sobre o artista" no modo claro: a cor da música
-   misturada com o branco, em degradê, e o texto num tom escuro da mesma cor */
-:root[data-theme="light"] .sobre-artista { --lt: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #08080a); color: var(--lt);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 34%, #fff) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 20%, #fff) 45%, color-mix(in srgb, var(--cor-musica, var(--tint)) 9%, #fff) 100%); }
-:root[data-theme="light"] .sa-topo { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 34%, #fff); }
+/* ============================================================ "Sobre o artista" no modo claro: branca, com o texto
+   escuro (no escuro continua o cinza-escuro fixo, #121212) */
+:root[data-theme="light"] .sobre-artista { --lt: #16161a; color: var(--lt); background: #fff; }
+:root[data-theme="light"] .sa-topo { background: #fff; }
 :root[data-theme="light"] .sa-topo .icon-btn, :root[data-theme="light"] .sa-links a { color: var(--lt); }
-:root[data-theme="light"] .sa-numeros small { color: color-mix(in srgb, var(--lt) 70%, transparent); }
-:root[data-theme="light"] .sa-texto p { color: color-mix(in srgb, var(--lt) 90%, transparent); }
-:root[data-theme="light"] .sa-links { background: rgb(255 255 255 / 0.6); }
-:root[data-theme="light"] .sa-links a svg:last-child { color: color-mix(in srgb, var(--lt) 50%, transparent); }
+:root[data-theme="light"] .sa-numeros small { color: color-mix(in srgb, var(--lt) 65%, transparent); }
+:root[data-theme="light"] .sa-texto p { color: color-mix(in srgb, var(--lt) 88%, transparent); }
+:root[data-theme="light"] .sa-links { background: rgb(0 0 0 / 0.05); }
+:root[data-theme="light"] .sa-links a svg:last-child { color: color-mix(in srgb, var(--lt) 45%, transparent); }
+:root[data-theme="light"] .sa-fotos img { background: #e9e9ec; }
+:root[data-theme="light"] .sa-sem-foto { background: #e9e9ec; color: rgb(0 0 0 / 0.45); }
+
+/* ============================================================ "Por trás da música" no modo claro: branca, com a cor
+   da música clareada só no alto, e o texto escuro (a tela só tinha a aparência escura, também no modo claro) */
+:root[data-theme="light"] dialog.creditos-dlg { --lt: #16161a; --text: var(--lt); color: var(--lt);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-creditos, var(--tint)) 26%, #fff) 0, #fff 420px); }
+:root[data-theme="light"] dialog.creditos-dlg::backdrop { background: #fff; }
+:root[data-theme="light"] .cr-topo .icon-btn, :root[data-theme="light"] .cr-detalhes a { color: var(--lt); }
+:root[data-theme="light"] .cr-capa { background-color: rgb(0 0 0 / 0.08); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
+:root[data-theme="light"] :is(.cr-musica small, .cr-pessoa small, .cr-no small, .cr-ficha-bt small, .cr-versao small) { color: color-mix(in srgb, var(--lt) 66%, transparent); }
+:root[data-theme="light"] .cr-detalhes { background: rgb(0 0 0 / 0.05); }
+:root[data-theme="light"] .cr-play { background: var(--lt); color: #fff; }
+:root[data-theme="light"] .cr-no .ref-avatar.sem-foto { background: color-mix(in srgb, var(--cor-creditos, var(--accent)) 30%, #fff); color: var(--lt); }
+:root[data-theme="light"] :is(.cr-no.aberto, .cr-no:focus-visible) .ref-avatar { box-shadow: 0 0 0 3px var(--lt); }
+:root[data-theme="light"] .cr-ficha { background: #fff; box-shadow: 0 12px 32px rgb(0 0 0 / 0.2), 0 0 0 1px rgb(0 0 0 / 0.06); }
+:root[data-theme="light"] .cr-versao-capa { background-color: rgb(0 0 0 / 0.08); }
+
+/* ============================================================ o cartão do artista e o topo fixo do player no modo
+   claro: o esmaecido atrás do "ver mais" na cor do cartão (era o marrom-escuro do modo escuro) e a barra fixa do topo
+   (a música, o tocar e a linha do tempo, ao rolar) clara, com a linha do tempo visível */
+html[data-theme="light"].pp #player .pl-artista-mais { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cor-musica, var(--tint)) 16%, #fff) 34px); }
+html[data-theme="light"].pp #player .pl-artista-bio.so-mais .pl-artista-mais { background: none; }
+html[data-theme="light"] #player .pl-fixo-barra { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 24%, #fff); box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); }
+html[data-theme="light"] #player .pl-fixo-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); }

@@ -65,6 +65,19 @@ export function trechoDosVersos(tempos, indices, { maximo = 30, minimo = 4 } = {
   const fim = fimDoUltimo.length ? Math.min(...fimDoUltimo) + 0.4 : tempos[ultimo].inicio + 5;
   return { inicio, segundos: Math.round(Math.min(maximo, Math.max(minimo, fim - inicio)) * 10) / 10 };
 }
+// Quanto de cada verso escolhido já foi cantado no instante t da música (0 a 1 cada um), pela letra sincronizada: o
+// verso enche do começo dele até o fim (sem o fim, o começo da linha seguinte, ou 5 s). Para o cartão da letra que
+// vai com a música: os versos enchem conforme são cantados. null sem os tempos
+export function preenchimentoDosVersos(tempos, indices, t) {
+  if (!tempos?.length || !Number.isFinite(t)) return null;
+  return (indices || []).map((i) => {
+    const inicio = tempos[i]?.inicio;
+    if (!Number.isFinite(inicio)) return 1;
+    const fins = [tempos[i].fim, tempos[i + 1]?.inicio].filter((x) => Number.isFinite(x) && x > inicio);
+    const fim = fins.length ? Math.min(...fins) : inicio + 5;
+    return Math.max(0, Math.min(1, (t - inicio) / (fim - inicio)));
+  });
+}
 // Os versos que entram marcados ao abrir: a partir da linha que está sendo cantada (ou do começo), até 4 seguidos
 export function versosIniciais(linhas, atual = -1, quantos = 4) {
   if (!linhas?.length) return [];
@@ -249,7 +262,7 @@ export function desenharFundoAnimado(c, L, A, tinta, qual, t = 0) {
 // 'inclinado'), alinhar ('esquerda' | 'centro'), fundo (uma imagem carregada — a capa ou uma foto do aparelho — que
 // cobre o cartão, escurecida, no lugar da cor; null: a cor), quadro (a imagem do videoclipe), duracao (segundos),
 // animacao (um dos FUNDOS_ANIMADOS, ou '': o fundo parado) e t (o instante da animação, em segundos) }
-export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0, animacao = '', t = 0 } = {}) {
+export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0, animacao = '', t = 0, preenchido = null } = {}) {
   let cor = corPedida;
   if (modo === 'letra' && !versos.length) modo = 'musica';
   const { l: L, a: A } = tamanhoDoCartao(modo);
@@ -308,10 +321,30 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     let y = topo + Math.max(0, (altura - total) / 2) + tamanho * 0.9;
     c.save();
     c.scale(aperto, 1);
-    for (const bloco of blocos) {
-      for (const linha of bloco) { if (y > topo + altura + tamanho * 0.3) break; c.fillText(linha, x, y); y += passo; }
+    // (com a música — preenchido: quanto de cada verso já foi cantado, de 0 a 1 —, os versos ficam apagados e enchem
+    // da esquerda para a direita, linha por linha, conforme são cantados)
+    blocos.forEach((bloco, n) => {
+      const parte = Array.isArray(preenchido) ? Math.max(0, Math.min(1, Number(preenchido[n]) || 0)) : 1;
+      const larguras = parte < 1 ? bloco.map((linha) => medir(linha)) : [];
+      let cheio = parte * larguras.reduce((a, b) => a + b, 0);
+      bloco.forEach((linha, k) => {
+        if (y > topo + altura + tamanho * 0.3) return;
+        if (parte >= 1) c.fillText(linha, x, y);
+        else {
+          const w = larguras[k]; const ate = Math.max(0, Math.min(w, cheio)); cheio -= w;
+          c.globalAlpha = 0.34; c.fillText(linha, x, y); c.globalAlpha = 1;
+          if (ate > 0) {
+            const x0 = alinhar === 'centro' ? x - w / 2 : x;
+            c.save();
+            c.beginPath(); c.rect(x0 - tamanho * 0.2, y - tamanho * 1.1, ate + tamanho * 0.2, tamanho * 1.6); c.clip();
+            c.fillText(linha, x, y);
+            c.restore();
+          }
+        }
+        y += passo;
+      });
       y += tamanho * 0.24;
-    }
+    });
     c.restore();
     c.textAlign = 'left';
     if ('letterSpacing' in c) c.letterSpacing = '0px';

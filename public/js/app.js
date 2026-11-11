@@ -42,7 +42,7 @@ import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
-import { indicesParaEscolher, trechoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
+import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -735,7 +735,7 @@ const extensaoDoCartao = (tipo) => (/^video\/mp4/.test(tipo) ? 'mp4' : /^video\/
 // aplicativos). musica: { titulo, artista, capa, url, linhas (a letra), linhaAtual (a que está sendo cantada), cor (a
 // da música), modo ('musica' | 'letra' | 'video'), video (o id do videoclipe no YouTube), duracao (segundos), songId (a
 // música salva: com ela baixada no aparelho, os cartões da letra e do vídeo vão com a música) }
-// Com a música: o cartão da Letra sai em vídeo com o áudio do trecho em que os versos escolhidos são cantados (pela
+// Com a música (sempre que ela está no aparelho; não há botão para desligar): o cartão da Letra sai em vídeo com o áudio do trecho em que os versos escolhidos são cantados (pela
 // letra sincronizada), e o do Vídeo, com o trecho do refrão do clipe (a imagem e o som). O som e a imagem vêm do arquivo
 // baixado no aparelho: o player do YouTube não deixa gravar. Sem o arquivo, os cartões saem como antes
 const SEGUNDOS_DO_CLIPE = 15;
@@ -759,7 +759,6 @@ async function compartilharMusica(musica) {
   // (os tempos valem quando a letra da folha é a sincronizada: uma linha para cada tempo)
   const temposDaLetra = sinc && (musica.linhas || []).length === sinc.tempos.length ? sinc.tempos : null;
   const origem = indicesParaEscolher(musica.linhas);
-  let comMusica = true;
   // o arquivo com o som da letra: o da versão que a letra acompanha ou, sem ele, a outra versão baixada (com o tempo
   // levado para ela)
   const somDaLetra = () => {
@@ -775,21 +774,40 @@ async function compartilharMusica(musica) {
   const temMusica = (m) => (m === 'letra' ? Boolean(somDaLetra()) : m === 'video' ? Boolean(clipeBaixado()) : false);
   // a mídia do aparelho parada no começo do trecho: { el, url, segundos, clipe }, ou null (sem a música, ou desligada)
   const trechoDaMusica = async (m) => {
-    if (!comMusica || !temMusica(m)) return null;
-    let chave; let inicio; let segundos;
+    if (!temMusica(m)) return null;
+    let chave; let inicio; let segundos; let naLetra = 0;
     if (m === 'letra') {
       const f = somDaLetra();
       const tr = trechoDosVersos(temposDaLetra, marcados.map((i) => origem[i]));
       if (!tr) return null;
-      chave = f.chave; inicio = f.t(tr.inicio); segundos = tr.segundos;
+      chave = f.chave; inicio = f.t(tr.inicio); segundos = tr.segundos; naLetra = tr.inicio;
     } else { chave = chaveBaixada(clipeBaixado()); inicio = tempoDoRefrao(song).tVideo; segundos = SEGUNDOS_DO_CLIPE; }
-    const blob = await lerAudio(chave).catch(() => null);
-    if (!blob) return null;
-    const url = URL.createObjectURL(blob);
+    const url = await enderecoDaMidia(chave);
+    if (!url) return null;
     const el = await prepararTrecho(url, 'video', inicio);
-    if (!el) { URL.revokeObjectURL(url); return null; }
-    return { el, url, clipe: m === 'video', segundos: Math.min(segundos, Math.max(2, (el.duration || 1e9) - el.currentTime - 0.2)) };
+    if (!el) return null;
+    // (noArquivo: o instante do arquivo em que o trecho começa; naLetra: o mesmo instante na letra sincronizada)
+    return { el, clipe: m === 'video', noArquivo: el.currentTime, naLetra, segundos: Math.min(segundos, Math.max(2, (el.duration || 1e9) - el.currentTime - 0.2)) };
   };
+  // (o arquivo do aparelho é aberto uma vez só enquanto a folha está aberta: serve à prévia e à gravação)
+  const midias = new Map();
+  const enderecoDaMidia = (chave) => {
+    if (!midias.has(chave)) midias.set(chave, lerAudio(chave).then((blob) => (blob ? URL.createObjectURL(blob) : '')).catch(() => ''));
+    return midias.get(chave);
+  };
+  const soltarMidia = (el) => { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* já solta */ } };
+  // quanto de cada verso escolhido já foi cantado, pelo instante em que a mídia do trecho está
+  const versosCantados = (tr) => preenchimentoDosVersos(temposDaLetra, marcados.map((i) => origem[i]), tr.naLetra + (tr.el.currentTime - tr.noArquivo));
+  // A prévia: com a música disponível, o cartão do meio toca na folha como vai ser enviado (o clipe passando no quadro
+  // do cartão do Vídeo; os versos enchendo conforme são cantados no da Letra; o som do trecho, em volta). A música
+  // que estava tocando no app é pausada enquanto a prévia toca e volta ao fechar a folha
+  let previa = null;
+  let pedidoDaPrevia = 0;
+  let pausouOPlayer = false;
+  const pararPrevia = () => { pedidoDaPrevia++; if (previa) { soltarMidia(previa.el); previa = null; } };
+  let tocarPrevia = () => {};
+  // o que a mídia do trecho põe no cartão: o quadro do clipe (Vídeo) ou os versos enchendo (Letra)
+  const aoVivo = (tr) => (tr.clipe ? (tr.el.readyState >= 2 ? { quadro: tr.el } : {}) : { preenchido: versosCantados(tr) });
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   // O link que vai junto: o da música no Ecoa (abre o app, ou o site, na música), nos três cartões — e não o endereço
   // do vídeo no YouTube. Sem o nome da música, o endereço recebido
@@ -798,7 +816,7 @@ async function compartilharMusica(musica) {
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
   const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[corDo[m]], ...visuais[m], t: tAnim,
     fundo: visuais[m].fundo === 'foto' ? fotoImg : visuais[m].fundo === 'imagem' ? capaImg : null,
-    versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
+    versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [], ...(previa?.m === m && !gravando ? aoVivo(previa) : {}) });
   let tAnim = 0; // (o instante da animação do fundo, em segundos)
   let gravando = false;
   const imagem = () => new Promise((ok) => {
@@ -808,19 +826,21 @@ async function compartilharMusica(musica) {
   // a imagem. O vídeo dura o trecho da música ou, só com o fundo animado, uma volta da animação (o fim emenda no
   // começo). Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
   const arquivoDoCartao = async (avisarProgresso = () => {}) => {
+    pararPrevia();
     const trecho = await trechoDaMusica(modo);
     if (!visuais[modo].animacao && !trecho) return imagem();
     gravando = true;
     try {
       const segundos = trecho ? trecho.segundos : DURACAO_DA_ANIMACAO;
       avisarProgresso(`Gerando o vídeo${trecho ? ' com a música' : ''} (${Math.round(segundos)} s)…`);
-      const video = await videoDoCartao((canvas, t) => desenharCartao(canvas, { ...dadosDo(modo), t, ...(trecho?.clipe ? { quadro: trecho.el } : {}) }), segundos, { som: trecho?.el || null });
+      const video = await videoDoCartao((canvas, t) => desenharCartao(canvas, { ...dadosDo(modo), t, ...(trecho ? aoVivo(trecho) : {}) }), segundos, { som: trecho?.el || null });
       if (video) { avisarProgresso(trecho && !video.comSom ? 'Este aparelho não gravou o som: o vídeo foi enviado sem a música.' : ''); return video.blob; }
       avisarProgresso('Este aparelho não gera o vídeo do cartão: foi enviada a imagem.');
       return imagem();
     } finally {
       gravando = false;
-      if (trecho) { try { trecho.el.pause(); trecho.el.removeAttribute('src'); trecho.el.load(); } catch { /* já solto */ } URL.revokeObjectURL(trecho.url); }
+      if (trecho) soltarMidia(trecho.el);
+      tocarPrevia();
     }
   };
   await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
@@ -837,7 +857,6 @@ async function compartilharMusica(musica) {
           <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
           <button class="chip cs-so-letra" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
           <button class="chip" data-cs="personalizar">${icon('sparkles', 14)} Personalizar</button>
-          <button class="chip cs-com-musica" data-cs="com-musica" aria-pressed="true" title="Enviar o cartão em vídeo, com o trecho da música" hidden>${icon('music', 14)} Com a música</button>
         </div>
         <p class="cs-estado" role="status" hidden></p>
         <div class="cs-destinos">
@@ -884,15 +903,22 @@ async function compartilharMusica(musica) {
       modos.forEach(([m]) => desenharUm(m));
       if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
     };
-    // Com o fundo animado, o cartão do meio (e o da tela "Personalizar") é redesenhado a cada quadro; os outros ficam
-    // parados. Para sozinho quando a animação é tirada, durante a gravação do vídeo e ao fechar a folha
+    // Com o fundo animado ou com a prévia da música, o cartão do meio (e o da tela "Personalizar") é redesenhado a
+    // cada quadro; os outros ficam parados. Para sozinho quando não há o que animar, durante a gravação do vídeo e ao
+    // fechar a folha. A prévia volta ao começo do trecho ao chegar ao fim, com o som entrando e saindo aos poucos
     let quadroDaAnimacao = 0;
     const animar = () => {
       cancelAnimationFrame(quadroDaAnimacao);
-      if (!visuais[modo].animacao || !dlg.isConnected) return;
+      if ((!visuais[modo].animacao && !previa) || !dlg.isConnected) return;
       const passo = (agora) => {
-        if (!visuais[modo].animacao || !dlg.isConnected) return;
+        if ((!visuais[modo].animacao && !previa) || !dlg.isConnected) return;
         if (!gravando) {
+          if (previa) {
+            const p = previa;
+            const rel = p.el.currentTime - p.noArquivo;
+            if (rel >= p.segundos || p.el.ended) { try { p.el.currentTime = p.noArquivo; if (p.el.paused) p.el.play().catch(() => {}); } catch { /* segue */ } }
+            else { try { p.el.volume = Math.max(0, Math.min(1, rel / 0.4, (p.segundos - rel) / 0.8)); } catch { /* sem o volume */ } }
+          }
           tAnim = (agora / 1000) % DURACAO_DA_ANIMACAO;
           if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
           else if (raiz.dataset.tela === 'cartoes') desenharUm(modo);
@@ -901,7 +927,27 @@ async function compartilharMusica(musica) {
       };
       quadroDaAnimacao = requestAnimationFrame(passo);
     };
-    dlg.addEventListener('close', () => cancelAnimationFrame(quadroDaAnimacao));
+    tocarPrevia = async () => {
+      pararPrevia();
+      const pedido = pedidoDaPrevia;
+      const m = modo;
+      if (!gravando) desenhar(); // (o cartão que estava tocando volta a ficar parado, com os versos cheios)
+      if (gravando || !dlg.isConnected || raiz.dataset.tela === 'versos' || !temMusica(m)) return;
+      const tr = await trechoDaMusica(m).catch(() => null);
+      if (!tr) return;
+      if (pedido !== pedidoDaPrevia || gravando || !dlg.isConnected) { soltarMidia(tr.el); return; }
+      if (player.estado === 'tocando') { player.alternar(); pausouOPlayer = true; }
+      previa = { m, ...tr };
+      tr.el.volume = 0;
+      // (onde o som não pode começar sozinho, a prévia passa muda)
+      try { await tr.el.play(); } catch { tr.el.muted = true; try { await tr.el.play(); } catch { /* fica parada */ } }
+      animar();
+    };
+    dlg.addEventListener('close', () => {
+      cancelAnimationFrame(quadroDaAnimacao);
+      pararPrevia();
+      if (pausouOPlayer && player.estado === 'pausado') player.alternar();
+    });
     // o que acompanha o cartão do meio: a aba marcada (o fundo dela desliza), as cores e os botões da letra
     const marcarModo = () => {
       const abas = [...dlg.querySelectorAll('[data-modo]')];
@@ -912,9 +958,6 @@ async function compartilharMusica(musica) {
       dlg.querySelectorAll('.cs-slide').forEach((x) => x.classList.toggle('ativa', x.dataset.slide === modo));
       dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === corDo[modo])));
       dlg.querySelectorAll('.cs-so-letra').forEach((b) => { b.hidden = modo !== 'letra'; });
-      const chipDaMusica = $('.cs-com-musica', dlg);
-      chipDaMusica.hidden = !temMusica(modo);
-      chipDaMusica.setAttribute('aria-pressed', String(comMusica));
     };
     const irPara = (m, suave = true) => {
       const slide = $(`[data-slide="${m}"]`, dlg);
@@ -928,7 +971,7 @@ async function compartilharMusica(musica) {
       medindo = requestAnimationFrame(() => {
         const meio = trilho.scrollLeft + trilho.clientWidth / 2;
         const perto = [...dlg.querySelectorAll('.cs-slide')].map((x) => ({ m: x.dataset.slide, d: Math.abs(x.offsetLeft + x.offsetWidth / 2 - meio) })).sort((a, b) => a.d - b.d)[0];
-        if (perto && perto.m !== modo) { modo = perto.m; marcarModo(); animar(); }
+        if (perto && perto.m !== modo) { const antes = modo; modo = perto.m; marcarModo(); animar(); tocarPrevia(); }
       });
     }, { passive: true });
     const marcar = () => {
@@ -943,7 +986,10 @@ async function compartilharMusica(musica) {
     const mostrarTela = (qual) => {
       if (qual === 'cartoes') { if (cheiaAntes !== null) dlg.classList.toggle('folha-cheia', cheiaAntes); cheiaAntes = null; }
       else { if (cheiaAntes === null) cheiaAntes = dlg.classList.contains('folha-cheia'); dlg.classList.add('folha-cheia'); }
+      const antes = raiz.dataset.tela;
       raiz.dataset.tela = qual;
+      // (escolhendo os versos, a prévia para; voltando, toca de novo com os versos escolhidos)
+      if (qual === 'versos') pararPrevia(); else if (antes === 'versos') tocarPrevia();
       if (qual === 'versos') { marcar(); requestAnimationFrame(() => dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' })); }
       if (qual === 'personalizar') {
         opcoes.hidden = true;
@@ -984,7 +1030,7 @@ async function compartilharMusica(musica) {
       } catch { toast('Não foi possível abrir esta imagem'); }
     };
     desenhar();
-    requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
+    requestAnimationFrame(() => { irPara(modo, false); marcarModo(); tocarPrevia(); });
     imagemDaCapaParaCartao(musica.capa).then((img) => { if (img && dlg.isConnected) { capaImg = img; desenhar(); } });
     if (idVideo) {
       // (o quadro do clipe: o grande, quando o vídeo tem; senão o de sempre)
@@ -1006,9 +1052,9 @@ async function compartilharMusica(musica) {
       const v = e.target.closest('.cs-verso');
       if (v) { marcados = alternarVerso(marcados, Number(v.dataset.i)); marcar(); return; }
       const m = e.target.closest('[data-modo]');
-      if (m) { modo = m.dataset.modo; marcarModo(); animar(); irPara(modo); return; }
+      if (m) { if (m.dataset.modo !== modo) { const antes = modo; modo = m.dataset.modo; marcarModo(); animar(); tocarPrevia(); } irPara(modo); return; }
       const slide = e.target.closest('.cs-slide');
-      if (slide && slide.dataset.slide !== modo) { modo = slide.dataset.slide; marcarModo(); animar(); irPara(modo); return; }
+      if (slide && slide.dataset.slide !== modo) { const antes = modo; modo = slide.dataset.slide; marcarModo(); animar(); tocarPrevia(); irPara(modo); return; }
       const c = e.target.closest('[data-cor]');
       if (c) { corDo[modo] = Number(c.dataset.cor); desenharUm(modo); if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg)); marcarModo(); if (raiz.dataset.tela === 'personalizar') abrirFerramenta('cor'); return; }
       const ferr = e.target.closest('[data-ferr]');
@@ -1032,11 +1078,6 @@ async function compartilharMusica(musica) {
       avisar('');
       if (acao === 'versos') { mostrarTela('versos'); return; }
       if (acao === 'personalizar') { mostrarTela('personalizar'); return; }
-      if (acao === 'com-musica') {
-        comMusica = !comMusica; marcarModo();
-        avisar(comMusica ? (modo === 'video' ? `O cartão vai em vídeo, com ${SEGUNDOS_DO_CLIPE} s do refrão do clipe.` : 'O cartão vai em vídeo, com o áudio do trecho dos versos escolhidos.') : 'O cartão vai sem a música.', true);
-        return;
-      }
       if (acao === 'versos-ok' || acao === 'pers-ok') { if (!marcados.length) marcados = versosIniciais(linhas, musica.linhaAtual ?? -1); mostrarTela('cartoes'); return; }
       if (acao === 'link') { toast((await copiarTexto(link)) ? 'Link copiado' : 'Não consegui copiar'); return; }
       if (acao === 'texto') { toast((await copiarTexto(textoDoCartao({ titulo, artista, versos: marcados.length && modo === 'letra' ? versos() : linhas }))) ? 'Letra copiada: é só colar onde quiser' : 'Não consegui copiar'); return; }
@@ -1068,6 +1109,8 @@ async function compartilharMusica(musica) {
       b.disabled = false;
     });
   }, { folha: true });
+  pararPrevia();
+  midias.forEach((p) => p.then((u) => { if (u) URL.revokeObjectURL(u); }));
   capaImg?.close?.();
   quadroImg?.close?.();
   fotoImg?.close?.();
