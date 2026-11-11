@@ -69,3 +69,11 @@ test('musicaDaAudioDb: só a do mesmo artista e título, e só com algo para as 
 test('MusicBrainz: o id e os gêneros do artista', () => {
   assert.deepEqual(artistaDaMusicBrainz({ artists: [{ id: 'afb', name: 'Bruno Mars', score: 100, tags: [{ count: 2, name: 'Pop' }] }] }, 'Bruno Mars'), { id: 'afb', generos: ['pop'] });
 });
+
+test('o clima ou o tema sem texto ("...") não vira hashtag', () => {
+  const tags = hashtagsDaMusica({ musica: { mood: 'Good Natured', theme: '...', genre: 'Pop' }, generos: ['pop', 'rock'], semente: 'company', ingles: true });
+  assert.equal(tags[0], 'good natured');
+  assert.ok(tags.every((t) => /\p{L}/u.test(t)), tags.join(' | '));
+  assert.ok(tags.length >= 6);
+  assert.ok(!hashtagsDaMusica({ musica: { mood: '…', theme: '-' }, semente: 'x', ingles: true }).some((t) => !/\p{L}/u.test(t)));
+});
