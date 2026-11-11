@@ -6585,3 +6585,25 @@ html[data-theme="light"] #player .pl-fixo-prog { background: color-mix(in srgb, 
 /* (nos cartões de baixo, o que ainda era branco fixo: os papéis nos créditos, o artista dos vídeos e o "Explorar") */
 html[data-theme="light"].pp #player :is(.pl-cr-linha small, .pl-video-rel small) { color: color-mix(in srgb, var(--lt) 66%, transparent); }
 html[data-theme="light"].pp #player .pl-cartao .ref-explorar { border-color: color-mix(in srgb, var(--lt) 55%, transparent); color: var(--lt); }
+
+/* ============================================================ o vídeo na barrinha de baixo (o mini player) preenche o
+   lugar dele: o vídeo baixado cortando a sobra (antes inteiro, com faixas pretas dos lados quando o lugar era mais
+   largo que 16:9) e o do YouTube na largura toda, centrado na altura */
+#pl-tela.na-barra video.pl-local { object-fit: cover; }
+#pl-tela.na-barra iframe { inset: 50% auto auto 0; height: auto; min-height: 100%; aspect-ratio: 16 / 9; transform: translateY(-50%); }
+
+/* ============================================================ compartilhar: as telas de ajustar ("Escolher os versos"
+   e "Personalizar") tomam a tela toda, sem a alça da folha em cima (antes ficava uma faixa da cor da folha — branca
+   no modo claro — acima da tela dos versos, com os cantos arredondados dela aparecendo) */
+dialog.folha.cs-dlg.cs-tela-toda { height: 100dvh; max-height: 100dvh !important; border-radius: 0; padding-bottom: 0; }
+dialog.cs-dlg.cs-tela-toda .folha-cab { display: none; }
+dialog.cs-dlg.cs-tela-toda .dlg { padding-top: 0; padding-bottom: 0; }
+dialog.cs-dlg.cs-tela-toda .cs-versos { height: 100%; margin: 0; border-radius: 0; padding: calc(14px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom)); }
+dialog.cs-dlg.cs-tela-toda .cs-personalizar { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+/* "Escolher os versos" no modo claro: a cor do cartão misturada com o branco e o texto num tom escuro da mesma cor
+   (a tela só tinha a aparência escura: a cor do cartão cheia, com o texto branco) */
+:root[data-theme="light"] .cs-versos { --lt: color-mix(in srgb, var(--cs-cor) 45%, #08080a); color: var(--lt);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cs-cor) 30%, #fff), color-mix(in srgb, var(--cs-cor) 12%, #fff)); }
+:root[data-theme="light"] .cs-versos-cab small { color: color-mix(in srgb, var(--lt) 72%, transparent); }
+:root[data-theme="light"] .cs-versos-cab .icon-btn, :root[data-theme="light"] .cs-verso { color: var(--lt); }
+:root[data-theme="light"] .cs-verso[aria-selected="true"], :root[data-theme="light"] .cs-versos .cs-continuar { background: var(--lt); color: #fff; }

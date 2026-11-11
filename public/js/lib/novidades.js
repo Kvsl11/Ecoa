@@ -5,6 +5,21 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 645, data: '2026-11-11', titulo: 'Compartilhamento: telas "Escolher os versos" e "Personalizar" na tela toda, com versão para o modo claro',
+    itens: [
+      { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" abriam dentro da folha de compartilhar (94% da altura), com a alça da folha acima delas. Na tela dos versos, a alça formava uma faixa na cor da folha (branca no modo claro) sobre o fundo colorido, com os cantos arredondados aparentes. As duas telas passaram a ocupar a tela toda, sem a alça, nos dois modos; ao voltar aos cartões, a folha retorna ao tamanho anterior.' },
+      { tipo: 'melhoria', texto: 'A tela "Escolher os versos" tinha uma única aparência (a cor do cartão cheia, com o texto branco), usada também no modo claro. No modo claro, passou a ter fundo em degradê da cor do cartão misturada com branco (de 30% a 12% da cor), com o texto em tom escuro da mesma cor e os versos escolhidos e o botão "Continuar" em fundo escuro com texto branco. O modo escuro não foi alterado. A tela "Personalizar" já seguia o modo do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em página de teste com a marcação da folha (390 × 800), nos dois modos; não foram executadas no aplicativo nem em aparelho.' },
+    ],
+  },
+  {
+    versao: 644, data: '2026-11-11', titulo: 'Barra de reprodução: vídeo sem faixas escuras nas bordas',
+    itens: [
+      { tipo: 'correcao', texto: 'Na barra de reprodução do celular, o vídeo era exibido inteiro dentro de um espaço mais largo que a proporção 16:9 (112 × 59 px, para um vídeo de 112 × 63 px), com faixas pretas nas laterais, e com cantos arredondados próprios (6 px), diferentes dos do espaço (8 px à esquerda). No modo claro, as faixas e os cantos apareciam como bordas escuras sobre a barra clara. O vídeo passou a preencher o espaço inteiro, com o excedente cortado, e a usar os mesmos cantos do espaço.' },
+      { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação do vídeo (quadro do YouTube: 112 × 63 px centrado em 112 × 59 px; vídeo baixado: preenchimento com corte); não foi executada no aplicativo com uma música em reprodução nem em aparelho.' },
+    ],
+  },
+  {
     versao: 643, data: '2026-11-11', titulo: 'Modo claro: barra fixa do topo do "Tocando agora" com fundo claro e textos dos cartões legíveis',
     itens: [
       { tipo: 'correcao', texto: 'A barra fixa do topo do "Tocando agora" (exibida ao rolar a tela) permanecia com fundo escuro no modo claro, com o nome da música, os botões e a linha de progresso, já em tom escuro, ilegíveis. A regra do modo claro incluída na versão 642 tinha precedência menor que a regra original da barra e não era aplicada. A regra foi reescrita com a mesma forma da original: a barra passou a ter fundo claro (24% da cor da música), com o texto e a linha de progresso visíveis.' },
@@ -72,23 +87,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Sem o aplicativo instalado, o site passou a abrir a música diretamente: quando a página permanece em primeiro plano 1,6 segundo depois da tentativa, a música é aberta no site, sem a tela intermediária. Os botões "Abrir no aplicativo", "Ouvir aqui" e "Procurar na busca" permanecem ao voltar a essa tela.' },
       { tipo: 'novo', texto: 'A tela de entrada do site, quando aberta por um link de música no navegador do Android, passou a exibir o botão "Abrir a música no aplicativo".' },
       { tipo: 'melhoria', texto: 'Pendente: a entrega automática depende de o navegador aceitar a abertura do aplicativo sem toque; onde o navegador a recusa, a música abre no site. Nos navegadores internos de outros aplicativos (WebView), a tentativa automática não é feita, e permanece a tela com o botão "Abrir no aplicativo". O aplicativo instalado precisa ser a versão que recebe links de música (a partir da 634). A verificação foi feita em navegador com identificação de Android; o comportamento em aparelho, com o aplicativo instalado, não foi executado. A abertura pelo Android sem passar pelo navegador continua dependente do arquivo assetlinks.json na raiz de kvsl11.github.io, não publicado.' },
-    ],
-  },
-  {
-    versao: 635, data: '2026-11-11', titulo: 'Aplicativo Android: zoom de página com os dois dedos desativado',
-    itens: [
-      { tipo: 'correcao', texto: 'No aplicativo Android, no celular e no tablet, a tela podia ser ampliada com os dois dedos (e com dois toques), como uma página de navegador: a página não declarava limite de ampliação e o WebView mantinha o zoom de página ligado. No aplicativo, a página passou a declarar a escala fixa (máxima 1, sem ampliação pelo usuário) e a aceitar somente o gesto de rolagem. Essa parte vale para o aplicativo já instalado, sem atualização.' },
-      { tipo: 'melhoria', texto: 'O WebView do aplicativo passou a ter o zoom de página desligado também na parte nativa (suporte a zoom e controles de zoom). Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'No site aberto pelo navegador, o zoom continua disponível. Pendente: a alteração foi conferida em navegador com a identificação do aplicativo; o gesto dos dois dedos não foi executado em aparelho.' },
-    ],
-  },
-  {
-    versao: 634, data: '2026-11-11', titulo: 'Compartilhamento: link que abre a música no Ecoa e destinos Instagram, Telegram, Facebook e X',
-    itens: [
-      { tipo: 'correcao', texto: 'O link enviado com o cartão (e o copiado em "Copiar link") era o endereço do vídeo no YouTube. Passou a ser o endereço da música no Ecoa (kvsl11.github.io/Ecoa/#/ouvir/nome/artista), nos cartões Música, Letra e Vídeo. Quem abre o link chega à música: a da própria biblioteca, quando já a tem, ou a música trazida pelo nome e pelo artista, como as da busca. A biblioteca é individual; por isso o link leva o nome e o artista, e não o identificador da música de quem enviou.' },
-      { tipo: 'novo', texto: 'No navegador do Android, o link exibe uma tela com o botão "Abrir no aplicativo", que entrega a música ao aplicativo instalado, além de "Ouvir aqui" e "Procurar na busca". O aplicativo Android passou a receber os links de música (os do site e o endereço próprio ecoa://ouvir) e a abrir a música correspondente. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'novo', texto: 'Aos destinos do compartilhamento foram acrescentados Telegram, Facebook e X, com o símbolo oficial de cada um. O destino Instagram, antes exibido somente no aplicativo Android, passou a aparecer também no navegador que oferece o compartilhamento do sistema. No aplicativo, cada destino abre o aplicativo correspondente com o cartão; no navegador, Telegram, Facebook e X abrem a página de compartilhar de cada serviço com o link.' },
-      { tipo: 'melhoria', texto: 'Pendente: o Android só abre diretamente no aplicativo o link do site quando o endereço é conferido por um arquivo publicado na raiz de kvsl11.github.io (assetlinks.json), que fica fora deste repositório e não foi publicado; até lá, o link abre no navegador, com o botão "Abrir no aplicativo", ou diretamente no aplicativo se a opção "Abrir links compatíveis" for ligada nas configurações do Android. A rota e os destinos foram verificados em navegador; a parte Android não foi executada em aparelho.' },
     ],
   },
 ];
