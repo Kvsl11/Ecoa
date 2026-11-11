@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 653, data: '2026-11-11', titulo: 'Capa animada: faixas de moldura claras gravadas no clipe passam a ser reconhecidas e cortadas',
+    itens: [
+      { tipo: 'correcao', texto: 'Alguns clipes trazem, gravadas no próprio vídeo, faixas de moldura em cima e embaixo. A medição dessas faixas reconhecia apenas as pretas (linhas com luminosidade até 28 de 255); com faixas de outra cor lisa (brancas ou cinza), nada era medido, a capa animada da tela "Tocando agora" permanecia na ampliação padrão de 1,18, que corta 7,6% de cada lado, e as faixas apareciam no alto e no pé da capa. A medição passou a reconhecer faixas de qualquer cor lisa: uma linha é considerada faixa quando 92% dela tem a cor da borda, com tolerância de 18 por canal. Faixas não pretas só são aceitas quando existem nos dois lados, com pelo menos 2% da altura cada e na mesma cor, e permanece a menor medida entre os quadros analisados, de modo que um céu claro ou uma cena lisa não é tratado como moldura.' },
+      { tipo: 'melhoria', texto: 'A ampliação da capa animada passou a incluir uma linha de medição a mais (1,9% da altura), para que a borda borrada da faixa também fique fora da área visível. Em vídeos de teste com faixas de 11,9% da altura, brancas, cinza e pretas, a ampliação calculada foi de 1,391, que corta 14,0% de cada lado; no vídeo sem faixas, a ampliação padrão foi mantida.' },
+      { tipo: 'melhoria', texto: 'A mesma medição passou a valer para os quadros do clipe exibidos quando ele não está baixado, para a prévia e para a capinha das playlists. As medidas guardadas no aparelho, feitas apenas para faixas pretas, são descartadas e refeitas automaticamente na próxima exibição de cada clipe.' },
+      { tipo: 'melhoria', texto: 'Pendente: a medição foi verificada por testes automatizados e em navegador, com vídeos de teste gerados; não foi executada no aplicativo com o clipe em que o problema foi observado nem em aparelho. Molduras laterais não são tratadas.' },
+    ],
+  },
+  {
     versao: 652, data: '2026-11-11', titulo: 'Barra de reprodução do celular: ícone e nome do fone sem contorno, nos modos claro e escuro',
     itens: [
       { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, o ícone de Bluetooth e o nome do fone conectado, abaixo do título, haviam recebido na versão 650 um contorno em tom escuro da cor da música (traço de 4,6 no ícone e de 1,5 px no texto). O contorno foi removido nos modos claro e escuro: o ícone e o nome passaram a ser desenhados apenas na cor do aplicativo. O contorno do ícone do fone, à direita, e do botão da música salva não foi alterado.' },
@@ -74,14 +83,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Na barra de reprodução do celular, o vídeo era exibido inteiro dentro de um espaço mais largo que a proporção 16:9 (112 × 59 px, para um vídeo de 112 × 63 px), com faixas pretas nas laterais, e com cantos arredondados próprios (6 px), diferentes dos do espaço (8 px à esquerda). No modo claro, as faixas e os cantos apareciam como bordas escuras sobre a barra clara. O vídeo passou a preencher o espaço inteiro, com o excedente cortado, e a usar os mesmos cantos do espaço.' },
       { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação do vídeo (quadro do YouTube: 112 × 63 px centrado em 112 × 59 px; vídeo baixado: preenchimento com corte); não foi executada no aplicativo com uma música em reprodução nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 643, data: '2026-11-11', titulo: 'Modo claro: barra fixa do topo do "Tocando agora" com fundo claro e textos dos cartões legíveis',
-    itens: [
-      { tipo: 'correcao', texto: 'A barra fixa do topo do "Tocando agora" (exibida ao rolar a tela) permanecia com fundo escuro no modo claro, com o nome da música, os botões e a linha de progresso, já em tom escuro, ilegíveis. A regra do modo claro incluída na versão 642 tinha precedência menor que a regra original da barra e não era aplicada. A regra foi reescrita com a mesma forma da original: a barra passou a ter fundo claro (24% da cor da música), com o texto e a linha de progresso visíveis.' },
-      { tipo: 'correcao', texto: 'No modo claro, nos cartões abaixo do player, o botão "Explorar", os papéis na lista de créditos e o nome do artista nos vídeos relacionados mantinham a cor branca do modo escuro e ficavam quase invisíveis sobre o cartão claro. Passaram a usar o tom escuro da cor da música.' },
-      { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com a marcação da barra e do cartão (cor de fundo calculada da barra: clara); não foi executada no aplicativo nem em aparelho.' },
     ],
   },
 ];
