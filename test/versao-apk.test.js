@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { versaoDoApk } from '../app-android/scripts/versao-apk.mjs';
+import { notasDaRelease } from '../app-android/scripts/notas-release.mjs';
 import { NOVIDADES, novidadesQueChegam, versaoDoAppDaNovidade } from '../public/js/lib/novidades.js';
 
 test('versão do APK: leva as novidades que vão dentro dele', () => {
@@ -40,4 +41,17 @@ test('Novidades no app: a versão do app em que cada novidade chegou, ou nada', 
   assert.equal(versaoDoAppDaNovidade(575, h), null);
   assert.equal(versaoDoAppDaNovidade(570, h), null);
   assert.equal(versaoDoAppDaNovidade(578, h), null);
+});
+
+test('nota da Release Android: a última nota técnica com o tipo e o texto de cada item', () => {
+  const nota = notasDaRelease();
+  const atual = NOVIDADES[0];
+  assert.ok(nota.includes(`**Versão ${atual.versao} — ${atual.data}: ${atual.titulo}**`));
+  for (const item of atual.itens) assert.ok(nota.includes(` — ${item.texto}`), item.texto.slice(0, 40));
+  assert.ok(!/undefined|\*\*\*\*/.test(nota), nota);
+  assert.match(nota, /- \*\*(NOVO|MELHORIA|CORREÇÃO)\*\* — /);
+  // (os itens só com o texto, como no Ecoa-versao.json, também saem inteiros)
+  const doJson = notasDaRelease(versaoDoApk(1, '1.1').novidades);
+  assert.ok(doJson.includes(`- ${atual.itens[0].texto}`) && !/undefined|\*\*\*\*/.test(doJson));
+  assert.ok(notasDaRelease([]).includes('Não há nota técnica cadastrada.'));
 });
