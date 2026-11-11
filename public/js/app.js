@@ -1543,11 +1543,11 @@ function applyTheme() {
   const branco = [255, 255, 255];
   const preto = [0, 0, 0];
   // cor de texto/ícone legível sobre o fundo atual
-  // (no modo claro, a cor clara escurecida para ler sobre o branco: os acordes da cifra, texto de leitura, com 42% de
-  // preto; os ícones, botões e rótulos, com 18%, para continuarem no mesmo azul do botão da música salva — com 42% o
-  // ciano virava um verde-azulado escuro, outra cor ao lado dele)
+  // (no modo claro, os ícones, botões e rótulos ficam exatamente na cor escolhida nos Ajustes, a mesma do botão da
+  // música salva: com 18% ou 42% de preto ela virava outro tom ao lado dele. Só os acordes da cifra, texto de leitura,
+  // continuam com a cor clara escurecida, com 42% de preto, para ler sobre o branco)
   const escuro = tema === 'light' && L > 0.3;
-  const ink = tema === 'light' ? (escuro ? mistura(c, preto, 0.18) : c) : (L < 0.12 ? mistura(c, branco, 0.45) : c);
+  const ink = tema === 'light' ? c : (L < 0.12 ? mistura(c, branco, 0.45) : c);
   const acorde = escuro ? mistura(c, preto, 0.42) : ink;
   const vars = {
     '--accent': rgbHex(c),
