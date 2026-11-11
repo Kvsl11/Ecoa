@@ -35,7 +35,7 @@ import { analisar as analisarMusica, corpoDaSincronia, corpoDaTranscricao, lerSi
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
 import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
-import { embaralharIndices, moverIndice } from './lib/fila.js';
+import { embaralharIndices, moverIndice, ordemDaPlaylist, ordenarCurtidas } from './lib/fila.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
 import { artistaDeezerCerto, faixaDaMusica, mesmoNomeDeArtista, nomeJunto, nomesParaConferir, primeiraPorPreferencia, primeiroArtista, separarArtistas } from './lib/artistas.js';
 import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
@@ -6073,15 +6073,19 @@ const semLinhasDeAcordes = (sinc) => {
   const musicaTocando = () => (atual?.songId === 'previa' && preview ? preview : atual?.songId && db.song(atual.songId)) || null;
   // A ordem da fila é independente da ordem salva no repertório/biblioteca: pode ser embaralhada e reorganizada
   // sem alterar a lista original. Guardamos os índices originais para não perder partes nem músicas repetidas.
-  let filaOrdemChave = '', filaOrdemBase = '', filaOrdem = [];
+  // A fila começa na ordem em que a lista aparece na tela (o "Ordenar por" da playlist e das Músicas curtidas), e volta
+  // a ela ao desligar o aleatório. Mudando a ordenação da lista, a fila é refeita nela.
+  let filaOrdemChave = '', filaOrdemBase = '', filaOrdem = [], filaOrdemInicial = [];
   const fila = () => {
     const set = atual?.setId && db.set(atual.setId);
     if (set) {
       const base = set.items.map((it) => it.songId);
       const chave = `set:${set.id}`;
-      const assinatura = base.join('|');
+      const ordem = ehPlaylist(set) ? ordemGuardadaDaPlaylist(set.id) : 'personalizada';
+      const assinatura = `${ordem}>${base.join('|')}`;
       if (filaOrdemChave !== chave || filaOrdemBase !== assinatura) {
-        filaOrdemChave = chave; filaOrdemBase = assinatura; filaOrdem = base.map((_, i) => i);
+        filaOrdemInicial = ordemDaPlaylist(set.items, (id) => db.song(id), ordem);
+        filaOrdemChave = chave; filaOrdemBase = assinatura; filaOrdem = [...filaOrdemInicial];
         historico = [];
         if (aleatorio) filaOrdem = embaralharIndices(filaOrdem, atual.index);
       }
@@ -6089,12 +6093,14 @@ const semLinhasDeAcordes = (sinc) => {
       return { set, ids: filaOrdem.map((j) => base[j]), indices: [...filaOrdem], i };
     }
     if (!atual?.songId || !db.song(atual.songId)) return null;
-    const base = db.songs().filter((x) => midiaDe(x)).map((x) => x.id);
+    // (a biblioteca: na ordem das Músicas curtidas)
+    const base = ordenarCurtidas(db.songs().filter((x) => midiaDe(x)), ordemGuardadaDasCurtidas()).map((x) => x.id);
     const chave = 'biblioteca';
     const assinatura = base.join('|');
     const original = base.indexOf(atual.songId);
     if (filaOrdemChave !== chave || filaOrdemBase !== assinatura) {
-      filaOrdemChave = chave; filaOrdemBase = assinatura; filaOrdem = base.map((_, i) => i);
+      filaOrdemInicial = base.map((_, i) => i);
+      filaOrdemChave = chave; filaOrdemBase = assinatura; filaOrdem = [...filaOrdemInicial];
       historico = [];
       if (aleatorio) filaOrdem = embaralharIndices(filaOrdem, original);
     }
@@ -7678,7 +7684,7 @@ const semLinhasDeAcordes = (sinc) => {
       const f = fila();
       aleatorio = !aleatorio;
       db.setPref('aleatorio', aleatorio);
-      if (f) filaOrdem = aleatorio ? embaralharIndices(filaOrdem, f.indices[f.i]) : filaOrdem.map((_, i) => i);
+      if (f) filaOrdem = aleatorio ? embaralharIndices(filaOrdem, f.indices[f.i]) : [...filaOrdemInicial];
       tocadas = new Set(f ? [f.i] : []);
       historico = [];
       toast(aleatorio ? 'Aleatório ligado · fila embaralhada' : 'Aleatório desligado');
@@ -13109,6 +13115,18 @@ function viewBuscaBiblioteca() {
 }
 
 // as músicas curtidas (o coração da estante): todas as músicas salvas, com os filtros delas
+// a ordenação escolhida em cada lista (a da tela e a da fila do player são a mesma)
+function ordemGuardadaDasCurtidas() {
+  let v = 'recentes';
+  try { v = localStorage.getItem('songbook.bib.ordemMus') || 'recentes'; } catch { /* sem armazenamento */ }
+  if (v === 'az') v = 'titulo';
+  return ['titulo', 'artista', 'album', 'recentes'].includes(v) ? v : 'recentes';
+}
+function ordemGuardadaDaPlaylist(id) {
+  let v = '';
+  try { v = localStorage.getItem(`songbook.bib.pl.${id}.ordem`) || ''; } catch { /* sem armazenamento */ }
+  return ['personalizada', 'titulo', 'artista', 'adicionadas'].includes(v) ? v : 'personalizada';
+}
 const ORDENS_CURTIDAS = [['titulo', 'Título'], ['artista', 'Artista'], ['album', 'Álbum'], ['recentes', 'Adicionadas recentemente']];
 function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set(), rolagem = null } = {}) {
   if (!FILTROS_MUSICAS.includes(filtro)) return viewEstante(filtro, { selecionando, marcados });
@@ -13124,18 +13142,13 @@ function viewLibrary(filtro = 'tudo', { selecionando = false, marcados = new Set
   const FILTROS = [['musicas', 'Todas', todas.length], ['video', 'Com vídeo', todas.filter((x) => x.youtube).length], ['partitura', 'Com partitura', todas.filter(temPartitura).length],
     ['proprias', 'Cifras próprias', todas.filter(ehPropria).length], ['baixadas', 'Baixadas', nBaixadas]];
   // a ordem (o "Ordenar" ao lado da busca, como no Spotify): título, artista, álbum ou as salvas por último primeiro
-  const ordemMus = ORDENS_CURTIDAS.find(([k]) => k === ({ az: 'titulo' }[prefBib('ordemMus', 'recentes')] || prefBib('ordemMus', 'recentes')))?.[0] || 'recentes';
+  const ordemMus = ordemGuardadaDasCurtidas();
   let itens = todas;
   if (filtro === 'video') itens = itens.filter((s) => s.youtube);
   if (filtro === 'proprias') itens = itens.filter(ehPropria);
   if (filtro === 'partitura') itens = itens.filter(temPartitura);
   if (filtro === 'baixadas') itens = itens.filter((x) => x.baixado && !precisaBaixar(x));
-  const pt = (a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' });
-  const album = (x) => /\{\s*album\s*:\s*([^}]*)\}/i.exec(x.content || '')?.[1].trim() || '';
-  if (ordemMus === 'recentes') itens.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  if (ordemMus === 'titulo') itens.sort((a, b) => pt(a.title, b.title));
-  if (ordemMus === 'artista') itens.sort((a, b) => pt(a.artist, b.artist) || pt(a.title, b.title));
-  if (ordemMus === 'album') itens.sort((a, b) => Number(!album(a)) - Number(!album(b)) || pt(album(a), album(b)) || pt(a.title, b.title));
+  itens = ordenarCurtidas(itens, ordemMus);
   const marca = () => `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>`;
   const linha = (s) => {
     const foto = fotoReal(s.fotoArtista);
@@ -17490,16 +17503,12 @@ function viewPlaylist(set) {
   setTab('biblioteca');
   setTint(corDaMusica(set.name));
   const comVideo = videoNaPlaylist(set);
-  const ordem = ORDENS_PLAYLIST.find(([k]) => k === prefBib(`pl.${id}.ordem`, ''))?.[0] || 'personalizada';
+  const ordem = ordemGuardadaDaPlaylist(id);
   const alternarVideo = () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewPlaylist(db.set(id)); };
   setHeader(set.name, { back: '#/biblioteca/playlists', actions: [{ icon: 'more', label: 'Mais opções', onClick: () => menuDaPlaylist(set, { comVideo, alternarVideo }) }] });
   const aleat = Boolean(db.prefs().aleatorio);
-  // a ordem da vista (a salva continua a mesma: é a do "Ordem personalizada" e a do player)
-  const lista = set.items.map((it, i) => ({ it, i, s: db.song(it.songId) }));
-  const porTexto = (f) => (a, b) => (f(a) || '').localeCompare(f(b) || '', 'pt-BR');
-  if (ordem === 'titulo') lista.sort(porTexto((x) => x.s?.title));
-  if (ordem === 'artista') lista.sort((a, b) => porTexto((x) => x.s?.artist)(a, b) || porTexto((x) => x.s?.title)(a, b));
-  if (ordem === 'adicionadas') lista.sort((a, b) => (b.it.em || 0) - (a.it.em || 0) || b.i - a.i);
+  // a ordem da vista (a salva continua a mesma: é a do "Ordem personalizada"); a fila do player segue a da vista
+  const lista = ordemDaPlaylist(set.items, (k) => db.song(k), ordem).map((i) => ({ it: set.items[i], i, s: db.song(set.items[i].songId) }));
   view.innerHTML = `
     <section class="pl-topo">
       <button class="pl-capa" id="pl-capa" aria-label="Nome e detalhes" title="Nome e detalhes">${capaRepertorio(set)}</button>

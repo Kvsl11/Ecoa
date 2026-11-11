@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 654, data: '2026-11-11', titulo: 'Fila de reprodução na mesma ordem em que a playlist e as Músicas curtidas estão ordenadas',
+    itens: [
+      { tipo: 'correcao', texto: 'A opção "Ordenar por" da playlist e das Músicas curtidas alterava apenas a lista exibida. A fila do player era montada sempre na ordem salva (na playlist, a ordem personalizada; nas Músicas curtidas, a ordem interna da biblioteca), de modo que uma lista ordenada por artista era reproduzida em outra sequência. A fila passou a ser montada na ordenação escolhida em cada lista: título, artista, álbum ou adicionadas recentemente. Ao alterar a ordenação com uma música em reprodução, a fila é refeita na nova ordem a partir da música atual; ao desligar o aleatório, a fila retorna à ordenação da lista.' },
+      { tipo: 'melhoria', texto: 'A lista exibida e a fila passaram a usar a mesma rotina de ordenação. Na playlist ordenada por título ou por artista, a comparação deixou de diferenciar maiúsculas e acentos, o que mantém juntas as músicas do mesmo artista escrito de formas diferentes. A ordem salva da playlist e os repertórios de missa não foram alterados.' },
+      { tipo: 'melhoria', texto: 'Pendente: a ordenação foi verificada por testes automatizados e a abertura do aplicativo, em navegador; a reprodução em sequência não foi executada no aplicativo nem em aparelho. Os filtros das Músicas curtidas (por exemplo, "Baixadas") não restringem a fila, que continua incluindo todas as músicas com áudio ou vídeo.' },
+    ],
+  },
+  {
     versao: 653, data: '2026-11-11', titulo: 'Capa animada: faixas de moldura claras gravadas no clipe passam a ser reconhecidas e cortadas',
     itens: [
       { tipo: 'correcao', texto: 'Alguns clipes trazem, gravadas no próprio vídeo, faixas de moldura em cima e embaixo. A medição dessas faixas reconhecia apenas as pretas (linhas com luminosidade até 28 de 255); com faixas de outra cor lisa (brancas ou cinza), nada era medido, a capa animada da tela "Tocando agora" permanecia na ampliação padrão de 1,18, que corta 7,6% de cada lado, e as faixas apareciam no alto e no pé da capa. A medição passou a reconhecer faixas de qualquer cor lisa: uma linha é considerada faixa quando 92% dela tem a cor da borda, com tolerância de 18 por canal. Faixas não pretas só são aceitas quando existem nos dois lados, com pelo menos 2% da altura cada e na mesma cor, e permanece a menor medida entre os quadros analisados, de modo que um céu claro ou uma cena lisa não é tratado como moldura.' },
@@ -76,13 +84,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" abriam dentro da folha de compartilhar (94% da altura), com a alça da folha acima delas. Na tela dos versos, a alça formava uma faixa na cor da folha (branca no modo claro) sobre o fundo colorido, com os cantos arredondados aparentes. As duas telas passaram a ocupar a tela toda, sem a alça, nos dois modos; ao voltar aos cartões, a folha retorna ao tamanho anterior.' },
       { tipo: 'melhoria', texto: 'A tela "Escolher os versos" tinha uma única aparência (a cor do cartão cheia, com o texto branco), usada também no modo claro. No modo claro, passou a ter fundo em degradê da cor do cartão misturada com branco (de 30% a 12% da cor), com o texto em tom escuro da mesma cor e os versos escolhidos e o botão "Continuar" em fundo escuro com texto branco. O modo escuro não foi alterado. A tela "Personalizar" já seguia o modo do aplicativo.' },
       { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em página de teste com a marcação da folha (390 × 800), nos dois modos; não foram executadas no aplicativo nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 644, data: '2026-11-11', titulo: 'Barra de reprodução: vídeo sem faixas escuras nas bordas',
-    itens: [
-      { tipo: 'correcao', texto: 'Na barra de reprodução do celular, o vídeo era exibido inteiro dentro de um espaço mais largo que a proporção 16:9 (112 × 59 px, para um vídeo de 112 × 63 px), com faixas pretas nas laterais, e com cantos arredondados próprios (6 px), diferentes dos do espaço (8 px à esquerda). No modo claro, as faixas e os cantos apareciam como bordas escuras sobre a barra clara. O vídeo passou a preencher o espaço inteiro, com o excedente cortado, e a usar os mesmos cantos do espaço.' },
-      { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação do vídeo (quadro do YouTube: 112 × 63 px centrado em 112 × 59 px; vídeo baixado: preenchimento com corte); não foi executada no aplicativo com uma música em reprodução nem em aparelho.' },
     ],
   },
 ];
