@@ -177,8 +177,22 @@ jobs:
         run: |
           set -euo pipefail
           # Os dois arquivos são obrigatórios: publicar o Pages sem um deles deixa o app sem detectar a atualização.
-          gh release download android -p Ecoa.apk -D public --clobber
-          gh release download android -p Ecoa-versao.json -D public --clobber
+          # O robô "App de Android" roda no mesmo push e, ao publicar o APK novo, apaga a release "android" e a cria de
+          # novo. A publicação que chegava aqui nesse intervalo falhava com "release not found" (a execução 1727, do
+          # merge #492). Em vez de falhar na primeira tentativa, espera a release voltar: até 20 tentativas, uma a cada
+          # 15 s (5 min), e só então falha.
+          baixar() {
+            for tentativa in $(seq 1 20); do
+              if gh release download android -p "$1" -D public --clobber && test -s "public/$1"; then return 0; fi
+              echo "::warning::$1 ainda não disponível na release android (tentativa $tentativa de 20): aguardando 15 s"
+              sleep 15
+            done
+            echo "::error::$1 não ficou disponível na release android em 5 minutos"
+            return 1
+          }
+          # (a versão primeiro: ela é enviada à release antes do APK; depois o APK, que confirma a release completa)
+          baixar Ecoa-versao.json
+          baixar Ecoa.apk
           test -s public/Ecoa.apk
           test -s public/Ecoa-versao.json
           node -e "const v=require('./public/Ecoa-versao.json'); if (!Number.isInteger(v.codigo) || !v.nome) process.exit(1); console.log('APK publicado:', v.nome, '(código', v.codigo + ')')"

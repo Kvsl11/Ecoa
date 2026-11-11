@@ -1543,7 +1543,12 @@ function applyTheme() {
   const branco = [255, 255, 255];
   const preto = [0, 0, 0];
   // cor de texto/ícone legível sobre o fundo atual
-  const ink = tema === 'light' ? (L > 0.3 ? mistura(c, preto, 0.42) : c) : (L < 0.12 ? mistura(c, branco, 0.45) : c);
+  // (no modo claro, a cor clara escurecida para ler sobre o branco: os acordes da cifra, texto de leitura, com 42% de
+  // preto; os ícones, botões e rótulos, com 18%, para continuarem no mesmo azul do botão da música salva — com 42% o
+  // ciano virava um verde-azulado escuro, outra cor ao lado dele)
+  const escuro = tema === 'light' && L > 0.3;
+  const ink = tema === 'light' ? (escuro ? mistura(c, preto, 0.18) : c) : (L < 0.12 ? mistura(c, branco, 0.45) : c);
+  const acorde = escuro ? mistura(c, preto, 0.42) : ink;
   const vars = {
     '--accent': rgbHex(c),
     '--accent-2': rgbHex(mistura(c, branco, 0.12)),
@@ -1551,7 +1556,7 @@ function applyTheme() {
     '--accent-soft': `rgb(${c.join(' ')} / ${tema === 'light' ? 0.14 : 0.16})`,
     '--accent-ink': rgbHex(ink),
     '--on-accent': L > 0.36 ? '#000' : '#fff',
-    '--chord': rgbHex(ink),
+    '--chord': rgbHex(acorde),
     '--chorus-bar': rgbHex(c),
     '--logo-ink': rgbHex(mistura(c, preto, 0.82)),
   };
@@ -9055,8 +9060,8 @@ if (matchMedia('(hover: hover)').matches) {
 }
 
 // ---- a página inicial no jeito do Spotify: filtros em chips no topo (Tudo, Músicas, Repertórios, Liturgia), os
-// atalhos, os repertórios como os "mixes" (a capa grande com o nome numa faixa colorida), as recentes menores, um
-// repertório em destaque num cartão largo e os artistas da biblioteca em fotos redondas
+// atalhos, os repertórios como os "mixes" (a capa grande com o nome numa faixa colorida), as recentes menores, os
+// videoclipes (os das músicas e mais dos artistas delas) e os artistas da biblioteca em fotos redondas
 // (a liturgia saiu da página inicial: ela tem a aba dela, embaixo)
 const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios']];
 const filtroInicio = () => { try { const f = sessionStorage.getItem('filtroInicio'); return FILTROS_INICIO.some(([k]) => k === f) ? f : 'tudo'; } catch { return 'tudo'; } };
@@ -9073,22 +9078,79 @@ function tileMix(s) {
     ${s.items.length ? (ehPlaylist(s) ? `<button class="tile-play" data-tocar-set="${s.id}" aria-label="Ouvir a playlist">${icon('play', 18)}</button>` : `<button class="tile-play" data-href="#/repertorio/${s.id}/0" aria-label="Tocar repertório">${icon('play', 18)}</button>`) : ''}</div>
     <small>${esc(quemNoRepertorio(s))}</small></a>`;
 }
-// o repertório em destaque: o próximo (de hoje em diante) ou o mais recente, num cartão largo na cor dele
-function cartaoDestaque(s) {
-  const songs = s.items.map((it) => db.song(it.songId)).filter(Boolean);
-  const nomes = songs.slice(0, 4).map((x) => x.title).join(', ');
-  return `<div class="destaque" style="--h:${hue(s.name)}">
-    <a class="destaque-capa" href="#/repertorio/${s.id}" tabindex="-1" aria-hidden="true">${capaRepertorio(s)}<span class="mix-faixa"><span>${esc(s.name)}</span></span></a>
-    <div class="destaque-info">
-      <a class="destaque-nome" href="#/repertorio/${s.id}"><b>${esc(s.name)}</b><small>${tipoDoSet(s)} · ${fmtData(s.date)}</small></a>
-      <p>${esc(resumoRepertorio(s))}${nomes ? ` • ${esc(nomes)}${songs.length > 4 ? ' e mais' : ''}` : ''}</p>
-      <div class="destaque-acoes">
-        <a class="icon-btn" href="#/repertorio/${s.id}" aria-label="Abrir o repertório" title="Abrir">${icon('list', 20)}</a>
-        ${s.items.length ? (ehPlaylist(s) ? `<button class="play-big" data-tocar-set="${s.id}" aria-label="Ouvir a playlist">${icon('play', 20)}</button>`
-    : `<a class="play-big" href="#/repertorio/${s.id}/0" aria-label="Tocar o repertório">${icon('play', 20)}</a>`) : ''}
-      </div>
-    </div>
-  </div>`;
+// ---- os videoclipes na página inicial (no lugar do cartão "Para o próximo repertório"): os clipes das músicas da
+// biblioteca (as baixadas primeiro, que tocam sem internet) e, com internet, outros clipes dos artistas dessas músicas
+// o clipe da música: o vídeo dela, quando é videoclipe de verdade (conferido, ou baixado como vídeo); '' se não
+function clipeDaMusica(s) {
+  if (!s?.youtube || ehArquivo(s.youtube)) return '';
+  const id = versoesDe(s)?.video || s.youtube;
+  if (!id || ehArquivo(id)) return '';
+  const emVideo = String(s.baixado?.arquivos?.[id]?.tipo || '').startsWith('video/');
+  return s.semClipe === false || emVideo ? id : '';
+}
+function clipesDaBiblioteca(n = 12) {
+  const com = db.recentSongs(1e4).map((s) => ({ s, id: clipeDaMusica(s) })).filter((x) => x.id)
+    .filter((x, i, l) => l.findIndex((y) => y.id === x.id) === i);
+  return [...com.filter((x) => x.s.baixado), ...com.filter((x) => !x.s.baixado)].slice(0, n);
+}
+// os artistas de quem procurar mais clipes: os das músicas baixadas (os com mais músicas primeiro); sem nenhuma baixada,
+// os da biblioteca
+function artistasDosClipes(n = 4) {
+  const conta = (songs) => {
+    const porNome = new Map();
+    for (const s of songs) {
+      const nome = String(s.artist || '').trim();
+      if (!nome || (ehDaLiturgia(s) && !confiavelNaLiturgia(nome))) continue;
+      const a = porNome.get(normalizar(nome)) || { nome, n: 0 };
+      a.n++;
+      porNome.set(normalizar(nome), a);
+    }
+    return [...porNome.values()].sort((x, y) => y.n - x.n).slice(0, n).map((a) => a.nome);
+  };
+  const todas = db.recentSongs(1e4);
+  const baixadas = conta(todas.filter((s) => s.baixado));
+  return baixadas.length ? baixadas : conta(todas);
+}
+const tileClipe = ({ attr, capaUrl, titulo, artista, duracao = '', baixado = false }) => `<button class="tile tile-clipe" ${attr} title="${esc(titulo)}">
+  <span class="clipe-capa" style="background-image:url('${esc(capaUrl)}')">${duracao ? `<i>${esc(duracao)}</i>` : ''}<span class="clipe-play">${icon('play', 16)}</span></span>
+  <b>${esc(titulo)}</b><small>${baixado ? `<span class="clipe-baixado" title="Baixado">${icon('check', 12)}</span>` : ''}${esc(artista)}</small></button>`;
+let clipesRelacionados = [];
+// mais clipes dos artistas (do YouTube), sem os que já são músicas do aparelho, um de cada artista por vez
+async function carregarClipesRelacionados(box) {
+  const sec = $('.inicio-clipes-rel', box);
+  if (!sec || !navigator.onLine) return;
+  const listas = await Promise.all(artistasDosClipes().map((nome) => videosDoArtista(nome).catch(() => [])));
+  const vistos = new Set();
+  const juntos = [];
+  for (let i = 0; juntos.length < 12 && listas.some((l) => l[i]); i++) {
+    for (const l of listas) {
+      const v = l[i];
+      if (!v || vistos.has(v.id) || musicaDoVideoRelacionado(v)) continue;
+      vistos.add(v.id);
+      juntos.push(v);
+    }
+  }
+  if (!sec.isConnected || !juntos.length) return;
+  clipesRelacionados = juntos.slice(0, 12);
+  $('.shelf', sec).innerHTML = clipesRelacionados.map((v, i) => tileClipe({ attr: `data-clipe-rel="${i}"`, capaUrl: v.capa || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`, titulo: v.titulo, artista: v.artista, duracao: v.duracao })).join('');
+  sec.hidden = false;
+}
+// tocar no clipe: toca já no modo vídeo. O da biblioteca toca a música de lá (com a letra, a cifra e os arquivos dela)
+function ligarClipes(box) {
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('.tile-clipe');
+    if (!b) return;
+    const song = b.dataset.clipe && db.song(b.dataset.clipe);
+    if (song) { player.paraModoVideo(); player.tocar(itemDoPlayer(song)); return; }
+    const v = clipesRelacionados[b.dataset.clipeRel];
+    if (!v) return;
+    const salva = musicaDoVideoRelacionado(v);
+    if (salva) { player.paraModoVideo(); player.tocar(itemDoPlayer(salva)); return; }
+    const video = { ...v, titulo: v.tituloDoVideo };
+    player.tocar({ youtube: v.id, titulo: v.titulo, artista: v.artista, abrir: () => abrirMusica({ titulo: v.titulo, artista: v.artista, video }, location.hash),
+      salvar: () => salvarDaInternet('musica', { titulo: v.titulo, artista: v.artista, video }) });
+    player.paraModoVideo();
+  });
 }
 // os artistas da biblioteca (os com mais músicas primeiro). Nas músicas da missa, só quem é confiável (a foto de um
 // nome como "Hinário Litúrgico" seria de outra pessoa)
@@ -9129,9 +9191,7 @@ function viewHome() {
     ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 8 - Math.min(3, sets.length))
       .map((s) => `<a href="#/musica/${s.id}">${capa(s)}<span>${esc(s.title)}</span></a>`),
   ];
-  // em destaque: o próximo repertório com músicas (ou o mais recente)
-  const comMusicas = sets.filter((s) => s.items.length);
-  const destaque = [...comMusicas].filter((s) => (s.date || '') >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0] || comMusicas[0];
+  const clipes = clipesDaBiblioteca();
   const artistas = artistasDaBiblioteca();
   const filtro = filtroInicio();
   // As mais tocadas dos últimos 30 dias (pelo tempo ouvido, das Estatísticas), entre as que estão na biblioteca: ficam
@@ -9158,8 +9218,10 @@ function viewHome() {
     ${recentes.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Recentes</h2><a href="#/biblioteca/musicas">Mostrar tudo</a></div>
       <div class="shelf pequena">${recentes.slice(0, 16).map(tileMusica).join('')}</div></section>` : ''}
 
-    ${destaque ? `<section data-sec="repertorios"><div class="shelf-head"><h2>${(destaque.date || '') >= hoje ? 'Para o próximo repertório' : 'Feito por você'}</h2></div>
-      ${cartaoDestaque(destaque)}</section>` : ''}
+    ${clipes.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Seus videoclipes</h2></div>
+      <div class="shelf clipes">${clipes.map(({ s, id }) => tileClipe({ attr: `data-clipe="${s.id}"`, capaUrl: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, titulo: s.title, artista: s.artist || '', baixado: Boolean(s.baixado) })).join('')}</div></section>` : ''}
+    <section data-sec="musicas" class="inicio-clipes-rel" hidden><div class="shelf-head"><h2>Mais clipes dos seus artistas</h2></div>
+      <div class="shelf clipes"></div></section>
 
     ${artistas.length >= 2 ? `<section data-sec="musicas"><div class="shelf-head"><h2>Seus artistas</h2></div>
       <div class="shelf">${artistas.map(tileArtistaInicio).join('')}</div></section>` : ''}
@@ -9171,6 +9233,8 @@ function viewHome() {
         <div class="row"><a class="btn primary" href="#/editar/novo">Criar música</a><a class="btn" href="#/liturgia">Missa de hoje</a><a class="btn" href="#/buscar">Buscar cantos</a></div></div></section>`}
     </div>`;
   ligarTiles(view);
+  ligarClipes(view);
+  void carregarClipesRelacionados(view).catch(() => {});
   enriquecerTilesArtistas(view);
   $('#pede-notif', view)?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-notif]');
@@ -15860,7 +15924,7 @@ async function viewPartitura(id) {
   const coresDoTema = () => {
     const css = getComputedStyle(document.documentElement);
     const v = (n, d) => css.getPropertyValue(n).trim() || d;
-    return { musica: v('--text', '#f2f2f2'), texto: v('--text', '#f2f2f2'), cifra: v('--accent-ink', '#4fd1e8') };
+    return { musica: v('--text', '#f2f2f2'), texto: v('--text', '#f2f2f2'), cifra: v('--chord', '#4fd1e8') };
   };
   let desenhado = ''; // o tom, o zoom e a largura do último desenho: igual, não desenha de novo
   const desenhar = async () => {
