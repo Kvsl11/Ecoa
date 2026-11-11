@@ -11418,6 +11418,9 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   tela.className = 'sobre-artista carregando'; // (carregando: o círculo no meio da tela, até chegarem as fotos e o texto)
   tela.setAttribute('role', 'dialog');
   tela.setAttribute('aria-label', `Sobre ${nome}`);
+  // (o fundo na cor da música que está tocando, a mesma da letra na tela toda; sem o player, a cor da página)
+  const corDaTela = getComputedStyle(document.querySelector('#player') || document.documentElement).getPropertyValue('--cor-musica').trim();
+  if (corDaTela) tela.style.setProperty('--cor-musica', corDaTela);
   tela.innerHTML = `<header class="sa-topo"><button class="icon-btn" data-sa="voltar" aria-label="Voltar">${icon('back', 24)}</button><b>${esc(nome)}</b><span></span></header>
     <div class="sa-fotos"></div><div class="sa-numeros" hidden></div><div class="sa-texto">${esqueleto('texto', 'Carregando…', 5)}</div><div class="sa-links"></div>`;
   document.body.append(tela);

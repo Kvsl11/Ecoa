@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 641, data: '2026-11-11', titulo: 'Modo claro no player ("Tocando agora" e barra de reprodução) e tela "Sobre o artista" na cor da música',
+    itens: [
+      { tipo: 'melhoria', texto: 'A tela "Tocando agora", o cartão da letra, os cartões abaixo dele e a barra de reprodução tinham uma única aparência, escura (a cor da música misturada com preto e o conteúdo em branco), usada também no modo claro. No modo claro, passaram a ter versão própria: a cor da música misturada com branco (em degradê até o branco na tela "Tocando agora"; 24% da cor na barra de reprodução; 30% no cartão da letra) e o texto, os botões e a barra de tempo em um tom escuro da mesma cor. O que fica sobre imagem (o vídeo, a capa, a foto do artista e o topo sobre a capa animada) e os itens na cor do aplicativo (música salva, aleatório e repetir ligados, fone conectado) não foram alterados. O modo escuro não foi alterado.' },
+      { tipo: 'melhoria', texto: 'A tela "Sobre o artista" tinha fundo cinza-escuro fixo (#121212) nos dois modos. O fundo passou a usar a cor predominante da música em reprodução, a mesma da letra na tela toda: no modo escuro, a cor misturada com preto (de 80% a 62% da cor); no modo claro, a cor misturada com branco, em degradê, com o texto em um tom escuro da mesma cor.' },
+      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em páginas de teste com a marcação do player e da tela do artista, no celular, nos dois modos; não foram executadas no aplicativo com uma música em reprodução, no tablet nem em aparelho. A capa animada (quadros do clipe atrás do topo) foi verificada com uma imagem de teste.' },
+    ],
+  },
+  {
     versao: 640, data: '2026-11-11', titulo: 'Compartilhamento: cartões Letra e Vídeo enviados com a música (áudio do trecho dos versos e trecho do refrão do clipe)',
     itens: [
       { tipo: 'novo', texto: 'O cartão Letra passou a poder ser enviado em vídeo com o áudio da música: o trecho em que os versos escolhidos são cantados, obtido pela letra sincronizada, do início do primeiro verso (0,3 segundo antes) ao fim do último, com duração entre 4 e 30 segundos. O som entra e sai gradualmente. O cartão mantém a cor, a imagem de fundo e o fundo animado escolhidos.' },
@@ -79,13 +87,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" tinham altura limitada (640 pixels na primeira) e também deixavam área vazia. Passaram a abrir com a folha na altura toda: a lista de versos vai até o pé e, no "Personalizar", o cartão ocupa o espaço entre o título e as ferramentas. Ao voltar aos cartões, a folha retorna ao tamanho em que estava.' },
       { tipo: 'correcao', texto: 'Os destinos WhatsApp e Instagram usavam desenhos aproximados, em traço. Passaram a exibir o símbolo oficial de cada aplicativo (conjunto Simple Icons, de domínio público), preenchido, sobre a cor da marca; o fundo do Instagram passou ao degradê oficial.' },
       { tipo: 'melhoria', texto: 'Pendente: os fundos animados e as demais opções de fundo solicitados com base em um vídeo de referência não foram implementados, pois o vídeo não foi recebido. A verificação foi feita em navegador com tela de celular; o destino Instagram só existe no aplicativo Android e não foi executado em aparelho.' },
-    ],
-  },
-  {
-    versao: 631, data: '2026-11-11', titulo: 'Prévia da playlist: hashtag vazia ("#...") deixou de ser exibida',
-    itens: [
-      { tipo: 'correcao', texto: 'Na prévia da playlist, algumas músicas exibiam uma hashtag sem texto, apenas "#...". A base consultada para o clima e o tema da música (TheAudioDB) devolve "..." no campo que não foi preenchido, e esse valor era usado como hashtag. Passou a ser aceita somente a hashtag que contém ao menos uma letra; a vaga é ocupada pela hashtag seguinte, e o mínimo de 6 por música foi mantido.' },
-      { tipo: 'melhoria', texto: 'As hashtags são calculadas a cada exibição e não ficam guardadas na música; portanto, a correção vale para as músicas já salvas, sem revisão. Foi acrescentado um teste automatizado para o caso.' },
     ],
   },
 ];

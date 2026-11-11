@@ -4083,13 +4083,15 @@ html.pp #player .pl-artista-mais { all: unset; position: absolute; right: 0; bot
 
 /* a tela "Sobre o artista" (o "ver mais"): por cima de tudo, como a do Spotify: o nome em cima, as fotos passando para
    o lado, os números grandes, o texto inteiro e os atalhos */
-.sobre-artista { position: fixed; inset: 0; z-index: 200; overflow-y: auto; overscroll-behavior: contain; background: #121212; color: #fff;
+/* (o fundo na cor predominante da música, como a letra na tela toda: antes era o cinza-escuro fixo, #121212) */
+.sobre-artista { position: fixed; inset: 0; z-index: 200; overflow-y: auto; overscroll-behavior: contain; color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #000) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 62%, #000) 100%);
   padding: 0 0 calc(32px + env(safe-area-inset-bottom)); animation: sa-entra 0.22s ease-out; }
 .sobre-artista.saindo { animation: sa-sai 0.18s ease-in forwards; }
 @keyframes sa-entra { from { transform: translateY(24px); opacity: 0; } }
 @keyframes sa-sai { to { transform: translateY(24px); opacity: 0; } }
 .sa-topo { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 8px 8px;
-  background: #121212; }
+  background: color-mix(in srgb, var(--cor-musica, var(--tint)) 80%, #000); }
 .sa-topo b { text-align: center; font-size: 17px; font-weight: 800; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sa-topo .icon-btn { color: #fff; }
 .sa-fotos { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px 16px 4px; scrollbar-width: none; }
@@ -4105,7 +4107,7 @@ html.pp #player .pl-artista-mais { all: unset; position: absolute; right: 0; bot
 /* carregando: o círculo no meio da tela (antes ficava lá em cima, no lugar do texto, com a tela vazia) */
 .sobre-artista.carregando .sa-texto .loading-note { position: fixed; inset: 0; min-height: 0; margin: 0; pointer-events: none; }
 .sa-texto p { margin: 0 0 12px; font-size: 16px; line-height: 1.55; color: rgb(255 255 255 / 0.9); hyphens: manual; }
-.sa-links { display: grid; margin: 12px 12px 0; padding: 6px 0; border-radius: 12px; background: #1f1f1f; max-width: 736px; }
+.sa-links { display: grid; margin: 12px 12px 0; padding: 6px 0; border-radius: 12px; background: rgb(0 0 0 / 0.24); max-width: 736px; }
 .sa-links:empty { display: none; }
 .sa-links a { display: flex; align-items: center; gap: 14px; padding: 13px 16px; color: #fff; text-decoration: none; font-weight: 700; }
 .sa-links a span { flex: 1; }
@@ -6434,3 +6436,119 @@ html.app-android { touch-action: pan-x pan-y; }
 :root[data-theme="light"].pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { background: linear-gradient(180deg, color-mix(in srgb, var(--lt) 62%, transparent), color-mix(in srgb, var(--lt) 34%, transparent)); }
 :root[data-theme="light"].pp #player.letra-cheia .pl-karaoke[data-estado="preparando"]::after { background: conic-gradient(var(--lt) calc(var(--kar-pct, 0) * 1%), color-mix(in srgb, var(--lt) 16%, transparent) 0); filter: none; }
 :root[data-theme="light"].pp #player.letra-cheia .pl-karaoke[data-estado="preparando"].sem-pct::after { background: conic-gradient(var(--lt) 0 18%, color-mix(in srgb, var(--lt) 16%, transparent) 0); }
+
+/* ============================================================ o player no modo claro
+   O "Tocando agora", o cartão da letra, os cartões de baixo e a barra do player (o mini player) só tinham a aparência
+   escura: a cor da música misturada com o preto e tudo em branco por cima, também no modo claro. No modo claro passam a
+   ter a versão clara: a cor da música misturada com o branco (em degradê até o branco no "Tocando agora") e o texto, os
+   botões e a barra do tempo num tom escuro da mesma cor (--lt). As regras de baixo repetem, uma a uma, as do player
+   que punham branco ou preto fixos (com :where, para não mudar a força de cada uma). O que fica em cima de imagem (o
+   vídeo, a capa, a foto do artista, o topo sobre a capa animada) continua como era */
+html[data-theme="light"] #player { --lt: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #08080a); background: color-mix(in srgb, var(--cor-musica, var(--tint)) 24%, #fff); color: var(--lt); box-shadow: 0 8px 24px rgb(0 0 0 / 0.16); }
+html[data-theme="light"].pp #player { background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 42%, #fff) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 20%, #fff) 55%, #fff 100%); box-shadow: none; }
+html[data-theme="light"].pp #player, html[data-theme="light"].pp .pl-fundo-casa { --pe-fundo: color-mix(in srgb, var(--cor-musica, var(--tint)) 30%, #fff); }
+html[data-theme="light"].pp:not(.tablet) #player.modo-capa:has(> .pl-fundo:not([hidden])) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 55%, #fff) 0, var(--pe-fundo) var(--fundo-h, 60%), #fff calc(var(--fundo-h, 60%) + 420px)); background-attachment: local; }
+html[data-theme="light"].pp.tablet body.com-player:not(.painel-recolhido):not(.com-letra-cheia) .pl-fundo-casa.ativo {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 55%, #fff) 0, var(--pe-fundo) min(var(--fundo-h, 60%), 100%), #fff calc(min(var(--fundo-h, 60%), 100%) + 420px)); }
+/* (o topo fica sobre a capa animada, escurecida em cima: continua em branco) */
+html[data-theme="light"].pp:not(.tablet) #player.modo-capa:has(> .pl-fundo:not([hidden])) .pl-cab :is(small, b, .icon-btn),
+html[data-theme="light"].pp.tablet body:has(.pl-fundo-casa.ativo):not(.painel-recolhido) #player .pl-cab :is(small, b, .icon-btn) { color: #fff; }
+html[data-theme="light"].pp #player .pl-letra { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 30%, #fff); }
+html[data-theme="light"].pp #player .pl-cartao { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 16%, #fff); }
+html[data-theme="light"].pp #player .pl-pessoas { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 22%, #fff); }
+/* (o que tem a cor do app continua com ela: a música salva, o aleatório e o repetir ligados, o fone conectado) */
+html[data-theme="light"] #player :is(.pl-salva, .pl-fixo-salva).salva { border-color: var(--accent); color: var(--on-accent); }
+html[data-theme="light"] #player .pl-modo.ligado, html[data-theme="light"] #player .pl-aparelho.com-fone { color: var(--accent-ink); }
+html[data-theme="light"].tablet body.painel-recolhido #player { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 24%, #fff); border-color: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: 0 12px 34px rgb(0 0 0 / 0.16); }
+:where([data-theme="light"]) #player { color: var(--lt); }
+:where([data-theme="light"]) #player .pl-txt small { color: color-mix(in srgb, var(--lt) 72%, transparent); }
+:where([data-theme="light"]) #player .icon-btn { color: var(--lt); }
+:where([data-theme="light"]) #player .pl-t0, :where([data-theme="light"]) #player .pl-t1 { color: color-mix(in srgb, var(--lt) 70%, transparent); }
+:where([data-theme="light"]) #player .pl-prog { background: color-mix(in srgb, var(--lt) 16%, transparent); }
+:where([data-theme="light"]) #player .pl-prog i { background: var(--lt); }
+@media (min-width: 900px) { :where([data-theme="light"]) #player .pl-play { background: var(--lt); color: #fff; } }
+@media (min-width: 900px) { :where([data-theme="light"]) #player .pl-pulo { color: color-mix(in srgb, var(--lt) 85%, transparent); } }
+@media (min-width: 900px) { :where([data-theme="light"]) #player .pl-pulo:hover:not(:disabled) { color: var(--lt); } }
+:where([data-theme="light"]) #player .pl-txt small a, :where([data-theme="light"]) #player .pl-txt small .link-btn { color: var(--lt); }
+:where([data-theme="light"]) #player .pl-modo { color: color-mix(in srgb, var(--lt) 70%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-cab small { color: color-mix(in srgb, var(--lt) 90%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-cab .icon-btn { color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-frase { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-troca { background: color-mix(in srgb, var(--lt) 10%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-troca:hover { background: color-mix(in srgb, var(--lt) 14%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-salva { border-color: color-mix(in srgb, var(--lt) 85%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-prog i::after { background: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-acoes .icon-btn { color: color-mix(in srgb, var(--lt) 90%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-play { background: var(--lt); color: #fff; }
+html:where([data-theme="light"]).pp #player .pl-letra-cab .icon-btn { background: color-mix(in srgb, var(--lt) 11%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-linhas p { color: color-mix(in srgb, var(--lt) 95%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-linhas .pl-parte { color: color-mix(in srgb, var(--lt) 85%, transparent); background: color-mix(in srgb, var(--lt) 11%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-linhas p { color: color-mix(in srgb, var(--lt) 50%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-linhas p.cantada { color: color-mix(in srgb, var(--lt) 32%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-linhas p.agora { color: var(--lt); text-shadow: 0 1px 0 rgb(255 255 255 / 0.55), 0 0 20px rgb(255 255 255 / 0.85); }
+html:where([data-theme="light"]).pp #player .pl-ferr-g { background: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr button { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-ferr-g button { color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr-g button:active { background: color-mix(in srgb, var(--lt) 14%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr-g b { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-ferr-g b small { color: color-mix(in srgb, var(--lt) 55%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-rolar { background: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-rolar[aria-pressed="true"] { background: var(--lt); color: #fff; }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-acordes { background: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-acordes[aria-pressed="true"] { background: var(--lt); color: #fff; }
+html:where([data-theme="light"]).pp #player .pl-acorde { background: color-mix(in srgb, var(--lt) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 8%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-acorde .diagrama { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-letra .acorde-pop.no-player { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-letra .acorde-pop.no-player .diagrama { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-cifra .song.lyrics-mode .section-label { background: color-mix(in srgb, var(--lt) 7%, transparent); color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-cifra .line .lyric { color: color-mix(in srgb, var(--lt) 50%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-cifra .line.cantada .lyric { color: color-mix(in srgb, var(--lt) 32%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-cifra .line.agora .lyric { color: var(--lt); text-shadow: 0 1px 0 rgb(255 255 255 / 0.55), 0 0 20px rgb(255 255 255 / 0.85); }
+html:where([data-theme="light"]).pp #player .pl-linhas p.pl-pausa { color: color-mix(in srgb, var(--lt) 32%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra.sincronizada .pl-linhas p.pl-pausa.agora { color: var(--lt); text-shadow: 0 1px 0 rgb(255 255 255 / 0.55), 0 0 20px rgb(255 255 255 / 0.85); }
+html:where([data-theme="light"]).pp #player .pl-letra-topo .icon-btn { color: var(--lt); }
+:where([data-theme="light"]) #player .pl-ver-cifra { background: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); color: var(--lt); }
+:where([data-theme="light"]) #player .pl-ver-cifra > span { color: color-mix(in srgb, var(--lt) 70%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra-topo .pl-leitura { background: color-mix(in srgb, var(--lt) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-letra-topo .pl-leitura[aria-pressed="true"] { background: var(--lt); color: #fff; }
+html:where([data-theme="light"]).pp #player .pl-letra-nome small { color: color-mix(in srgb, var(--lt) 85%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-letra-bts2 .icon-btn { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-cartao { --text: var(--lt); --muted: color-mix(in srgb, var(--lt) 70%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-cartao .ref-pilula { border-color: color-mix(in srgb, var(--lt) 55%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-cartao .ref-linha a { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-artista-pe small { color: color-mix(in srgb, var(--lt) 70%, transparent); }
+:where([data-theme="light"]) #player .pl-fixo-art { color: color-mix(in srgb, var(--lt) 85%, transparent); }
+:where([data-theme="light"]) #player .pl-fixo-txt small { color: color-mix(in srgb, var(--lt) 75%, transparent); }
+:where([data-theme="light"]) #player .pl-fixo-salva { border-color: color-mix(in srgb, var(--lt) 85%, transparent); color: var(--lt); }
+:where([data-theme="light"]) #player .pl-fixo-prog { background: color-mix(in srgb, var(--lt) 14%, transparent); }
+:where([data-theme="light"]) #player .pl-fixo-prog i { background: var(--lt); }
+@media (min-width: 900px) { html:where([data-theme="light"]):not(.tablet) #player .pl-so-pc { color: color-mix(in srgb, var(--lt) 80%, transparent); } }
+@media (min-width: 900px) { html:where([data-theme="light"]):not(.tablet) #player .pl-so-pc:hover { color: var(--lt); } }
+@media (min-width: 900px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-salva { border-color: color-mix(in srgb, var(--lt) 75%, transparent); color: var(--lt); } }
+html:where([data-theme="light"]).tablet body.painel-recolhido #player { border: 1px solid color-mix(in srgb, var(--lt) 8%, transparent); }
+html:where([data-theme="light"]).tablet body.painel-recolhido #player .pl-play { color: var(--lt); }
+html:where([data-theme="light"]).tablet body.painel-recolhido #player .pl-salva { border-color: color-mix(in srgb, var(--lt) 70%, transparent); color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-letra-cab .icon-btn { color: var(--lt) !important; }
+html:where([data-theme="light"]).pp #player .pl-artista-bio p { color: color-mix(in srgb, var(--lt) 78%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-artista-mais { color: var(--lt); }
+@media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-lado [data-pl="aparelhos"] { color: var(--lt); } }
+@media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-salva:not([hidden]) { border-color: color-mix(in srgb, var(--lt) 85%, transparent); color: var(--lt); } }
+@media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); } }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom { color: var(--lt); }
+html:where([data-theme="light"]).pp #player .pl-ferr .pl-ferr-tom:active { background: color-mix(in srgb, var(--lt) 16%, transparent); }
+:where([data-theme="light"]) #player .pl-aparelho { color: color-mix(in srgb, var(--lt) 90%, transparent); }
+:where([data-theme="light"]) #player .pl-aparelho:hover, :where([data-theme="light"]) #player .pl-aparelho:focus-visible { background: color-mix(in srgb, var(--lt) 6%, transparent); }
+html:where([data-theme="light"]).pp #player .pl-fixo-play, html:where([data-theme="light"]).pp body.painel-cheio #player .pl-fixo-play, html:where([data-theme="light"]).pp:not(.tablet) body.painel-cheio #player .pl-fixo-play { color: var(--lt); }
+:where([data-theme="light"]) #player .pl-art-junto { color: color-mix(in srgb, var(--lt) 78%, transparent); }
+
+/* ============================================================ "Sobre o artista" no modo claro: a cor da música
+   misturada com o branco, em degradê, e o texto num tom escuro da mesma cor */
+:root[data-theme="light"] .sobre-artista { --lt: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #08080a); color: var(--lt);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 34%, #fff) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 20%, #fff) 45%, color-mix(in srgb, var(--cor-musica, var(--tint)) 9%, #fff) 100%); }
+:root[data-theme="light"] .sa-topo { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 34%, #fff); }
+:root[data-theme="light"] .sa-topo .icon-btn, :root[data-theme="light"] .sa-links a { color: var(--lt); }
+:root[data-theme="light"] .sa-numeros small { color: color-mix(in srgb, var(--lt) 70%, transparent); }
+:root[data-theme="light"] .sa-texto p { color: color-mix(in srgb, var(--lt) 90%, transparent); }
+:root[data-theme="light"] .sa-links { background: rgb(255 255 255 / 0.6); }
+:root[data-theme="light"] .sa-links a svg:last-child { color: color-mix(in srgb, var(--lt) 50%, transparent); }
