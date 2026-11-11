@@ -1513,7 +1513,8 @@ body.performance #song.lyrics-mode { background: var(--painel); padding-bottom: 
 .grade-albuns { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px 16px; padding: 12px 0; }
 .grade-albuns .tile { margin: 0; padding: 0; }
 .track.faixa .num { width: 22px; text-align: right; color: var(--subtle); font-variant-numeric: tabular-nums; font-size: 13px; }
-.track.faixa.sem-cifra .t { color: var(--muted); }
+/* (a que está tocando fica na cor do app, como nas outras listas: o cinza do "sem cifra" ganhava da cor) */
+.track.faixa.sem-cifra .t:not(.tocando) { color: var(--muted); }
 #art-abas[hidden] { display: none; }
 
 /* salvar na biblioteca (como o "curtir" do Spotify): círculo com +; salva = preenchido na cor de destaque */
@@ -6388,3 +6389,42 @@ html.pp #player .pl-letra-nome b.anda, #player .pl-letra-nome b.anda { text-over
 /* No aplicativo Android a página não amplia com os dois dedos nem com dois toques (como num app nativo): só rola. O
    que tem gesto próprio (touch-action: none) continua com o dele; no site, o zoom do navegador continua valendo */
 html.app-android { touch-action: pan-x pan-y; }
+
+/* ============================================================ a letra na tela toda, no modo claro
+   A tela era só escura (a cor da música misturada com o preto, tudo em branco por cima), também no modo claro. No modo
+   claro passou a ser a versão clara dela: o degradê da cor da música misturada com o branco (mais cor em cima, quase
+   branco embaixo) e a letra, os botões, a barra do tempo e os acordes na mesma cor, bem escura (--lt). A frase de agora
+   fica na tinta cheia, com um brilho claro em volta; as próximas e as cantadas, mais apagadas. */
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra { --lt: color-mix(in srgb, var(--cor-musica, var(--tint)) 45%, #08080a); --tint-cifra: color-mix(in srgb, var(--cor-musica, var(--tint)) 72%, #000); color: var(--lt);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-musica, var(--tint)) 34%, #fff) 0%, color-mix(in srgb, var(--cor-musica, var(--tint)) 20%, #fff) 45%, color-mix(in srgb, var(--cor-musica, var(--tint)) 9%, #fff) 100%); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra-topo .icon-btn, :root[data-theme="light"].pp #player.letra-cheia .pl-letra-bts2 .icon-btn { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra-nome small { color: color-mix(in srgb, var(--lt) 78%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ver-cifra, :root[data-theme="light"].pp #player.letra-cheia .pl-letra-topo .pl-leitura, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr-g, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-rolar, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-acordes { background: color-mix(in srgb, var(--lt) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ver-cifra > span { color: color-mix(in srgb, var(--lt) 72%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ver-cifra::before { box-shadow: 0 1px 5px rgb(0 0 0 / 0.16); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ver-cifra[aria-pressed="false"] .seg-letra, :root[data-theme="light"].pp #player.letra-cheia .pl-ver-cifra[aria-pressed="true"] .seg-cifra { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra-topo .pl-leitura[aria-pressed="true"], :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-rolar[aria-pressed="true"], :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-acordes[aria-pressed="true"] { background: var(--lt); color: #fff; box-shadow: none; }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ferr button, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr-g b, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-tom { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ferr-g button { color: color-mix(in srgb, var(--lt) 85%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ferr-g button:active, :root[data-theme="light"].pp #player.letra-cheia .pl-ferr .pl-ferr-tom:active { background: color-mix(in srgb, var(--lt) 16%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-ferr-g b small { color: color-mix(in srgb, var(--lt) 60%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-linhas p { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-linhas .pl-parte, :root[data-theme="light"].pp #player.letra-cheia .pl-cifra .song.lyrics-mode .section-label { color: color-mix(in srgb, var(--lt) 82%, transparent); background: color-mix(in srgb, var(--lt) 10%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-linhas p, :root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-cifra .line .lyric { color: color-mix(in srgb, var(--lt) 48%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-linhas p.cantada, :root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-cifra .line.cantada .lyric, :root[data-theme="light"].pp #player.letra-cheia .pl-linhas p.pl-pausa { color: color-mix(in srgb, var(--lt) 30%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-linhas p.agora, :root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-cifra .line.agora .lyric, :root[data-theme="light"].pp #player.letra-cheia .pl-letra.sincronizada .pl-linhas p.pl-pausa.agora { color: var(--lt); text-shadow: 0 1px 0 rgb(255 255 255 / 0.55), 0 0 20px rgb(255 255 255 / 0.85); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-cifra .song.lyrics-mode { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-acorde { background: rgb(255 255 255 / 0.6); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 10%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-acorde .diagrama, :root[data-theme="light"].pp #player.letra-cheia .pl-letra .acorde-pop.no-player .diagrama { color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra .acorde-pop.no-player { background: color-mix(in srgb, var(--cor-musica, var(--tint)) 10%, #fff); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-t0, :root[data-theme="light"].pp #player.letra-cheia .pl-t1 { color: color-mix(in srgb, var(--lt) 72%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra .pl-prog { background: color-mix(in srgb, var(--lt) 18%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra .pl-prog i, :root[data-theme="light"].pp #player.letra-cheia .pl-letra .pl-prog i::after { background: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra .pl-play { background: var(--lt); color: #fff; }
+:root[data-theme="light"].pp #player.letra-cheia .pl-letra-seta { background: color-mix(in srgb, var(--lt) 12%, transparent); color: var(--lt); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-karaoke:not([data-estado="ligado"]) { color: var(--lt); background: linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.45));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lt) 12%, transparent), 0 8px 22px color-mix(in srgb, var(--lt) 22%, transparent); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-karaoke[data-estado="ligado"]:not(.aberto) { background: var(--lt); color: #fff; }
+:root[data-theme="light"].pp #player.letra-cheia .pl-karaoke.aberto[data-estado="ligado"] { background: linear-gradient(180deg, color-mix(in srgb, var(--lt) 62%, transparent), color-mix(in srgb, var(--lt) 34%, transparent)); }
+:root[data-theme="light"].pp #player.letra-cheia .pl-karaoke[data-estado="preparando"]::after { background: conic-gradient(var(--lt) calc(var(--kar-pct, 0) * 1%), color-mix(in srgb, var(--lt) 16%, transparent) 0); filter: none; }
+:root[data-theme="light"].pp #player.letra-cheia .pl-karaoke[data-estado="preparando"].sem-pct::after { background: conic-gradient(var(--lt) 0 18%, color-mix(in srgb, var(--lt) 16%, transparent) 0); }
