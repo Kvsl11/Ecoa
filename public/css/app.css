@@ -6544,15 +6544,16 @@ html:where([data-theme="light"]).pp #player .pl-artista-mais { color: var(--lt);
 .ic-contorno { display: inline-grid; flex: none; }
 .ic-contorno > svg { grid-area: 1 / 1; }
 .ic-contorno > svg:first-child { display: none; }
-/* (no modo escuro, o mesmo contorno em branco, o tom do texto da barra: --contorno) */
+/* (o tom do contorno, --contorno: um tom escuro da cor da própria música, nos dois modos — nem preto nem branco fixos.
+   No modo claro, 62% da cor da música com preto; no escuro, onde a barra já é um tom escuro da música, 22%) */
 @media (max-width: 899px) {
-  html:not(.tablet):not(.pp) #player { --contorno: #fff; }
-  html[data-theme="light"]:not(.tablet):not(.pp) #player { --contorno: var(--lt); }
+  html:not(.tablet):not(.pp) #player { --contorno: color-mix(in srgb, var(--cor-musica, var(--tint)) 22%, #000); }
+  html[data-theme="light"]:not(.tablet):not(.pp) #player { --contorno: color-mix(in srgb, var(--cor-musica, var(--tint)) 62%, #000); }
   html:not(.tablet):not(.pp) #player :is(.pl-lado, .pl-onde) .ic-contorno > svg:first-child { display: block; color: var(--contorno); stroke-width: 4.6; }
   /* (o botão da música salva: o contorno no mesmo tom, inteiro. No modo claro era 85% do tom sobre o azul do botão — o
      contorno é pintado por cima do fundo —, e saía esverdeado; no escuro, era da cor do próprio botão, sem contorno) */
   html:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { border-color: var(--contorno); }
-  html[data-theme="light"]:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { color: var(--lt); }
+  html:not(.tablet):not(.pp) #player .pl-salva.salva:not([hidden]) { color: var(--contorno); }
   html:not(.tablet):not(.pp) #player .pl-onde span:not(.ic-contorno) { -webkit-text-stroke: 1.5px var(--contorno); paint-order: stroke fill; }
 }
 @media (max-width: 899px) { html:where([data-theme="light"]):not(.tablet):not(.pp) #player .pl-prog { background: color-mix(in srgb, var(--lt) 20%, transparent); } }
