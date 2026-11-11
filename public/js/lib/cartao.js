@@ -63,6 +63,24 @@ export function textoDoCartao({ titulo = '', artista = '', url = '', versos = []
   return [trecho, [nome, url].filter(Boolean).join('\n')].filter(Boolean).join('\n\n');
 }
 
+// O endereço da música no Ecoa, para o link compartilhado: abre o app (ou o site) na música, procurada pelo nome e pelo
+// artista — a biblioteca é de cada pessoa, então o link não leva o número da música de quem enviou. '' sem o nome.
+// (os parênteses, o "!", o "'" e o "*" também vão codificados: os aplicativos de mensagem cortam o link neles)
+export const ENDERECO_DO_ECOA = 'https://kvsl11.github.io/Ecoa/';
+const parteDoLink = (t) => encodeURIComponent(String(t || '').replace(/\s+/g, ' ').trim()).replace(/[!'()*]/g, (x) => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
+export function linkDaMusicaNoEcoa(titulo, artista = '') {
+  const t = parteDoLink(titulo);
+  if (!t) return '';
+  const a = parteDoLink(artista);
+  return `${ENDERECO_DO_ECOA}#/ouvir/${t}${a ? `/${a}` : ''}`;
+}
+// o mesmo, para abrir o aplicativo Android a partir do navegador (o Chrome entrega ao app instalado; sem ele, abre o site)
+export function linkParaAbrirNoAplicativo(titulo, artista = '') {
+  const web = linkDaMusicaNoEcoa(titulo, artista);
+  if (!web) return '';
+  return `intent://ouvir/${web.split('#/ouvir/')[1]}#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=${encodeURIComponent(web)};end`;
+}
+
 // Quebra o texto em linhas que cabem na largura (medir: texto -> largura). A palavra maior que a linha fica sozinha
 export function quebrarTexto(medir, texto, largura) {
   const linhas = [];
