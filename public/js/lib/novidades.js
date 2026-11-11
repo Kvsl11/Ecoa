@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 635, data: '2026-11-11', titulo: 'Aplicativo Android: zoom de página com os dois dedos desativado',
+    itens: [
+      { tipo: 'correcao', texto: 'No aplicativo Android, no celular e no tablet, a tela podia ser ampliada com os dois dedos (e com dois toques), como uma página de navegador: a página não declarava limite de ampliação e o WebView mantinha o zoom de página ligado. No aplicativo, a página passou a declarar a escala fixa (máxima 1, sem ampliação pelo usuário) e a aceitar somente o gesto de rolagem. Essa parte vale para o aplicativo já instalado, sem atualização.' },
+      { tipo: 'melhoria', texto: 'O WebView do aplicativo passou a ter o zoom de página desligado também na parte nativa (suporte a zoom e controles de zoom). Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'No site aberto pelo navegador, o zoom continua disponível. Pendente: a alteração foi conferida em navegador com a identificação do aplicativo; o gesto dos dois dedos não foi executado em aparelho.' },
+    ],
+  },
+  {
     versao: 634, data: '2026-11-11', titulo: 'Compartilhamento: link que abre a música no Ecoa e destinos Instagram, Telegram, Facebook e X',
     itens: [
       { tipo: 'correcao', texto: 'O link enviado com o cartão (e o copiado em "Copiar link") era o endereço do vídeo no YouTube. Passou a ser o endereço da música no Ecoa (kvsl11.github.io/Ecoa/#/ouvir/nome/artista), nos cartões Música, Letra e Vídeo. Quem abre o link chega à música: a da própria biblioteca, quando já a tem, ou a música trazida pelo nome e pelo artista, como as da busca. A biblioteca é individual; por isso o link leva o nome e o artista, e não o identificador da música de quem enviou.' },
@@ -77,14 +85,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'O widget tinha um único leiaute, com a capa em tamanho fixo (96 dp) e os botões alinhados à esquerda abaixo do texto; redimensionado, os elementos ficavam cortados ou desalinhados. Passou a ter três formatos, com as mesmas peças: uma linha (4 × 1), com a capa pequena, o nome, o artista e os botões à direita; o padrão (4 × 2), com a capa na altura inteira e os botões centralizados; e o grande (3 linhas ou mais), com a capa em cima. No Android 12 ou mais novo, o sistema troca o formato ao redimensionar; nas versões anteriores, o formato é escolhido pela altura do widget. O tamanho mínimo ao redimensionar passou de 250 × 110 dp para 180 × 50 dp. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'A capa do widget passou a ser recortada em quadrado, reduzida a 320 pixels e desenhada com os cantos arredondados; o fundo do widget recebe a cor média da capa, escurecida, e fica na cor padrão quando a capa quase não tem cor. Sem música ou sem capa, aparece um quadro com a logo do Ecoa. O botão de tocar e pausar passou a ser um círculo branco com o símbolo escuro, e os botões respondem ao toque. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'Pendente: o widget é código e recursos nativos do Android e não foi executado em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração enviada é uma simulação do leiaute, não uma captura de tela.' },
-    ],
-  },
-  {
-    versao: 625, data: '2026-11-11', titulo: 'Página inicial sem a liturgia do dia e com as músicas mais tocadas',
-    itens: [
-      { tipo: 'melhoria', texto: 'O atalho "Liturgia de hoje", o cartão da liturgia do dia e o filtro "Liturgia" foram retirados da página inicial, pois o mesmo conteúdo está na aba Liturgia. O lugar do atalho passou a ser ocupado por mais uma música recente (8 atalhos de músicas e repertórios, antes 7).' },
-      { tipo: 'novo', texto: 'No lugar do cartão da liturgia, a página inicial passou a exibir "Suas mais tocadas": até 12 músicas da biblioteca, ordenadas pelo tempo ouvido nos últimos 30 dias (os mesmos dados das Estatísticas). A seção aparece a partir de 3 músicas ouvidas no período.' },
-      { tipo: 'melhoria', texto: 'A liturgia de hoje, a do próximo domingo e as das datas dos repertórios futuros continuam sendo guardadas para uso sem internet ao abrir a página inicial.' },
     ],
   },
 ];

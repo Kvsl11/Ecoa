@@ -6381,3 +6381,7 @@ html.pp #player .pl-letra-nome b.anda, #player .pl-letra-nome b.anda { text-over
   .chat-rolo { padding-top: 34px; }
   .chat-barra { padding-bottom: 18px; }
 }
+
+/* No aplicativo Android a página não amplia com os dois dedos nem com dois toques (como num app nativo): só rola. O
+   que tem gesto próprio (touch-action: none) continua com o dele; no site, o zoom do navegador continua valendo */
+html.app-android { touch-action: pan-x pan-y; }

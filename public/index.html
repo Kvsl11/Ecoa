@@ -42,7 +42,9 @@
     // abaixo da barra de status e acima da navegação do Android.
     try {
       if (/EcoaAndroid/.test(navigator.userAgent) || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
-        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+        // (no aplicativo a tela não amplia com os dois dedos nem com dois toques, como num app nativo; no site, o zoom do
+        // navegador continua valendo)
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
         document.documentElement.classList.add('app-android');
       }
     } catch (e) {}
