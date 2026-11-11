@@ -110,3 +110,32 @@ test('o link compartilhado é o da música no Ecoa, e o do aplicativo leva o mes
   assert.ok(app.includes(`S.browser_fallback_url=${encodeURIComponent(linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson'))}`));
   assert.equal(linkParaAbrirNoAplicativo(''), '');
 });
+
+test('o link de música aberto no navegador do Android é entregue ao aplicativo, uma vez por link', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const vm = await import('node:vm');
+  const { linkParaAbrirNoAplicativo, linkDaMusicaNoEcoa } = await import('../public/js/lib/cartao.js');
+  const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)[1];
+  assert.ok(script.includes('intent://ouvir/'), 'o primeiro script da página é o que entrega o link');
+  const abrir = (href, userAgent, guardado = {}) => {
+    const location = { href, hash: href.includes('#') ? href.slice(href.indexOf('#')) : '' };
+    const sessionStorage = { getItem: (k) => guardado[k] ?? null, setItem: (k, v) => { guardado[k] = String(v); } };
+    vm.runInNewContext(script, { location, navigator: { userAgent }, sessionStorage, window: {}, Date, encodeURIComponent, String });
+    return { foi: location.href, guardado };
+  };
+  const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36';
+  const link = linkDaMusicaNoEcoa('Eu Seguirei', 'Frei Gilson');
+  // (o mesmo endereço do botão "Abrir no aplicativo")
+  const primeira = abrir(link, android);
+  assert.equal(primeira.foi, linkParaAbrirNoAplicativo('Eu Seguirei', 'Frei Gilson'));
+  // de volta ao site (sem o aplicativo, ou ao recarregar): não tenta de novo
+  assert.equal(abrir(link, android, primeira.guardado).foi, link);
+  // fora do Android, dentro do aplicativo e em outras telas: nada
+  assert.equal(abrir(link, 'Mozilla/5.0 (Windows NT 10.0) Chrome/130.0').foi, link);
+  assert.equal(abrir(link, `${android} EcoaAndroid`).foi, link);
+  // (o navegador interno de outro aplicativo mostraria uma página de erro: fica o botão)
+  assert.equal(abrir(link, android.replace('Pixel 8)', 'Pixel 8; wv)')).foi, link);
+  const inicio = link.split('#')[0] + '#/biblioteca';
+  assert.equal(abrir(inicio, android).foi, inicio);
+});

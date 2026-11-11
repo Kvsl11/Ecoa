@@ -19641,6 +19641,15 @@ function ligarTelaDeEntrada() {
   const rotulo = $('#entrada-rotulo');
   const erro = $('#entrada-erro');
   const esperando = (sim) => { botao.disabled = sim; rotulo.textContent = sim ? 'Entrando…' : 'Entrar com o Google'; };
+  // (quem chegou por um link de música, no navegador do Android, sem conta neste navegador: o caminho para o aplicativo)
+  const paraOApp = $('#entrada-app');
+  const mostrarOApp = () => {
+    const [a, t, ar] = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch { return x; } });
+    const link = a === 'ouvir' && /Android/i.test(navigator.userAgent) && !noApk() ? linkParaAbrirNoAplicativo(t, ar) : '';
+    if (paraOApp) { paraOApp.hidden = !link; if (link) paraOApp.href = link; }
+  };
+  mostrarOApp();
+  addEventListener('hashchange', mostrarOApp);
   // (voltando da página do Google, no jeito sem janelinha: espera o Firebase confirmar)
   let voltando = false;
   try { voltando = sessionStorage.getItem('songbook.conta.entrando') === '1'; } catch { /* sem sessionStorage */ }
@@ -19673,20 +19682,24 @@ addEventListener('songbook:nuvem', () => {
 
 // A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>): abre a música — a da biblioteca, se a pessoa
 // já a tem; senão, trazida pelo nome e pelo artista, como as da busca. Abre sozinha na primeira vez; voltando a esta
-// tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta. No navegador do Android, a
-// tela oferece antes abrir no aplicativo instalado
+// tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta.
+// No navegador do Android, o link é entregue antes ao aplicativo instalado (o index.html faz isso ao chegar). Se o
+// aplicativo abriu, o navegador saiu da frente, e esta tela fica só com os botões; se a página continua na frente
+// depois de ESPERA_DO_APLICATIVO, não há aplicativo, e a música abre aqui mesmo
+const ESPERA_DO_APLICATIVO = 1600;
+const noNavegadorDoAndroid = () => /Android/i.test(navigator.userAgent) && !noApk();
 function viewOuvir(titulo = '', artista = '') {
   if (!titulo) return viewNotFound();
   setTab('inicio');
   setHeader('Música compartilhada', { back: '#/' });
-  const noNavegadorDoAndroid = /Android/i.test(navigator.userAgent) && !noApk();
+  const android = noNavegadorDoAndroid();
   const abrir = () => { void abrirMusica({ titulo, artista }, '#/'); };
   view.innerHTML = `<section class="ouvir-link">
     <div class="cover">${icon('music', 44)}</div>
     <h2>${esc(titulo)}</h2>${artista ? `<p class="muted">${esc(artista)}</p>` : ''}
     <div class="ouvir-acoes">
-      ${noNavegadorDoAndroid ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
-      <button class="btn${noNavegadorDoAndroid ? '' : ' primary'}" data-ouvir>${icon('play', 18)} ${noNavegadorDoAndroid ? 'Ouvir aqui' : 'Abrir a música'}</button>
+      ${android ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
+      <button class="btn${android ? '' : ' primary'}" data-ouvir>${icon('play', 18)} ${android ? 'Ouvir aqui' : 'Abrir a música'}</button>
       <button class="btn" data-procurar>${icon('search', 18)} Procurar na busca</button>
     </div></section>`;
   $('[data-ouvir]', view).onclick = abrir;
@@ -19696,7 +19709,21 @@ function viewOuvir(titulo = '', artista = '') {
     location.hash = '#/buscar';
   };
   const chave = `ouvir:${titulo}|${artista}`;
-  if (!noNavegadorDoAndroid && sessionStorage.getItem('ouvirAberta') !== chave) { sessionStorage.setItem('ouvirAberta', chave); abrir(); }
+  if (sessionStorage.getItem('ouvirAberta') === chave) return;
+  if (!android) { sessionStorage.setItem('ouvirAberta', chave); abrir(); return; }
+  // (só logo depois da tentativa de abrir o aplicativo: mais tarde, a tela é só a dos botões)
+  const tentouEm = Number(sessionStorage.getItem('ecoa.noAppEm')) || 0;
+  if (sessionStorage.getItem('ecoa.noApp') !== location.hash || Date.now() - tentouEm > 15000) return;
+  let saiu = document.visibilityState !== 'visible';
+  const aoSairDaFrente = () => { if (document.visibilityState !== 'visible') saiu = true; };
+  document.addEventListener('visibilitychange', aoSairDaFrente);
+  const espera = setTimeout(() => {
+    document.removeEventListener('visibilitychange', aoSairDaFrente);
+    if (saiu || document.visibilityState !== 'visible') return;
+    sessionStorage.setItem('ouvirAberta', chave);
+    abrir();
+  }, ESPERA_DO_APLICATIVO);
+  limpezas.push(() => { clearTimeout(espera); document.removeEventListener('visibilitychange', aoSairDaFrente); });
 }
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início
