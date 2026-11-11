@@ -5,6 +5,21 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 639, data: '2026-11-11', titulo: 'Folhas com botões: botões no pé da folha quando aberta na altura toda',
+    itens: [
+      { tipo: 'correcao', texto: 'Nas folhas com botões no pé (por exemplo, "Nova versão do app"), ao puxar a folha para cima até a altura toda, os botões acompanhavam o texto e permanecia uma área vazia abaixo deles, porque o conteúdo mantinha a própria altura dentro da folha ampliada. Com a folha na altura toda, o conteúdo passou a ocupar a altura da folha e os botões passaram a ficar no pé. Na folha de altura normal, nada foi alterado.' },
+      { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação da folha "Nova versão do app" (tela de 390 × 800: botões de 729 a 800, no pé); não foi executada em aparelho.' },
+    ],
+  },
+  {
+    versao: 638, data: '2026-11-11', titulo: 'Letra na tela toda com versão para o modo claro e nome da faixa em reprodução na cor do aplicativo nos álbuns e artistas',
+    itens: [
+      { tipo: 'melhoria', texto: 'A letra na tela toda tinha uma única aparência, escura (a cor da música misturada com preto e o texto em branco), usada também no modo claro. No modo claro, a tela passou a ter versão própria: fundo em degradê da cor da música misturada com branco (34% da cor no topo, 20% no meio e 9% na base) e o texto, os botões, a barra de tempo, o botão de tocar e os acordes da cifra em um tom escuro da mesma cor. Na letra sincronizada, a frase atual fica no tom cheio, com realce claro; as próximas e as já cantadas ficam atenuadas. O modo escuro não foi alterado.' },
+      { tipo: 'correcao', texto: 'Nas listas de faixas de álbum e de artista abertas pela busca, a faixa em reprodução exibia somente as barras animadas na cor do aplicativo; o nome permanecia cinza, porque a regra de cor das faixas sem cifra prevalecia sobre a da faixa em reprodução. O nome passou a ser exibido na cor do aplicativo, como nas playlists e nas demais listas.' },
+      { tipo: 'melhoria', texto: 'Pendente: a tela da letra no modo claro foi verificada em navegador, em página de teste com a marcação da tela (letra, cifra e controles), em três cores de música; não foi executada no aplicativo com uma música em reprodução nem em aparelho. O cartão pequeno da letra dentro do player mantém a aparência escura do player. A cor do nome da faixa foi conferida pela regra de estilo, sem execução em aparelho.' },
+    ],
+  },
+  {
     versao: 637, data: '2026-11-11', titulo: 'Compartilhamento: cor e personalização independentes por cartão e quadro da capa na cor do cartão',
     itens: [
       { tipo: 'correcao', texto: 'Na folha de compartilhar, a cor escolhida era aplicada aos cartões Música, Letra e Vídeo ao mesmo tempo, porque a folha guardava uma única cor para os três. A cor passou a ser guardada por cartão: a escolha altera somente o cartão exibido no centro, e os demais mantêm a cor que tinham. O mesmo passou a valer para as opções da tela "Personalizar" (imagem de fundo, fundo animado, estilo e alinhamento do texto). O marcador de cor selecionada acompanha o cartão exibido.' },
@@ -70,22 +85,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Na prévia da playlist (os clipes em tela cheia), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do segundo sobreposta em parte à do primeiro e, com três ou mais artistas, o marcador "+N", no mesmo arranjo das listas.' },
       { tipo: 'melhoria', texto: 'A foto do primeiro artista é a guardada na música ou a última conhecida no aparelho; a do segundo é a última conhecida e, quando não há, é procurada assim que a linha ou a prévia aparece na tela (requer conexão). Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
       { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, em uma playlist de teste com três músicas; a validação em aparelho Android ainda não foi realizada.' },
-    ],
-  },
-  {
-    versao: 629, data: '2026-11-11', titulo: 'Logo do Ecoa por inteiro no widget e nas notificações',
-    itens: [
-      { tipo: 'correcao', texto: 'O desenho da logo usado pelo Android (o "e" com as duas ondas) estava em um quadro de 44 unidades, e a segunda onda, com a espessura do traço, chegava a 46,8: os 2,8 que excediam a borda direita eram cortados. O quadro passou a ter 50 unidades, com o desenho centrado e 2,25 de folga em cada lado. O mesmo desenho é usado em cinco lugares, todos corrigidos: o canto dos widgets padrão (4 × 2) e grande, o quadro exibido no lugar da capa nos três formatos do widget, o ícone da notificação do player e o ícone das notificações de aviso. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Para a logo manter o tamanho aparente no quadro maior, as medidas no widget foram ajustadas: de 20 para 23 dp no formato padrão, de 22 para 25 dp no formato grande e de 44 para 50 dp no quadro sem capa. Nas notificações, o tamanho do ícone é definido pelo Android, e a logo fica cerca de 12% menor. A logo do ícone do aplicativo, das telas e dos cartões de compartilhamento usa um quadro de 64 unidades e não apresentava o corte.' },
-      { tipo: 'melhoria', texto: 'Pendente: a correção foi conferida pelo cálculo dos limites do desenho e por uma renderização do vetor fora do Android; não foi executada em aparelho, e a compilação é conferida pela montagem do APK no workflow.' },
-    ],
-  },
-  {
-    versao: 628, data: '2026-11-11', titulo: 'Widget da tela inicial com a frase que está sendo cantada',
-    itens: [
-      { tipo: 'novo', texto: 'Os dois formatos maiores do widget passaram a exibir a frase que está sendo cantada, nas músicas com a letra sincronizada. No formato padrão (4 × 2), a frase ocupa uma linha, no lugar do artista (as duas linhas não cabem na altura mínima); no formato grande, a frase aparece em até duas linhas, abaixo do título e do artista. Entre uma frase e outra, e nas músicas sem a letra sincronizada, o widget fica como antes. Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'A cada verso, somente o texto da frase é enviado ao widget (atualização parcial), sem reenviar a capa. A frase é atualizada enquanto a página do aplicativo está ativa: em primeiro plano ou, em segundo plano, com a música tocando do aparelho (baixada ou importada). Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Pendente: o envio da frase pela interface foi conferido por análise do código e a parte nativa não foi executada em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração é uma simulação do leiaute.' },
     ],
   },
 ];
