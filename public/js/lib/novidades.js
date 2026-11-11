@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 637, data: '2026-11-11', titulo: 'Compartilhamento: cor e personalização independentes por cartão e quadro da capa na cor do cartão',
+    itens: [
+      { tipo: 'correcao', texto: 'Na folha de compartilhar, a cor escolhida era aplicada aos cartões Música, Letra e Vídeo ao mesmo tempo, porque a folha guardava uma única cor para os três. A cor passou a ser guardada por cartão: a escolha altera somente o cartão exibido no centro, e os demais mantêm a cor que tinham. O mesmo passou a valer para as opções da tela "Personalizar" (imagem de fundo, fundo animado, estilo e alinhamento do texto). O marcador de cor selecionada acompanha o cartão exibido.' },
+      { tipo: 'correcao', texto: 'No cartão Música, o quadro em volta da capa era sempre preto com 86% de opacidade; sobre a cor do cartão, o resultado era um preto translúcido, de tom variável conforme o fundo. O quadro passou a ter cor opaca, derivada da cor do cartão: o mesmo matiz com 15% de luminosidade na cor da música, um tom mais claro que o fundo nas cores escura e preta, e branco, com texto escuro, na cor clara. O nome, o artista e a marca do Ecoa seguem a cor do texto do quadro.' },
+      { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada em navegador; a folha no aplicativo Android não foi executada em aparelho.' },
+    ],
+  },
+  {
     versao: 636, data: '2026-11-11', titulo: 'Link de música compartilhada: abertura direta no aplicativo Android instalado',
     itens: [
       { tipo: 'correcao', texto: 'O link de uma música compartilhada, aberto no navegador do Android, parava em uma tela do site com o botão "Abrir no aplicativo" e, em navegador sem conta conectada, na tela de entrada, sem a música. A página passou a entregar o link ao aplicativo Android instalado no momento em que é aberta, antes de o site carregar e antes da tela de entrada; o aplicativo abre a música correspondente. A tentativa é feita uma vez por link, em cada aba.' },
@@ -78,14 +86,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Os dois formatos maiores do widget passaram a exibir a frase que está sendo cantada, nas músicas com a letra sincronizada. No formato padrão (4 × 2), a frase ocupa uma linha, no lugar do artista (as duas linhas não cabem na altura mínima); no formato grande, a frase aparece em até duas linhas, abaixo do título e do artista. Entre uma frase e outra, e nas músicas sem a letra sincronizada, o widget fica como antes. Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'A cada verso, somente o texto da frase é enviado ao widget (atualização parcial), sem reenviar a capa. A frase é atualizada enquanto a página do aplicativo está ativa: em primeiro plano ou, em segundo plano, com a música tocando do aparelho (baixada ou importada). Disponível mediante atualização do aplicativo.' },
       { tipo: 'melhoria', texto: 'Pendente: o envio da frase pela interface foi conferido por análise do código e a parte nativa não foi executada em aparelho; a compilação é conferida pela montagem do APK no workflow, e a imagem de demonstração é uma simulação do leiaute.' },
-    ],
-  },
-  {
-    versao: 627, data: '2026-11-11', titulo: 'Listas de músicas: fotos dos artistas agrupadas quando há mais de um',
-    itens: [
-      { tipo: 'novo', texto: 'Nas linhas das listas (biblioteca, playlists, repertórios e busca), a música com mais de um artista exibia somente a foto do primeiro. Passou a exibir a foto do primeiro e, sobreposta em parte a ela, a do segundo; com três ou mais artistas, após as duas fotos vem um marcador "+N" com a quantidade restante. São considerados os nomes separados por vírgula ou "&" e o participante indicado no título ("feat.", "part."). As duplas reconhecidas como um único artista e os cantos da liturgia continuam com uma foto só.' },
-      { tipo: 'melhoria', texto: 'A foto do segundo artista usa a última conhecida no aparelho; quando não há, é procurada assim que a linha aparece na tela, e entra no lugar do desenho padrão quando carrega. Nada é guardado na música; portanto, nenhuma revisão das músicas salvas é necessária.' },
-      { tipo: 'melhoria', texto: 'Pendente: a exibição foi verificada em navegador com tela de celular, com as fotos simuladas; a busca real da foto do segundo artista e a validação em aparelho Android ainda não foram realizadas.' },
     ],
   },
 ];
