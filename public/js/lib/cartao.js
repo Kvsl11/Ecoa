@@ -19,15 +19,16 @@ export function lerHsl(cor) {
   return m ? { h: Number(m[1]), s: Number(m[2]), l: Number(m[3]) } : null;
 }
 // As cores oferecidas para o cartão: a da música (com o brilho limitado, para a letra branca ler bem), a mesma bem
-// escura, o preto e o claro. Cada uma: { nome, fundo, fundo2 (o pé do degradê), texto, suave (o texto secundário) }
+// escura, o preto e o claro. Cada uma: { nome, fundo, fundo2 (o pé do degradê), texto, suave (o texto secundário),
+// painel (a cor do quadro em volta da capa, no cartão da música: opaca e do mesmo tom do fundo), painelTexto, painelSuave }
 export function coresDoCartao(corDaMusica) {
   const { h, s } = lerHsl(corDaMusica) || { h: 190, s: 60 };
   const sat = Math.min(72, Math.max(28, s));
   return [
-    { nome: 'Cor da música', fundo: `hsl(${h} ${sat}% 36%)`, fundo2: `hsl(${h} ${sat}% 24%)`, texto: '#fff', suave: 'rgba(255,255,255,0.74)' },
-    { nome: 'Escura', fundo: `hsl(${h} ${Math.round(sat * 0.6)}% 16%)`, fundo2: `hsl(${h} ${Math.round(sat * 0.6)}% 9%)`, texto: '#fff', suave: 'rgba(255,255,255,0.7)' },
-    { nome: 'Preta', fundo: '#18181b', fundo2: '#09090b', texto: '#fff', suave: 'rgba(255,255,255,0.68)' },
-    { nome: 'Clara', fundo: '#fafaf9', fundo2: '#e7e5e4', texto: '#111', suave: 'rgba(17,17,17,0.66)' },
+    { nome: 'Cor da música', fundo: `hsl(${h} ${sat}% 36%)`, fundo2: `hsl(${h} ${sat}% 24%)`, texto: '#fff', suave: 'rgba(255,255,255,0.74)', painel: `hsl(${h} ${Math.round(sat * 0.8)}% 15%)`, painelTexto: '#fff', painelSuave: 'rgba(255,255,255,0.72)' },
+    { nome: 'Escura', fundo: `hsl(${h} ${Math.round(sat * 0.6)}% 16%)`, fundo2: `hsl(${h} ${Math.round(sat * 0.6)}% 9%)`, texto: '#fff', suave: 'rgba(255,255,255,0.7)', painel: `hsl(${h} ${Math.round(sat * 0.5)}% 25%)`, painelTexto: '#fff', painelSuave: 'rgba(255,255,255,0.72)' },
+    { nome: 'Preta', fundo: '#18181b', fundo2: '#09090b', texto: '#fff', suave: 'rgba(255,255,255,0.68)', painel: '#2a2a2e', painelTexto: '#fff', painelSuave: 'rgba(255,255,255,0.7)' },
+    { nome: 'Clara', fundo: '#fafaf9', fundo2: '#e7e5e4', texto: '#111', suave: 'rgba(17,17,17,0.66)', painel: '#ffffff', painelTexto: '#111', painelSuave: 'rgba(17,17,17,0.66)' },
   ];
 }
 
@@ -320,7 +321,9 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     return canvas;
   }
 
-  // a música: um painel escuro com a capa grande, o nome, o artista e a marca, no meio do cartão colorido
+  // a música: um painel na cor do cartão (opaco: mais escuro que o fundo na cor da música, mais claro nos escuros e
+  // branco no claro — não um preto transparente, que muda de tom conforme o que está atrás) com a capa grande, o nome, o artista e a marca, no meio do cartão colorido
+  const paleta = corPedida;
   const pl = L - 2 * 96; const px = 96;
   c.font = fonte(800, 60);
   const nomes = limitarLinhas(medir, quebrarTexto(medir, titulo, pl - 2 * 56), 2, pl - 2 * 56);
@@ -328,14 +331,14 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
   const pa = 56 + capaLado + 56 + nomes.length * 72 + 62 + 64 + 56 + 44;
   const py = Math.round((A - pa) / 2);
   c.save();
-  c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 70; c.shadowOffsetY = 30;
-  c.fillStyle = 'rgba(12,12,14,0.86)';
+  c.shadowColor = paleta.painelTexto === '#fff' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.22)'; c.shadowBlur = 70; c.shadowOffsetY = 30;
+  c.fillStyle = paleta.painel || '#17171a';
   retangulo(c, px, py, pl, pa, 44); c.fill();
   c.restore();
-  const claro = { ...cor, texto: '#fff', suave: 'rgba(255,255,255,0.72)' };
+  const claro = { ...cor, texto: paleta.painelTexto || '#fff', suave: paleta.painelSuave || 'rgba(255,255,255,0.72)' };
   desenharImagem(c, capa, px + 56, py + 56, capaLado, capaLado, 20, claro);
   let y = py + 56 + capaLado + 56 + 50;
-  c.fillStyle = '#fff';
+  c.fillStyle = claro.texto;
   c.font = fonte(800, 60);
   for (const linha of nomes) { c.fillText(linha, px + 56, y); y += 72; }
   c.fillStyle = claro.suave;

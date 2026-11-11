@@ -11,7 +11,9 @@ test('as cores do cartão: a da música, a escura, a preta e a clara', () => {
   assert.equal(cores.length, 4);
   assert.equal(cores[0].fundo, 'hsl(210 72% 36%)'); // (a saturação e o brilho limitados: a letra branca lê bem)
   assert.equal(cores[3].texto, '#111');
-  assert.ok(coresDoCartao('').every((c) => c.fundo && c.fundo2 && c.texto && c.suave)); // (sem a cor da música: a do app)
+  assert.equal(cores[0].painel, 'hsl(210 58% 15%)'); // (o quadro em volta da capa: opaco, do tom do fundo)
+  assert.equal(cores[3].painelTexto, '#111');
+  assert.ok(coresDoCartao('').every((c) => c.fundo && c.fundo2 && c.texto && c.suave && c.painel && !/rgba|transparent/.test(c.painel) && c.painelTexto && c.painelSuave)); // (sem a cor da música: a do app)
 });
 
 test('as linhas para escolher: sem as vazias nem as marcas de parte', () => {

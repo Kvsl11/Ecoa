@@ -773,9 +773,10 @@ async function compartilharMusica(musica) {
   const idVideo = /^[\w-]{11}$/.test(musica.video || '') ? musica.video : '';
   const modos = [['musica', 'Música'], ...(linhas.length ? [['letra', 'Letra']] : []), ...(idVideo ? [['video', 'Vídeo']] : [])];
   let modo = modos.some(([m]) => m === musica.modo) ? musica.modo : 'musica';
-  let cor = 0;
+  // (a cor e o que se escolhe em "Personalizar" são de cada cartão: mudar no que está na tela não muda os outros)
+  const corDo = Object.fromEntries(modos.map(([m]) => [m, 0]));
   let marcados = versosIniciais(linhas, musica.linhaAtual ?? -1);
-  const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor', animacao: '' }; // (o cartão da letra, na tela "Personalizar")
+  const visuais = Object.fromEntries(modos.map(([m]) => [m, { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor', animacao: '' }]));
   let capaImg = null;
   let quadroImg = null;
   let fotoImg = null; // (a foto do aparelho escolhida para o fundo)
@@ -786,8 +787,8 @@ async function compartilharMusica(musica) {
   const link = linkDaMusicaNoEcoa(titulo, artista) || url;
   const linkDe = () => link;
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
-  const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual, t: tAnim,
-    fundo: visual.fundo === 'foto' ? fotoImg : visual.fundo === 'imagem' ? capaImg : null,
+  const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[corDo[m]], ...visuais[m], t: tAnim,
+    fundo: visuais[m].fundo === 'foto' ? fotoImg : visuais[m].fundo === 'imagem' ? capaImg : null,
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
   let tAnim = 0; // (o instante da animação do fundo, em segundos)
   let gravando = false;
@@ -797,7 +798,7 @@ async function compartilharMusica(musica) {
   // O que é enviado: com o fundo animado, o cartão em vídeo (uma volta da animação: o fim emenda no começo); sem ele,
   // a imagem. Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
   const arquivoDoCartao = async (avisarProgresso = () => {}) => {
-    if (!visual.animacao) return imagem();
+    if (!visuais[modo].animacao) return imagem();
     gravando = true;
     try {
       avisarProgresso(`Gerando o vídeo (${DURACAO_DA_ANIMACAO} s)…`);
@@ -872,9 +873,9 @@ async function compartilharMusica(musica) {
     let quadroDaAnimacao = 0;
     const animar = () => {
       cancelAnimationFrame(quadroDaAnimacao);
-      if (!visual.animacao || !dlg.isConnected) return;
+      if (!visuais[modo].animacao || !dlg.isConnected) return;
       const passo = (agora) => {
-        if (!visual.animacao || !dlg.isConnected) return;
+        if (!visuais[modo].animacao || !dlg.isConnected) return;
         if (!gravando) {
           tAnim = (agora / 1000) % DURACAO_DA_ANIMACAO;
           if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
@@ -893,7 +894,7 @@ async function compartilharMusica(musica) {
       const fundo = $('.cs-modos-fundo', dlg);
       if (aba && fundo) { fundo.style.width = `${aba.offsetWidth}px`; fundo.style.transform = `translateX(${aba.offsetLeft}px)`; }
       dlg.querySelectorAll('.cs-slide').forEach((x) => x.classList.toggle('ativa', x.dataset.slide === modo));
-      dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor)));
+      dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === corDo[modo])));
       dlg.querySelectorAll('.cs-so-letra').forEach((b) => { b.hidden = modo !== 'letra'; });
     };
     const irPara = (m, suave = true) => {
@@ -908,7 +909,7 @@ async function compartilharMusica(musica) {
       medindo = requestAnimationFrame(() => {
         const meio = trilho.scrollLeft + trilho.clientWidth / 2;
         const perto = [...dlg.querySelectorAll('.cs-slide')].map((x) => ({ m: x.dataset.slide, d: Math.abs(x.offsetLeft + x.offsetWidth / 2 - meio) })).sort((a, b) => a.d - b.d)[0];
-        if (perto && perto.m !== modo) { modo = perto.m; marcarModo(); }
+        if (perto && perto.m !== modo) { modo = perto.m; marcarModo(); animar(); }
       });
     }, { passive: true });
     const marcar = () => {
@@ -941,13 +942,13 @@ async function compartilharMusica(musica) {
     const abrirFerramenta = (qual) => {
       dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ferr === qual)));
       const op = (attr, valor, rotulo, ligado) => `<button class="chip" ${attr}="${valor}" aria-pressed="${ligado}">${rotulo}</button>`;
-      opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === cor}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
-        : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visual.fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visual.fundo === 'imagem')
-          + op('data-fundo', 'foto', `${icon('imagem', 14)} Foto do aparelho`, visual.fundo === 'foto')
-          : qual === 'animado' ? op('data-animacao', '', 'Parado', !visual.animacao) + FUNDOS_ANIMADOS.map(([k, nome]) => op('data-animacao', k, nome, visual.animacao === k)).join('')
+      opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === corDo[modo]}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
+        : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visuais[modo].fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visuais[modo].fundo === 'imagem')
+          + op('data-fundo', 'foto', `${icon('imagem', 14)} Foto do aparelho`, visuais[modo].fundo === 'foto')
+          : qual === 'animado' ? op('data-animacao', '', 'Parado', !visuais[modo].animacao) + FUNDOS_ANIMADOS.map(([k, nome]) => op('data-animacao', k, nome, visuais[modo].animacao === k)).join('')
             + '<small class="cs-nota">Com o fundo animado, o cartão é enviado em vídeo.</small>'
-          : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visual.estilo === k)).join('')
-            + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visual.alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visual.alinhar === 'centro')}`;
+          : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visuais[modo].estilo === k)).join('')
+            + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visuais[modo].alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visuais[modo].alinhar === 'centro')}`;
       opcoes.hidden = false;
     };
     $('[data-cs-foto]', dlg).onchange = async (e) => {
@@ -958,7 +959,7 @@ async function compartilharMusica(musica) {
         const img = await createImageBitmap(arquivo);
         fotoImg?.close?.();
         fotoImg = img;
-        visual.fundo = 'foto';
+        visuais[modo].fundo = 'foto';
         desenhar();
         abrirFerramenta('imagem');
       } catch { toast('Não foi possível abrir esta imagem'); }
@@ -986,22 +987,22 @@ async function compartilharMusica(musica) {
       const v = e.target.closest('.cs-verso');
       if (v) { marcados = alternarVerso(marcados, Number(v.dataset.i)); marcar(); return; }
       const m = e.target.closest('[data-modo]');
-      if (m) { modo = m.dataset.modo; marcarModo(); irPara(modo); return; }
+      if (m) { modo = m.dataset.modo; marcarModo(); animar(); irPara(modo); return; }
       const slide = e.target.closest('.cs-slide');
-      if (slide && slide.dataset.slide !== modo) { modo = slide.dataset.slide; marcarModo(); irPara(modo); return; }
+      if (slide && slide.dataset.slide !== modo) { modo = slide.dataset.slide; marcarModo(); animar(); irPara(modo); return; }
       const c = e.target.closest('[data-cor]');
-      if (c) { cor = Number(c.dataset.cor); desenhar(); marcarModo(); if (raiz.dataset.tela === 'personalizar') abrirFerramenta('cor'); return; }
+      if (c) { corDo[modo] = Number(c.dataset.cor); desenharUm(modo); if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg)); marcarModo(); if (raiz.dataset.tela === 'personalizar') abrirFerramenta('cor'); return; }
       const ferr = e.target.closest('[data-ferr]');
       if (ferr) { if (ferr.getAttribute('aria-pressed') === 'true') { ferr.setAttribute('aria-pressed', 'false'); opcoes.hidden = true; } else abrirFerramenta(ferr.dataset.ferr); return; }
       const anim = e.target.closest('[data-animacao]');
-      if (anim) { visual.animacao = anim.dataset.animacao; tAnim = 0; desenhar(); animar(); abrirFerramenta('animado'); return; }
+      if (anim) { visuais[modo].animacao = anim.dataset.animacao; tAnim = 0; desenhar(); animar(); abrirFerramenta('animado'); return; }
       const opcao = e.target.closest('[data-estilo], [data-alinhar], [data-fundo]');
       if (opcao) {
-        if (opcao.dataset.estilo) visual.estilo = opcao.dataset.estilo;
-        if (opcao.dataset.alinhar) visual.alinhar = opcao.dataset.alinhar;
+        if (opcao.dataset.estilo) visuais[modo].estilo = opcao.dataset.estilo;
+        if (opcao.dataset.alinhar) visuais[modo].alinhar = opcao.dataset.alinhar;
         // (a foto do aparelho: abre a escolha de imagens; a escolhida fica para a próxima vez)
         if (opcao.dataset.fundo === 'foto') { $('[data-cs-foto]', dlg).click(); if (!fotoImg) return; }
-        if (opcao.dataset.fundo) visual.fundo = opcao.dataset.fundo;
+        if (opcao.dataset.fundo) visuais[modo].fundo = opcao.dataset.fundo;
         desenhar();
         abrirFerramenta(opcao.dataset.fundo ? 'imagem' : 'texto');
         return;
