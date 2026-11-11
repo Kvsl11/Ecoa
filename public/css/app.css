@@ -4613,6 +4613,11 @@ dialog.folha { margin: auto auto 0; width: min(600px, 100%); max-width: none; ma
 dialog.folha[open] { animation: menu-subir 0.22s ease; }
 dialog.folha.folha-arrastando { transition: none; }
 dialog.folha.folha-cheia { height: 94dvh; max-height: 94dvh !important; }
+/* A folha puxada para cima (na altura toda) com botões no pé (.acts): o conteúdo fica em cima e os botões descem para
+   o pé da folha. Antes os botões vinham logo abaixo do texto, e o resto da folha ficava vazio embaixo deles */
+dialog.folha.folha-cheia > .dlg:has(> .acts) { display: flex; flex-direction: column; min-height: calc(100% - 22px); }
+dialog.folha.folha-cheia > .dlg:has(> .acts) > * { flex: none; }
+dialog.folha.folha-cheia > .dlg:has(> .acts) > .acts { margin-top: auto; }
 dialog.folha .folha-cab { position: sticky; top: 0; z-index: 2; height: 22px; background: var(--surface); touch-action: none; cursor: grab; user-select: none; }
 dialog.folha .folha-cab + .dlg { padding-top: 6px; }
 dialog.folha .dlg .acts { position: sticky; bottom: calc(-1 * env(safe-area-inset-bottom)); margin: 0 -22px -22px; padding: 12px 22px 18px; background: var(--surface); border-top: 1px solid var(--border); }
