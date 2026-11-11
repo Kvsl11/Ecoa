@@ -72,6 +72,13 @@ public class MainActivity extends BridgeActivity {
         // O texto do mesmo tamanho do site no Chrome: o WebView aumenta o texto pelo "Tamanho da fonte" do Android, e no
         // app tudo ficava maior, com textos quebrados, sobrepostos e telas espremidas (o site é feito para o tamanho normal)
         if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
+        // Sem o zoom de página do WebView (os dois dedos e os dois toques): o app não amplia como um site
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            android.webkit.WebSettings ajustes = getBridge().getWebView().getSettings();
+            ajustes.setSupportZoom(false);
+            ajustes.setBuiltInZoomControls(false);
+            ajustes.setDisplayZoomControls(false);
+        }
         protegerDaTelaCinza();
         tratarOVoltar();
     }
