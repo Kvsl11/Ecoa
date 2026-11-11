@@ -23054,6 +23054,9 @@ if (ecoaNativo) {
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
       if (acao === 'alternar') player.alternar();
+      // (do player do Android e do fone: tocar e pausar explícitos; repetido ou atrasado, o comando não inverte o estado)
+      else if (acao === 'tocar') { if (player.estado !== 'tocando') player.alternar(); }
+      else if (acao === 'pausar') { if (player.estado === 'tocando') player.alternar(); }
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
       else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)

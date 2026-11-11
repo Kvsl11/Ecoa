@@ -27,12 +27,18 @@ public class EcoaWidget extends AppWidgetProvider {
     }
 
     static PendingIntent botao(Context ctx, String acao, int codigo) {
-        // PendingIntent de Activity: o toque do usuário retoma o WebView antes de executar o comando.
-        // Evita que o receiver envie um evento a uma página suspensa em segundo plano.
-        Intent i = new Intent(ctx, MainActivity.class)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        // O toque abre a AcaoActivity (invisível), que entrega o comando e se fecha: a tela do app não vem mais para a
+        // frente só para pausar ou pular, e a página é acordada antes de receber o comando (Acoes.fazer).
+        Intent i = new Intent(ctx, AcaoActivity.class)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             .putExtra(Acoes.EXTRA, acao);
         return PendingIntent.getActivity(ctx, codigo, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    // o aviso de "tocando" dispensado com o dedo: fecha o serviço e a sessão (não precisa de tela)
+    static PendingIntent aoDispensar(Context ctx) {
+        Intent i = new Intent(ctx, AcoesReceiver.class).putExtra(Acoes.EXTRA, Acoes.FECHAR);
+        return PendingIntent.getBroadcast(ctx, 30, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     static PendingIntent abrirApp(Context ctx) {

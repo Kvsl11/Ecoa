@@ -21,8 +21,11 @@ final class Sessao {
         final Context app = ctx.getApplicationContext();
         sessao = new MediaSessionCompat(app, "Ecoa");
         sessao.setCallback(new MediaSessionCompat.Callback() {
-            @Override public void onPlay() { if (!tocando(app)) Acoes.fazer(app, Acoes.ALTERNAR); }
-            @Override public void onPause() { if (tocando(app)) Acoes.fazer(app, Acoes.ALTERNAR); }
+            // (tocar e pausar explícitos: com "alternar", o comando repetido ou atrasado invertia o estado — pausava o
+            // que devia tocar)
+            @Override public void onPlay() { Acoes.fazer(app, Acoes.TOCAR); }
+            @Override public void onPause() { Acoes.fazer(app, Acoes.PAUSAR); }
+            @Override public void onStop() { Acoes.fazer(app, Acoes.PAUSAR); }
             @Override public void onSkipToNext() { Acoes.fazer(app, Acoes.PROXIMA); }
             @Override public void onSkipToPrevious() { Acoes.fazer(app, Acoes.ANTERIOR); }
             @Override public void onSeekTo(long pos) { Acoes.fazer(app, Acoes.IR + (pos / 1000.0)); }
@@ -35,9 +38,24 @@ final class Sessao {
         return ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE).getBoolean("tocando", false);
     }
 
+    // o aviso de "tocando" foi dispensado (ou o player fechou): a sessão sai do player do Android até a música tocar
+    // de novo
+    static synchronized void parar(Context ctx) {
+        if (sessao == null) return;
+        try {
+            sessao.setPlaybackState(new PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_STOPPED, 0, 0f).build());
+            sessao.setActive(false);
+        } catch (Exception e) { /* a sessão já tinha saído */ }
+    }
+
     // a música, a capa, a duração e o ponto (o Android anda com a barra sozinho enquanto toca)
     static void atualizar(Context ctx) {
         MediaSessionCompat s = de(ctx);
+        // (dispensada pausada, a sessão só volta quando a música tocar; a atualização da capa não a traz de volta)
+        if (!s.isActive()) {
+            if (!tocando(ctx)) return;
+            s.setActive(true);
+        }
         SharedPreferences p = ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE);
         boolean toca = p.getBoolean("tocando", false);
         long duracao = Math.round(p.getFloat("duracao", 0) * 1000);

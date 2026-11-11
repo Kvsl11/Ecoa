@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 624, data: '2026-11-11', titulo: 'Controle de mídia do Android: comandos atendidos em segundo plano, botões sem abrir o aplicativo e aviso dispensável com a música pausada',
+    itens: [
+      { tipo: 'correcao', texto: 'Com o aplicativo em segundo plano e a música pausada, a página fica oculta e com os temporizadores suspensos; o comando de tocar, pular ou voltar enviado pelo aviso, pelo widget ou pelo fone só era processado quando o aplicativo voltava ao primeiro plano. A página passou a ser reativada por 12 segundos a cada comando recebido, antes da entrega dele. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'O player do Android e os botões do fone enviavam "alternar" tanto para tocar quanto para pausar; um comando repetido ou atrasado invertia o estado (pausava o que deveria tocar). Passaram a enviar "tocar" e "pausar" explícitos, e a interface só age quando o estado atual difere do pedido. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'Os botões do aviso de "tocando" e do widget abriam a tela do aplicativo a cada toque. Passaram a abrir uma tela invisível que entrega o comando e se fecha; a tela do aplicativo só vem para a frente quando o comando depende dela (aplicativo fechado, ou tocar e pular música reproduzida pelo YouTube, que não toca com a página oculta). Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'O aviso de "tocando" pertencia a um serviço mantido em primeiro plano também com a música pausada, o que impedia dispensá-lo. O serviço passou a ficar em primeiro plano somente durante a reprodução; pausado, o aviso permanece com os botões e pode ser dispensado, o que encerra o serviço e retira a sessão do player do Android até a próxima reprodução. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: as alterações são do código nativo do Android e não foram executadas em aparelho; a compilação é conferida pela montagem do APK no workflow. A música reproduzida pelo YouTube continua sem tocar com o aplicativo em segundo plano (regra do YouTube).' },
+    ],
+  },
+  {
     versao: 623, data: '2026-11-11', titulo: 'Compartilhamento refeito: carrossel com os cartões Música, Letra e Vídeo, escolha dos versos em tela própria e personalização do cartão da letra',
     itens: [
       { tipo: 'novo', texto: 'A folha de compartilhamento passou a exibir os cartões em carrossel: o cartão central em destaque, os vizinhos visíveis nas laterais e a passagem de um para outro por arrasto ou pelas abas, cujo marcador desliza até a aba escolhida. Antes havia uma única prévia, trocada sem transição.' },
@@ -96,12 +106,6 @@ export const NOVIDADES = [
       { tipo: 'novo', texto: 'Quando a cifra encontrada não contém a letra (menos de 3 linhas cantadas), o aplicativo para Android passou a solicitar ao Gemini a transcrição da gravação, com o instante de cada linha, em vez de encerrar a tentativa.' },
       { tipo: 'melhoria', texto: 'A causa da falha da sincronização pelo Gemini (chave ausente, baixador indisponível, erro devolvido pelo Google, linhas não localizadas) deixou de ser descartada e passou a ser exibida no resultado do "Consertar agora". As músicas salvas que permaneceram sem letra sincronizada serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas.' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados; a validação com chamadas reais ao Gemini em aparelho ainda não foi realizada. A montagem do APK confirmou que a chave e a assinatura do aplicativo são aceitas pelo Google.' },
-    ],
-  },
-  {
-    versao: 614, data: '2026-11-10', titulo: 'Remoção da repetição de trecho do player',
-    itens: [
-      { tipo: 'melhoria', texto: 'A função "Repetir um trecho", adicionada ao menu de opções do player na versão 613, foi removida a pedido. O menu, a barra de tempo e a transição entre músicas (crossfade e automix) voltaram ao comportamento da versão 612. A função não guardava dados nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
     ],
   },
 ];
