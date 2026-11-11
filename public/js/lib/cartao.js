@@ -42,6 +42,29 @@ export function linhasParaEscolher(linhas) {
   }
   return saida;
 }
+// (os índices, na letra inteira, das linhas que linhasParaEscolher deixa: para achar o tempo de cada verso escolhido)
+export function indicesParaEscolher(linhas) {
+  const saida = [];
+  (linhas || []).forEach((bruta, i) => {
+    const t = String(typeof bruta === 'string' ? bruta : bruta?.texto || '').replace(/\s+/g, ' ').trim();
+    if (t && !/^[[(][^\])]*[\])]$/.test(t) && !/^[♪♫\s.…-]+$/.test(t)) saida.push(i);
+  });
+  return saida;
+}
+// O trecho da música em que os versos escolhidos são cantados, pela letra sincronizada (tempos: [{ inicio, fim }], um
+// por linha da letra inteira; indices: os das linhas escolhidas): do começo do primeiro verso (0,3 s antes) ao fim do
+// último (sem o fim dele, o começo da linha seguinte, ou 5 s), com no mínimo 4 s e no máximo `maximo`. Devolve
+// { inicio, segundos }, ou null sem os tempos
+export function trechoDosVersos(tempos, indices, { maximo = 30, minimo = 4 } = {}) {
+  const ids = (indices || []).filter((i) => Number.isFinite(tempos?.[i]?.inicio));
+  if (!ids.length) return null;
+  const primeiro = Math.min(...ids); const ultimo = Math.max(...ids);
+  const inicio = Math.max(0, tempos[primeiro].inicio - 0.3);
+  const depois = tempos[ultimo + 1]?.inicio;
+  const fimDoUltimo = [tempos[ultimo].fim, depois].filter((x) => Number.isFinite(x) && x > tempos[ultimo].inicio);
+  const fim = fimDoUltimo.length ? Math.min(...fimDoUltimo) + 0.4 : tempos[ultimo].inicio + 5;
+  return { inicio, segundos: Math.round(Math.min(maximo, Math.max(minimo, fim - inicio)) * 10) / 10 };
+}
 // Os versos que entram marcados ao abrir: a partir da linha que está sendo cantada (ou do começo), até 4 seguidos
 export function versosIniciais(linhas, atual = -1, quantos = 4) {
   if (!linhas?.length) return [];
@@ -118,9 +141,11 @@ function desenharImagem(c, img, x, y, l, a, raio, cor) {
   retangulo(c, x, y, l, a, raio);
   c.clip();
   if (img) {
-    const escala = Math.max(l / img.width, a / img.height);
+    // (a imagem pode ser um <video>: o quadro do clipe que está passando)
+    const il = img.videoWidth || img.width; const ia = img.videoHeight || img.height;
+    const escala = Math.max(l / il, a / ia);
     const sl = l / escala; const sa = a / escala;
-    c.drawImage(img, (img.width - sl) / 2, (img.height - sa) / 2, sl, sa, x, y, l, a);
+    c.drawImage(img, (il - sl) / 2, (ia - sa) / 2, sl, sa, x, y, l, a);
   } else {
     c.fillStyle = cor.texto === '#fff' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)';
     c.fillRect(x, y, l, a);
