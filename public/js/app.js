@@ -292,6 +292,10 @@ topoProg.className = 'topo-prog';
 topoProg.innerHTML = '<b></b>';
 topbar.append(topoProg);
 
+// O <video> sem imagem para mostrar (o arquivo ainda carregando, na troca de uma música para a outra): o WebView do
+// Android desenha no lugar um quadro cinza com o triângulo do play. Com um cartaz transparente de 1 × 1, fica só o fundo
+// preto do vídeo até o primeiro quadro chegar
+const SEM_CARTAZ = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 // As fotos sem dizer de onde vem o pedido (o cabeçalho Referer). No APK a página vem de https://localhost, e o servidor
 // de imagens do Google — as fotos dos canais do YouTube, a foto preferida dos artistas — recusa (erro 429) o pedido que
 // diz vir de "localhost": a foto do artista aparecia na biblioteca (que já pedia assim) e faltava na página do artista,
@@ -3667,7 +3671,7 @@ const player = (() => {
     };
     const videoNovo = () => {
       const v = document.createElement('video');
-      Object.assign(v, { muted: true, defaultMuted: true, playsInline: true, loop: false, preload: 'auto', src: url });
+      Object.assign(v, { muted: true, defaultMuted: true, playsInline: true, loop: false, preload: 'auto', poster: SEM_CARTAZ, src: url });
       v.setAttribute('playsinline', '');
       v.className = 'pl-canvas';
       return v;
@@ -4849,7 +4853,7 @@ const semLinhasDeAcordes = (sinc) => {
     const f = document.activeElement;
     if (f?.tagName === 'IFRAME' && tela.contains(f)) { mostrarCtrl(); f.blur(); }
   }, 0));
-  const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local' })))
+  const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local', poster: SEM_CARTAZ })))
     : (somAudio ||= criarSom(new Audio())));
   // Em segundo plano (o app minimizado, a tela apagada), o celular pausa o vídeo, mesmo o baixado, mas deixa o som
   // tocar: tocando o vídeo do aparelho (o clipe baixado, também no modo música de uma música sem o áudio oficial), o
@@ -17301,6 +17305,7 @@ async function midiaDoRefrao(s) {
 // um <video> ou <audio> do aparelho, começando no tempo t (e voltando a ele no fim do trecho)
 function elementoDoRefrao(tag, url, t, { mudo = true } = {}) {
   const el = document.createElement(tag);
+  if (tag === 'video') el.poster = SEM_CARTAZ; // (sem o quadro cinza do Android enquanto o clipe carrega)
   el.muted = mudo;
   el.playsInline = true;
   el.preload = 'auto';
