@@ -35,9 +35,9 @@ export function dadosDoConvite({ android = false, site = '', nome = '' } = {}) {
 }
 
 const FONTE = '"Figtree", "Circular", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-const fonte = (peso, tamanho) => `${peso} ${tamanho}px ${FONTE}`;
+export const fonte = (peso, tamanho) => `${peso} ${tamanho}px ${FONTE}`;
 
-function retangulo(c, x, y, l, a, r) {
+export function retangulo(c, x, y, l, a, r) {
   c.beginPath();
   c.moveTo(x + r, y);
   c.arcTo(x + l, y, x + l, y + a, r);
@@ -48,7 +48,7 @@ function retangulo(c, x, y, l, a, r) {
 }
 
 // o símbolo do Ecoa (o mesmo do icon.svg): o quadrado em degradê, o "e" e as duas ondas
-function simbolo(c, x, y, lado) {
+export function simbolo(c, x, y, lado) {
   c.save();
   c.translate(x, y);
   c.scale(lado / 64, lado / 64);
