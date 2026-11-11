@@ -6618,3 +6618,9 @@ dialog.cs-dlg.cs-tela-toda .cs-personalizar { padding-top: calc(10px + env(safe-
   html:not(.tablet):not(.pp) #player .pl-prog { height: 3px; border-radius: 0; }
   html:not(.tablet):not(.pp) #player:not(.capa-na-barra):not(.sem-video):not(.mini-1):not(.grande) .pl-video { margin-bottom: 3px; border-radius: 8px 0 0 0; }
 }
+
+/* O título "Sobre o artista" fica em cima da foto: sempre branco, com a foto escurecida no alto e a sombra no texto,
+   para ser lido sobre foto escura ou clara, nos dois modos. No modo claro ele herdava o tom escuro do cartão e sumia
+   sobre as fotos escuras */
+html.pp #player .pl-artista-foto h4 { color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 2px 12px rgb(0 0 0 / 0.6); }
+html.pp #player .pl-artista-foto::after { background: linear-gradient(180deg, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.28) 22%, transparent 42%, transparent 70%, rgb(0 0 0 / 0.35) 100%); }
