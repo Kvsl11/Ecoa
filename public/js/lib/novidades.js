@@ -5,6 +5,21 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 652, data: '2026-11-11', titulo: 'Barra de reprodução do celular: ícone e nome do fone sem contorno, nos modos claro e escuro',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, o ícone de Bluetooth e o nome do fone conectado, abaixo do título, haviam recebido na versão 650 um contorno em tom escuro da cor da música (traço de 4,6 no ícone e de 1,5 px no texto). O contorno foi removido nos modos claro e escuro: o ícone e o nome passaram a ser desenhados apenas na cor do aplicativo. O contorno do ícone do fone, à direita, e do botão da música salva não foi alterado.' },
+      { tipo: 'melhoria', texto: 'Pendente: a alteração foi conferida pelas regras de estilo; não foi executada em aparelho.' },
+    ],
+  },
+  {
+    versao: 651, data: '2026-11-11', titulo: 'Modo claro: ícones, botões e rótulos na cor exata escolhida nos Ajustes',
+    itens: [
+      { tipo: 'correcao', texto: 'No modo claro, ícones, botões e rótulos na cor do aplicativo usavam a cor escolhida nos Ajustes escurecida com 18% de preto quando ela era clara (para o ciano padrão, #0595ae), um tom diferente do botão da música salva, que usa a cor sem alteração (#06b6d4). A diferença era visível na tela "Tocando agora", entre o botão da música salva e os ícones do fone conectado, do nome do fone e da repetição ligada. O escurecimento foi removido: no modo claro, esses elementos passaram a usar exatamente a cor escolhida, em todo o aplicativo (99 regras de estilo, além do realce da partitura). Para o ciano padrão, o contraste sobre o branco passa de 3,5:1 para 2,4:1.' },
+      { tipo: 'melhoria', texto: 'Os acordes da cifra, por serem texto de leitura, não foram alterados: continuam com a cor clara escurecida com 42% de preto no modo claro. O modo escuro e a cor do PDF também não foram alterados.' },
+      { tipo: 'melhoria', texto: 'Pendente: a alteração foi conferida pelo valor calculado da cor em navegador, no modo claro; não foi executada em aparelho.' },
+    ],
+  },
+  {
     versao: 650, data: '2026-11-11', titulo: 'Capa animada até o alto da tela e sem linha no pé; contorno no fone, no nome do fone e no botão da música salva, nos modos claro e escuro',
     itens: [
       { tipo: 'correcao', texto: 'Na tela "Tocando agora" do celular, o vídeo do clipe baixado usado como capa animada era dimensionado por medidas relativas ao contêiner (cqw/cqh). Em aparelho, o vídeo foi observado mais baixo que a área da capa, com uma faixa sem vídeo no alto, na altura da barra de status, e a borda inferior aparente. O vídeo passou a ocupar a área inteira da capa (100% da largura e da altura, com recorte para preencher), do alto da tela, atrás da barra de status, até o pé, nos modos claro e escuro.' },
@@ -67,26 +82,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'A barra fixa do topo do "Tocando agora" (exibida ao rolar a tela) permanecia com fundo escuro no modo claro, com o nome da música, os botões e a linha de progresso, já em tom escuro, ilegíveis. A regra do modo claro incluída na versão 642 tinha precedência menor que a regra original da barra e não era aplicada. A regra foi reescrita com a mesma forma da original: a barra passou a ter fundo claro (24% da cor da música), com o texto e a linha de progresso visíveis.' },
       { tipo: 'correcao', texto: 'No modo claro, nos cartões abaixo do player, o botão "Explorar", os papéis na lista de créditos e o nome do artista nos vídeos relacionados mantinham a cor branca do modo escuro e ficavam quase invisíveis sobre o cartão claro. Passaram a usar o tom escuro da cor da música.' },
       { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com a marcação da barra e do cartão (cor de fundo calculada da barra: clara); não foi executada no aplicativo nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 642, data: '2026-11-11', titulo: 'Compartilhamento com a música por padrão e prévia em reprodução na folha; modo claro em "Por trás da música", "Sobre o artista", "ver mais" e na barra fixa do player',
-    itens: [
-      { tipo: 'melhoria', texto: 'O botão "Com a música" foi removido da folha de compartilhar. Os cartões Letra e Vídeo passaram a ser enviados sempre com a música quando ela está disponível no aparelho (a música baixada com a letra sincronizada, no cartão Letra; o videoclipe baixado, no cartão Vídeo). Sem o arquivo, os cartões são enviados como antes.' },
-      { tipo: 'novo', texto: 'A folha de compartilhar exibia os cartões parados, e o resultado só era conhecido depois do envio. Com a música disponível no aparelho, o cartão em exibição passou a ser reproduzido na folha como será enviado: no cartão Vídeo, o trecho de 15 segundos do refrão do clipe em movimento no quadro, com o som; no cartão Letra, o áudio do trecho dos versos escolhidos. O trecho recomeça ao terminar, com o som entrando e saindo gradualmente. A música em reprodução no aplicativo é pausada durante a prévia e retomada ao fechar a folha.' },
-      { tipo: 'novo', texto: 'No cartão Letra enviado com a música, os versos passaram a ser preenchidos conforme são cantados: iniciam atenuados (34% de opacidade) e são preenchidos da esquerda para a direita, linha por linha, entre o início e o fim de cada verso na letra sincronizada. O mesmo preenchimento é exibido na prévia e gravado no vídeo enviado.' },
-      { tipo: 'correcao', texto: 'A tela "Por trás da música" tinha uma única aparência, escura, usada também no modo claro. No modo claro, passou a ter fundo branco, com a cor da música clareada (26% da cor) apenas no alto, e o texto, os botões e os detalhes em tom escuro. O modo escuro não foi alterado.' },
-      { tipo: 'melhoria', texto: 'A tela "Sobre o artista" voltou ao fundo cinza-escuro fixo (#121212) no modo escuro, como antes da versão 641; no modo claro, passou a ter fundo branco com o texto em tom escuro, no lugar do degradê na cor da música.' },
-      { tipo: 'correcao', texto: 'No modo claro, o esmaecido atrás do "ver mais" do cartão do artista usava a cor do modo escuro e aparecia como uma faixa marrom-escura sobre o cartão claro; passou a usar a cor do cartão. A barra fixa do topo do "Tocando agora" (exibida ao rolar a tela) mantinha o fundo escuro, sobre o qual o texto e a linha de progresso, já em tom escuro, não eram visíveis; passou a ter fundo claro (24% da cor da música), com a linha de progresso visível.' },
-      { tipo: 'melhoria', texto: 'Pendente: o preenchimento dos versos e as telas no modo claro foram verificados em navegador, em páginas de teste com a marcação das telas. A prévia em reprodução na folha (o clipe em movimento, o som e a pausa do player), a gravação do vídeo com os versos preenchidos e o envio não foram executados no aplicativo com uma música baixada nem em aparelho. Sem a música baixada, a prévia permanece parada, porque o player do YouTube não permite a reprodução dentro do cartão.' },
-    ],
-  },
-  {
-    versao: 641, data: '2026-11-11', titulo: 'Modo claro no player ("Tocando agora" e barra de reprodução) e tela "Sobre o artista" na cor da música',
-    itens: [
-      { tipo: 'melhoria', texto: 'A tela "Tocando agora", o cartão da letra, os cartões abaixo dele e a barra de reprodução tinham uma única aparência, escura (a cor da música misturada com preto e o conteúdo em branco), usada também no modo claro. No modo claro, passaram a ter versão própria: a cor da música misturada com branco (em degradê até o branco na tela "Tocando agora"; 24% da cor na barra de reprodução; 30% no cartão da letra) e o texto, os botões e a barra de tempo em um tom escuro da mesma cor. O que fica sobre imagem (o vídeo, a capa, a foto do artista e o topo sobre a capa animada) e os itens na cor do aplicativo (música salva, aleatório e repetir ligados, fone conectado) não foram alterados. O modo escuro não foi alterado.' },
-      { tipo: 'melhoria', texto: 'A tela "Sobre o artista" tinha fundo cinza-escuro fixo (#121212) nos dois modos. O fundo passou a usar a cor predominante da música em reprodução, a mesma da letra na tela toda: no modo escuro, a cor misturada com preto (de 80% a 62% da cor); no modo claro, a cor misturada com branco, em degradê, com o texto em um tom escuro da mesma cor.' },
-      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em páginas de teste com a marcação do player e da tela do artista, no celular, nos dois modos; não foram executadas no aplicativo com uma música em reprodução, no tablet nem em aparelho. A capa animada (quadros do clipe atrás do topo) foi verificada com uma imagem de teste.' },
     ],
   },
 ];
