@@ -6763,10 +6763,12 @@ const semLinhasDeAcordes = (sinc) => {
       b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
     }
     const onde = $('.pl-onde', el);
-    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 13)}<span>${esc(fone)}</span>` : ''; }
+    // (o ícone em duas camadas, uma sobre a outra: a de baixo, mais grossa e escura, é o contorno no modo claro)
+    const comContorno = (nome, tam) => `<span class="ic-contorno">${icon(nome, tam)}${icon(nome, tam)}</span>`;
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${comContorno(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 13)}<span>${esc(fone)}</span>` : ''; }
     // (na barrinha de baixo, o botão de aparelhos vira o fone, na cor do app; sem fone, ele some no celular)
     const lado = $('.pl-lado [data-pl="aparelhos"]', el);
-    if (lado) lado.innerHTML = icon(fone ? 'fone' : 'aparelhos', 18);
+    if (lado) lado.innerHTML = fone ? comContorno('fone', 18) : icon('aparelhos', 18);
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
     if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 16)}<span>${esc(fone)}</span>` : ''; }
