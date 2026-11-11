@@ -317,7 +317,8 @@ a.chip.sm { cursor: pointer; }
 
 /* capas */
 .cover { position: relative; overflow: hidden; background: var(--surface-2); flex: none; container-type: inline-size; }
-.cover img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.05); }
+/* (sem ampliação: a imagem ocupava 105% do quadro e a capa perdia 2,4% de cada lado, cortando a borda e o texto dela) */
+.cover img { width: 100%; height: 100%; object-fit: cover; }
 .cover.gen { display: grid; place-items: center; color: rgb(255 255 255 / 0.92); background: linear-gradient(135deg, hsl(var(--h) 55% 46%), hsl(calc(var(--h) + 40) 60% 22%)); }
 .cover.gen .ic { width: 42%; height: 42%; }
 .cover.mosaic { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
