@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 629, data: '2026-11-11', titulo: 'Logo do Ecoa por inteiro no widget e nas notificações',
+    itens: [
+      { tipo: 'correcao', texto: 'O desenho da logo usado pelo Android (o "e" com as duas ondas) estava em um quadro de 44 unidades, e a segunda onda, com a espessura do traço, chegava a 46,8: os 2,8 que excediam a borda direita eram cortados. O quadro passou a ter 50 unidades, com o desenho centrado e 2,25 de folga em cada lado. O mesmo desenho é usado em cinco lugares, todos corrigidos: o canto dos widgets padrão (4 × 2) e grande, o quadro exibido no lugar da capa nos três formatos do widget, o ícone da notificação do player e o ícone das notificações de aviso. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Para a logo manter o tamanho aparente no quadro maior, as medidas no widget foram ajustadas: de 20 para 23 dp no formato padrão, de 22 para 25 dp no formato grande e de 44 para 50 dp no quadro sem capa. Nas notificações, o tamanho do ícone é definido pelo Android, e a logo fica cerca de 12% menor. A logo do ícone do aplicativo, das telas e dos cartões de compartilhamento usa um quadro de 64 unidades e não apresentava o corte.' },
+      { tipo: 'melhoria', texto: 'Pendente: a correção foi conferida pelo cálculo dos limites do desenho e por uma renderização do vetor fora do Android; não foi executada em aparelho, e a compilação é conferida pela montagem do APK no workflow.' },
+    ],
+  },
+  {
     versao: 628, data: '2026-11-11', titulo: 'Widget da tela inicial com a frase que está sendo cantada',
     itens: [
       { tipo: 'novo', texto: 'Os dois formatos maiores do widget passaram a exibir a frase que está sendo cantada, nas músicas com a letra sincronizada. No formato padrão (4 × 2), a frase ocupa uma linha, no lugar do artista (as duas linhas não cabem na altura mínima); no formato grande, a frase aparece em até duas linhas, abaixo do título e do artista. Entre uma frase e outra, e nas músicas sem a letra sincronizada, o widget fica como antes. Disponível mediante atualização do aplicativo.' },
@@ -88,16 +96,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Ao abrir um resultado, a letra de reserva (LRCLIB) de mesmo título e de outro artista era aceita: "Blood In Your Eyes", de Tove Lo, abria com o nome e a letra de "Blood in Your Eyes", de Rocky Votolato. Com o artista conhecido, a letra de outro artista deixou de ser aceita, e a música aberta é conferida com a linha tocada (título e artista); em caso de divergência, abre com o título, o artista e o vídeo da lista, sem letra. As músicas salvas anteriormente com a letra de outro artista não são identificáveis de forma automática e não são alteradas.' },
       { tipo: 'correcao', texto: 'As capas das listas, dos cartões, da biblioteca e dos painéis do player eram exibidas ampliadas em 5% dentro do quadro (regra de estilo geral das capas), com perda de 2,4% da imagem em cada lado: a borda e o texto próximo à margem ficavam cortados. A ampliação foi retirada e a capa quadrada passou a aparecer inteira; o destaque ao passar o cursor foi mantido. As músicas cuja capa ainda é o quadro do vídeo (16:9) continuam recortadas ao centro até a chegada da capa do álbum.' },
       { tipo: 'melhoria', texto: 'Pendente: a folha de compartilhamento e a busca foram verificadas por testes automatizados e em navegador (a busca, com as fontes reais); o envio pela parte nativa (WhatsApp, Instagram e lista do sistema) e a montagem do APK ainda não foram validados em aparelho Android.' },
-    ],
-  },
-  {
-    versao: 619, data: '2026-11-10', titulo: 'Capa do álbum: bases de reserva para as músicas ausentes do Deezer e do iTunes',
-    itens: [
-      { tipo: 'novo', texto: 'A capa do álbum era procurada somente no Deezer e no iTunes; a música ausente das duas bases permanecia com o quadro do vídeo, a foto do artista ou a capa gerada. Quando o Deezer responde e nenhuma das duas bases tem a música, a busca passou a consultar três bases abertas, em paralelo: o TheAudioDB (capa do álbum da faixa), a MusicBrainz (lançamentos oficiais da gravação, com a imagem no Cover Art Archive; álbum de estúdio e single antes do ao vivo e da coletânea) e a discografia do artista no Cifra Club (álbuns que contêm a música entre as faixas). Os resultados passam pelo mesmo filtro de título e artista das capas oficiais. Em consulta de quatro músicas às bases reais, a MusicBrainz respondeu em 161 a 652 ms e o TheAudioDB em 130 a 450 ms; "Um Certo Galileu" (Padre Zezinho), ausente do TheAudioDB, foi localizada na MusicBrainz.' },
-      { tipo: 'melhoria', texto: 'As capas de reserva são aceitas a partir de 300 × 300 pixels (as oficiais continuam exigindo 500 × 500), pois as bases abertas nem sempre dispõem da imagem maior. A capa de reserva é tratada como capa automática: não é substituída em segundo plano e pode ser trocada em "Trocar a capa", cuja lista e cujo botão "Achar a capa certa" passaram a incluir as três bases e a informar a origem de cada imagem.' },
-      { tipo: 'melhoria', texto: 'Quando o Deezer não responde (limite de pedidos ou falha de conexão), as bases de reserva não são consultadas, para que uma falha passageira não fixe uma capa de reserva no lugar da oficial; a busca é repetida depois.' },
-      { tipo: 'melhoria', texto: 'As músicas já salvas sem a capa do álbum passam por uma revisão automática (revisão 33), em segundo plano, que repete a busca com as bases de reserva. A capa escolhida manualmente não é alterada.' },
-      { tipo: 'melhoria', texto: 'Pendente: a seleção das capas foi verificada por testes automatizados e por consulta direta ao TheAudioDB e à MusicBrainz, e a busca completa foi executada em navegador com as respostas das bases simuladas (três músicas salvas: capa do TheAudioDB, capa da MusicBrainz e, com o Deezer em falha, nenhuma consulta às reservas); a consulta à discografia do Cifra Club foi verificada apenas com dados de teste, e o carregamento das imagens reais do Cover Art Archive e a validação em aparelho Android ainda não foram realizados.' },
     ],
   },
 ];

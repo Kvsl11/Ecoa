@@ -1,6 +1,8 @@
 <!-- a logo do Ecoa (o "e" com as ondas do som), só o desenho, para o ícone pequeno das notificações e do player do Android -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="44" android:viewportHeight="44">
-  <group android:translateX="-10" android:translateY="-10">
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="50" android:viewportHeight="50">
+  <!-- o desenho ocupa de x 11,3 a 56,8 (a segunda onda, com a espessura do traço) e de y 15,4 a 48,6: fica centrado no
+       quadro de 50, com 2,25 de folga de cada lado (no quadro de 44 a segunda onda passava da borda e saía cortada) -->
+  <group android:translateX="-9.05" android:translateY="-7">
     <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6.4" android:strokeLineCap="round" android:fillColor="#00000000"
         android:pathData="M14.5,32H39.5A12.5,12.5 0,1 0,36.29 40.36"/>
     <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.2" android:strokeLineCap="round" android:strokeAlpha="0.7" android:fillColor="#00000000"
