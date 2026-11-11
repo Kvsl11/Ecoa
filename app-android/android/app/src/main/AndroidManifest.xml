@@ -32,6 +32,15 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_ecoa_info" />
         </receiver>
         <receiver android:name=".AcoesReceiver" android:exported="false" />
+
+        <!-- a tela invisível dos botões do aviso de "tocando" e do widget: entrega o comando e se fecha -->
+        <activity
+            android:name=".AcaoActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
         <!-- o aviso de "tocando": mantém o app vivo em segundo plano enquanto a música toca -->
         <service android:name=".TocandoService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <!-- o download em andamento: a notificação presa e o download que continua com o app minimizado -->

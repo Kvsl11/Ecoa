@@ -726,11 +726,13 @@ async function compartilharMusica(musica) {
   const visual = { estilo: 'classico', alinhar: 'esquerda', fundo: 'cor' }; // (o cartão da letra, na tela "Personalizar")
   let capaImg = null;
   let quadroImg = null;
+  let fotoImg = null; // (a foto do aparelho escolhida para o fundo)
   const nativo = noApk() ? pluginEcoa() : null;
   const versos = () => (modo === 'letra' ? marcados.map((i) => linhas[i]) : []);
   const linkDe = (m) => (m === 'video' && idVideo ? `https://www.youtube.com/watch?v=${idVideo}` : url);
   const texto = () => textoDoCartao({ titulo, artista, url: linkDe(modo), versos: versos() });
   const dadosDo = (m) => ({ modo: m, titulo, artista, capa: capaImg, quadro: quadroImg, duracao: musica.duracao || 0, cor: cores[cor], ...visual,
+    fundo: visual.fundo === 'foto' ? fotoImg : visual.fundo === 'imagem' ? capaImg : null,
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [] });
   const imagem = () => new Promise((ok) => {
     try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
@@ -748,7 +750,7 @@ async function compartilharMusica(musica) {
         <div class="cs-linha">
           <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
           <button class="chip cs-so-letra" data-cs="versos" hidden>${icon('edit', 14)} Escolher os versos</button>
-          <button class="chip cs-so-letra" data-cs="personalizar" hidden>${icon('sparkles', 14)} Personalizar</button>
+          <button class="chip" data-cs="personalizar">${icon('sparkles', 14)} Personalizar</button>
         </div>
         <p class="cs-estado" role="status" hidden></p>
         <div class="cs-destinos">
@@ -767,12 +769,13 @@ async function compartilharMusica(musica) {
       </div>
       <div class="cs-personalizar">
         <div class="cs-pers-cab"><button class="icon-btn" data-cs="pers-ok" aria-label="Voltar">${icon('back', 22)}</button><b>Personalizar</b><span class="cs-vago"></span></div>
-        <div class="cs-pers-palco">${tela('letra')}</div>
+        <div class="cs-pers-palco"><canvas></canvas></div>
+        <input type="file" accept="image/*" data-cs-foto hidden>
         <div class="cs-pers-opcoes" data-cs-opcoes hidden></div>
         <div class="cs-ferrs">
           ${ferramenta('cor', '<i class="cs-ferr-cor"></i>', 'Cor')}
           ${ferramenta('imagem', icon('imagem', 20), 'Imagem')}
-          ${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}
+          <span data-cs-so-texto>${ferramenta('texto', '<b class="cs-ferr-a">A</b>', 'Texto')}</span>
         </div>
         <button class="cs-continuar" data-cs="pers-ok">Concluir</button>
       </div>
@@ -788,7 +791,7 @@ async function compartilharMusica(musica) {
     const desenharUm = (m, canvas = telaDo(m)) => { try { if (canvas) desenharCartao(canvas, dadosDo(m)); } catch { /* sem canvas: a folha fica sem a prévia */ } };
     const desenhar = () => {
       modos.forEach(([m]) => desenharUm(m));
-      if (raiz.dataset.tela === 'personalizar') desenharUm('letra', $('.cs-pers-palco canvas', dlg));
+      if (raiz.dataset.tela === 'personalizar') desenharUm(modo, $('.cs-pers-palco canvas', dlg));
     };
     // o que acompanha o cartão do meio: a aba marcada (o fundo dela desliza), as cores e os botões da letra
     const marcarModo = () => {
@@ -825,7 +828,15 @@ async function compartilharMusica(musica) {
     const mostrarTela = (qual) => {
       raiz.dataset.tela = qual;
       if (qual === 'versos') { marcar(); requestAnimationFrame(() => dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' })); }
-      if (qual === 'personalizar') { opcoes.hidden = true; dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', 'false')); }
+      if (qual === 'personalizar') {
+        opcoes.hidden = true;
+        dlg.querySelectorAll('[data-ferr]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+        // (o estilo e o alinhamento do texto são do cartão da letra)
+        $('[data-cs-so-texto]', dlg).hidden = modo !== 'letra';
+        const t = tamanhoDoCartao(modo);
+        $('.cs-pers-palco canvas', dlg).style.aspectRatio = `${t.l}/${t.a}`;
+        $('.cs-pers-palco', dlg).dataset.modo = modo;
+      }
       desenhar();
       if (qual === 'cartoes') requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
     };
@@ -835,9 +846,23 @@ async function compartilharMusica(musica) {
       const op = (attr, valor, rotulo, ligado) => `<button class="chip" ${attr}="${valor}" aria-pressed="${ligado}">${rotulo}</button>`;
       opcoes.innerHTML = qual === 'cor' ? cores.map((c, i) => `<button class="cs-cor" data-cor="${i}" style="--c:${c.fundo}" aria-checked="${i === cor}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')
         : qual === 'imagem' ? op('data-fundo', 'cor', 'Só a cor', visual.fundo === 'cor') + op('data-fundo', 'imagem', 'Capa ao fundo', visual.fundo === 'imagem')
+          + op('data-fundo', 'foto', `${icon('imagem', 14)} Foto do aparelho`, visual.fundo === 'foto')
           : ESTILOS_DO_TEXTO.map(([k, nome]) => op('data-estilo', k, nome, visual.estilo === k)).join('')
             + `<span class="cs-sep"></span>${op('data-alinhar', 'esquerda', 'À esquerda', visual.alinhar === 'esquerda')}${op('data-alinhar', 'centro', 'Centralizado', visual.alinhar === 'centro')}`;
       opcoes.hidden = false;
+    };
+    $('[data-cs-foto]', dlg).onchange = async (e) => {
+      const arquivo = e.target.files[0];
+      e.target.value = '';
+      if (!arquivo) return;
+      try {
+        const img = await createImageBitmap(arquivo);
+        fotoImg?.close?.();
+        fotoImg = img;
+        visual.fundo = 'foto';
+        desenhar();
+        abrirFerramenta('imagem');
+      } catch { toast('Não foi possível abrir esta imagem'); }
     };
     desenhar();
     requestAnimationFrame(() => { irPara(modo, false); marcarModo(); });
@@ -873,6 +898,8 @@ async function compartilharMusica(musica) {
       if (opcao) {
         if (opcao.dataset.estilo) visual.estilo = opcao.dataset.estilo;
         if (opcao.dataset.alinhar) visual.alinhar = opcao.dataset.alinhar;
+        // (a foto do aparelho: abre a escolha de imagens; a escolhida fica para a próxima vez)
+        if (opcao.dataset.fundo === 'foto') { $('[data-cs-foto]', dlg).click(); if (!fotoImg) return; }
         if (opcao.dataset.fundo) visual.fundo = opcao.dataset.fundo;
         desenhar();
         abrirFerramenta(opcao.dataset.fundo ? 'imagem' : 'texto');
@@ -914,6 +941,7 @@ async function compartilharMusica(musica) {
   }, { folha: true });
   capaImg?.close?.();
   quadroImg?.close?.();
+  fotoImg?.close?.();
 }
 
 
@@ -8847,8 +8875,9 @@ if (matchMedia('(hover: hover)').matches) {
 // ---- a página inicial no jeito do Spotify: filtros em chips no topo (Tudo, Músicas, Repertórios, Liturgia), os
 // atalhos, os repertórios como os "mixes" (a capa grande com o nome numa faixa colorida), as recentes menores, um
 // repertório em destaque num cartão largo e os artistas da biblioteca em fotos redondas
-const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios'], ['liturgia', 'Liturgia']];
-const filtroInicio = () => { try { return sessionStorage.getItem('filtroInicio') || 'tudo'; } catch { return 'tudo'; } };
+// (a liturgia saiu da página inicial: ela tem a aba dela, embaixo)
+const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios']];
+const filtroInicio = () => { try { const f = sessionStorage.getItem('filtroInicio'); return FILTROS_INICIO.some(([k]) => k === f) ? f : 'tudo'; } catch { return 'tudo'; } };
 // quem canta as músicas do repertório: "Frei Gilson, Cindy Ferrarezi e mais"
 function quemNoRepertorio(set) {
   const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
@@ -8912,10 +8941,10 @@ function viewHome() {
   const recentes = db.recent();
   const novas = db.recentSongs(12);
   const hoje = hojeISO();
+  // (sem o atalho da liturgia: o lugar dele fica para mais uma música)
   const atalhos = [
-    `<a href="#/liturgia"><div class="cover gen" style="--h:130">${icon('cross', 22)}</div><span>Liturgia de hoje</span></a>`,
     ...sets.slice(0, 3).map((s) => `<a href="#/repertorio/${s.id}">${capaRepertorio(s)}<span>${esc(s.name)}</span></a>`),
-    ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 7 - Math.min(3, sets.length))
+    ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 8 - Math.min(3, sets.length))
       .map((s) => `<a href="#/musica/${s.id}">${capa(s)}<span>${esc(s.title)}</span></a>`),
   ];
   // em destaque: o próximo repertório com músicas (ou o mais recente)
@@ -8923,6 +8952,13 @@ function viewHome() {
   const destaque = [...comMusicas].filter((s) => (s.date || '') >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0] || comMusicas[0];
   const artistas = artistasDaBiblioteca();
   const filtro = filtroInicio();
+  // As mais tocadas dos últimos 30 dias (pelo tempo ouvido, das Estatísticas), entre as que estão na biblioteca: ficam
+  // no lugar do cartão da liturgia de hoje, que já tem a aba dela
+  let maisTocadas = [];
+  try {
+    maisTocadas = resumoDoPeriodo(registroDaConta(), { inicio: somarDias(hoje, -29), fim: hoje }).musicas
+      .map((m) => m.id && db.song(m.id)).filter(Boolean).slice(0, 12);
+  } catch { /* sem o registro do que foi ouvido: a seção não aparece */ }
   view.innerHTML = `
     <div class="inicio" data-filtro="${filtro}">
     <nav class="chips inicio-filtros" aria-label="Mostrar na página inicial">${FILTROS_INICIO.map(([k, nome]) => `<button class="chip" data-filtro="${k}" aria-pressed="${k === filtro}">${nome}</button>`).join('')}</nav>
@@ -8934,8 +8970,8 @@ function viewHome() {
     ${sets.length ? `<section data-sec="repertorios"><div class="shelf-head"><h2>Seus repertórios</h2><a href="#/biblioteca/repertorios">Mostrar tudo</a></div>
       <div class="shelf grande">${sets.slice(0, 12).map(tileMix).join('')}</div></section>` : ''}
 
-    <section data-sec="liturgia"><div class="shelf-head"><h2>Liturgia de hoje</h2><a href="#/liturgia">Abrir</a></div>
-    <div id="home-lit"><div class="skeleton sk-hero"></div></div></section>
+    ${maisTocadas.length >= 3 ? `<section data-sec="musicas"><div class="shelf-head"><h2>Suas mais tocadas</h2><a href="#/estatisticas/musicas">Ver todas</a></div>
+      <div class="shelf">${maisTocadas.map(tileMusica).join('')}</div></section>` : ''}
 
     ${recentes.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Recentes</h2><a href="#/biblioteca/musicas">Mostrar tudo</a></div>
       <div class="shelf pequena">${recentes.slice(0, 16).map(tileMusica).join('')}</div></section>` : ''}
@@ -8972,33 +9008,9 @@ function viewHome() {
     view.scrollTop = 0;
   });
 
-  // liturgia de hoje: aparece na hora com o que já está guardado, depois atualiza sozinha
-  const desenharLit = (lit, m) => {
-    const box = $('#home-lit');
-    if (!box || !lit) return;
-    lembrarCorLiturgica(hoje, lit.cor);
-    const salmo = lit.missas?.[0]?.salmo;
-    document.documentElement.style.setProperty('--lit-cor', CORES[lit.cor] || '#555');
-    const qa = $('.quick a[href="#/liturgia"] .cover');
-    if (qa) qa.style.setProperty('--h', { verde: 130, roxo: 285, vermelho: 0, branco: 45, rosa: 330 }[lit.cor] ?? 130);
-    const sugestoes = m ? m.partes.reduce((n, p) => n + p.cantos.length, 0) : 0;
-    const chip = sugestoes ? `${sugestoes} sugestões de cantos` : '';
-    box.innerHTML = heroLiturgia(lit, hoje, { acoes: `<a class="btn white" href="#/liturgia/${hoje}">${icon('sparkles', 16)} Montar a missa</a>
-      <a class="btn lit-btn-ler" href="#/liturgia/${hoje}">${icon('book', 16)} Ler a liturgia</a>
-      ${chip ? `<span class="lit-chip">${chip}</span>` : ''}` });
-  };
-  const guardadaM = missaGuardada(hoje);
-  const guardada = liturgiaGuardada(hoje);
-  if (guardada) desenharLit(guardada, guardadaM || undefined);
-  getLiturgiaDoDia(hoje).then((lit) => { if (!guardadaM) desenharLit(lit, undefined); }).catch(() => {});
-  getMissa(hoje).then((m) => desenharLit(m.liturgia, m)).catch(() => {
-    if (guardada || !$('#home-lit')) return;
-    getLiturgiaDoDia(hoje).then((lit) => desenharLit(lit, null)).catch(() => {
-      const box = $('#home-lit');
-      if (box) box.innerHTML = `<a class="source" href="#/liturgia"><span class="ico">${icon('cross', 18)}</span><span>${navigator.onLine === false ? 'Sem internet e sem liturgia de hoje guardada. Ela aparece aqui quando houver conexão.' : 'Abrir a liturgia do dia'}</span></a>`;
-    });
-  }).finally(() => {
-    // deixa prontas para o modo offline: hoje, o próximo domingo e as datas dos repertórios futuros
+  // (a liturgia não aparece mais aqui, mas continua pronta para o modo offline: hoje, o próximo domingo e as datas dos
+  // repertórios futuros; a cor litúrgica do dia fica lembrada)
+  getMissa(hoje).then((m) => lembrarCorLiturgica(hoje, m.liturgia?.cor)).catch(() => {}).finally(() => {
     const d = new Date(hoje + 'T12:00:00');
     const domingo = somaDias(hoje, (7 - d.getDay()) % 7 || 7);
     const futuras = db.sets().map((x) => x.date).filter((x) => x && x >= hoje && x <= somaDias(hoje, 14));
@@ -23054,6 +23066,9 @@ if (ecoaNativo) {
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
       if (acao === 'alternar') player.alternar();
+      // (do player do Android e do fone: tocar e pausar explícitos; repetido ou atrasado, o comando não inverte o estado)
+      else if (acao === 'tocar') { if (player.estado !== 'tocando') player.alternar(); }
+      else if (acao === 'pausar') { if (player.estado === 'tocando') player.alternar(); }
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
       else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)

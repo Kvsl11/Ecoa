@@ -21,36 +21,64 @@ public class TocandoService extends Service {
     static final int ID = 7;
     private static boolean ligado;
 
+    private static TocandoService instancia;
+
+    private static boolean tocando(Context ctx) {
+        return ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE).getBoolean("tocando", false);
+    }
+
     static void ligar(Context ctx) {
         try {
             androidx.core.content.ContextCompat.startForegroundService(ctx, new Intent(ctx, TocandoService.class));
         } catch (Exception e) {
-            // (o Android não deixou começar agora, com o app em segundo plano: fica só o widget)
+            // (o Android não deixou começar agora, com o app em segundo plano: o aviso que já existe é só atualizado)
+            atualizar(ctx);
         }
     }
 
+    // A música mudou, pausou ou voltou. O serviço fica em primeiro plano só enquanto toca: pausado, ele solta o aviso
+    // (que continua na tela, com os botões) e o aviso pode ser dispensado com o dedo. Antes ficava preso até fechar o
+    // player, mesmo com a música pausada
     static void atualizar(Context ctx) {
         if (!ligado) return;
-        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.notify(ID, aviso(ctx));
+        TocandoService s = instancia;
+        if (s != null) {
+            if (tocando(ctx)) s.paraFrente();
+            else { try { ServiceCompat.stopForeground(s, ServiceCompat.STOP_FOREGROUND_DETACH); } catch (Exception e) { /* já estava solto */ } }
+        }
+        try {
+            ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).notify(ID, aviso(ctx));
+        } catch (Exception e) { /* sem a permissão de avisos */ }
     }
 
     static void desligar(Context ctx) {
         ctx.stopService(new Intent(ctx, TocandoService.class));
+        // (solto do serviço, o aviso não some sozinho com ele)
+        try { ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).cancel(ID); } catch (Exception e) { /* nada a tirar */ }
+    }
+
+    private void paraFrente() {
+        int tipo = Build.VERSION.SDK_INT >= 29 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK : 0;
+        try {
+            ServiceCompat.startForeground(this, ID, aviso(this), tipo);
+        } catch (Exception e) { /* em segundo plano o Android pode recusar: o aviso segue, sem o primeiro plano */ }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         criarCanal(this);
-        int tipo = Build.VERSION.SDK_INT >= 29 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK : 0;
-        ServiceCompat.startForeground(this, ID, aviso(this), tipo);
+        instancia = this;
         ligado = true;
+        // (o Android exige o primeiro plano logo depois de startForegroundService; pausado, ele é solto em seguida)
+        paraFrente();
+        if (!tocando(this)) { try { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH); } catch (Exception e) { /* já solto */ } }
         return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
         ligado = false;
+        if (instancia == this) instancia = null;
         super.onDestroy();
     }
 
@@ -76,6 +104,7 @@ public class TocandoService extends Service {
             .setContentText(p.getString("artista", ""))
             .setLargeIcon(Capas.ler(ctx))
             .setContentIntent(EcoaWidget.abrirApp(ctx))
+            .setDeleteIntent(EcoaWidget.aoDispensar(ctx))
             .setOngoing(tocando)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

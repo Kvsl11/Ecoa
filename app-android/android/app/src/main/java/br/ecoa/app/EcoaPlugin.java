@@ -807,6 +807,7 @@ public class EcoaPlugin extends Plugin {
         Double tempo = call.getDouble("tempo", 0.0);
         SharedPreferences.Editor e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando)
+            .putBoolean("doAparelho", Boolean.TRUE.equals(call.getBoolean("doAparelho", false)))
             .putFloat("duracao", duracao == null ? 0f : duracao.floatValue()).putFloat("tempo", tempo == null ? 0f : tempo.floatValue())
             .putLong("quando", android.os.SystemClock.elapsedRealtime());
         boolean capaNova = !capa.equals(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("capa", ""));
@@ -838,6 +839,7 @@ public class EcoaPlugin extends Plugin {
     public void parou(PluginCall call) {
         EcoaWebView.definirTocando(false);
         TocandoService.desligar(getContext());
+        Sessao.parar(getContext());
         call.resolve();
     }
 
