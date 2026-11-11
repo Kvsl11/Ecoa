@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lerHsl, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, quebrarTexto, limitarLinhas, umaLinha, MAXIMO_DE_VERSOS } from '../public/js/lib/cartao.js';
+import { lerHsl, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, quebrarTexto, limitarLinhas, umaLinha, MAXIMO_DE_VERSOS, tamanhoDoCartao, duracaoDoCartao, proximoDe, ESTILOS_DO_TEXTO } from '../public/js/lib/cartao.js';
 
 const medir = (t) => t.length * 10; // (cada letra com 10 de largura)
 
@@ -53,4 +53,16 @@ test('a quebra do texto na largura e o limite de linhas com reticências', () =>
   assert.deepEqual(limitarLinhas(medir, ['a'], 2, 80), ['a']);
   assert.equal(umaLinha(medir, 'Canção de Teste', 200), 'Canção de Teste');
   assert.equal(umaLinha(medir, 'Canção de Teste do Compartilhamento', 200), 'Canção de Teste do…');
+});
+
+test('o tamanho de cada cartão, a duração escrita e a volta pelos estilos do texto', () => {
+  assert.deepEqual(tamanhoDoCartao('musica'), { l: 1080, a: 1920 });
+  assert.deepEqual(tamanhoDoCartao('letra'), { l: 1080, a: 1080 });
+  assert.deepEqual(tamanhoDoCartao('video'), { l: 1080, a: 920 });
+  assert.deepEqual(tamanhoDoCartao('outro'), tamanhoDoCartao('musica'));
+  assert.equal(duracaoDoCartao(243), '4:03');
+  assert.equal(duracaoDoCartao(0), '');
+  const chaves = ESTILOS_DO_TEXTO.map(([k]) => k);
+  assert.equal(proximoDe(chaves, 'classico'), 'largo');
+  assert.equal(proximoDe(chaves, 'inclinado'), 'classico');
 });
