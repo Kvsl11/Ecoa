@@ -1,7 +1,7 @@
 import { db, uid, youtubeId } from './store.js';
 import { esc, renderSong, soltarAcordes, textoParaCopiar } from './render.js';
 import { definirMeta, semInvisiveis, soAcordes, paraEditor, doEditor, completarCifra, temCifra, chordsOverLyricsToChordPro, chordProToChordsOverLyrics, toChordPro, transposeChordPro, transposeKey, transposeChord, looksLikeChordPro, isChordOnlyLine, letraDe, aplicarLetra, isChord, linhasDaLetra, linhasCantadas, partesCantadas, capoDaCifra, capoDaObservacao, organizarPartes, parteEmIngles } from './chordpro.js';
-import { icon, iconeMenu, logo, logoLumen } from './icons.js';
+import { icon, iconeMenu, logo, logoTraco, logoLumen } from './icons.js';
 import { diagramaSvg } from './acordes.js';
 import { htmlMusica, htmlRepertorio, imprimir } from './pdf.js';
 import { apagarModelo, carregarJSZip, gerarPowerPoint, gerarPowerPointSimples, lerModelo, salvarModelo, sugerirCantos } from './powerpoint.js';
@@ -19201,7 +19201,7 @@ function viewSettings(topico) {
     </div>`)}
 
     ${secao('Sobre', `
-    <div class="settings-group"><div class="setting"><span class="ico">${logo(18)}</span><div class="grow"><div class="t">Ecoa</div><div class="s" id="sobre-versao">${noApk() ? 'Versão do app' : `Versão ${APP_VERSAO}`}</div></div></div></div>
+    <div class="settings-group"><div class="setting"><span class="ico sobre-marca">${logoTraco(26)}</span><div class="grow"><div class="t">Ecoa</div><div class="s" id="sobre-versao">${noApk() ? 'Versão do app' : `Versão ${APP_VERSAO}`}</div></div></div></div>
     <div class="settings-group">
       ${noApk() ? `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Atualização do app</div><div class="s" id="apk-at-s">Verificando…</div></div><button class="btn small" id="apk-at" data-acao="verificar">Verificar</button></div>` : ''}
       ${jaInstalado() ? '' : `<div class="setting"><span class="ico">${icon('download', 18)}</span><div class="grow"><div class="t">Instalar o app</div><div class="s">Ícone na tela inicial e funciona sem internet</div></div><button class="btn small primary" id="instalar">Instalar</button></div>`}

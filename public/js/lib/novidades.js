@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 646, data: '2026-11-11', titulo: 'Tela "Sobre": marca do aplicativo em traço vetorial, sem o fundo azul',
+    itens: [
+      { tipo: 'melhoria', texto: 'Na tela "Sobre", o quadro ao lado do nome do aplicativo exibia o ícone completo (a marca branca sobre o quadrado em degradê azul) em 18 px. Passou a exibir somente a marca, em traço vetorial de 26 px, sem o fundo azul, na cor do texto do aplicativo: escura no modo claro e clara no modo escuro.' },
+      { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada em navegador, em página de teste com a marcação da linha, nos dois modos; não foi executada no aplicativo nem em aparelho.' },
+    ],
+  },
+  {
     versao: 645, data: '2026-11-11', titulo: 'Compartilhamento: telas "Escolher os versos" e "Personalizar" na tela toda, com versão para o modo claro',
     itens: [
       { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" abriam dentro da folha de compartilhar (94% da altura), com a alça da folha acima delas. Na tela dos versos, a alça formava uma faixa na cor da folha (branca no modo claro) sobre o fundo colorido, com os cantos arredondados aparentes. As duas telas passaram a ocupar a tela toda, sem a alça, nos dois modos; ao voltar aos cartões, a folha retorna ao tamanho anterior.' },
@@ -78,15 +85,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Na folha de compartilhar, a cor escolhida era aplicada aos cartões Música, Letra e Vídeo ao mesmo tempo, porque a folha guardava uma única cor para os três. A cor passou a ser guardada por cartão: a escolha altera somente o cartão exibido no centro, e os demais mantêm a cor que tinham. O mesmo passou a valer para as opções da tela "Personalizar" (imagem de fundo, fundo animado, estilo e alinhamento do texto). O marcador de cor selecionada acompanha o cartão exibido.' },
       { tipo: 'correcao', texto: 'No cartão Música, o quadro em volta da capa era sempre preto com 86% de opacidade; sobre a cor do cartão, o resultado era um preto translúcido, de tom variável conforme o fundo. O quadro passou a ter cor opaca, derivada da cor do cartão: o mesmo matiz com 15% de luminosidade na cor da música, um tom mais claro que o fundo nas cores escura e preta, e branco, com texto escuro, na cor clara. O nome, o artista e a marca do Ecoa seguem a cor do texto do quadro.' },
       { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada em navegador; a folha no aplicativo Android não foi executada em aparelho.' },
-    ],
-  },
-  {
-    versao: 636, data: '2026-11-11', titulo: 'Link de música compartilhada: abertura direta no aplicativo Android instalado',
-    itens: [
-      { tipo: 'correcao', texto: 'O link de uma música compartilhada, aberto no navegador do Android, parava em uma tela do site com o botão "Abrir no aplicativo" e, em navegador sem conta conectada, na tela de entrada, sem a música. A página passou a entregar o link ao aplicativo Android instalado no momento em que é aberta, antes de o site carregar e antes da tela de entrada; o aplicativo abre a música correspondente. A tentativa é feita uma vez por link, em cada aba.' },
-      { tipo: 'melhoria', texto: 'Sem o aplicativo instalado, o site passou a abrir a música diretamente: quando a página permanece em primeiro plano 1,6 segundo depois da tentativa, a música é aberta no site, sem a tela intermediária. Os botões "Abrir no aplicativo", "Ouvir aqui" e "Procurar na busca" permanecem ao voltar a essa tela.' },
-      { tipo: 'novo', texto: 'A tela de entrada do site, quando aberta por um link de música no navegador do Android, passou a exibir o botão "Abrir a música no aplicativo".' },
-      { tipo: 'melhoria', texto: 'Pendente: a entrega automática depende de o navegador aceitar a abertura do aplicativo sem toque; onde o navegador a recusa, a música abre no site. Nos navegadores internos de outros aplicativos (WebView), a tentativa automática não é feita, e permanece a tela com o botão "Abrir no aplicativo". O aplicativo instalado precisa ser a versão que recebe links de música (a partir da 634). A verificação foi feita em navegador com identificação de Android; o comportamento em aparelho, com o aplicativo instalado, não foi executado. A abertura pelo Android sem passar pelo navegador continua dependente do arquivo assetlinks.json na raiz de kvsl11.github.io, não publicado.' },
     ],
   },
 ];
