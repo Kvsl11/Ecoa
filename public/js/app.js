@@ -988,6 +988,8 @@ async function compartilharMusica(musica) {
       else { if (cheiaAntes === null) cheiaAntes = dlg.classList.contains('folha-cheia'); dlg.classList.add('folha-cheia'); }
       const antes = raiz.dataset.tela;
       raiz.dataset.tela = qual;
+      // (as telas de ajustar tomam a tela toda, sem a alça da folha em cima)
+      dlg.classList.toggle('cs-tela-toda', qual !== 'cartoes');
       // (escolhendo os versos, a prévia para; voltando, toca de novo com os versos escolhidos)
       if (qual === 'versos') pararPrevia(); else if (antes === 'versos') tocarPrevia();
       if (qual === 'versos') { marcar(); requestAnimationFrame(() => dlg.querySelector('.cs-verso[aria-selected="true"]')?.scrollIntoView({ block: 'center' })); }

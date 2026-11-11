@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 645, data: '2026-11-11', titulo: 'Compartilhamento: telas "Escolher os versos" e "Personalizar" na tela toda, com versão para o modo claro',
+    itens: [
+      { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" abriam dentro da folha de compartilhar (94% da altura), com a alça da folha acima delas. Na tela dos versos, a alça formava uma faixa na cor da folha (branca no modo claro) sobre o fundo colorido, com os cantos arredondados aparentes. As duas telas passaram a ocupar a tela toda, sem a alça, nos dois modos; ao voltar aos cartões, a folha retorna ao tamanho anterior.' },
+      { tipo: 'melhoria', texto: 'A tela "Escolher os versos" tinha uma única aparência (a cor do cartão cheia, com o texto branco), usada também no modo claro. No modo claro, passou a ter fundo em degradê da cor do cartão misturada com branco (de 30% a 12% da cor), com o texto em tom escuro da mesma cor e os versos escolhidos e o botão "Continuar" em fundo escuro com texto branco. O modo escuro não foi alterado. A tela "Personalizar" já seguia o modo do aplicativo.' },
+      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em página de teste com a marcação da folha (390 × 800), nos dois modos; não foram executadas no aplicativo nem em aparelho.' },
+    ],
+  },
+  {
     versao: 644, data: '2026-11-11', titulo: 'Barra de reprodução: vídeo sem faixas escuras nas bordas',
     itens: [
       { tipo: 'correcao', texto: 'Na barra de reprodução do celular, o vídeo era exibido inteiro dentro de um espaço mais largo que a proporção 16:9 (112 × 59 px, para um vídeo de 112 × 63 px), com faixas pretas nas laterais, e com cantos arredondados próprios (6 px), diferentes dos do espaço (8 px à esquerda). No modo claro, as faixas e os cantos apareciam como bordas escuras sobre a barra clara. O vídeo passou a preencher o espaço inteiro, com o excedente cortado, e a usar os mesmos cantos do espaço.' },
@@ -79,14 +87,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Sem o aplicativo instalado, o site passou a abrir a música diretamente: quando a página permanece em primeiro plano 1,6 segundo depois da tentativa, a música é aberta no site, sem a tela intermediária. Os botões "Abrir no aplicativo", "Ouvir aqui" e "Procurar na busca" permanecem ao voltar a essa tela.' },
       { tipo: 'novo', texto: 'A tela de entrada do site, quando aberta por um link de música no navegador do Android, passou a exibir o botão "Abrir a música no aplicativo".' },
       { tipo: 'melhoria', texto: 'Pendente: a entrega automática depende de o navegador aceitar a abertura do aplicativo sem toque; onde o navegador a recusa, a música abre no site. Nos navegadores internos de outros aplicativos (WebView), a tentativa automática não é feita, e permanece a tela com o botão "Abrir no aplicativo". O aplicativo instalado precisa ser a versão que recebe links de música (a partir da 634). A verificação foi feita em navegador com identificação de Android; o comportamento em aparelho, com o aplicativo instalado, não foi executado. A abertura pelo Android sem passar pelo navegador continua dependente do arquivo assetlinks.json na raiz de kvsl11.github.io, não publicado.' },
-    ],
-  },
-  {
-    versao: 635, data: '2026-11-11', titulo: 'Aplicativo Android: zoom de página com os dois dedos desativado',
-    itens: [
-      { tipo: 'correcao', texto: 'No aplicativo Android, no celular e no tablet, a tela podia ser ampliada com os dois dedos (e com dois toques), como uma página de navegador: a página não declarava limite de ampliação e o WebView mantinha o zoom de página ligado. No aplicativo, a página passou a declarar a escala fixa (máxima 1, sem ampliação pelo usuário) e a aceitar somente o gesto de rolagem. Essa parte vale para o aplicativo já instalado, sem atualização.' },
-      { tipo: 'melhoria', texto: 'O WebView do aplicativo passou a ter o zoom de página desligado também na parte nativa (suporte a zoom e controles de zoom). Disponível mediante atualização do aplicativo.' },
-      { tipo: 'melhoria', texto: 'No site aberto pelo navegador, o zoom continua disponível. Pendente: a alteração foi conferida em navegador com a identificação do aplicativo; o gesto dos dois dedos não foi executado em aparelho.' },
     ],
   },
 ];
