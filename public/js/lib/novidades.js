@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 648, data: '2026-11-11', titulo: 'Cartão do artista: título "Sobre o artista" legível sobre qualquer foto, nos dois modos',
+    itens: [
+      { tipo: 'correcao', texto: 'No modo claro, o título "Sobre o artista", exibido sobre a foto do artista, herdava o tom escuro do texto do cartão e ficava ilegível sobre fotos escuras. O título passou a ser sempre branco, com sombra reforçada, e a faixa escurecida no alto da foto foi intensificada (de 45% para 62% de preto no topo, até desaparecer a 42% da altura), o que mantém a leitura sobre fotos escuras, claras ou coloridas, nos modos claro e escuro.' },
+      { tipo: 'melhoria', texto: 'Os demais textos sobre imagem foram conferidos pelas regras de estilo (os quadros de "Explorar o artista", a duração nos vídeos relacionados, o topo sobre a capa animada, o cabeçalho da música com o clipe ao fundo e os cartões da tela inicial): já usam cor fixa branca com sombra ou escurecimento e não foram alterados.' },
+      { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com o cartão sobre fundos preto, branco e amarelo, nos dois modos; não foi executada no aplicativo com fotos reais nem em aparelho.' },
+    ],
+  },
+  {
     versao: 647, data: '2026-11-11', titulo: 'Barra de reprodução do celular: linha de progresso de ponta a ponta do cartão',
     itens: [
       { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, a linha de progresso começava e terminava 8 px para dentro das bordas do cartão, com 2 px de altura. Passou a ocupar a largura inteira do cartão, do início ao fim, com 3 px de altura, acompanhando os cantos arredondados inferiores (o cartão recorta a linha nos cantos). O vídeo da barra passou a terminar logo acima da linha, com o canto inferior esquerdo reto. A alteração vale para os modos claro e escuro.' },
@@ -76,14 +84,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'correcao', texto: 'Nas folhas com botões no pé (por exemplo, "Nova versão do app"), ao puxar a folha para cima até a altura toda, os botões acompanhavam o texto e permanecia uma área vazia abaixo deles, porque o conteúdo mantinha a própria altura dentro da folha ampliada. Com a folha na altura toda, o conteúdo passou a ocupar a altura da folha e os botões passaram a ficar no pé. Na folha de altura normal, nada foi alterado.' },
       { tipo: 'melhoria', texto: 'Pendente: a correção foi medida em navegador, em página de teste com a marcação da folha "Nova versão do app" (tela de 390 × 800: botões de 729 a 800, no pé); não foi executada em aparelho.' },
-    ],
-  },
-  {
-    versao: 638, data: '2026-11-11', titulo: 'Letra na tela toda com versão para o modo claro e nome da faixa em reprodução na cor do aplicativo nos álbuns e artistas',
-    itens: [
-      { tipo: 'melhoria', texto: 'A letra na tela toda tinha uma única aparência, escura (a cor da música misturada com preto e o texto em branco), usada também no modo claro. No modo claro, a tela passou a ter versão própria: fundo em degradê da cor da música misturada com branco (34% da cor no topo, 20% no meio e 9% na base) e o texto, os botões, a barra de tempo, o botão de tocar e os acordes da cifra em um tom escuro da mesma cor. Na letra sincronizada, a frase atual fica no tom cheio, com realce claro; as próximas e as já cantadas ficam atenuadas. O modo escuro não foi alterado.' },
-      { tipo: 'correcao', texto: 'Nas listas de faixas de álbum e de artista abertas pela busca, a faixa em reprodução exibia somente as barras animadas na cor do aplicativo; o nome permanecia cinza, porque a regra de cor das faixas sem cifra prevalecia sobre a da faixa em reprodução. O nome passou a ser exibido na cor do aplicativo, como nas playlists e nas demais listas.' },
-      { tipo: 'melhoria', texto: 'Pendente: a tela da letra no modo claro foi verificada em navegador, em página de teste com a marcação da tela (letra, cifra e controles), em três cores de música; não foi executada no aplicativo com uma música em reprodução nem em aparelho. O cartão pequeno da letra dentro do player mantém a aparência escura do player. A cor do nome da faixa foi conferida pela regra de estilo, sem execução em aparelho.' },
     ],
   },
 ];

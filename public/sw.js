@@ -5,7 +5,7 @@
 //   (a anterior continua) e tenta de novo depois;
 // - dados (liturgia, músicas, partituras, API): "rede primeiro", com a cópia local como reserva offline;
 // - ao publicar uma versão nova, mude VERSION: o app baixa o pacote novo e recarrega sozinho com ele.
-const VERSION = 'songbook-v647';
+const VERSION = 'songbook-v648';
 // No app de Android, a página vem dos arquivos dentro do APK, e o pacote em cache era o da versão acima: um APK novo
 // com arquivos mudados e o mesmo VERSION continuava abrindo os arquivos do APK anterior (as Novidades e as correções
 // não chegavam). O app registra este arquivo com o número do APK (sw.js?apk=1207), e o cache do pacote leva esse
