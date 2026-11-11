@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 625, data: '2026-11-11', titulo: 'Página inicial sem a liturgia do dia e com as músicas mais tocadas',
+    itens: [
+      { tipo: 'melhoria', texto: 'O atalho "Liturgia de hoje", o cartão da liturgia do dia e o filtro "Liturgia" foram retirados da página inicial, pois o mesmo conteúdo está na aba Liturgia. O lugar do atalho passou a ser ocupado por mais uma música recente (8 atalhos de músicas e repertórios, antes 7).' },
+      { tipo: 'novo', texto: 'No lugar do cartão da liturgia, a página inicial passou a exibir "Suas mais tocadas": até 12 músicas da biblioteca, ordenadas pelo tempo ouvido nos últimos 30 dias (os mesmos dados das Estatísticas). A seção aparece a partir de 3 músicas ouvidas no período.' },
+      { tipo: 'melhoria', texto: 'A liturgia de hoje, a do próximo domingo e as das datas dos repertórios futuros continuam sendo guardadas para uso sem internet ao abrir a página inicial.' },
+    ],
+  },
+  {
     versao: 624, data: '2026-11-11', titulo: 'Controle de mídia do Android: comandos atendidos em segundo plano, botões sem abrir o aplicativo e aviso dispensável com a música pausada; cartões com a marca em uma cor e personalização nos três',
     itens: [
       { tipo: 'correcao', texto: 'Com o aplicativo em segundo plano e a música pausada, a página fica oculta e com os temporizadores suspensos; o comando de tocar, pular ou voltar enviado pelo aviso, pelo widget ou pelo fone só era processado quando o aplicativo voltava ao primeiro plano. A página passou a ser reativada por 12 segundos a cada comando recebido, antes da entrega dele. Disponível mediante atualização do aplicativo.' },
@@ -97,17 +105,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'A cor de fundo das músicas sem capa era calculada por uma função diferente da usada na capa gerada, o que resultava em matizes distintos entre a lista e o player. O matiz passou a ser o mesmo nos dois casos; a saturação e a luminosidade continuam variando por título.' },
       { tipo: 'correcao', texto: 'A cor da tela da música e do player era sorteada, por música, entre até 4 cores fortes da capa, com desvio adicional de até 14° no matiz; uma capa predominantemente azul com um detalhe vermelho podia resultar em fundo vermelho. A cor passou a ser sempre a mais forte da capa (a predominante entre os pixels vivos), sem desvio de matiz; apenas a saturação (até 6 pontos) e a luminosidade (até 4 pontos) variam entre músicas. A cor não é guardada nas músicas; portanto, nenhuma revisão das músicas salvas é necessária.' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados e por renderização em navegador; a validação em aparelho Android ainda não foi realizada.' },
-    ],
-  },
-  {
-    versao: 615, data: '2026-11-10', titulo: 'Sincronização de letras pelo Gemini no Android: fila, tolerância na resposta e causa da falha',
-    itens: [
-      { tipo: 'correcao', texto: 'A revisão das músicas salvas da versão 612 disparava, ao mesmo tempo, um download de áudio e um pedido ao Gemini para cada música sem letra sincronizada no LRCLIB e na NetEase. Os pedidos simultâneos esgotavam a cota por minuto do Google e a sincronização terminava sem resultado. Os pedidos em segundo plano passaram a ser atendidos um de cada vez; após uma resposta de cota esgotada (HTTP 429), ficam suspensos por 10 minutos. A música aberta na tela e o "Consertar agora" não aguardam a fila.' },
-      { tipo: 'correcao', texto: 'A resposta do alinhamento era aceita somente quando o texto de cada linha voltava idêntico ao enviado; linhas devolvidas com a numeração da lista ou com pequena alteração eram descartadas e, abaixo de 35% de linhas reconhecidas, a sincronia inteira era rejeitada. O pedido passou a exigir o número de cada linha, e a leitura passou a reconhecer a linha pelo texto, pelo texto sem a numeração ou pelo número.' },
-      { tipo: 'melhoria', texto: 'O áudio usado na sincronização passou a ser baixado na qualidade normal, o que reduz o tamanho do pedido. Quando o Google recusa o arquivo no formato original (HTTP 400), o pedido é repetido com o áudio convertido para WAV mono.' },
-      { tipo: 'novo', texto: 'Quando a cifra encontrada não contém a letra (menos de 3 linhas cantadas), o aplicativo para Android passou a solicitar ao Gemini a transcrição da gravação, com o instante de cada linha, em vez de encerrar a tentativa.' },
-      { tipo: 'melhoria', texto: 'A causa da falha da sincronização pelo Gemini (chave ausente, baixador indisponível, erro devolvido pelo Google, linhas não localizadas) deixou de ser descartada e passou a ser exibida no resultado do "Consertar agora". As músicas salvas que permaneceram sem letra sincronizada serão reavaliadas em segundo plano; sincronizações manuais permanecem preservadas.' },
-      { tipo: 'melhoria', texto: 'Pendente: as alterações foram verificadas por testes automatizados; a validação com chamadas reais ao Gemini em aparelho ainda não foi realizada. A montagem do APK confirmou que a chave e a assinatura do aplicativo são aceitas pelo Google.' },
     ],
   },
 ];

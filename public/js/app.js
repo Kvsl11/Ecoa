@@ -8875,8 +8875,9 @@ if (matchMedia('(hover: hover)').matches) {
 // ---- a página inicial no jeito do Spotify: filtros em chips no topo (Tudo, Músicas, Repertórios, Liturgia), os
 // atalhos, os repertórios como os "mixes" (a capa grande com o nome numa faixa colorida), as recentes menores, um
 // repertório em destaque num cartão largo e os artistas da biblioteca em fotos redondas
-const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios'], ['liturgia', 'Liturgia']];
-const filtroInicio = () => { try { return sessionStorage.getItem('filtroInicio') || 'tudo'; } catch { return 'tudo'; } };
+// (a liturgia saiu da página inicial: ela tem a aba dela, embaixo)
+const FILTROS_INICIO = [['tudo', 'Tudo'], ['musicas', 'Músicas'], ['repertorios', 'Repertórios']];
+const filtroInicio = () => { try { const f = sessionStorage.getItem('filtroInicio'); return FILTROS_INICIO.some(([k]) => k === f) ? f : 'tudo'; } catch { return 'tudo'; } };
 // quem canta as músicas do repertório: "Frei Gilson, Cindy Ferrarezi e mais"
 function quemNoRepertorio(set) {
   const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
@@ -8940,10 +8941,10 @@ function viewHome() {
   const recentes = db.recent();
   const novas = db.recentSongs(12);
   const hoje = hojeISO();
+  // (sem o atalho da liturgia: o lugar dele fica para mais uma música)
   const atalhos = [
-    `<a href="#/liturgia"><div class="cover gen" style="--h:130">${icon('cross', 22)}</div><span>Liturgia de hoje</span></a>`,
     ...sets.slice(0, 3).map((s) => `<a href="#/repertorio/${s.id}">${capaRepertorio(s)}<span>${esc(s.name)}</span></a>`),
-    ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 7 - Math.min(3, sets.length))
+    ...[...recentes, ...novas].filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i).slice(0, 8 - Math.min(3, sets.length))
       .map((s) => `<a href="#/musica/${s.id}">${capa(s)}<span>${esc(s.title)}</span></a>`),
   ];
   // em destaque: o próximo repertório com músicas (ou o mais recente)
@@ -8951,6 +8952,13 @@ function viewHome() {
   const destaque = [...comMusicas].filter((s) => (s.date || '') >= hoje).sort((a, b) => a.date.localeCompare(b.date))[0] || comMusicas[0];
   const artistas = artistasDaBiblioteca();
   const filtro = filtroInicio();
+  // As mais tocadas dos últimos 30 dias (pelo tempo ouvido, das Estatísticas), entre as que estão na biblioteca: ficam
+  // no lugar do cartão da liturgia de hoje, que já tem a aba dela
+  let maisTocadas = [];
+  try {
+    maisTocadas = resumoDoPeriodo(registroDaConta(), { inicio: somarDias(hoje, -29), fim: hoje }).musicas
+      .map((m) => m.id && db.song(m.id)).filter(Boolean).slice(0, 12);
+  } catch { /* sem o registro do que foi ouvido: a seção não aparece */ }
   view.innerHTML = `
     <div class="inicio" data-filtro="${filtro}">
     <nav class="chips inicio-filtros" aria-label="Mostrar na página inicial">${FILTROS_INICIO.map(([k, nome]) => `<button class="chip" data-filtro="${k}" aria-pressed="${k === filtro}">${nome}</button>`).join('')}</nav>
@@ -8962,8 +8970,8 @@ function viewHome() {
     ${sets.length ? `<section data-sec="repertorios"><div class="shelf-head"><h2>Seus repertórios</h2><a href="#/biblioteca/repertorios">Mostrar tudo</a></div>
       <div class="shelf grande">${sets.slice(0, 12).map(tileMix).join('')}</div></section>` : ''}
 
-    <section data-sec="liturgia"><div class="shelf-head"><h2>Liturgia de hoje</h2><a href="#/liturgia">Abrir</a></div>
-    <div id="home-lit"><div class="skeleton sk-hero"></div></div></section>
+    ${maisTocadas.length >= 3 ? `<section data-sec="musicas"><div class="shelf-head"><h2>Suas mais tocadas</h2><a href="#/estatisticas/musicas">Ver todas</a></div>
+      <div class="shelf">${maisTocadas.map(tileMusica).join('')}</div></section>` : ''}
 
     ${recentes.length ? `<section data-sec="musicas"><div class="shelf-head"><h2>Recentes</h2><a href="#/biblioteca/musicas">Mostrar tudo</a></div>
       <div class="shelf pequena">${recentes.slice(0, 16).map(tileMusica).join('')}</div></section>` : ''}
@@ -9000,33 +9008,9 @@ function viewHome() {
     view.scrollTop = 0;
   });
 
-  // liturgia de hoje: aparece na hora com o que já está guardado, depois atualiza sozinha
-  const desenharLit = (lit, m) => {
-    const box = $('#home-lit');
-    if (!box || !lit) return;
-    lembrarCorLiturgica(hoje, lit.cor);
-    const salmo = lit.missas?.[0]?.salmo;
-    document.documentElement.style.setProperty('--lit-cor', CORES[lit.cor] || '#555');
-    const qa = $('.quick a[href="#/liturgia"] .cover');
-    if (qa) qa.style.setProperty('--h', { verde: 130, roxo: 285, vermelho: 0, branco: 45, rosa: 330 }[lit.cor] ?? 130);
-    const sugestoes = m ? m.partes.reduce((n, p) => n + p.cantos.length, 0) : 0;
-    const chip = sugestoes ? `${sugestoes} sugestões de cantos` : '';
-    box.innerHTML = heroLiturgia(lit, hoje, { acoes: `<a class="btn white" href="#/liturgia/${hoje}">${icon('sparkles', 16)} Montar a missa</a>
-      <a class="btn lit-btn-ler" href="#/liturgia/${hoje}">${icon('book', 16)} Ler a liturgia</a>
-      ${chip ? `<span class="lit-chip">${chip}</span>` : ''}` });
-  };
-  const guardadaM = missaGuardada(hoje);
-  const guardada = liturgiaGuardada(hoje);
-  if (guardada) desenharLit(guardada, guardadaM || undefined);
-  getLiturgiaDoDia(hoje).then((lit) => { if (!guardadaM) desenharLit(lit, undefined); }).catch(() => {});
-  getMissa(hoje).then((m) => desenharLit(m.liturgia, m)).catch(() => {
-    if (guardada || !$('#home-lit')) return;
-    getLiturgiaDoDia(hoje).then((lit) => desenharLit(lit, null)).catch(() => {
-      const box = $('#home-lit');
-      if (box) box.innerHTML = `<a class="source" href="#/liturgia"><span class="ico">${icon('cross', 18)}</span><span>${navigator.onLine === false ? 'Sem internet e sem liturgia de hoje guardada. Ela aparece aqui quando houver conexão.' : 'Abrir a liturgia do dia'}</span></a>`;
-    });
-  }).finally(() => {
-    // deixa prontas para o modo offline: hoje, o próximo domingo e as datas dos repertórios futuros
+  // (a liturgia não aparece mais aqui, mas continua pronta para o modo offline: hoje, o próximo domingo e as datas dos
+  // repertórios futuros; a cor litúrgica do dia fica lembrada)
+  getMissa(hoje).then((m) => lembrarCorLiturgica(hoje, m.liturgia?.cor)).catch(() => {}).finally(() => {
     const d = new Date(hoje + 'T12:00:00');
     const domingo = somaDias(hoje, (7 - d.getDay()) % 7 || 7);
     const futuras = db.sets().map((x) => x.date).filter((x) => x && x >= hoje && x <= somaDias(hoje, 14));
