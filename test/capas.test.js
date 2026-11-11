@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { notaDaCapa, ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem } from '../public/js/lib/capas.js';
+import { notaDaCapa, ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from '../public/js/lib/capas.js';
 
 // (o que o Deezer devolveu de verdade na busca, resumido: título, artista, álbum, popularidade)
 const c = (titulo, artista, album, rank) => ({ titulo, artista, album, rank, url: `${artista}/${album}` });
@@ -90,4 +90,60 @@ test('a mesma capa em outro tamanho tem a mesma chave', () => {
   assert.equal(chaveDaImagem('https://e-cdns-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg'), chaveDaImagem('https://cdn-images.dzcdn.net/images/cover/abc/500x500-000000-80-0-0.jpg'));
   assert.equal(chaveDaImagem('https://is1-ssl.mzstatic.com/image/thumb/Music/x/y.jpg/1000x1000bb.jpg'), chaveDaImagem('https://is1-ssl.mzstatic.com/image/thumb/Music/x/y.jpg/100x100bb.jpg'));
   assert.notEqual(chaveDaImagem('https://e-cdns-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg'), chaveDaImagem('https://e-cdns-images.dzcdn.net/images/cover/xyz/1000x1000-000000-80-0-0.jpg'));
+});
+
+// ---- as capas de reserva (a música que o Deezer e o iTunes não têm)
+
+test('MusicBrainz: uma capa por álbum oficial, o de estúdio antes do ao vivo e da coletânea; bootleg e outro artista ficam de fora', () => {
+  const lanc = (id, title, status, primary, secondary = []) => ({ id: `r-${id}`, title, status, 'release-group': { id, title, 'primary-type': primary, 'secondary-types': secondary } });
+  const json = { recordings: [
+    { title: 'Yellow', 'artist-credit': [{ name: 'Coldplay' }], releases: [lanc('vivo', 'Live 2003', 'Official', 'Album', ['Live']), lanc('pirata', 'Byron Bay', 'Bootleg', 'Album', ['Live'])] },
+    { title: 'Yellow', 'artist-credit': [{ name: 'Coldplay' }], releases: [lanc('colet', 'Now 46', 'Official', 'Album', ['Compilation']), lanc('para', 'Parachutes', 'Official', 'Album'), lanc('para', 'Parachutes', 'Official', 'Album')] },
+    { title: 'Yellow', 'artist-credit': [{ name: 'Outra Banda' }], releases: [lanc('outra', 'Outro', 'Official', 'Album')] },
+    { title: 'Yellow Submarine', 'artist-credit': [{ name: 'Coldplay' }], releases: [lanc('sub', 'Sub', 'Official', 'Album')] },
+  ] };
+  const o = capasDaMusicBrainz(json, { titulo: 'Yellow', artista: 'Coldplay' });
+  assert.deepEqual(o.map((c) => c.album), ['Parachutes', 'Live 2003', 'Now 46']);
+  assert.equal(o[0].url, 'https://coverartarchive.org/release-group/para/front-500#capa-reserva');
+  assert.ok(o.every((c) => c.reserva && c.fonte === 'MusicBrainz' && ehCapaReserva(c.url)));
+  assert.deepEqual(capasDaMusicBrainz(null, { titulo: 'Yellow', artista: 'Coldplay' }), []);
+});
+
+test('TheAudioDB: só a faixa da música e do artista; a capa é a do álbum e, sem ela, a imagem da faixa', () => {
+  const json = { track: [
+    { idTrack: '1', idAlbum: '10', strTrack: 'Emoções', strAlbum: 'Acústico MTV', strArtist: 'Roberto Carlos', strTrackThumb: 'https://r2.theaudiodb.com/t.jpg' },
+    { idTrack: '2', idAlbum: '11', strTrack: 'Emoções', strAlbum: 'X', strArtist: 'Outro Cantor' },
+  ] };
+  const m = { titulo: 'Emoções', artista: 'Roberto Carlos' };
+  const f = faixasDaAudioDb(json, m);
+  assert.equal(f.length, 1);
+  assert.equal(f[0].idAlbum, '10');
+  const comAlbum = capaDaAudioDb(f[0], { album: [{ strAlbum: 'Acústico MTV', strAlbumThumb: 'https://r2.theaudiodb.com/a.jpg' }] });
+  assert.equal(comAlbum.url, 'https://r2.theaudiodb.com/a.jpg#capa-reserva');
+  assert.equal(comAlbum.fonte, 'TheAudioDB');
+  assert.equal(capaDaAudioDb(f[0], { album: null }).url, 'https://r2.theaudiodb.com/t.jpg#capa-reserva');
+  assert.equal(capaDaAudioDb({ ...f[0], imagem: '' }, null), null);
+  assert.deepEqual(faixasDaAudioDb({ track: null }, m), []);
+});
+
+test('discografia do Cifra Club: os álbuns com a música entre as faixas, o álbum antes da coletânea; sem imagem não conta', () => {
+  const albuns = [
+    { titulo: 'As Melhores', tipo: 'album', capaGrande: 'https://x/melhores.jpg', faixas: [{ titulo: 'Um Certo Galileu', nome: 'Um Certo Galileu' }] },
+    { titulo: 'Um Certo Galileu', tipo: 'album', capaGrande: 'https://x/galileu.jpg', faixas: [{ titulo: 'Um Certo Galileu', nome: 'Um Certo Galileu (Ao Vivo)' }] },
+    { titulo: 'Outro Disco', tipo: 'album', capaGrande: 'https://x/outro.jpg', faixas: [{ titulo: 'Oração pela Família', nome: 'Oração pela Família' }] },
+    { titulo: 'Sem Imagem', tipo: 'album', capaGrande: '', faixas: [{ titulo: 'Um Certo Galileu', nome: 'Um Certo Galileu' }] },
+    { titulo: 'Padrão', tipo: 'album', capaGrande: 'https://akamai.sscdn.co/cc/img/desktop/thumb-art.svg', faixas: [{ titulo: 'Um Certo Galileu', nome: 'Um Certo Galileu' }] },
+  ];
+  const o = capasDaDiscografia(albuns, { titulo: 'Um Certo Galileu', artista: 'Padre Zezinho' });
+  assert.deepEqual(o.map((c) => c.album), ['Um Certo Galileu', 'As Melhores']);
+  assert.equal(o[0].url, 'https://x/galileu.jpg#capa-reserva');
+  assert.ok(o.every((c) => c.reserva && c.fonte === 'Cifra Club'));
+  assert.deepEqual(capasDaDiscografia([], { titulo: 'X', artista: 'Y' }), []);
+});
+
+test('a marca da capa de reserva: só no fim do endereço, e a chave da imagem não a confunde com outra capa', () => {
+  assert.ok(ehCapaReserva('https://x/a.jpg#capa-reserva'));
+  assert.ok(!ehCapaReserva('https://x/a.jpg'));
+  assert.ok(!ehCapaReserva(''));
+  assert.notEqual(chaveDaImagem('https://x/a.jpg#capa-reserva'), chaveDaImagem('https://x/b.jpg#capa-reserva'));
 });

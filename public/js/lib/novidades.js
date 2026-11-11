@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 619, data: '2026-11-10', titulo: 'Capa do álbum: bases de reserva para as músicas ausentes do Deezer e do iTunes',
+    itens: [
+      { tipo: 'novo', texto: 'A capa do álbum era procurada somente no Deezer e no iTunes; a música ausente das duas bases permanecia com o quadro do vídeo, a foto do artista ou a capa gerada. Quando o Deezer responde e nenhuma das duas bases tem a música, a busca passou a consultar três bases abertas, em paralelo: o TheAudioDB (capa do álbum da faixa), a MusicBrainz (lançamentos oficiais da gravação, com a imagem no Cover Art Archive; álbum de estúdio e single antes do ao vivo e da coletânea) e a discografia do artista no Cifra Club (álbuns que contêm a música entre as faixas). Os resultados passam pelo mesmo filtro de título e artista das capas oficiais. Em consulta de quatro músicas às bases reais, a MusicBrainz respondeu em 161 a 652 ms e o TheAudioDB em 130 a 450 ms; "Um Certo Galileu" (Padre Zezinho), ausente do TheAudioDB, foi localizada na MusicBrainz.' },
+      { tipo: 'melhoria', texto: 'As capas de reserva são aceitas a partir de 300 × 300 pixels (as oficiais continuam exigindo 500 × 500), pois as bases abertas nem sempre dispõem da imagem maior. A capa de reserva é tratada como capa automática: não é substituída em segundo plano e pode ser trocada em "Trocar a capa", cuja lista e cujo botão "Achar a capa certa" passaram a incluir as três bases e a informar a origem de cada imagem.' },
+      { tipo: 'melhoria', texto: 'Quando o Deezer não responde (limite de pedidos ou falha de conexão), as bases de reserva não são consultadas, para que uma falha passageira não fixe uma capa de reserva no lugar da oficial; a busca é repetida depois.' },
+      { tipo: 'melhoria', texto: 'As músicas já salvas sem a capa do álbum passam por uma revisão automática (revisão 33), em segundo plano, que repete a busca com as bases de reserva. A capa escolhida manualmente não é alterada.' },
+      { tipo: 'melhoria', texto: 'Pendente: a seleção das capas foi verificada por testes automatizados e por consulta direta ao TheAudioDB e à MusicBrainz, e a busca completa foi executada em navegador com as respostas das bases simuladas (três músicas salvas: capa do TheAudioDB, capa da MusicBrainz e, com o Deezer em falha, nenhuma consulta às reservas); a consulta à discografia do Cifra Club foi verificada apenas com dados de teste, e o carregamento das imagens reais do Cover Art Archive e a validação em aparelho Android ainda não foram realizados.' },
+    ],
+  },
+  {
     versao: 618, data: '2026-11-10', titulo: 'Partitura: arquivo pronto quando existe, geração em uma passada com acompanhamento, tela reorganizada; ajustes preservados entre aberturas',
     itens: [
       { tipo: 'novo', texto: 'Antes de gerar a partitura pelo áudio, o aplicativo passou a procurar um arquivo MIDI da música no acervo aberto BitMidi (busca pelo título, sem conta). Os arquivos cujo nome contém o título inteiro são listados, com prioridade para os que também trazem o artista; o arquivo escolhido é convertido em partitura com duas pautas (Melodia e Acompanhamento), com o andamento, o compasso e a armadura do próprio arquivo, e exibido com o player antes de ser salvo. A conversão de cinco arquivos do acervo (1.894 a 7.672 notas) levou de 7 a 45 ms. O acervo é mantido por envios de usuários e cobre melhor o repertório internacional; os nomes dos arquivos nem sempre informam o artista, razão pela qual a escolha e a audição ficam a cargo de quem usa. Sem resultado, sem conexão ou sem resposta em 7 segundos, a geração pelo áudio segue como antes.' },
@@ -80,12 +90,6 @@ export const NOVIDADES = [
     versao: 610, data: '2026-11-08', titulo: 'Remoção definitiva do botão extra de geração musical',
     itens: [
       { tipo: 'correcao', texto: 'O botão separado de geração de letra e cifra foi removido da interface. A geração continua automática durante a importação da música, sem exigir um comando manual nem ocupar a área dos controles do player. O número do pacote offline foi atualizado para invalidar o cache antigo que ainda podia exibir a interface anterior.' },
-    ],
-  },
-  {
-    versao: 609, data: '2026-11-08', titulo: 'Geração de letra sincronizada e cifra para músicas importadas',
-    itens: [
-      { tipo: 'novo', texto: 'No aplicativo Android, foi adicionada uma ferramenta para selecionar um arquivo de áudio e gerar uma transcrição da letra com marcações de tempo pelo Gemini, além de estimativas locais de tom, andamento e acordes. O resultado pode ser conferido e exportado em LRC (letra sincronizada) e ChordPro (cifra). A transcrição requer internet; a análise musical é executada no aparelho. Nesta versão, os arquivos são exportados para revisão e importação manual, sem substituir automaticamente uma música já existente na biblioteca.' },
     ],
   },
 ];
