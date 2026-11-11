@@ -6548,11 +6548,13 @@ const semLinhasDeAcordes = (sinc) => {
       salva ? { valor: 'add-repertorio', rotulo: 'Adicionar a um repertório', ic: 'plus' } : { valor: 'salva', rotulo: 'Salvar na biblioteca', ic: 'download' },
       { valor: 'fila', rotulo: 'Ver a fila', ic: 'queue' },
       // o karaokê (o mesmo microfone da letra na tela toda)
-      fonteKaraokeAgora() && { valor: 'karaoke', rotulo: karaokeLigado ? 'Desligar o karaokê' : 'Karaokê (tirar a voz)', svg: MICROFONE_KARAOKE },
-      fonteKaraokeAgora() && karaokeDe(fonteKaraokeAgora()) && !karaokeLigado && { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê do aparelho', ic: 'trash' },
+      // (uma opção só: sem o karaokê, gera; com ele já feito, apaga. Ligar e desligar fica no microfone da letra)
+      fonteKaraokeAgora() && (karaokeDe(fonteKaraokeAgora())
+        ? { valor: 'karaoke-apagar', rotulo: 'Apagar o karaokê', ic: 'trash' }
+        : { valor: 'karaoke', rotulo: 'Gerar karaokê', svg: MICROFONE_KARAOKE }),
       !(song?.content && !temCifra(song.content)) && !noClipe() && { valor: 'ver-cifra', rotulo: naLetra && modoCifra ? 'Ver só a letra' : 'Ver a cifra', ic: naLetra && modoCifra ? 'text' : 'chord' },
       naLetra && atual.youtube && !atual.semVideo && { valor: 'ver-video', rotulo: 'Ver o vídeo', ic: 'videoclipe' },
-      naLetra && atual.songId && db.song(atual.songId) && { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
+      salva && { valor: 'editar', rotulo: 'Editar', ic: 'edit' },
       // a partitura no ⋯ do Tocando agora (não no da letra): ver a que a música tem, ou a IA criar sozinha
       !naLetra && atual.songId && { valor: 'partitura', rotulo: temPartituraMusica(song) ? 'Ver partitura' : 'Criar partitura', ic: 'score' },
       (salva || (preview && (atual.songId === 'previa' || atual.href === '#/musica/previa'))) && { valor: 'trocar', rotulo: atual.semVideo ? 'Escolher um vídeo' : (modoCapa() ? 'Trocar música' : 'Trocar o vídeo'), ic: atual.semVideo ? 'youtube' : 'refresh' },
@@ -7283,6 +7285,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (b.dataset.pl === 'karaoke-apagar') {
       const song = musicaTocando();
       const fonte = fonteKaraokeAgora();
+      if (karaokeLigado) desligarKaraoke(); // (ligado: desliga antes de apagar)
       // (tocando o arquivo dele: volta antes para a gravação de sempre, no mesmo ponto)
       const tocandoArquivo = Boolean(local?.karaoke);
       if (tocandoArquivo) api.reavaliarFonte();
@@ -8160,7 +8163,7 @@ async function menuDaMusica(song, { set = null, i = -1 } = {}) {
     song.youtube && { valor: 'tocar', rotulo: player.tocandoAgora(song.youtube) ? 'Pausar' : 'Tocar a referência', ic: player.tocandoAgora(song.youtube) ? 'pause' : 'play' },
     { valor: 'video', rotulo: song.youtube ? 'Trocar o vídeo' : 'Escolher um vídeo', ic: song.youtube ? 'refresh' : 'youtube' },
     { valor: 'abrir', rotulo: 'Abrir a cifra', ic: 'music' },
-    { valor: 'editar', rotulo: 'Editar a cifra', ic: 'edit' },
+    { valor: 'editar', rotulo: 'Editar', ic: 'edit' },
     db.song(song.id) && { valor: 'capa', rotulo: 'Trocar a capa', ic: 'imagem' },
     // o artista e o álbum em toda música com artista: a do Cifra Club abre direto; as outras (de outro site, do
     // acervo, importadas) procuram o artista pelo nome e o álbum pelo título (antes só a do Cifra Club tinha o artista,
@@ -15676,8 +15679,8 @@ function viewSong(id, ctx = {}) {
         <button class="icon-btn" id="btn-mais" aria-haspopup="menu" aria-expanded="false" aria-label="Mais opções" title="Mais opções">${icon('more', 22)}</button>
         <div class="menu-mais" id="menu-mais" role="menu" hidden>
           <div class="menu-mais-titulo" aria-hidden="true"><b>${esc(song.title)}</b>${song.artist ? `<span>${esc(song.artist)}</span>` : ''}</div>
-          ${isPreview ? `<button role="menuitem" id="btn-edit-prev">${icon('edit', 18)}<span>Editar cifra</span></button>`
-            : `<a role="menuitem" href="#/editar/${song.id}">${icon('edit', 18)}<span>Editar cifra</span></a>`}
+          ${isPreview ? `<button role="menuitem" id="btn-edit-prev">${icon('edit', 18)}<span>Editar</span></button>`
+            : `<a role="menuitem" href="#/editar/${song.id}">${icon('edit', 18)}<span>Editar</span></a>`}
           <button role="menuitem" id="btn-pdf">${icon('file', 18)}<span>Exportar PDF</span></button>
           ${song.content || song.sincronia?.linhas?.length ? `<button role="menuitem" id="btn-copiar-letra">${icon('copy', 18)}<span>Copiar a letra</span></button>` : ''}
           ${temCifra(song.content) ? `<button role="menuitem" id="btn-copiar-cifra">${icon('chord', 18)}<span>Copiar a letra com cifra</span></button>` : ''}
@@ -16605,7 +16608,7 @@ function viewEditor(id, setId) {
   }
   // voltar, cancelar e salvar levam à lista de onde se veio (a biblioteca, o repertório, a busca…), não à música
   const voltar = setDestino ? '#/repertorio/' + setDestino.id : ultimaLista || (isNew ? '#/biblioteca/musicas' : '#/musica/' + id);
-  setHeader(isNew ? 'Nova música' : 'Editar cifra', { back: () => sair(), actions, eyebrow: setDestino ? 'Para: ' + setDestino.name : isNew ? '' : song.title });
+  setHeader(isNew ? 'Nova música' : 'Editar', { back: () => sair(), actions, eyebrow: setDestino ? 'Para: ' + setDestino.name : isNew ? '' : song.title });
   // partes com os nomes em inglês (Chorus, Verse, Bridge…), como ficam na cifra
   const partes = [['Chorus', 'plus', 'Refrão: daqui para baixo é o refrão (até a próxima parte)'], ['Verse', 'plus', 'Estrofe: daqui para baixo é uma estrofe (até a próxima parte)'],
     ['Pre-Chorus', 'plus', 'Pré-refrão: a parte que vem logo antes do refrão'], ['Bridge', 'plus', 'Ponte: daqui para baixo é a ponte'], ['Intro', 'plus', 'Linha da introdução (acordes)'],
@@ -16615,7 +16618,7 @@ function viewEditor(id, setId) {
       <section class="ed-topo">
         <div class="ed-capa" id="ed-capa"></div>
         <div class="ed-ident">
-          <div class="kind">${setDestino ? 'Nova música para ' + esc(setDestino.name) : isNew ? 'Nova música' : 'Editar cifra'}</div>
+          <div class="kind">${setDestino ? 'Nova música para ' + esc(setDestino.name) : isNew ? 'Nova música' : 'Editar'}</div>
           <input class="ed-titulo" id="f-title" value="${esc(meta.title)}" placeholder="Nome do canto" aria-label="Título" autocomplete="off">
           <input class="ed-artista" id="f-artist" value="${esc(meta.artist)}" placeholder="Autor ou intérprete" aria-label="Autor ou intérprete" autocomplete="off">
           <div class="ed-resumo" id="ed-resumo"></div>
@@ -16635,16 +16638,19 @@ function viewEditor(id, setId) {
       <section class="ed-card">
         <div class="ed-barra">
           <div class="seg ed-modos" role="group" aria-label="Como editar">
-            <button data-formato="acima" aria-pressed="${formato === 'acima'}" title="Acordes na linha de cima, alinhados com a sílaba">${icon('chord', 15)}<span>Cifra</span></button>
+            <button data-formato="letra" aria-pressed="${formato === 'letra'}" title="Corrija só o texto: os acordes continuam nas mesmas sílabas">${icon('text', 15)}<span>Letra</span></button>
+            <button data-formato="acima" aria-pressed="${formato === 'acima'}" title="Acordes na linha de cima, alinhados com a sílaba">${icon('chord', 15)}<span>Letra e cifra</span></button>
             <button data-formato="colchetes" aria-pressed="${formato === 'colchetes'}" title="Acordes entre [colchetes] no meio da letra">[ ]<span>Colchetes</span></button>
-            <button data-formato="letra" aria-pressed="${formato === 'letra'}" title="Corrija só o texto: os acordes continuam nas mesmas sílabas">${icon('text', 15)}<span>Só letra</span></button>
           </div>
+          <div class="seg ed-abas"><button data-aba="editar" aria-pressed="true" title="Editar o texto">${icon('edit', 15)}<span>Editar</span></button><button data-aba="previa" aria-pressed="false" title="Ver como fica">${icon('eye', 15)}<span>Ver como fica</span></button></div>
           <span class="spacer"></span>
           <button class="icon-btn" id="ed-desfazer" aria-label="Desfazer" title="Desfazer (Ctrl+Z)">${icon('undo', 18)}</button>
           <button class="icon-btn" id="ed-refazer" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)">${icon('redo', 18)}</button>
-          <div class="seg ed-abas"><button data-aba="editar" aria-pressed="true" title="Editar o texto">${icon('edit', 15)}</button><button data-aba="previa" aria-pressed="false" title="Ver como fica">${icon('eye', 15)}</button></div>
           <button class="icon-btn" id="ed-cheio" aria-label="Tela cheia" title="Usar a tela toda para editar">${icon('expand', 18)}</button>
         </div>
+        <p class="ed-modo-dica" id="ed-modo-dica"></p>
+        <details class="ed-ferramentas" id="ed-ferramentas"${db.prefs().edFerramentas ? ' open' : ''}>
+        <summary>${icon('plus', 16)}<span><b>Partes, acordes e ferramentas</b><small id="ed-ferramentas-resumo"></small></span>${icon('down', 16)}</summary>
         <div class="ed-linha barra" aria-label="Partes e ferramentas">
           <div class="seg"><button class="tom-btn" id="ed-tom" aria-label="Mudar o tom da cifra" title="Mudar o tom da cifra inteira (altera o texto)"><span class="val" id="ed-tom-val"></span>${icon('down', 14)}</button></div>
           ${partes.map(([n, ic, t]) => `<button class="chip parte" data-parte-ed="${n}" title="${t}">${icon(ic, 14)} ${n}</button>`).join('')}
@@ -16655,6 +16661,7 @@ function viewEditor(id, setId) {
         </div>
         <div class="chord-pal" id="pal"></div>
         <div class="ed-estrutura" id="ed-estrutura"></div>
+        </details>
         <div class="editor-split">
         <textarea id="content" spellcheck="false" aria-label="Letra e acordes" wrap="off">${esc(formato === 'acima' ? chordProToChordsOverLyrics(paraEditor(corpo)) : formato === 'letra' ? letraDe(paraEditor(corpo)) : paraEditor(corpo))}</textarea>
           <div class="editor-prev" id="prev"><div class="song" id="prev-song"></div></div>
@@ -16689,10 +16696,10 @@ function viewEditor(id, setId) {
   const guiaExtras = itemGuia('<span class="g-parte">[Repeat Chorus]</span>', 'Repetir o refrão', 'Canta o refrão de novo neste ponto, sem escrever outra vez.')
     + itemGuia('<span class="g-obs">(2x)</span>', 'Observação', 'Entre parênteses, numa linha só: (2x), (só as vozes), (solo)…');
   const GUIAS = {
-    acima: { nome: 'Cifra', itens: guiaParte + itemGuia(`${ac('G'.padEnd(17))}${ac('D')}\nSenhor, tende piedade`, 'Acordes em cima', 'Na linha de cima da letra, cada acorde alinhado com a sílaba em que entra.') + guiaExtras },
+    acima: { nome: 'Letra e cifra', itens: guiaParte + itemGuia(`${ac('G'.padEnd(17))}${ac('D')}\nSenhor, tende piedade`, 'Acordes em cima', 'Na linha de cima da letra, cada acorde alinhado com a sílaba em que entra.') + guiaExtras },
     colchetes: { nome: 'Colchetes', itens: guiaParte + itemGuia(`${ac('[G]')}Senhor, tende pie${ac('[D]')}dade`, 'Acorde antes da sílaba', 'Entre colchetes, colado na sílaba em que entra.', ficaAssim) + guiaExtras },
-    letra: { nome: 'Só letra', itens: itemGuia('Senhor, tende piedade', 'Só o texto', 'Corrija ou reescreva sem se preocupar com os acordes: ao salvar, cada acorde volta para a mesma sílaba.')
-      + itemGuia('<span class="g-obs">+ linha nova</span>', 'Linhas novas', 'Entram sem acordes. Para colocar acordes nelas, volte para <b>Cifra</b>.') },
+    letra: { nome: 'Letra', itens: itemGuia('Senhor, tende piedade', 'Só o texto', 'Corrija ou reescreva sem se preocupar com os acordes: ao salvar, cada acorde volta para a mesma sílaba.')
+      + itemGuia('<span class="g-obs">+ linha nova</span>', 'Linhas novas', 'Entram sem acordes. Para colocar acordes nelas, mude para <b>Letra e cifra</b>.') },
   };
   const dica = () => {
     const g = GUIAS[formato];
@@ -16701,8 +16708,15 @@ function viewEditor(id, setId) {
       <ul class="ed-guia-lista"><li class="ed-guia-rotulos" aria-hidden="true"><span>Você escreve</span><span>Para que serve</span></li>${g.itens}</ul>`
       + (formato === 'letra' ? '' : `<p class="ed-guia-rodape">${icon('chord', 14)}<span>Os botões acima colocam partes e acordes onde está o cursor.</span></p>`) + '</details>';
     $('#pal').hidden = formato === 'letra';
+    // (embaixo dos jeitos de editar, uma frase diz o que o escolhido faz)
+    $('#ed-modo-dica').textContent = formato === 'letra' ? 'Corrija só o texto. Os acordes continuam nas mesmas sílabas.'
+      : formato === 'acima' ? 'Os acordes ficam na linha de cima, alinhados com a sílaba em que entram.'
+        : 'Os acordes ficam entre [colchetes], colados na sílaba em que entram.';
+    $('#ed-ferramentas-resumo').textContent = formato === 'letra' ? 'Inserir refrão, estrofe, ponte; ir até uma parte' : 'Inserir refrão, estrofe e acordes; mudar o tom; ir até uma parte';
   };
   dica();
+  // (as ferramentas abrem e fecham; fica como a pessoa deixou)
+  $('#ed-ferramentas').addEventListener('toggle', (e) => db.setPref('edFerramentas', e.currentTarget.open));
   view.querySelectorAll('[data-formato]').forEach((b) => (b.onclick = () => {
     if (b.dataset.formato === formato) return;
     const pro = corpoPro();
