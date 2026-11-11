@@ -15,6 +15,7 @@ import {
   claveDaVoz, estimarAndamento, estimarCompasso, estimarTom, faixaDoModo, FAIXA_CORAL, melodiaDasNotas, tempoDaGrade, tomDaCifra, vozesDasNotas, colocarLetra, letraEmSilabas, temLetra, silabasDaLetra, temCifra as temCifraNaPartitura,
 } from './lib/partitura.js';
 import { corCss, coresDaCapa, corDaMusicaNaCapa, corPeloTitulo, matizDoTitulo } from './lib/cores.js';
+import { faixasDoQuadro } from './lib/molduras.js';
 import { carregarPiano, midiDaFrequencia, notaDePiano, pianoPronto } from './lib/piano.js';
 import { acordesDoCampo, cifraDaHarmonia, colocarCifras, harmoniaDosTempos } from './lib/alinhamento.js';
 import { harmonizarCoral } from './lib/harmonizar.js';
@@ -3317,15 +3318,11 @@ function medirFaixasDaImagem(img, largura = img.naturalWidth, altura = img.natur
   const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0, w, h);
   const px = ctx.getImageData(0, 0, w, h).data;
-  // (uma linha é faixa quando quase toda ela é escura: o logotipo do canal pode estar em cima da faixa)
-  const escura = (y) => { let n = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 <= 30) n++; } return n >= w * 0.92; };
-  let cima = 0;
-  while (cima < h && escura(cima)) cima++;
-  if (cima >= h) return 0; // (a imagem toda escura: não é faixa)
-  let baixo = 0;
-  while (baixo < h && escura(h - 1 - baixo)) baixo++;
+  // (as pretas e as de outra cor lisa, gravadas no próprio clipe: lib/molduras.js)
+  const { cima, baixo } = faixasDoQuadro(px, w, h);
+  const lado = Math.max(cima, baixo);
   // (o maior dos dois lados, um pouco a mais para a borda borrada da faixa não aparecer; no máximo 30%)
-  return Math.min(0.3, Math.max(cima, baixo) / h + (Math.max(cima, baixo) ? 1 / h : 0));
+  return Math.min(0.3, lado + (lado ? 1 / h : 0));
 }
 // (sem poder medir — sem internet —: o corte das miniaturas 4:3, que sempre têm as faixas)
 const faixasPadrao = (src) => (/\/(sd\d|hqdefault)\.jpg/.test(src) ? 0.125 : 0);
@@ -3959,13 +3956,12 @@ const player = (() => {
       const ctx = medidor.getContext('2d', { willReadFrequently: true });
       let px;
       try { ctx.drawImage(video, 0, 0, w, h); px = ctx.getImageData(0, 0, w, h).data; } catch { return; }
-      const escura = (y) => { for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 > 28) return false; } return true; };
-      let cima = 0;
-      while (cima < h && escura(cima)) cima++;
-      if (cima >= h) return;
-      let baixo = 0;
-      while (baixo < h && escura(h - 1 - baixo)) baixo++;
-      faixa = Math.min(faixa ?? 1, Math.min(cima, baixo) / h, 0.2);
+      // (as faixas pretas e as de outra cor lisa — brancas, cinza —, que alguns clipes trazem gravadas: lib/molduras.js.
+      // Fica a menor entre os quadros medidos: uma cena escura ou um céu liso não é faixa)
+      const { cima, baixo } = faixasDoQuadro(px, w, h);
+      // (uma linha a mais: a borda borrada da faixa, que não chega a contar como linha dela, também fica fora)
+      const lado = Math.min(cima, baixo);
+      faixa = Math.min(faixa ?? 1, lado ? lado + 1 / h : 0, 0.2);
       const zoom = faixa > 0.02 ? Math.max(1.18, 1.03 / (1 - 2 * faixa)).toFixed(3) : '';
       [caixa, reserva].filter(Boolean).forEach((v) => v.style.setProperty('--zoom', zoom));
     };
@@ -17603,7 +17599,9 @@ function viewPlaylist(set) {
 // ficarem fora da tela. No vídeo do aparelho, medidas em alguns quadros dele (fica a menor: uma cena escura não é
 // faixa); no do YouTube, nos quadros que ele publica do meio do clipe (o i.ytimg.com libera ler os pixels)
 // (as medidas ficam guardadas no aparelho: na próxima vez o clipe já entra no tamanho certo, sem medir de novo)
-const CHAVE_FAIXAS = 'songbook.faixas';
+// (v2: as faixas de cor lisa passaram a ser medidas; as medidas de antes, só das pretas, são refeitas)
+const CHAVE_FAIXAS = 'songbook.faixas.v2';
+try { localStorage.removeItem('songbook.faixas'); } catch { /* sem armazenamento */ }
 const faixasDoClipe = new Map(Object.entries((() => { try { return JSON.parse(localStorage.getItem(CHAVE_FAIXAS) || '{}') || {}; } catch { return {}; } })())); // 'arq:'|'yt:' + vídeo → fração da altura em faixa (em cima e embaixo)
 function guardarFaixas() {
   try {
