@@ -188,6 +188,17 @@ export function logoLumen(size = 32) {
   </svg>`;
 }
 
+// A marca do Ecoa só em traço (o "e" e as duas ondas), sem o quadrado azul: na cor do texto de onde é posta, para
+// aparecer no modo claro e no escuro
+export function logoTraco(size = 24) {
+  return `<svg class="logo-traco" width="${size}" height="${size}" viewBox="8 8 50 48" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-linecap="round">
+    <path d="M14.5 32H39.5A12.5 12.5 0 1 0 36.29 40.36" stroke-width="6.4"/>
+    <path d="M43.15 19.38A20.5 20.5 0 0 1 43.15 44.62" stroke-width="4.2" opacity=".7"/>
+    <path d="M50.75 17.16A28 28 0 0 1 50.75 46.84" stroke-width="3.6" opacity=".45"/>
+  </g>
+  </svg>`;
+}
 // Logo do Ecoa: um "e" redondo com duas ondas de eco saindo dele (o som que ecoa), em branco sobre o degradê
 // ciano → azul do app. O mesmo desenho em public/icon.svg (e nos PNGs gerados a partir dele).
 let nLogo = 0;
