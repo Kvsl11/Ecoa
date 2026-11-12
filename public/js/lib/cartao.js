@@ -107,15 +107,28 @@ export function textoDoCartao({ titulo = '', artista = '', url = '', versos = []
 // (os parênteses, o "!", o "'" e o "*" também vão codificados: os aplicativos de mensagem cortam o link neles)
 export const ENDERECO_DO_ECOA = 'https://kvsl11.github.io/Ecoa/';
 const parteDoLink = (t) => encodeURIComponent(String(t || '').replace(/\s+/g, ' ').trim()).replace(/[!'()*]/g, (x) => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
-export function linkDaMusicaNoEcoa(titulo, artista = '') {
+// Com o vídeo (o cartão do Vídeo): "/video/<id do clipe>" e, sabendo, "/<segundos>" — o ponto do clipe em que o refrão
+// começa. O link abre a música já no vídeo (com a conta) ou a prévia do próprio clipe (sem ela). Sem o artista, ele vai
+// como "-", para o vídeo não tomar o lugar dele no endereço
+export function linkDaMusicaNoEcoa(titulo, artista = '', { video = '', inicio = 0 } = {}) {
   const t = parteDoLink(titulo);
   if (!t) return '';
   const a = parteDoLink(artista);
-  return `${ENDERECO_DO_ECOA}#/ouvir/${t}${a ? `/${a}` : ''}`;
+  const id = /^[\w-]{11}$/.test(String(video || '')) ? video : '';
+  const seg = Math.floor(Number(inicio) || 0);
+  const doVideo = id ? `/video/${id}${seg > 0 ? `/${seg}` : ''}` : '';
+  return `${ENDERECO_DO_ECOA}#/ouvir/${t}${a ? `/${a}` : doVideo ? '/-' : ''}${doVideo}`;
+}
+// o endereço do link lido de volta: { titulo, artista, video: { id, inicio } | null } ("-" é o artista em branco)
+export function lerLinkDaMusica(partes = []) {
+  const [titulo = '', artistaBruto = '', modo = '', id = '', inicio = ''] = partes;
+  const artista = artistaBruto === '-' ? '' : artistaBruto;
+  const video = modo === 'video' && /^[\w-]{11}$/.test(id) ? { id, inicio: Math.max(0, Math.floor(Number(inicio) || 0)) } : null;
+  return { titulo, artista, video };
 }
 // o mesmo, para abrir o aplicativo Android a partir do navegador (o Chrome entrega ao app instalado; sem ele, abre o site)
-export function linkParaAbrirNoAplicativo(titulo, artista = '') {
-  const web = linkDaMusicaNoEcoa(titulo, artista);
+export function linkParaAbrirNoAplicativo(titulo, artista = '', opcoes = {}) {
+  const web = linkDaMusicaNoEcoa(titulo, artista, opcoes);
   if (!web) return '';
   return `intent://ouvir/${web.split('#/ouvir/')[1]}#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=${encodeURIComponent(web)};end`;
 }

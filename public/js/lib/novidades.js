@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 669, data: '2026-11-12', titulo: "Link do cartão do Vídeo abre a música no vídeo; para quem não entrou, a prévia passa a ser o próprio clipe",
+    itens: [
+      { tipo: 'melhoria', texto: "O link compartilhado era o mesmo nos três cartões (Música, Letra e Vídeo) e abria sempre a música no modo música, ou a prévia com a capa. O link do cartão do Vídeo passou a levar o clipe e o ponto do clipe em que o refrão começa (calculado pela letra sincronizada da música de quem compartilha). Com a conta, a música abre já no modo vídeo; sem ela, a prévia exibe o clipe num quadro 16:9, a partir do refrão, por 30 segundos, com o tempo decorrido e o fundo nas cores da miniatura do clipe, e volta ao início ao fim. O clipe é iniciado sem som e o som é ligado assim que a reprodução começa; onde o som não é liberado, o botão passa a \"Ouvir com som\". Quando o clipe não pode ser reproduzido fora do YouTube, ou não começa em até 10 segundos (15 segundos após a resposta do YouTube), a prévia passa à capa e ao trecho do Deezer. Os links dos cartões da Música e da Letra continuam abrindo a música e a prévia com a capa." },
+      { tipo: 'melhoria', texto: "No navegador do Android, \"Ouvir completa\" e \"Abrir a música no aplicativo\" passaram a levar o vídeo ao aplicativo instalado, que abre a música no modo vídeo." },
+      { tipo: 'melhoria', texto: "Pendente: a prévia do vídeo foi verificada em navegador, em perfil de iPhone, com um clipe que pode ser incorporado e com um que não pode; a abertura no modo vídeo com a conta e o compartilhamento pelo aplicativo Android não foram executados em aparelho." },
+    ],
+  },
+  {
     versao: 668, data: '2026-11-12', titulo: "Prévia do link compartilhado: abre com a capa e as cores da música, sem o fundo azul, e encontra a prévia com a internet lenta",
     itens: [
       { tipo: 'correcao', texto: "Sem a capa carregada, o fundo da prévia usava a cor do aplicativo como reserva e era exibido em azul, sem relação com a música. O fundo passou a ficar escuro e neutro até a capa chegar; a capa e as cores extraídas dela entram gradualmente, em 0,8 s." },
@@ -88,16 +96,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, a apresentação do artista em "Sobre o artista" era sempre a da Wikipédia em português, e a linha de números exibia "mi inscritos". A apresentação passou a ser buscada na Wikipédia do idioma do aparelho, com a versão em português como reserva, e a biografia de reserva (TheAudioDB) segue o mesmo idioma; os números passaram a ser abreviados e traduzidos no idioma do aparelho.' },
       { tipo: 'melhoria', texto: 'A tela de edição da música foi reorganizada: a tela inteira adota a cor da música, nos modos claro e escuro; a capa exibida é a da própria música, e não mais o quadro do vídeo recortado; os ícones deixaram a cor de destaque; "Editar" e "Ver como fica" ficam na primeira linha, com desfazer, refazer e tela cheia, e os três modos de edição na linha seguinte; os detalhes da música mostram em uma linha o que está preenchido; "Cancelar" e "Salvar" têm o mesmo tamanho. O guia "Como escrever" foi removido.' },
       { tipo: 'melhoria', texto: 'Pendente: a transição foi medida em navegador com arquivos de teste; não foi executada em aparelho, e a transição entre vídeos do YouTube não pôde ser reproduzida no ambiente de teste. A apresentação do artista foi conferida na Wikipédia em espanhol; a consulta em inglês não respondeu durante a conferência.' },
-    ],
-  },
-  {
-    versao: 659, data: '2026-11-12', titulo: 'Destaque máximo dos acordes com brilho uniforme; barra de reprodução sem contorno nos botões; folha "Adicionar a esta playlist" com botões alinhados',
-    itens: [
-      { tipo: 'correcao', texto: 'No nível Máximo do destaque dos acordes, a caixa escura atrás de cada acorde era semitransparente e acompanhava a opacidade de 50% aplicada aos acordes das linhas já cantadas na letra sincronizada; na mesma tela, parte das caixas aparecia escura, com contorno forte, e parte clara e apagada. A caixa e o contorno foram substituídos por um brilho na cor do próprio acorde (um halo claro no modo claro), e os acordes passaram a ter opacidade integral em todas as linhas; a linha já cantada continua indicada pela letra. Todos os acordes ficam com a mesma aparência.' },
-      { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, o contorno escuro em volta do botão da música salva e do ícone do fone conectado foi retirado, nos modos claro e escuro. O botão passou a ter a borda na cor do próprio fundo, e o ícone do fone, uma única camada na cor do aplicativo.' },
-      { tipo: 'correcao', texto: 'Na folha "Adicionar a esta playlist", o botão "Selecionar todas" dividia o rodapé com "Cancelar" e "Adicionar"; quando ele era ocultado (lista vazia ou busca na internet), os dois botões ficavam encostados à direita, com larguras diferentes. Os dois passaram a ocupar a largura inteira, com o mesmo tamanho (168 px cada em tela de 390 px), e "Selecionar todas" foi movido para baixo do campo de busca. O botão "Adicionar" deixou de exibir a quantidade de músicas marcadas.' },
-      { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, o atalho "Procurar outras na internet" da mesma folha exibia a palavra "outras" em português. O texto passou a ter entrada própria nos dois dicionários.' },
-      { tipo: 'melhoria', texto: 'Pendente: as alterações foram conferidas em navegador, em 390 px, nos modos claro e escuro, em inglês e espanhol; não foram executadas em aparelho. No aplicativo de Android, elas chegam quando a atualização é instalada em Ajustes.' },
     ],
   },
 ];
