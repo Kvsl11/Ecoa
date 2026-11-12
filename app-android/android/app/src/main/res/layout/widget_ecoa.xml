@@ -13,7 +13,7 @@
         <ImageView android:id="@+id/w_capa"
             android:layout_width="wrap_content" android:layout_height="match_parent" android:maxWidth="168dp"
             android:adjustViewBounds="true" android:scaleType="fitCenter"
-            android:src="@drawable/widget_sem_capa" android:contentDescription="Abrir o Ecoa" />
+            android:src="@drawable/widget_sem_capa" android:contentDescription="@string/widget_abrir" />
 
         <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
             android:orientation="vertical" android:paddingStart="14dp" android:paddingEnd="2dp">
@@ -25,7 +25,7 @@
                         android:text="Ecoa" android:textColor="#FFFFFFFF" android:textSize="16sp" android:textStyle="bold"
                         android:maxLines="1" android:ellipsize="end" />
                     <TextView android:id="@+id/w_artista" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="Toque para abrir" android:textColor="#C7FFFFFF" android:textSize="13sp"
+                        android:text="@string/widget_toque" android:textColor="#C7FFFFFF" android:textSize="13sp"
                         android:maxLines="1" android:ellipsize="end" android:layout_marginTop="1dp" />
                     <!-- a frase que está sendo cantada (a letra sincronizada); com ela, a linha do artista dá o lugar -->
                     <TextView android:id="@+id/w_frase" android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -40,14 +40,14 @@
                 android:orientation="horizontal" android:gravity="center">
             <ImageButton android:id="@+id/w_anterior" android:layout_width="44dp" android:layout_height="44dp"
                 android:src="@drawable/ic_anterior" android:background="@drawable/widget_toque" android:padding="10dp"
-                android:scaleType="fitCenter" android:contentDescription="Voltar" />
+                android:scaleType="fitCenter" android:contentDescription="@string/acao_voltar" />
             <ImageButton android:id="@+id/w_tocar" android:layout_width="48dp" android:layout_height="48dp"
                 android:layout_marginStart="18dp" android:layout_marginEnd="18dp"
                 android:src="@drawable/ic_tocar" android:tint="#FF121212" android:background="@drawable/widget_botao_play" android:padding="12dp"
-                android:scaleType="fitCenter" android:contentDescription="Tocar" />
+                android:scaleType="fitCenter" android:contentDescription="@string/acao_tocar" />
             <ImageButton android:id="@+id/w_proxima" android:layout_width="44dp" android:layout_height="44dp"
                 android:src="@drawable/ic_proxima" android:background="@drawable/widget_toque" android:padding="10dp"
-                android:scaleType="fitCenter" android:contentDescription="Pular" />
+                android:scaleType="fitCenter" android:contentDescription="@string/acao_pular" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

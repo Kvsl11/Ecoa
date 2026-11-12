@@ -2,6 +2,7 @@
 // música): uma imagem 4:5 com a capa, o nome e o artista ("Música") ou com os versos escolhidos ("Letra"), na cor da
 // música ou em outra das cores oferecidas, ou com o quadro do videoclipe ("Vídeo"), e o texto que vai junto na mensagem.
 import { fonte, retangulo } from './convite.js';
+import { t } from './i18n.js';
 
 // o tamanho de cada cartão: a música em pé (como um story), a letra quadrada e o vídeo deitado
 export const TAMANHOS_DO_CARTAO = { musica: { l: 1080, a: 1920 }, letra: { l: 1080, a: 1080 }, video: { l: 1080, a: 920 } };
@@ -297,7 +298,7 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     c.fillText(umaLinha(medir, titulo, tl), tx, M + 50);
     c.fillStyle = tinta.suave;
     c.font = fonte(500, 32);
-    c.fillText(umaLinha(medir, ['Música', artista].filter(Boolean).join(' · '), tl), tx, M + 96);
+    c.fillText(umaLinha(medir, [t('Música'), artista].filter(Boolean).join(' · '), tl), tx, M + 96);
     marca(c, M, A - M, tinta);
     // os versos, na maior letra em que cabem, no estilo e no alinhamento escolhidos
     const topo = M + 112 + 56; const altura = A - M - 56 - 48 - topo;
@@ -365,7 +366,7 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     c.font = fonte(500, 36);
     c.fillText(umaLinha(medir, artista, tl), tx, y0 + 104);
     marca(c, M, A - 52, cor, 52);
-    const rotulo = ['Videoclipe', duracaoDoCartao(duracao)].filter(Boolean).join(' · ');
+    const rotulo = [t('Videoclipe'), duracaoDoCartao(duracao)].filter(Boolean).join(' · ');
     c.fillStyle = cor.texto;
     c.font = fonte(700, 32);
     c.textAlign = 'right';

@@ -87,8 +87,8 @@ public class TocandoService extends Service {
 
     private static void criarCanal(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
-        NotificationChannel c = new NotificationChannel(CANAL, "Tocando agora", NotificationManager.IMPORTANCE_LOW);
-        c.setDescription("A música tocando no Ecoa, com os botões");
+        NotificationChannel c = new NotificationChannel(CANAL, ctx.getString(R.string.canal_tocando), NotificationManager.IMPORTANCE_LOW);
+        c.setDescription(ctx.getString(R.string.canal_tocando_desc));
         c.setShowBadge(false);
         ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(c);
     }
@@ -108,9 +108,9 @@ public class TocandoService extends Service {
             .setOngoing(tocando)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(R.drawable.ic_anterior, "Voltar", EcoaWidget.botao(ctx, Acoes.ANTERIOR, 21))
-            .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, tocando ? "Pausar" : "Tocar", EcoaWidget.botao(ctx, Acoes.ALTERNAR, 22))
-            .addAction(R.drawable.ic_proxima, "Pular", EcoaWidget.botao(ctx, Acoes.PROXIMA, 23))
+            .addAction(R.drawable.ic_anterior, ctx.getString(R.string.acao_voltar), EcoaWidget.botao(ctx, Acoes.ANTERIOR, 21))
+            .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, ctx.getString(tocando ? R.string.acao_pausar : R.string.acao_tocar), EcoaWidget.botao(ctx, Acoes.ALTERNAR, 22))
+            .addAction(R.drawable.ic_proxima, ctx.getString(R.string.acao_pular), EcoaWidget.botao(ctx, Acoes.PROXIMA, 23))
             .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 // (com a sessão de mídia, o aviso vira o player do Android: a capa, a barra do tempo, a tela de bloqueio)
                 .setMediaSession(Sessao.de(ctx).getSessionToken())

@@ -4,5 +4,16 @@
     <string name="title_activity_main">Ecoa</string>
     <string name="package_name">br.ecoa.app</string>
     <string name="custom_url_scheme">br.ecoa.app</string>
-    <string name="widget_descricao">A última música tocada no Ecoa, com os botões</string>
+    <string name="widget_descricao">The last song played on Ecoa, with the buttons</string>
+    <string name="widget_abrir">Open Ecoa</string>
+    <string name="widget_toque">Tap to open</string>
+    <string name="acao_voltar">Previous</string>
+    <string name="acao_tocar">Play</string>
+    <string name="acao_pausar">Pause</string>
+    <string name="acao_pular">Next</string>
+    <string name="canal_downloads">Downloads</string>
+    <string name="canal_downloads_desc">Progress and completion of song downloads</string>
+    <string name="canal_tocando">Now playing</string>
+    <string name="canal_tocando_desc">The song playing on Ecoa, with the buttons</string>
+    <string name="aviso_download">Follow the download progress in Ecoa.</string>
 </resources>

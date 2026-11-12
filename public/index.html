@@ -103,6 +103,26 @@
       <p class="entrada-nota">Você entra uma vez e continua entrado neste aparelho até tocar em Sair.</p>
     </div>
   </section>
+  <script>
+    // a tela de entrada no idioma do aparelho (português, inglês ou espanhol; os outros, em inglês) antes de o app
+    // carregar; o resto da tela é trocado pelo app (js/lib/i18n.js)
+    try {
+      (function () {
+        var l = String((navigator.languages && navigator.languages[0]) || navigator.language || 'pt').toLowerCase();
+        if (l.indexOf('pt') === 0) return;
+        var es = l.indexOf('es') === 0;
+        document.documentElement.lang = es ? 'es' : 'en';
+        var T = es
+          ? ['Escucha, canta<br>y haz eco.', 'Cifrado, letra sincronizada y videoclip, tus repertorios y la liturgia del día, en una sola app.', 'Iniciar sesión con Google', 'Abrir la canción en la app', 'Inicias sesión una vez y sigues conectado en este dispositivo hasta tocar Cerrar sesión.']
+          : ['Listen, sing<br>and echo.', 'Chords, synced lyrics and music videos, your setlists and the liturgy of the day, all in one app.', 'Sign in with Google', 'Open the song in the app', 'You sign in once and stay signed in on this device until you tap Sign out.'];
+        document.getElementById('entrada-titulo').innerHTML = T[0];
+        document.querySelector('.entrada-frase').textContent = T[1];
+        document.getElementById('entrada-rotulo').textContent = T[2];
+        document.getElementById('entrada-app').textContent = T[3];
+        document.querySelector('.entrada-nota').textContent = T[4];
+      })();
+    } catch (e) {}
+  </script>
   <div class="shell">
     <aside class="side">
       <div class="brand-row">
