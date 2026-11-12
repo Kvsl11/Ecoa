@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 658, data: '2026-11-12', titulo: 'Aplicativo de Android: o conteúdo só muda quando a atualização é instalada em Ajustes',
+    itens: [
+      { tipo: 'correcao', texto: 'No aplicativo de Android, cada versão nova do site era baixada e ativada automaticamente, com recarga da tela durante o uso, antes de a atualização ser instalada em Ajustes → Sobre → Atualização do app. A atualização continuava indicada, porque ela instala o APK, cujo número não havia mudado. O pacote de arquivos baixado por um APK passou a permanecer em uso enquanto esse APK estiver instalado: uma versão nova do site não é baixada nem recarrega a tela. O conteúdo é trocado quando o APK é atualizado em Ajustes. No site, aberto pelo navegador, a atualização automática foi mantida.' },
+      { tipo: 'melhoria', texto: 'Em simulação em navegador, duas versões seguidas do site com o mesmo número de APK não alteraram o pacote em uso nem pediram recarga da tela; o registro com outro número de APK baixou o pacote novo e removeu o anterior; sem número de APK, a versão nova entrou automaticamente.' },
+      { tipo: 'melhoria', texto: 'Pendente: a alteração não foi executada em aparelho. Ela passa a valer com a publicação desta versão do site, sem exigir um APK novo. Em consequência, as correções publicadas no site deixam de chegar ao aplicativo até a atualização ser instalada em Ajustes.' },
+    ],
+  },
+  {
     versao: 657, data: '2026-11-12', titulo: 'Desempenho: gravações da biblioteca agrupadas e listas compridas mais leves; textos de progresso traduzidos',
     itens: [
       { tipo: 'correcao', texto: 'Cada alteração em uma música gravava a biblioteca inteira no armazenamento do aparelho, de forma síncrona. Ao abrir uma playlist de 28 músicas e iniciar a reprodução, com biblioteca de teste de 300 músicas (2,3 MB), a biblioteca era regravada 57 vezes em 20 segundos, e a tela ficava bloqueada durante cada gravação. As alterações consecutivas passaram a ser reunidas em uma única gravação, 600 ms após a última e no máximo 2,5 s após a primeira; o que está pendente é gravado quando o aplicativo vai para segundo plano ou é fechado. No mesmo teste, as gravações caíram de 57 para 7, e o tempo de tela bloqueada por elas, de 959 ms para 106 ms, medido em navegador de computador.' },
@@ -86,14 +94,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'No modo claro, ícones, botões e rótulos na cor do aplicativo usavam a cor escurecida com 42% de preto (para o ciano padrão, #036a7b), um tom diferente do azul do botão da música salva (#06b6d4). O escurecimento passou a 18% (#0595ae, contraste de 3,5:1 sobre o branco), mais próximo do azul do botão. A cor idêntica não foi adotada em texto e traço finos porque o contraste sobre o branco seria de 2,4:1. Os acordes da cifra, que são texto de leitura, mantêm o escurecimento de 42%.' },
       { tipo: 'correcao', texto: 'A publicação do site falhava com "release not found" (execução 1727) quando coincidia com a publicação do APK, que apaga e recria a release "android" no mesmo envio. A etapa que copia o APK para o site passou a aguardar a release ficar disponível, com até 20 tentativas a cada 15 s (5 min), antes de falhar. O conteúdo da versão 648 foi publicado pela execução seguinte (1728).' },
       { tipo: 'melhoria', texto: 'Pendente: as fileiras e o botão do fone foram verificados em navegador (390 × 844, modos claro e escuro), com biblioteca de teste de 4 músicas e o fone simulado; não foram executados em aparelho nem com a biblioteca real. A espera pela release só é exercida na próxima publicação que coincidir com a do APK.' },
-    ],
-  },
-  {
-    versao: 648, data: '2026-11-11', titulo: 'Cartão do artista: título "Sobre o artista" legível sobre qualquer foto, nos dois modos',
-    itens: [
-      { tipo: 'correcao', texto: 'No modo claro, o título "Sobre o artista", exibido sobre a foto do artista, herdava o tom escuro do texto do cartão e ficava ilegível sobre fotos escuras. O título passou a ser sempre branco, com sombra reforçada, e a faixa escurecida no alto da foto foi intensificada (de 45% para 62% de preto no topo, até desaparecer a 42% da altura), o que mantém a leitura sobre fotos escuras, claras ou coloridas, nos modos claro e escuro.' },
-      { tipo: 'melhoria', texto: 'Os demais textos sobre imagem foram conferidos pelas regras de estilo (os quadros de "Explorar o artista", a duração nos vídeos relacionados, o topo sobre a capa animada, o cabeçalho da música com o clipe ao fundo e os cartões da tela inicial): já usam cor fixa branca com sombra ou escurecimento e não foram alterados.' },
-      { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com o cartão sobre fundos preto, branco e amarelo, nos dois modos; não foi executada no aplicativo com fotos reais nem em aparelho.' },
     ],
   },
 ];
