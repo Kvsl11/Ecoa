@@ -29,7 +29,8 @@ const TIPOS_COM_SOM = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;cod
 
 // Grava o cartão em vídeo: desenhar(canvas, t) a cada quadro (t em segundos), durante os segundos pedidos. Com `som`
 // (um <video> ou <audio> de prepararTrecho), a mídia toca do ponto em que está e o som dela vai para o vídeo (sem sair
-// no alto-falante), entrando e saindo aos poucos. Sai em MP4 (H.264, AAC) onde o aparelho grava; senão, em WebM.
+// no alto-falante), entrando e saindo aos poucos. Sai em MP4 (H.264, AAC) onde o aparelho grava; senão, em WebM; em
+// Full HD (o cartão tem 1080 px de largura), a 12 Mbit/s.
 // Devolve { blob, comSom } ou null onde não há gravação de vídeo do canvas
 export async function videoDoCartao(desenhar, segundos, { fps = 30, som = null } = {}) {
   if (typeof MediaRecorder !== 'function') return null;
@@ -61,7 +62,7 @@ export async function videoDoCartao(desenhar, segundos, { fps = 30, som = null }
     const comSom = Boolean(ganho);
     const tipo = (comSom ? TIPOS_COM_SOM : TIPOS_SEM_SOM).find((x) => MediaRecorder.isTypeSupported(x));
     if (!tipo) return null;
-    const gravador = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 6_000_000, ...(comSom ? { audioBitsPerSecond: 160_000 } : {}) });
+    const gravador = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: 12_000_000, ...(comSom ? { audioBitsPerSecond: 192_000 } : {}) });
     const partes = [];
     gravador.ondataavailable = (e) => { if (e.data?.size) partes.push(e.data); };
     const fim = new Promise((ok, falha) => { gravador.onstop = ok; gravador.onerror = (e) => falha(e.error || new Error('a gravação falhou')); });

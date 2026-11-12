@@ -719,7 +719,7 @@ function dadosParaCompartilhar(song) {
 // um redimensionador público (como na cor da capa). null sem capa, sem internet ou sem resposta em 6 s
 async function imagemDaCapaParaCartao(src, { largura = 0 } = {}) {
   if (!src) return null;
-  const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=900&h=900&fit=cover&output=jpg`];
+  const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=1600&h=1600&fit=cover&output=jpg&q=92`];
   for (const url of tentativas) {
     try {
       const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout?.(6000) });
@@ -842,9 +842,17 @@ async function compartilharMusica(musica) {
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [], ...(previa?.m === m && !gravando ? aoVivo(previa) : {}) });
   let tAnim = 0; // (o instante da animação do fundo, em segundos)
   let gravando = false;
-  const imagem = () => new Promise((ok) => {
-    try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
-  });
+  // (a imagem enviada sai em 4K — o cartão desenhado no dobro: 2160 px de largura —; se o aparelho não tem memória
+  // para ela, em Full HD, 1080 px)
+  const imagem = async () => {
+    for (const escala of [2, 1]) {
+      const blob = await new Promise((ok) => {
+        try { const c = desenharCartao(document.createElement('canvas'), { ...dadosDo(modo), escala }); c.toBlob(ok, 'image/jpeg', 0.95); } catch { ok(null); }
+      });
+      if (blob?.size) return blob;
+    }
+    return null;
+  };
   // O que é enviado: com a música (o trecho da letra ou do clipe) ou com o fundo animado, o cartão em vídeo; sem eles,
   // a imagem. O vídeo dura o trecho da música ou, só com o fundo animado, uma volta da animação (o fim emenda no
   // começo). Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
@@ -20264,50 +20272,36 @@ addEventListener('songbook:nuvem', () => {
   if (/^#?\/?(biblioteca(\/[^/]*)?|repertorios|repertorio\/[^/]+)?$/.test(location.hash)) route();
 });
 
-// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>): abre a música — a da biblioteca, se a pessoa
-// já a tem; senão, trazida pelo nome e pelo artista, como as da busca. Abre sozinha na primeira vez; voltando a esta
-// tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta.
-// No navegador do Android, o link é entregue antes ao aplicativo instalado (o index.html faz isso ao chegar). Se o
-// aplicativo abriu, o navegador saiu da frente, e esta tela fica só com os botões; se a página continua na frente
-// depois de ESPERA_DO_APLICATIVO, não há aplicativo, e a música abre aqui mesmo
+// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>), igual no APK, no navegador (celular, tablet
+// e computador): sem conta, fica a tela de entrada, com o link guardado no endereço; entrando, a música abre direto na
+// tela dela — a da biblioteca, se a pessoa já a tem; senão, trazida pelo nome e pelo artista, como as da busca —,
+// mesmo com o player aberto (antes, com o player aberto, ela só ia para o player e ficava na frente uma tela com os
+// botões "Abrir a música" e "Procurar na busca"). O link é trocado pelo Início no histórico: voltando da música, fica o
+// Início, e não uma tela intermediária.
+// No navegador do Android, o link é entregue antes ao aplicativo instalado (o index.html faz isso ao chegar): se o
+// aplicativo abriu, o navegador saiu da frente e fica no Início; se a página continua na frente depois de
+// ESPERA_DO_APLICATIVO, não há aplicativo, e a música abre aqui mesmo
 const ESPERA_DO_APLICATIVO = 1600;
 const noNavegadorDoAndroid = () => /Android/i.test(navigator.userAgent) && !noApk();
 function viewOuvir(titulo = '', artista = '') {
   if (!titulo) return viewNotFound();
-  setTab('inicio');
-  setHeader('Música compartilhada', { back: '#/' });
-  const android = noNavegadorDoAndroid();
-  const abrir = () => { void abrirMusica({ titulo, artista }, '#/'); };
-  view.innerHTML = `<section class="ouvir-link">
-    <div class="cover">${icon('music', 44)}</div>
-    <h2>${esc(titulo)}</h2>${artista ? `<p class="muted">${esc(artista)}</p>` : ''}
-    <div class="ouvir-acoes">
-      ${android ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
-      <button class="btn${android ? '' : ' primary'}" data-ouvir>${icon('play', 18)} ${android ? 'Ouvir aqui' : 'Abrir a música'}</button>
-      <button class="btn" data-procurar>${icon('search', 18)} Procurar na busca</button>
-    </div></section>`;
-  $('[data-ouvir]', view).onclick = abrir;
-  $('[data-procurar]', view).onclick = () => {
-    sessionStorage.setItem('busca', [titulo, artista].filter(Boolean).join(' '));
-    sessionStorage.setItem('buscaFiltro', 'musicas');
-    location.hash = '#/buscar';
-  };
-  const chave = `ouvir:${titulo}|${artista}`;
-  if (sessionStorage.getItem('ouvirAberta') === chave) return;
-  if (!android) { sessionStorage.setItem('ouvirAberta', chave); abrir(); return; }
-  // (só logo depois da tentativa de abrir o aplicativo: mais tarde, a tela é só a dos botões)
-  const tentouEm = Number(sessionStorage.getItem('ecoa.noAppEm')) || 0;
-  if (sessionStorage.getItem('ecoa.noApp') !== location.hash || Date.now() - tentouEm > 15000) return;
+  // (sem conta, a tela de entrada está na frente: o link fica no endereço e a música abre depois de entrar)
+  if (!usuarioConta()) { setTab('inicio'); view.innerHTML = ''; return; }
+  // (o index.html acabou de tentar entregar este link ao aplicativo instalado?)
+  let tentouOApp = false;
+  try { tentouOApp = noNavegadorDoAndroid() && sessionStorage.getItem('ecoa.noApp') === location.hash && Date.now() - (Number(sessionStorage.getItem('ecoa.noAppEm')) || 0) < 15000; } catch { /* sem sessionStorage */ }
+  history.replaceState(null, '', '#/');
+  route();
+  const abrir = () => { void abrirMusica({ titulo, artista }, '#/', null, { tela: true }); };
+  if (!tentouOApp) { abrir(); return; }
   let saiu = document.visibilityState !== 'visible';
   const aoSairDaFrente = () => { if (document.visibilityState !== 'visible') saiu = true; };
   document.addEventListener('visibilitychange', aoSairDaFrente);
-  const espera = setTimeout(() => {
+  setTimeout(() => {
     document.removeEventListener('visibilitychange', aoSairDaFrente);
-    if (saiu || document.visibilityState !== 'visible') return;
-    sessionStorage.setItem('ouvirAberta', chave);
+    if (saiu || document.visibilityState !== 'visible' || location.hash !== '#/') return;
     abrir();
   }, ESPERA_DO_APLICATIVO);
-  limpezas.push(() => { clearTimeout(espera); document.removeEventListener('visibilitychange', aoSairDaFrente); });
 }
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início

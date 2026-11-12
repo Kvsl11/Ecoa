@@ -165,3 +165,27 @@ test('os versos enchem conforme são cantados: de 0 a 1 cada um, do começo ao f
   assert.deepEqual(preenchimentoDosVersos(tempos, [1, 9], 30), [1, 1]); // (sem o tempo da linha: cheia)
   assert.equal(preenchimentoDosVersos(null, [1], 3), null);
 });
+
+test('os três cartões são desenhados inteiros (a letra com os versos, o vídeo com o rótulo) e a imagem sai em 4K', async () => {
+  const { desenharCartao, coresDoCartao } = await import('../public/js/lib/cartao.js');
+  globalThis.Path2D ??= class { constructor(d) { this.d = d; } };
+  const textos = [];
+  const contexto = new Proxy({ measureText: (x) => ({ width: String(x).length * 20 }), fillText: (x) => textos.push(x), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, {
+    get: (alvo, k) => (k in alvo ? alvo[k] : () => {}),
+    set: (alvo, k, v) => { alvo[k] = v; return true; },
+  });
+  const tela = () => ({ width: 0, height: 0, getContext: () => contexto });
+  const cor = coresDoCartao('hsl(260 60% 40%)')[0];
+  const base = { titulo: 'Blood In Your Eyes', artista: 'Tove Lo', cor, duracao: 241, t: 2.5 };
+  for (const animacao of ['', 'ondas']) {
+    textos.length = 0;
+    desenharCartao(tela(), { ...base, modo: 'letra', versos: ['Better hang with me', 'Fast cars, big lips'], animacao, preenchido: [1, 0.4] });
+    assert.ok(textos.includes('Música · Tove Lo'), 'a letra mostra o artista');
+    assert.ok(textos.some((x) => /Better hang/.test(x)) && textos.includes('Ecoa'), 'a letra mostra os versos e a marca');
+  }
+  textos.length = 0;
+  desenharCartao(tela(), { ...base, modo: 'video' });
+  assert.ok(textos.includes('Videoclipe · 4:01'));
+  const grande = desenharCartao(tela(), { ...base, modo: 'musica', escala: 2 });
+  assert.deepEqual([grande.width, grande.height], [2160, 3840]);
+});

@@ -2,7 +2,8 @@
 // música): uma imagem 4:5 com a capa, o nome e o artista ("Música") ou com os versos escolhidos ("Letra"), na cor da
 // música ou em outra das cores oferecidas, ou com o quadro do videoclipe ("Vídeo"), e o texto que vai junto na mensagem.
 import { fonte, retangulo } from './convite.js';
-import { t } from './i18n.js';
+// (traduzir, e não t: o desenho do cartão recebe t, o instante da animação, que esconderia a tradução)
+import { t as traduzir } from './i18n.js';
 
 // o tamanho de cada cartão: a música em pé (como um story), a letra quadrada e o vídeo deitado
 export const TAMANHOS_DO_CARTAO = { musica: { l: 1080, a: 1920 }, letra: { l: 1080, a: 1080 }, video: { l: 1080, a: 920 } };
@@ -262,15 +263,19 @@ export function desenharFundoAnimado(c, L, A, tinta, qual, t = 0) {
 // null), versos (os textos, no modo letra), cor (uma de coresDoCartao), estilo ('classico' | 'largo' | 'estreito' |
 // 'inclinado'), alinhar ('esquerda' | 'centro'), fundo (uma imagem carregada — a capa ou uma foto do aparelho — que
 // cobre o cartão, escurecida, no lugar da cor; null: a cor), quadro (a imagem do videoclipe), duracao (segundos),
-// animacao (um dos FUNDOS_ANIMADOS, ou '': o fundo parado) e t (o instante da animação, em segundos) }
-export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0, animacao = '', t = 0, preenchido = null } = {}) {
+// animacao (um dos FUNDOS_ANIMADOS, ou '': o fundo parado), t (o instante da animação, em segundos) e escala (o
+// cartão desenhado maior, com o mesmo desenho: 2 para a imagem enviada em 4K — 2160 px de largura) }
+export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista = '', capa = null, versos = [], cor: corPedida, estilo = 'classico', alinhar = 'esquerda', fundo = null, quadro = null, duracao = 0, animacao = '', t = 0, preenchido = null, escala = 1 } = {}) {
   let cor = corPedida;
   if (modo === 'letra' && !versos.length) modo = 'musica';
   const { l: L, a: A } = tamanhoDoCartao(modo);
+  const e = Number(escala) > 0 ? Number(escala) : 1;
   // (o tamanho só é posto quando muda: pôr de novo a cada quadro apagaria o canvas que está sendo gravado em vídeo)
-  if (canvas.width !== L || canvas.height !== A) { canvas.width = L; canvas.height = A; }
+  const lp = Math.round(L * e); const ap = Math.round(A * e);
+  if (canvas.width !== lp || canvas.height !== ap) { canvas.width = lp; canvas.height = ap; }
   const c = canvas.getContext('2d');
-  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.setTransform(e, 0, 0, e, 0, 0);
+  if ('imageSmoothingQuality' in c) c.imageSmoothingQuality = 'high';
   c.globalAlpha = 1;
   const medir = (t) => c.measureText(t).width;
   const M = 72;
@@ -298,7 +303,7 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     c.fillText(umaLinha(medir, titulo, tl), tx, M + 50);
     c.fillStyle = tinta.suave;
     c.font = fonte(500, 32);
-    c.fillText(umaLinha(medir, [t('Música'), artista].filter(Boolean).join(' · '), tl), tx, M + 96);
+    c.fillText(umaLinha(medir, [traduzir('Música'), artista].filter(Boolean).join(' · '), tl), tx, M + 96);
     marca(c, M, A - M, tinta);
     // os versos, na maior letra em que cabem, no estilo e no alinhamento escolhidos
     const topo = M + 112 + 56; const altura = A - M - 56 - 48 - topo;
@@ -366,7 +371,7 @@ export function desenharCartao(canvas, { modo = 'musica', titulo = '', artista =
     c.font = fonte(500, 36);
     c.fillText(umaLinha(medir, artista, tl), tx, y0 + 104);
     marca(c, M, A - 52, cor, 52);
-    const rotulo = [t('Videoclipe'), duracaoDoCartao(duracao)].filter(Boolean).join(' · ');
+    const rotulo = [traduzir('Videoclipe'), duracaoDoCartao(duracao)].filter(Boolean).join(' · ');
     c.fillStyle = cor.texto;
     c.font = fonte(700, 32);
     c.textAlign = 'right';
