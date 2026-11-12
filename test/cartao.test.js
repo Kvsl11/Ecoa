@@ -205,12 +205,3 @@ test('a prévia do link compartilhado: só a faixa certa, com o trecho de 30 s',
   assert.equal(comparavel('Coração (Ao Vivo) feat. Fulano'), 'coracao');
   assert.equal(tempoDaPrevia(29.7), '0:29');
 });
-
-test('a prévia toca o refrão do clipe: o tempo da letra, com a cena de abertura do clipe somada', async () => {
-  const { inicioDoRefraoNoClipe } = await import('../public/js/lib/convite-musica.js');
-  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 201 }), 52.4); // (mesma duração)
-  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 230 }), 82.4); // (30 s de cena antes)
-  assert.equal(inicioDoRefraoNoClipe({ duracaoGravacao: 200, duracaoClipe: 200 }), 60); // (sem a letra: 30% da música)
-  assert.equal(inicioDoRefraoNoClipe({ refrao: 190, duracaoGravacao: 200, duracaoClipe: 200 }), 169); // (cabem os 30 s)
-  assert.equal(inicioDoRefraoNoClipe({ refrao: 50, duracaoGravacao: 200, duracaoClipe: 500 }), 50); // (outro corte: não soma)
-});

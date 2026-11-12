@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 664, data: '2026-11-12', titulo: "Prévia do link compartilhado: capa parada, sem o clipe, e somente o fundo em movimento nas cores da capa",
+    itens: [
+      { tipo: 'melhoria', texto: "Na prévia exibida a quem abre o link de uma música sem estar com a conta, o clipe oficial era reproduzido dentro do quadro da capa a partir do refrão. A prévia passou a manter a capa parada, sem vídeo, e a reproduzir somente o trecho de 30 segundos do Deezer (somente quando a faixa encontrada tem o mesmo nome e o mesmo artista); o movimento fica restrito ao fundo, formado por três camadas desfocadas da própria capa, que giram e se deslocam lentamente, e por três focos de luz nas cores extraídas da capa, cuja intensidade acompanha as batidas do trecho (análise do áudio; onde ela não é permitida, os focos pulsam em compasso fixo). A barra de progresso continua com o tempo decorrido (de 0:00 a 0:30), e ao fim da prévia (ou em \"Pular\") é exibida a tela de entrada. Como o trecho é o escolhido pelo Deezer, a prévia deixa de corresponder necessariamente ao refrão." },
+      { tipo: 'correcao', texto: "O clipe da prévia era iniciado com o pedido de som junto com o de reprodução, o que impedia o início em alguns navegadores; após 8 segundos sem reprodução, a prévia passava ao trecho do Deezer. Com a remoção do clipe da prévia, o problema deixa de ocorrer." },
+      { tipo: 'melhoria', texto: "Pendente: a prévia foi conferida em navegador, em 390 px, com som (gravação de tela com áudio), tocando até 0:30 e passando à tela de entrada; não executada em aparelho." },
+    ],
+  },
+  {
     versao: 663, data: '2026-11-12', titulo: "Compartilhar: cartões da Letra e do Vídeo voltam a ser gerados, imagem em 4K e vídeo em Full HD; link compartilhado abre direto a música",
     itens: [
       { tipo: 'correcao', texto: "Desde a versão 655, a função de desenho do cartão de compartilhar recebia um parâmetro chamado t (o instante da animação) que ocultava a função de tradução de mesmo nome. Ao escrever \"Música · artista\" no cartão da Letra e o rótulo \"Videoclipe\" no cartão do Vídeo, o desenho era interrompido com erro: a prévia da Letra exibia apenas o título, sem os versos, e nem a imagem nem o vídeo do cartão eram gerados, de modo que apenas o texto era enviado e aparecia o aviso de que o aparelho não gera o vídeo. A tradução passou a usar outro nome, e os três cartões voltaram a ser desenhados por inteiro; o cartão da Letra e o do Vídeo voltaram a ser enviados em vídeo com o trecho da música quando ela está baixada. Um teste passou a desenhar os três cartões." },
@@ -89,14 +97,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'Na lista de músicas da playlist, o tom da música passou a ser exibido ao lado do menu de cada faixa, como já ocorria nas Músicas curtidas.' },
       { tipo: 'melhoria', texto: 'Na prévia da playlist, nas músicas com mais de um artista, apenas o nome do primeiro era exibido e as fotos não respondiam ao toque. O nome passou a incluir os participantes entre parênteses ("Lady Gaga (feat. Bruno Mars)"), e cada foto e cada nome abre a página do respectivo artista.' },
       { tipo: 'melhoria', texto: 'Pendente: a tradução, o tom na playlist e a prévia foram verificados em navegador e por testes automatizados; não foram executados em aparelho. Os textos nativos do Android não foram compilados nem executados. Permanecem em português as respostas do Lumen, as notas das versões anteriores a esta e parte das mensagens de erro vindas do Android. A cifra em coreano foi verificada por teste automatizado com um trecho de letra; não foi executada no aplicativo com a música em que o problema foi observado.' },
-    ],
-  },
-  {
-    versao: 654, data: '2026-11-11', titulo: 'Fila de reprodução na mesma ordem em que a playlist e as Músicas curtidas estão ordenadas',
-    itens: [
-      { tipo: 'correcao', texto: 'A opção "Ordenar por" da playlist e das Músicas curtidas alterava apenas a lista exibida. A fila do player era montada sempre na ordem salva (na playlist, a ordem personalizada; nas Músicas curtidas, a ordem interna da biblioteca), de modo que uma lista ordenada por artista era reproduzida em outra sequência. A fila passou a ser montada na ordenação escolhida em cada lista: título, artista, álbum ou adicionadas recentemente. Ao alterar a ordenação com uma música em reprodução, a fila é refeita na nova ordem a partir da música atual; ao desligar o aleatório, a fila retorna à ordenação da lista.' },
-      { tipo: 'melhoria', texto: 'A lista exibida e a fila passaram a usar a mesma rotina de ordenação. Na playlist ordenada por título ou por artista, a comparação deixou de diferenciar maiúsculas e acentos, o que mantém juntas as músicas do mesmo artista escrito de formas diferentes. A ordem salva da playlist e os repertórios de missa não foram alterados.' },
-      { tipo: 'melhoria', texto: 'Pendente: a ordenação foi verificada por testes automatizados e a abertura do aplicativo, em navegador; a reprodução em sequência não foi executada no aplicativo nem em aparelho. Os filtros das Músicas curtidas (por exemplo, "Baixadas") não restringem a fila, que continua incluindo todas as músicas com áudio ou vídeo.' },
     ],
   },
 ];

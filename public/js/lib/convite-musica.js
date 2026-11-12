@@ -30,17 +30,3 @@ export function faixaDaPrevia(resposta, titulo, artista = '') {
 
 // "0:12" a partir dos segundos
 export const tempoDaPrevia = (s) => { const n = Math.max(0, Math.floor(Number(s) || 0)); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`; };
-
-// Onde o refrão começa no clipe, em segundos: o refrão pela letra sincronizada (refrao: o início dele na gravação; sem
-// ele, 30% da música), levado para o clipe. O clipe mais longo que a gravação (de 4 s a 2 min a mais) costuma ter uma
-// cena antes de a música começar: a diferença entra no começo. Fica entre 0 e o ponto que ainda deixa `segundos` de
-// clipe. duracaoGravacao: a da faixa (Deezer); duracaoClipe: a do vídeo
-export function inicioDoRefraoNoClipe({ refrao = null, duracaoGravacao = 0, duracaoClipe = 0, segundos = 30 } = {}) {
-  const grav = Number(duracaoGravacao) || 0;
-  const clipe = Number(duracaoClipe) || 0;
-  let t = Number.isFinite(refrao) && refrao >= 0 ? refrao : (grav || clipe) * 0.3 || 45;
-  const sobra = clipe - grav;
-  if (grav && clipe && sobra >= 4 && sobra <= 120) t += sobra;
-  if (clipe) t = Math.min(t, Math.max(0, clipe - segundos - 1));
-  return Math.max(0, Math.round(t * 10) / 10);
-}

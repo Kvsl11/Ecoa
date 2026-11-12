@@ -5861,7 +5861,7 @@ html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index:
 .convite-musica.sem-analise.tocando .cm-l2 { animation-name: cm-passeia2, cm-bate; animation-duration: 11s, 0.9s; }
 .convite-musica.sem-analise.tocando .cm-l3 { animation-name: cm-passeia3, cm-bate; animation-duration: 13s, 0.9s; }
 @keyframes cm-bate { from { opacity: 0.4; } to { opacity: 0.85; } }
-@media (prefers-reduced-motion: reduce) { .cm-fundo i, .cm-luz, .cm-capa, .cm-capa img, .cm-capa::after { animation: none !important; } .cm-luz { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .cm-fundo i, .cm-luz { animation: none !important; } .cm-luz { scale: 1; } }
 .cm-pular { position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 16px; padding: 8px 14px; border: 0; border-radius: 999px;
   background: rgb(255 255 255 / 0.12); color: rgb(255 255 255 / 0.85); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .cm-conteudo { width: min(100%, 380px); display: flex; flex-direction: column; align-items: center; min-width: 0;
@@ -5869,27 +5869,8 @@ html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index:
 .cm-capa { display: grid; place-items: center; width: min(78vw, 320px, 46vh); aspect-ratio: 1; overflow: hidden; border-radius: 12px;
   background: rgb(255 255 255 / 0.08); color: rgb(255 255 255 / 0.5); box-shadow: 0 30px 70px rgb(0 0 0 / 0.6); }
 .cm-capa img { width: 100%; height: 100%; object-fit: cover; }
-/* a capa viva (como as capas com movimento do Apple Music, até onde uma imagem parada permite): a imagem se aproxima e
-   desliza devagar dentro do quadro (Ken Burns, num ciclo de 22 s que vai e volta), o quadro flutua de leve, inclinando
-   um pouco, e um brilho atravessa a capa de tempos em tempos. Tudo pelo CSS, sem redesenhar o resto da tela */
-.cm-capa { position: relative; perspective: 900px; }
-.cm-capa img { transform-origin: 50% 45%; animation: cm-ken 22s ease-in-out infinite alternate; will-change: transform; }
-@keyframes cm-ken {
-  0% { transform: scale(1.04) translate(0, 0); }
-  35% { transform: scale(1.1) translate(-1.6%, -1.2%); }
-  70% { transform: scale(1.07) translate(1.4%, 0.8%); }
-  100% { transform: scale(1.12) translate(-0.6%, 1.4%); }
-}
-.convite-musica:not(.carregando) .cm-capa { animation: cm-flutua 9s ease-in-out infinite; }
-@keyframes cm-flutua {
-  0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
-  25% { transform: translateY(-5px) rotateX(1.5deg) rotateY(-2deg); }
-  50% { transform: translateY(-2px) rotateX(-1deg) rotateY(1.5deg); }
-  75% { transform: translateY(-6px) rotateX(1deg) rotateY(2deg); }
-}
-.cm-capa::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.16) 48%, transparent 60%);
-  background-size: 250% 100%; background-position: 150% 0; animation: cm-brilho 8s ease-in-out 2s infinite; }
-@keyframes cm-brilho { 0%, 70% { background-position: 150% 0; } 100% { background-position: -100% 0; } }
+/* (a capa fica parada: o movimento é só do fundo e, quando há, do clipe no quadro dela) */
+.cm-capa { position: relative; }
 .cm-nomes { align-self: stretch; min-width: 0; margin-top: 28px; text-shadow: 0 1px 14px rgb(0 0 0 / 0.6), 0 0 2px rgb(0 0 0 / 0.35); }
 .cm-titulo { margin: 0; font-size: clamp(22px, 6.4vw, 28px); line-height: 1.2; font-weight: 800; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-artista { margin: 4px 0 0; color: rgb(255 255 255 / 0.68); font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5898,13 +5879,6 @@ html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index:
 /* o tempo embaixo da barra: o que já tocou à esquerda (andando) e os 30 s da prévia à direita */
 .cm-tempos { align-self: stretch; display: flex; justify-content: space-between; margin-top: 8px; color: rgb(255 255 255 / 0.7); font-size: 12px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 8px rgb(0 0 0 / 0.5); }
 .convite-musica.carregando .cm-tempos { visibility: hidden; }
-/* o clipe no quadro da capa (recortado no meio, como o Canvas do Spotify): entra por cima da capa quando já está tocando
-   há 2,5 s, sem o título do YouTube; não recebe toques */
-.cm-clipe { position: absolute; top: 50%; left: 50%; width: 178%; height: 100%; border: 0; transform: translate(-50%, -50%) scale(1.04); pointer-events: none;
-  opacity: 0; transition: opacity 0.8s; }
-.convite-musica.com-clipe .cm-clipe { opacity: 1; }
-.convite-musica.com-clipe .cm-capa img { opacity: 0; transition: opacity 0.8s 0.2s; }
-.cm-nota { display: grid; place-items: center; }
 .cm-play { display: grid; place-items: center; width: 64px; height: 64px; margin-top: 22px; border: 0; border-radius: 50%; background: #fff; color: #07090b; cursor: pointer;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.4); }
 .cm-play:active { transform: scale(0.94); }
