@@ -471,7 +471,7 @@ test('canalDosResultados: com vários verificados do mesmo nome, o que tem mais 
 test('artistaDaAudioDb: os seguidores no Spotify, as fotos e a biografia, só do artista com o mesmo nome', async () => {
   const { artistaDaAudioDb } = await import('../public/js/lib/web.js');
   const json = { artists: [{ strArtist: 'Aline Barros', intFollowers: '5724931', strArtistThumb: 'https://r2.theaudiodb.com/a.jpg', strArtistFanart: 'http://r2.theaudiodb.com/b.jpg', strArtistFanart2: null, strArtistLogo: 'https://r2.theaudiodb.com/logo.png', strBiographyPT: 'Cantora.' }] };
-  assert.deepEqual(artistaDaAudioDb(json, 'Aline Barros'), { seguidores: 5724931, fotos: ['https://r2.theaudiodb.com/a.jpg', 'https://r2.theaudiodb.com/b.jpg'], bio: 'Cantora.', genero: '', pais: '' });
+  assert.deepEqual(artistaDaAudioDb(json, 'Aline Barros'), { seguidores: 5724931, fotos: ['https://r2.theaudiodb.com/a.jpg', 'https://r2.theaudiodb.com/b.jpg'], bio: 'Cantora.', bios: { pt: 'Cantora.', en: '', es: '' }, genero: '', pais: '' });
   assert.equal(artistaDaAudioDb(json, 'Aline'), null);
 });
 

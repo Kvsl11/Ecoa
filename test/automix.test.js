@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { batida, planoAutomix, planoCrossfade, volumes } from '../public/js/lib/automix.js';
+import { batida, bordasDoSom, planoAutomix, planoCrossfade, volumes } from '../public/js/lib/automix.js';
 
 const TAXA = 11025;
 // uma batida sintética: um estalo (ruído que some rápido) a cada batida, com um ruído baixinho por baixo
@@ -99,4 +99,32 @@ test('volumes: a que sai desce desde o começo (se ouve) e a que entra sobe, sem
     assert.ok(a + b >= 0.99 && a + b <= 1.01, `soma em ${x}: ${a + b}`);
     if (x > 0) assert.ok(a <= volumes(x - 0.05)[0] && b >= volumes(x - 0.05)[1]);
   }
+});
+
+test('acha onde o som começa e acaba, sem o silêncio das pontas', () => {
+  const a = new Float32Array(40 * TAXA);
+  for (let i = Math.round(1.5 * TAXA); i < 36 * TAXA; i++) a[i] = 0.4 * Math.sin(i / 8);
+  // (um resto de eco bem baixo depois do fim não conta como som)
+  for (let i = 36 * TAXA; i < 38 * TAXA; i++) a[i] = 0.002 * Math.sin(i / 8);
+  const b = bordasDoSom(a, TAXA);
+  assert.ok(perto(b.inicio, 1.5, 0.06), `começo: ${b.inicio}`);
+  assert.ok(perto(b.fim, 36, 0.06), `fim: ${b.fim}`);
+  assert.equal(bordasDoSom(new Float32Array(40 * TAXA), TAXA), null, 'só silêncio: não há bordas');
+});
+
+test('o crossfade acaba onde o som acaba e a próxima entra onde o som dela começa', () => {
+  assert.deepEqual(planoCrossfade(200, 6), { inicio: 194, dur: 6, entradaEm: 0, encaixar: false });
+  const p = planoCrossfade(200, 6, { fimSom: 195.5, inicioSom: 1.2 });
+  assert.equal(p.inicio, 189.5);
+  assert.equal(p.entradaEm, 1.2);
+  // silêncio comprido demais nas pontas não é silêncio de borda: vale o arquivo inteiro
+  const q = planoCrossfade(200, 6, { fimSom: 150, inicioSom: 25 });
+  assert.equal(q.inicio, 194);
+  assert.equal(q.entradaEm, 0);
+});
+
+test('o automix também acaba onde o som acaba', () => {
+  const p = planoAutomix({ duracao: 200, fimSom: 195, inicioSom: 2 });
+  assert.ok(perto(p.inicio + p.dur, 195, 0.01), `fim da transição: ${p.inicio + p.dur}`);
+  assert.equal(p.entradaEm, 2);
 });

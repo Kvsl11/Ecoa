@@ -885,6 +885,89 @@ body.no-lumen .main-col { margin: 0 !important; }
 .ed2.cheio > .ed-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ed2.cheio .ed-barra { position: static; margin: 0; }
 .ed2.cheio .ed-rodape { position: static; }
+
+/* ============================================================ a edição na cor da música
+   A tela inteira (não só a caixa do texto) fica na cor da música, como a tela dela: no modo escuro, o tom escuro da
+   cor com o texto branco; no claro, o tom claro com o texto num tom escuro da mesma cor. As cores do app são trocadas
+   aqui dentro (--text, --muted, as superfícies, a borda), então tudo que já usava essas cores acompanha. Os ícones
+   que eram da cor de destaque (a engrenagem, o +, os dos chips) ficam na cor do texto, como no resto do app: só o
+   Salvar fica na cor de destaque */
+.main-col:has(.ed2) {
+  --ed-lt: #fff; --ed-sup: rgb(255 255 255 / 0.1); --ed-sup-2: rgb(255 255 255 / 0.16); --ed-campo: rgb(0 0 0 / 0.26);
+  --ed-fim: color-mix(in srgb, var(--tint) 52%, #121212);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 82%, #000) 0%, var(--ed-fim) 65%);
+}
+:root[data-theme="light"] .main-col:has(.ed2) {
+  --ed-lt: color-mix(in srgb, var(--tint) 45%, #08080a); --ed-sup: color-mix(in srgb, var(--ed-lt) 8%, transparent); --ed-sup-2: color-mix(in srgb, var(--ed-lt) 14%, transparent);
+  --ed-campo: rgb(255 255 255 / 0.55); --tint-cifra: color-mix(in srgb, var(--tint) 72%, #000);
+  --ed-fim: color-mix(in srgb, var(--tint) 20%, #fff);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 42%, #fff) 0%, var(--ed-fim) 65%);
+}
+.main-col:has(.ed2) main { background: none; }
+.main-col:has(.ed2) .topbar.scrolled { background: color-mix(in srgb, var(--tint) 82%, #000); }
+:root[data-theme="light"] .main-col:has(.ed2) .topbar.scrolled { background: color-mix(in srgb, var(--tint) 42%, #fff); }
+.editor.ed2 {
+  --text: var(--ed-lt); --muted: color-mix(in srgb, var(--ed-lt) 66%, transparent); --subtle: color-mix(in srgb, var(--ed-lt) 50%, transparent);
+  --surface: var(--ed-sup); --surface-2: var(--ed-sup); --surface-3: var(--ed-sup-2); --bg-elev: var(--ed-campo); --border: color-mix(in srgb, var(--ed-lt) 16%, transparent);
+  --accent-ink: var(--ed-lt); --accent-soft: var(--ed-sup-2); --chord: var(--tint-cifra, #9be7b4);
+  color: var(--ed-lt); gap: 12px;
+}
+/* a capa inteira, maior, e o nome ao lado */
+.ed2 .ed-topo { grid-template-columns: 104px minmax(0, 1fr); gap: 14px; align-items: center; }
+.ed2 .ed-capa .cover { width: 104px; height: 104px; border-radius: 12px; overflow: hidden; }
+.ed2 .ed-capa .cover img { width: 100%; height: 100%; object-fit: cover; }
+.ed2 .ed-ident .kind { color: var(--muted); }
+/* (os chips de resumo embaixo do nome saíram: o mesmo resumo fica na linha dos detalhes, logo abaixo) */
+.ed2 .ed-resumo { display: none; }
+/* os detalhes: uma linha, com o que já está preenchido embaixo do nome */
+.ed2 .ed-detalhes { border-radius: 14px; }
+.ed2 .ed-detalhes summary { min-height: 56px; padding: 8px 14px; }
+.ed2 .ed-detalhes summary b { font-size: 15px; }
+.ed2 .ed-detalhes summary small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed2 .ed-detalhes summary > .ic:first-child, .ed2 .ed-ferramentas summary > .ic:first-child { color: var(--muted); }
+.ed2 .ed-detalhes .campos { grid-template-columns: 1fr 1fr; padding: 2px 14px 14px; }
+.ed2 .ed-detalhes .campos label:first-child { grid-column: auto; }
+.ed2 .campos .input { background: var(--ed-campo); border-color: transparent; color: var(--ed-lt); }
+.ed2 .campos .input::placeholder { color: var(--subtle); }
+.ed2 .campos .btn.small { background: var(--ed-sup-2); color: var(--ed-lt); }
+/* o cartão do texto: sem caixa em volta (a tela já é da cor); em cima, Editar / Ver como fica e desfazer, refazer e
+   tela cheia; embaixo, os três jeitos de editar, do mesmo tamanho, numa linha */
+.ed2 .ed-card { padding: 0; border: 0; background: none; gap: 10px; }
+.ed2 .ed-barra { margin: 0; padding: 5px; gap: 2px; flex-wrap: nowrap; border-radius: 999px; box-shadow: none; background: var(--ed-barra, color-mix(in srgb, var(--tint) 70%, #000)); }
+:root[data-theme="light"] .ed2 .ed-barra { --ed-barra: color-mix(in srgb, var(--tint) 30%, #fff); box-shadow: 0 2px 10px rgb(0 0 0 / 0.08); }
+.ed2 .seg { background: var(--ed-sup); }
+.ed2 .ed-barra .seg { background: none; }
+.ed2 .seg button { color: var(--ed-lt); }
+.ed2 .ed-barra .seg button[aria-pressed="true"], .ed2 .ed-modos button[aria-pressed="true"] { background: var(--ed-lt); color: var(--ed-inv, color-mix(in srgb, var(--tint) 70%, #000)); }
+:root[data-theme="light"] .ed2 { --ed-inv: #fff; }
+.ed2 .ed-barra .icon-btn { width: 40px; height: 40px; color: var(--ed-lt); background: none; }
+.ed2 .ed-modos { order: 0; display: flex; gap: 2px; height: 40px; padding: 3px; border-radius: 999px; }
+.ed2 .ed-modos button { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; height: 34px; min-width: 0; padding: 0 8px !important; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.ed2 .ed-modos button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed2 .ed-modo-dica { padding: 0 4px; }
+.ed2 .chip { background: var(--ed-sup-2); color: var(--ed-lt); }
+.ed2 .barra .chip.parte, .ed2 .ed-estrutura .chip { background: var(--ed-sup-2); color: var(--ed-lt); }
+/* o texto como na tela da música: no fundo da cor, a letra grossa na cor do texto. (Na edição a letra continua de
+   largura fixa: é ela que mantém cada acorde em cima da sílaba) */
+.ed2 .editor-split textarea { padding: 16px; border: 0; border-radius: 16px; background: var(--ed-campo); color: var(--ed-lt); font-size: 15px; font-weight: 700; line-height: 1.8; caret-color: var(--ed-lt); }
+.ed2 .editor-split textarea:focus { outline: 2px solid color-mix(in srgb, var(--ed-lt) 45%, transparent); outline-offset: 0; }
+.ed2 .editor-prev { padding: 18px 16px; border-radius: 16px; background: var(--ed-campo); }
+.ed2 .editor-prev .song { color: var(--ed-lt); font-size: calc(21px * var(--font-scale)); font-weight: 800; letter-spacing: -0.015em; line-height: 1.32; }
+.ed2 .editor-prev .song .chord { color: var(--tint-cifra, #9be7b4); font-size: 0.8em; font-weight: 900; }
+.ed2 .editor-prev .song .section { margin-bottom: 1.1em; }
+.ed2 .editor-prev .song .section.chorus { background: none; border: 0; padding: 0; }
+.ed2 .editor-prev .song .section-label { display: inline-block; margin: 0 0 8px; padding: 3px 11px; border-radius: 999px; background: var(--ed-sup-2); color: var(--ed-lt); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; text-transform: none; }
+.ed2 .editor-prev .song .comment { color: var(--muted); font-size: 0.75em; font-weight: 600; }
+.ed2 .ed-salvo { color: var(--muted); }
+/* o rodapé: Cancelar e Salvar do mesmo tamanho, numa barra da cor da tela */
+.ed2 .ed-rodape { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px; border-radius: 999px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.28); background: var(--ed-barra, color-mix(in srgb, var(--tint) 70%, #000)); }
+:root[data-theme="light"] .ed2 .ed-rodape { --ed-barra: color-mix(in srgb, var(--tint) 30%, #fff); box-shadow: 0 6px 20px rgb(0 0 0 / 0.14); }
+.ed2 .ed-rodape .btn { width: 100%; min-width: 0; min-height: 46px; justify-content: center; border-radius: 999px; }
+.ed2 .ed-rodape .btn.ghost { color: var(--ed-lt); }
+.ed2 .ed-rodape::after { background: var(--ed-fim); }
+.ed2 .ed-trazer { border-color: var(--border); background: var(--ed-sup); color: var(--ed-lt); }
+.ed2 .ed-trazer-ic { background: var(--ed-sup-2); }
+@media (max-width: 600px) { .ed2 .ed-detalhes .campos { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 600px) { .editor .campos { grid-template-columns: 1fr; } }
 
 /* ============================================================ cores / tema */

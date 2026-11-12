@@ -46,13 +46,14 @@ import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
 import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
-import { batida, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
+import { batida, bordasDoSom, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
 import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
 import { IDIOMA, LOCALE, t, traduzirArvore, iniciarTraducao, definirDados } from './lib/i18n.js';
+const noIdioma = t; // (o t() com outro nome, para as funções em que "t" já é outra coisa)
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
 // o app no idioma do aparelho (português, inglês ou espanhol; os outros idiomas, em inglês): troca os textos da tela
@@ -3585,6 +3586,7 @@ const player = (() => {
   // a transição entre as músicas em andamento (o crossfade ou o automix) e o plano da próxima: veja modoTransicao
   let transicao = null;
   let planoPronto = null;
+  let passoDaTransicao = () => {};
   let estado = 'parado'; // tocando | pausado | parado
   let tempo = 0;
   let marcaTempo = 0;
@@ -4456,7 +4458,7 @@ const player = (() => {
       setTimeout(() => porNaTela(''), 2500);
       daWiki.then((info) => {
         if (info?.texto) { porNaTela(info.texto); return; }
-        return audioDbGuardado(nomeBusca).catch(() => null).then((adb) => porNaTela(adb?.bio || ''));
+        return audioDbGuardado(nomeBusca).catch(() => null).then((adb) => porNaTela(bioDaAudioDb(adb)));
       }).catch(() => {});
     }
     // os números embaixo do nome (os fãs no Deezer ou os inscritos no canal) e o selo, quando o artista é com certeza
@@ -4464,8 +4466,10 @@ const player = (() => {
     if (comInfo) Promise.all([dzP, canalGuardado(nomeBusca).catch(() => null)]).then(([dz, canal]) => {
       const num = $('.pl-extra .pl-artista-num', el);
       if (!num || extraDe !== chave) return;
-      const curto = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString(LOCALE, { maximumFractionDigits: 1 })} mi` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString(LOCALE)} mil` : n.toLocaleString(LOCALE));
-      const partes = [dz?.fas && `${curto(dz.fas)} fãs no Deezer`, canal?.inscritos && `${curto(canal.inscritos)} inscritos`].filter(Boolean);
+      // (o número curto no idioma do aparelho: "3,9 mi" em português, "3.9M" em inglês; e cada parte traduzida — antes
+      // só a primeira era, e a linha ficava "1.7M fans on Deezer · 3.9 mi inscritos")
+      const curto = (n) => (n >= 1e3 ? n.toLocaleString(LOCALE, { notation: 'compact', maximumFractionDigits: n >= 1e6 ? 1 : 0 }) : n.toLocaleString(LOCALE));
+      const partes = [dz?.fas && t(`${curto(dz.fas)} fãs no Deezer`), canal?.inscritos && t(`${curto(canal.inscritos)} inscritos`)].filter(Boolean);
       if (partes.length) num.textContent = partes.join(' · ');
       $('.pl-extra .pl-selo', el).hidden = !(canal?.inscritos || deezerConfirmados.has(normalizar(nomeBusca)));
     }).catch(() => {});
@@ -5120,7 +5124,7 @@ const semLinhasDeAcordes = (sinc) => {
   const criarSom = (m) => {
     const doSom = () => Boolean(local && m === som && m.dataset.de === local.chave);
     m.preload = 'auto';
-    m.addEventListener('timeupdate', () => { if (!doSom()) return; tempo = m.currentTime; marcaTempo = performance.now(); desenhar(); });
+    m.addEventListener('timeupdate', () => { if (doSom()) { tempo = m.currentTime; marcaTempo = performance.now(); desenhar(); } passoDaTransicao(); });
     m.addEventListener('durationchange', () => { if (doSom() && m.duration > 0 && Number.isFinite(m.duration)) { duracao = m.duration; desenhar(); } });
     m.addEventListener('play', () => {
       if (!doSom()) return;
@@ -6249,32 +6253,34 @@ const semLinhasDeAcordes = (sinc) => {
     return !ehIOS() && (m === 'crossfade' || m === 'automix') ? m : '';
   };
   const segundosCrossfade = () => Math.max(1, Math.min(MAX_TRANSICAO, Math.round(Number(db.prefs().crossfadeSeg) || 6)));
-  // a batida de um arquivo do aparelho: do fim (o último minuto, da que acaba) ou do começo (os primeiros 30 s, da
-  // próxima). Só do que está no aparelho: o som do YouTube o app não consegue ouvir
+  // o que o app ouve num arquivo do aparelho (os downloads e o áudio da pessoa; o som do YouTube ele não consegue
+  // ouvir): onde o som começa e acaba de verdade (bordas) e a batida do fim (o último minuto, para a que acaba) e do
+  // começo (os primeiros 30 s, para a próxima). O arquivo é aberto uma vez só
   const analises = new Map();
-  const batidaDoArquivo = (chave, fim) => {
-    const k = `${chave}|${fim ? 'fim' : 'inicio'}`;
-    if (!analises.has(k)) {
-      if (analises.size > 24) analises.delete(analises.keys().next().value);
-      analises.set(k, (async () => {
+  const analiseDoArquivo = (chave) => {
+    if (!analises.has(chave)) {
+      if (analises.size > 12) analises.delete(analises.keys().next().value);
+      analises.set(chave, (async () => {
         const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
         const blob = Ctx && await lerAudio(chave).catch(() => null);
         if (!blob) return null;
         const buf = await new Ctx(1, 1, TAXA_CASAMENTO).decodeAudioData(await blob.arrayBuffer());
         const taxa = buf.sampleRate;
-        const ini = fim ? Math.max(0, buf.length - Math.round(60 * taxa)) : 0;
-        const ate = fim ? buf.length : Math.min(buf.length, Math.round(30 * taxa));
-        const mono = new Float32Array(ate - ini);
+        const mono = new Float32Array(buf.length);
         for (let c = 0; c < buf.numberOfChannels; c++) {
           const d = buf.getChannelData(c);
-          for (let i = 0; i < mono.length; i++) mono[i] += d[ini + i] / buf.numberOfChannels;
+          for (let i = 0; i < mono.length; i++) mono[i] += d[i] / buf.numberOfChannels;
         }
-        const b = batida(mono, taxa);
-        // (a fase contada do começo da música)
-        return b && { ...b, fase: b.fase + ini / taxa, primeira: b.primeira + ini / taxa };
+        const bordas = bordasDoSom(mono, taxa);
+        // (a batida do fim: o último minuto do som, sem o silêncio que vem depois; a fase contada do começo da música)
+        const ate = bordas ? Math.min(mono.length, Math.round(bordas.fim * taxa)) : mono.length;
+        const ini = Math.max(0, ate - Math.round(60 * taxa));
+        const bFim = batida(mono.subarray(ini, ate), taxa);
+        const bInicio = batida(mono.subarray(0, Math.min(mono.length, Math.round(30 * taxa))), taxa);
+        return { bordas, fim: bFim && { ...bFim, fase: bFim.fase + ini / taxa, primeira: bFim.primeira + ini / taxa }, inicio: bInicio };
       })().catch(() => null));
     }
-    return analises.get(k);
+    return analises.get(chave);
   };
   // a próxima da fila (null no fim dela, quando volta ao começo)
   const proximaDaFila = () => {
@@ -6286,24 +6292,28 @@ const semLinhasDeAcordes = (sinc) => {
   const planejarTransicao = (modo, prox) => {
     const chave = `${atual.youtube}>${prox?.youtube || ''}|${modo}|${segundosCrossfade()}|${Math.round(duracao)}|${local?.chave || ''}`;
     if (planoPronto?.chave === chave) return planoPronto.plano;
-    if (modo === 'crossfade') {
-      planoPronto = { chave, plano: planoCrossfade(duracao, segundosCrossfade()) };
-      return planoPronto.plano;
+    // o automix: já com a letra (o fim da última frase cantada, quando a letra acompanha esta gravação)
+    let base = null;
+    if (modo === 'automix') {
+      const song = musicaTocando();
+      const tempos = song && letraSincronizadaDe(song) && song.sincronia.video === atual.youtube ? song.sincronia.tempos : null;
+      const ult = tempos?.[tempos.length - 1];
+      const fimCanto = ult ? Number(ult.fim ?? ult.inicio) : null;
+      base = { duracao, fimCanto: Number.isFinite(fimCanto) ? fimCanto : null };
     }
-    // o automix: já com a letra (o fim da última frase cantada, quando a letra acompanha esta gravação); a batida chega
-    // depois (o arquivo leva um instante para ser lido) e o plano melhora
-    const song = musicaTocando();
-    const tempos = song && letraSincronizadaDe(song) && song.sincronia.video === atual.youtube ? song.sincronia.tempos : null;
-    const ult = tempos?.[tempos.length - 1];
-    const fimCanto = ult ? Number(ult.fim ?? ult.inicio) : null;
-    const base = { duracao, fimCanto: Number.isFinite(fimCanto) ? fimCanto : null };
-    const meu = { chave, plano: planoAutomix(base) };
+    const seg = segundosCrossfade();
+    const meu = { chave, plano: base ? planoAutomix(base) : planoCrossfade(duracao, seg) };
     planoPronto = meu;
+    // o que se ouve nos arquivos do aparelho chega depois (o arquivo leva um instante para ser lido) e o plano melhora:
+    // nos dois modos, a transição acaba onde o som da que sai acaba e a próxima entra onde o som dela começa (sem
+    // cruzar o silêncio das pontas); no automix, também a batida das duas
     const sai = local?.chave || '';
     const entra = (prox && localDe(prox.youtube)?.chave) || '';
     if (sai || entra) {
-      Promise.all([sai ? batidaDoArquivo(sai, true) : null, entra ? batidaDoArquivo(entra, false) : null]).then(([saida, entrada]) => {
-        if (planoPronto === meu && !transicao) meu.plano = planoAutomix({ ...base, saida, entrada }) || meu.plano;
+      Promise.all([sai ? analiseDoArquivo(sai) : null, entra ? analiseDoArquivo(entra) : null]).then(([a, b]) => {
+        if (planoPronto !== meu || transicao) return;
+        const sons = { fimSom: a?.bordas?.fim ?? null, inicioSom: b?.bordas?.inicio ?? null };
+        meu.plano = (base ? planoAutomix({ ...base, saida: a?.fim || null, entrada: b?.inicio || null, ...sons }) : planoCrossfade(duracao, seg, sons)) || meu.plano;
       });
     }
     return meu.plano;
@@ -6363,11 +6373,22 @@ const semLinhasDeAcordes = (sinc) => {
     if (!atual || chaveDaTransicao() !== t.para || estado !== 'tocando' || anuncio) { acabarTransicao(); return; }
     const agora = performance.now();
     const dur = t.plano.dur * 1000;
+    // (a transição começa a ser preparada um pouco antes da hora — veja ADIANTO —: até a hora, a que sai fica cheia)
     volumeDaQueSai(t, volumes((agora - t.desde) / dur)[0]);
     const tocandoJa = local ? Boolean(som && !som.paused && som.readyState >= 3) : estadoYt === 1;
-    if (!t.entrou && tocandoJa) {
+    if (!t.tocou && tocandoJa) t.tocou = agora;
+    // a próxima entra na hora marcada, já aberta e tocando (sem som até aqui): volta ao ponto de entrada dela — o
+    // começo, ou onde o som começa — e só então sobe
+    if (!t.entrou && t.tocou && agora >= t.desde) {
       t.entrou = agora;
-      if (!local) comandoYt('unMute');
+      const ponto = t.plano.entradaEm || 0;
+      if (local && som) {
+        if (Math.abs(som.currentTime - ponto) > 0.15) { try { som.currentTime = ponto; } catch { /* ainda abrindo */ } }
+      } else {
+        if (ponto > 0.15 || t.tocou < t.desde - 300) { comandoYt('seekTo', [ponto, true]); tempo = ponto; marcaTempo = agora; }
+        comandoYt('setVolume', [0]);
+        comandoYt('unMute');
+      }
     }
     // a que entra sobe a partir de quando começou a tocar (o tempo de abrir não engole a subida), terminando junto
     const durEntra = Math.max(800, dur - (t.entrou ? t.entrou - t.desde : 0));
@@ -6412,13 +6433,23 @@ const semLinhasDeAcordes = (sinc) => {
       saindo = { f };
     }
     reservaDe()?.remove(); // (a outra versão da que sai, que esperava por baixo)
+    // (desde: a hora marcada da transição; ela é aberta um pouco antes — ADIANTO — e pode também começar atrasada)
     const atraso = Math.max(0, api.tempoAgora - plano.inicio);
-    transicao = { saindo, plano: { ...plano, dur: Math.max(1, plano.dur - atraso) }, atraso, desde: performance.now(), para: '', entrou: 0, acertos: 0, acertouEm: 0, adianta: 0, vSai: 1 };
+    const falta = Math.max(0, plano.inicio - api.tempoAgora);
+    transicao = { saindo, plano: { ...plano, dur: Math.max(1, plano.dur - atraso) }, atraso, desde: performance.now() + falta * 1000, para: '', tocou: 0, entrou: 0, acertos: 0, acertouEm: 0, adianta: 0, vSai: 1 };
     if (!pular(1)) { acabarTransicao(true); return; }
     transicao.para = chaveDaTransicao();
     if (local && som) som.volume = 0;
   };
-  setInterval(() => {
+  // A próxima música é aberta um pouco antes da hora da transição, sem som: o arquivo do aparelho leva um instante
+  // para abrir e o player do YouTube, alguns segundos. Aberta só na hora, a que saía já estava baixando (ou já tinha
+  // acabado) quando a próxima começava a tocar: ficava um buraco, e a próxima entrava de uma vez
+  const ADIANTO = { local: 0.6, youtube: 3 };
+  // (o passo da transição roda no relógio — 20 vezes por segundo — e também a cada aviso de tempo da música, do
+  // arquivo ou do YouTube: com o app em segundo plano ou a tela apagada, o celular segura o relógio da página — uma
+  // vez por segundo, ou menos —, e a transição começava tarde, andava aos trancos ou nem acontecia; os avisos da
+  // própria música continuam chegando)
+  passoDaTransicao = () => {
     if (transicao) { andarTransicao(); return; }
     const modo = modoTransicao();
     if (!modo || !atual || atual.semVideo || estado !== 'tocando' || anuncio || pendente !== null || trocando || !(duracao > 20)) return;
@@ -6428,8 +6459,10 @@ const semLinhasDeAcordes = (sinc) => {
     const prox = proximaDaFila();
     if (prox && prox.youtube === atual.youtube) return; // (a mesma gravação de novo: só volta ao começo)
     const plano = planejarTransicao(modo, prox);
-    if (plano && api.tempoAgora >= plano.inicio - 0.05) comecarTransicao(plano);
-  }, 50);
+    const adianto = prox && localDe(prox.youtube) ? ADIANTO.local : ADIANTO.youtube;
+    if (plano && api.tempoAgora >= plano.inicio - adianto) comecarTransicao(plano);
+  };
+  setInterval(passoDaTransicao, 50);
   const desenharModos = () => {
     const bA = $('[data-pl="aleatorio"]', el);
     const bR = $('[data-pl="repetir"]', el);
@@ -6445,7 +6478,8 @@ const semLinhasDeAcordes = (sinc) => {
   window.addEventListener('message', (e) => {
     let h = '';
     try { h = new URL(e.origin).hostname; } catch { return; }
-    if (!/(^|\.)youtube(-nocookie)?\.com$/.test(h) || !atual || atual.semVideo || local || e.source !== iframeAtual()?.contentWindow) return;
+    if (!/(^|\.)youtube(-nocookie)?\.com$/.test(h)) return;
+    if (!atual || atual.semVideo || local || e.source !== iframeAtual()?.contentWindow) { passoDaTransicao(); return; }
     try {
       const msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
       // vídeo que o dono não deixa tocar fora do YouTube (erros 101/150) ou que saiu do ar
@@ -11230,31 +11264,44 @@ function ehFotoVaziaDoDeezer(url) {
   return fotosVaziasDeezer.get(pequena);
 }
 // a apresentação do artista (o estilo, de onde é, os prêmios), para o "Sobre o artista": a introdução da página dele
-// na Wikipédia em português, com a foto e o endereço da página. Só vale a página que é mesmo de um músico com esse
-// nome (pela descrição dela: cantor, banda, ministério de música…): "Justice" é a banda, não a atriz Victoria Justice.
+// na Wikipédia, com a foto e o endereço da página. Só vale a página que é mesmo de um músico com esse nome (pela
+// descrição dela: cantor, banda, ministério de música…): "Justice" é a banda, não a atriz Victoria Justice.
 // Sem uma assim, null. { texto (parágrafos separados por \n), foto, url }
+// A Wikipédia é a do idioma do aparelho (antes era sempre a em português: com o aparelho em inglês ou espanhol, a
+// apresentação aparecia em português no meio da tela traduzida); o artista sem página nesse idioma fica com a em
+// português. A apresentação guardada no aparelho é uma por idioma (TIPO_WIKI): a guardada em português não aparece
+// no aparelho em outro idioma
 const descricoesArtistas = new Map();
-const MUSICO = /cantor|cantora|banda|m[uú]sic|grupo|dupla|compositor|compositora|rapper|instrumentista|\bdj\b|minist[eé]rio|cantautor|vocalista|coral|coro|orquestra|trio|duo\b|quarteto|sacerdote|padre|frei/i;
+const TIPO_WIKI = IDIOMA === 'pt' ? 'wiki' : `wiki-${IDIOMA}`;
+const MUSICO = /cantor|cantora|banda|m[uú]sic|grupo|dupla|compositor|compositora|rapper|instrumentista|\bdj\b|minist[eé]rio|cantautor|vocalista|coral|coro|orquestra|trio|duo\b|quarteto|sacerdote|padre|frei|singer|band\b|songwriter|composer|vocalist|choir|orchestra|quartet|priest|ministry|boy group|girl group|cantante|d[uú]o\b|rapero|orquesta|cuarteto|ministerio/i;
+const paginaDaWikipedia = (nome, lingua) => {
+  const url = `https://${lingua}.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&generator=search&gsrlimit=5&gsrsearch=${encodeURIComponent(nome)}&prop=extracts|description|pageimages|info&exintro=1&explaintext=1&piprop=thumbnail&pithumbsize=900&inprop=url`;
+  // (com tempo limite: a Wikipédia lenta deixava a apresentação embaixo do nome do artista sem aparecer)
+  return fetch(url, { signal: AbortSignal.timeout?.(10000) }).then((r) => r.json()).then((j) => {
+    const paginas = Object.values(j?.query?.pages || {}).sort((x, y) => (x.index || 0) - (y.index || 0));
+    // (o nome escrito junto também: a página do "Jung Kook" é a "Jungkook")
+    const certa = paginas.find((pg) => mesmoNomeDeArtista(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
+      && !/desambigua|disambiguation/i.test(pg.description || ''));
+    // (sem as datas e a pronúncia entre parênteses do começo, que só atrapalham numa leitura rápida)
+    // (e sem o nome em outras escritas: "Jungkook (em coreano: 정국; hanja: 柾國; romanização…)")
+    const texto = String(certa?.extract || '').replace(/\s*\((?:[^()]|\([^()]*\))*?(?:\d{4}|coreano|korean|hangul|hanja|japon[eê]s|japanese|chin[eê]s|chinese|chino|romaniza|pron[uú]ncia|pronounced|pronunciation|pronunciad|pronunciaci[oó]n|AFI|IPA)(?:[^()]|\([^()]*\))*\)/gi, '').split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+    return texto ? { texto, foto: certa.thumbnail?.source || '', url: certa.fullurl || '' } : null;
+  });
+};
 function descricaoDoArtista(nome) {
   const k = normalizar(nome);
-  const recente = !descricoesArtistas.has(k) && guardadoRecente('wiki', nome);
+  const recente = !descricoesArtistas.has(k) && guardadoRecente(TIPO_WIKI, nome);
   if (recente) return Promise.resolve(recente);
   if (!descricoesArtistas.has(k)) {
-    const url = `https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&generator=search&gsrlimit=5&gsrsearch=${encodeURIComponent(nome)}&prop=extracts|description|pageimages|info&exintro=1&explaintext=1&piprop=thumbnail&pithumbsize=900&inprop=url`;
-    // (com tempo limite: a Wikipédia lenta deixava a apresentação embaixo do nome do artista sem aparecer)
-    descricoesArtistas.set(k, fetch(url, { signal: AbortSignal.timeout?.(10000) }).then((r) => r.json()).then((j) => {
-      const paginas = Object.values(j?.query?.pages || {}).sort((x, y) => (x.index || 0) - (y.index || 0));
-      // (o nome escrito junto também: a página do "Jung Kook" é a "Jungkook")
-      const certa = paginas.find((pg) => mesmoNomeDeArtista(pg.title.replace(/\s*\([^)]*\)\s*$/, ''), nome) && MUSICO.test(pg.description || '')
-        && !/desambigua/i.test(pg.description || ''));
-      // (sem as datas e a pronúncia entre parênteses do começo, que só atrapalham numa leitura rápida)
-      // (e sem o nome em outras escritas: "Jungkook (em coreano: 정국; hanja: 柾國; romanização…)")
-      const texto = String(certa?.extract || '').replace(/\s*\((?:[^()]|\([^()]*\))*?(?:\d{4}|coreano|hangul|hanja|japon[eê]s|chin[eê]s|romaniza|pron[uú]ncia|AFI)(?:[^()]|\([^()]*\))*\)/gi, '').split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
-      return texto ? { texto, foto: certa.thumbnail?.source || '', url: certa.fullurl || '' } : null;
-    }).catch(() => { descricoesArtistas.delete(k); return null; }));
+    descricoesArtistas.set(k, paginaDaWikipedia(nome, IDIOMA)
+      .then((achada) => achada || (IDIOMA === 'pt' ? null : paginaDaWikipedia(nome, 'pt')))
+      .catch(() => { descricoesArtistas.delete(k); return null; }));
   }
-  return comUltimoValor('wiki', nome, descricoesArtistas.get(k));
+  return comUltimoValor(TIPO_WIKI, nome, descricoesArtistas.get(k));
 }
+// a biografia da TheAudioDB (a reserva da Wikipédia) no idioma do aparelho; sem ela nesse idioma, a em inglês (no
+// aparelho em espanhol) e a em português. (O que foi guardado antes tem só a em português: bio)
+const bioDaAudioDb = (adb) => (adb?.bios ? adb.bios[IDIOMA] || (IDIOMA === 'es' && adb.bios.en) || adb.bios.pt || '' : adb?.bio || '');
 // O artista no Deezer. Pelo nome, o de nome igual (escrito junto ou separado) com mais fãs; com uma música dele, o
 // artista da faixa dessa música (o que com certeza canta: o nome sozinho pode ser de outro, como o "Jung Kook" de
 // música indiana no lugar do Jungkook). O confirmado por uma música vale também para as buscas só pelo nome, enquanto o
@@ -11302,7 +11349,7 @@ function esquecerArtista(nome) {
   const k = normalizar(nome);
   for (const m of [fotosArtistas, deezerPorNome, deezerConfirmados, descricoesArtistas]) m.delete(k);
   for (const l of ['pt', 'en']) paginasDeMusico.delete(`${l}:${k}`);
-  for (const tipo of ['foto', 'deezer', 'wiki', 'canal', 'adb', 'fotoswiki2', 'fotosvideos']) delete artistasGuardados[`${tipo}:${k}`];
+  for (const tipo of ['foto', 'deezer', 'wiki', 'wiki-en', 'wiki-es', 'canal', 'adb', 'fotoswiki2', 'fotosvideos']) delete artistasGuardados[`${tipo}:${k}`];
   try { localStorage.setItem(CHAVE_ARTISTAS, JSON.stringify(artistasGuardados)); } catch { /* sem espaço: fica na sessão */ }
 }
 // o nome com que o artista da música é procurado (o primeiro, sem o "feat."; na música da missa, o nome religioso, e
@@ -11327,7 +11374,7 @@ async function consertarArtistaDaMusica(id, { esquecer = true } = {}) {
   const nome = nomeDoArtistaDaMusica(s);
   if (!s || !nome || !navigator.onLine) return null;
   const slug = /cifraclub\.com\.br\/([^/?#]+)/.exec(s.source || '')?.[1] || '';
-  const antes = { deezer: ultimoValorDoArtista('deezer', nome) || null, foto: s.fotoArtista || '', wiki: Boolean(ultimoValorDoArtista('wiki', nome)) };
+  const antes = { deezer: ultimoValorDoArtista('deezer', nome) || null, foto: s.fotoArtista || '', wiki: Boolean(ultimoValorDoArtista(TIPO_WIKI, nome)) };
   if (esquecer) { esquecerArtista(nome); esquecerFotoDoArtista(nome); }
   // (o Deezer primeiro, confirmado pela música: a foto e a apresentação usam o artista que ele achou; os valores de
   // agora, e não os guardados)
@@ -11758,8 +11805,8 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   const num = (n, rotulo) => `<div><b>${n.toLocaleString(LOCALE)}</b><small>${rotulo}</small></div>`;
   const numeros = [canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'), dz?.fas && num(dz.fas, 'fãs no Deezer')].filter(Boolean);
   if (numeros.length) { const caixa = tela.querySelector('.sa-numeros'); caixa.hidden = false; caixa.innerHTML = numeros.join(''); }
-  // a apresentação: a da Wikipédia ou, sem ela, a biografia em português da TheAudioDB
-  const texto = info?.texto || adb?.bio || '';
+  // a apresentação: a da Wikipédia ou, sem ela, a biografia da TheAudioDB
+  const texto = info?.texto || bioDaAudioDb(adb);
   tela.querySelector('.sa-texto').innerHTML = texto ? texto.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('')
     : '<p class="muted">Ainda não há uma apresentação deste artista.</p>';
   const links = [
@@ -17365,7 +17412,8 @@ function viewEditor(id, setId) {
   const setDestino = isNew && setId ? db.set(setId) : null; // música nova já vai para este repertório
   const song = isNew ? { content: `{title: }\n\n${TEMPLATE_CORPO}` } : db.song(id);
   if (!song) return viewNotFound();
-  setTint(corDe({ ...song, title: song.title || 'nova' }));
+  // (a tela inteira na cor da música, como a tela dela: a cor conhecida já e a da capa quando ficar pronta)
+  if (isNew) setTint(corDe({ ...song, title: song.title || 'nova' })); else corDaMusicaNaTela(song);
   const { meta, corpo } = separarMeta(song.content);
   // formato do texto: acordes na linha de cima, entre [colchetes] ou só a letra (acordes preservados)
   // "Só letra" não fica guardado: o editor sempre volta a abrir mostrando os acordes
@@ -17402,7 +17450,7 @@ function viewEditor(id, setId) {
       ${isNew ? `<button class="ed-trazer" id="trazer"><span class="ed-trazer-ic">${icon('upload', 22)}</span>
         <span><b>Trazer da internet</b><small>Busque no Cifra Club ou cole a cifra ou a letra de qualquer site: ela entra aqui organizada.</small></span>${icon('next', 18)}</button>` : ''}
       <div class="ed-rascunho" id="ed-rascunho" hidden></div>
-      <details class="ed-detalhes" ${isNew ? 'open' : ''}><summary>${icon('settings', 18)}<span><b>Detalhes da música</b><small>Tom, composição, vídeo de referência e parte da missa</small></span>${icon('down', 18)}</summary>
+      <details class="ed-detalhes" ${isNew ? 'open' : ''}><summary>${icon('settings', 18)}<span><b>Detalhes da música</b><small id="ed-detalhes-resumo">Tom, composição, vídeo de referência e parte da missa</small></span>${icon('down', 18)}</summary>
       <div class="campos">
         <label>Tom<input class="input" id="f-key" value="${esc(meta.key)}" placeholder="Ex.: G, Em, Bb" autocomplete="off"></label>
         <label>Composição<input class="input" id="f-composer" value="${esc(meta.composer)}" placeholder="Quem compôs (opcional)"></label>
@@ -17412,16 +17460,16 @@ function viewEditor(id, setId) {
       </div></details>
       <section class="ed-card">
         <div class="ed-barra">
-          <div class="seg ed-modos" role="group" aria-label="Como editar">
-            <button data-formato="letra" aria-pressed="${formato === 'letra'}" title="Corrija só o texto: os acordes continuam nas mesmas sílabas">${icon('text', 15)}<span>Letra</span></button>
-            <button data-formato="acima" aria-pressed="${formato === 'acima'}" title="Acordes na linha de cima, alinhados com a sílaba">${icon('chord', 15)}<span>Letra e cifra</span></button>
-            <button data-formato="colchetes" aria-pressed="${formato === 'colchetes'}" title="Acordes entre [colchetes] no meio da letra">[ ]<span>Colchetes</span></button>
-          </div>
           <div class="seg ed-abas"><button data-aba="editar" aria-pressed="true" title="Editar o texto">${icon('edit', 15)}<span>Editar</span></button><button data-aba="previa" aria-pressed="false" title="Ver como fica">${icon('eye', 15)}<span>Ver como fica</span></button></div>
           <span class="spacer"></span>
           <button class="icon-btn" id="ed-desfazer" aria-label="Desfazer" title="Desfazer (Ctrl+Z)">${icon('undo', 18)}</button>
           <button class="icon-btn" id="ed-refazer" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)">${icon('redo', 18)}</button>
           <button class="icon-btn" id="ed-cheio" aria-label="Tela cheia" title="Usar a tela toda para editar">${icon('expand', 18)}</button>
+        </div>
+        <div class="seg ed-modos" role="group" aria-label="Como editar">
+          <button data-formato="letra" aria-pressed="${formato === 'letra'}" title="Corrija só o texto: os acordes continuam nas mesmas sílabas"><span>Letra</span></button>
+          <button data-formato="acima" aria-pressed="${formato === 'acima'}" title="Acordes na linha de cima, alinhados com a sílaba"><span>Letra e cifra</span></button>
+          <button data-formato="colchetes" aria-pressed="${formato === 'colchetes'}" title="Acordes entre [colchetes] no meio da letra"><span>Colchetes</span></button>
         </div>
         <p class="ed-modo-dica" id="ed-modo-dica"></p>
         <details class="ed-ferramentas" id="ed-ferramentas"${db.prefs().edFerramentas ? ' open' : ''}>
@@ -17442,9 +17490,8 @@ function viewEditor(id, setId) {
           <div class="editor-prev" id="prev"><div class="song" id="prev-song"></div></div>
         </div>
         <div class="ed-status"><span id="ed-status"></span><span class="ed-salvo" id="ed-salvo"></span></div>
-        <div class="ed-dica ed-guia" id="dica"></div>
       </section>
-      <div class="ed-rodape"><button class="btn ghost" id="ed-cancelar">Cancelar</button><span class="spacer"></span><button class="btn primary" id="save">${icon('check', 18)} Salvar</button></div>
+      <div class="ed-rodape"><button class="btn ghost" id="ed-cancelar">Cancelar</button><button class="btn primary" id="save">${icon('check', 18)} Salvar</button></div>
     </div>`;
   const ta = $('#content');
   const campo = (k) => $('#f-' + k);
@@ -17461,27 +17508,9 @@ function viewEditor(id, setId) {
     title: campo('title').value.trim(), artist: campo('artist').value.trim(), key: campo('key').value.trim(), youtube: campo('yt').value.trim(),
     composer: campo('composer').value.trim(), parte: campo('parte').value, extras: meta.extras,
   }, corpoPro());
-  // guia "Como escrever" de cada jeito de editar, como uma tabelinha: o que se digita (no bloco de código, com os
-  // acordes e as partes coloridos) e, ao lado, para que serve; nos colchetes, também como fica na música
-  const ac = (c) => `<span class="g-ac">${c}</span>`;
-  const itemGuia = (codigo, titulo, texto, fica = '') => `<li class="ed-guia-item"><pre class="ed-guia-cod">${codigo}</pre>
-    <div class="ed-guia-txt"><b>${titulo}</b><span>${texto}</span>${fica}</div></li>`;
-  const ficaAssim = `<span class="ed-guia-fica"><small>Fica assim</small><span class="gc"><i>G</i>Senhor, tende pie</span><span class="gc"><i>D</i>dade</span></span>`;
-  const guiaParte = itemGuia('<span class="g-parte">[Chorus]</span>', 'Parte da música', 'Numa linha só, onde a parte começa: <b>Chorus</b> (refrão), <b>Verse</b> (estrofe), <b>Bridge</b> (ponte)… Vale até a próxima parte.');
-  const guiaExtras = itemGuia('<span class="g-parte">[Repeat Chorus]</span>', 'Repetir o refrão', 'Canta o refrão de novo neste ponto, sem escrever outra vez.')
-    + itemGuia('<span class="g-obs">(2x)</span>', 'Observação', 'Entre parênteses, numa linha só: (2x), (só as vozes), (solo)…');
-  const GUIAS = {
-    acima: { nome: 'Letra e cifra', itens: guiaParte + itemGuia(`${ac('G'.padEnd(17))}${ac('D')}\nSenhor, tende piedade`, 'Acordes em cima', 'Na linha de cima da letra, cada acorde alinhado com a sílaba em que entra.') + guiaExtras },
-    colchetes: { nome: 'Colchetes', itens: guiaParte + itemGuia(`${ac('[G]')}Senhor, tende pie${ac('[D]')}dade`, 'Acorde antes da sílaba', 'Entre colchetes, colado na sílaba em que entra.', ficaAssim) + guiaExtras },
-    letra: { nome: 'Letra', itens: itemGuia('Senhor, tende piedade', 'Só o texto', 'Corrija ou reescreva sem se preocupar com os acordes: ao salvar, cada acorde volta para a mesma sílaba.')
-      + itemGuia('<span class="g-obs">+ linha nova</span>', 'Linhas novas', 'Entram sem acordes. Para colocar acordes nelas, mude para <b>Letra e cifra</b>.') },
-  };
+  // (o guia "Como escrever", que ficava no fim da tela, saiu: a frase embaixo dos jeitos de editar diz o que o
+  // escolhido faz)
   const dica = () => {
-    const g = GUIAS[formato];
-    const aberta = $('#dica details')?.open || false;
-    $('#dica').innerHTML = `<details class="ed-guia-dobra"${aberta ? ' open' : ''}><summary class="ed-guia-cab">${icon('info', 16)}<b>Como escrever</b><span class="chip sm">${g.nome}</span>${icon('down', 16)}</summary>
-      <ul class="ed-guia-lista"><li class="ed-guia-rotulos" aria-hidden="true"><span>Você escreve</span><span>Para que serve</span></li>${g.itens}</ul>`
-      + (formato === 'letra' ? '' : `<p class="ed-guia-rodape">${icon('chord', 14)}<span>Os botões acima colocam partes e acordes onde está o cursor.</span></p>`) + '</details>';
     $('#pal').hidden = formato === 'letra';
     // (embaixo dos jeitos de editar, uma frase diz o que o escolhido faz)
     $('#ed-modo-dica').textContent = formato === 'letra' ? 'Corrija só o texto. Os acordes continuam nas mesmas sílabas.'
@@ -17534,7 +17563,13 @@ function viewEditor(id, setId) {
     $('#ed-estrutura').innerHTML = ps.length ? `<small>${icon('list', 14)} Estrutura</small>${ps.map((x) => `<button class="chip" data-linha="${x.linha}">${esc(x.nome)}</button>`).join('')}` : '';
     // cabeçalho: capa, resumo
     const yt = youtubeId(campo('yt').value);
-    $('#ed-capa').innerHTML = capa({ title: campo('title').value.trim() || 'Nova música', youtube: yt });
+    // (a capa da própria música — a do álbum —, inteira; antes era sempre o quadro do vídeo, que é largo: cortado num
+    // quadrado, a capa do álbum que vem no meio dele aparecia pela metade. Com o vídeo trocado aqui, o quadro dele)
+    const capaGuardada = !isNew && yt === (song.youtube || '') ? capaDaMusica(song) : '';
+    $('#ed-capa').innerHTML = capa({ title: campo('title').value.trim() || 'Nova música', capa: capaGuardada, youtube: yt });
+    // (os detalhes recolhidos mostram o que já está preenchido; vazios, o que dá para preencher)
+    const feitos = [tomDoEditor() && noIdioma(`Tom ${tomDoEditor()}`), campo('composer').value.trim(), yt && noIdioma('Vídeo'), campo('parte').value && noIdioma(campo('parte').value), noIdioma(`${ps.length} parte${ps.length === 1 ? '' : 's'}`)].filter(Boolean);
+    $('#ed-detalhes-resumo').textContent = feitos.length ? feitos.join(' · ') : noIdioma('Tom, composição, vídeo de referência e parte da missa');
     const parteMissa = campo('parte').value;
     $('#ed-resumo').innerHTML = [
       tomDoEditor() && `<span>${icon('music', 13)} Tom ${esc(tomDoEditor())}</span>`,
