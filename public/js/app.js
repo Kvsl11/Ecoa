@@ -49,6 +49,7 @@ import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, bordasDoSom, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
 import { tituloEVersao } from './lib/html.js';
+import { analisarLetra, catalogoExplicito, decidirExplicita, tituloExplicito } from './lib/explicita.js';
 import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
 import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
@@ -8177,7 +8178,7 @@ function indicadores(s) {
   // (o vídeo que é outra gravação, na música sem clipe, não conta: ela é só música)
   // (sem clipe de verdade — o vídeo é só a capa —, a música não tem o ícone de vídeo)
   const video = Boolean(s.youtube) && !s.semClipe;
-  const e = seloExplicita(s.title, s.artist);
+  const e = seloExplicita(s.title, s.artist, s.content);
   // o microfone com as estrelinhas (o do karaokê): o karaokê desta música já está pronto no aparelho
   const kar = temKaraokePronto(s) ? `<span class="ind-i ind-karaoke" title="Karaokê pronto" aria-label="Karaokê pronto">${MICROFONE_KARAOKE}</span>` : '';
   if (!(c || video || baixada || e || kar)) return '';
@@ -10897,16 +10898,17 @@ async function prepararMidiaBusca(itens) {
 }
 
 // põe o "E" na linha já desenhada, quando a música acabou de ser reconhecida como explícita
-function porSeloExplicita(linha, titulo, artista) {
-  if (!linha?.isConnected || !explicitaConhecida(titulo, artista)) return;
+function porSeloExplicita(linha, titulo, artista, conteudo) {
+  if (!linha?.isConnected || !explicitaConhecida(titulo, artista, conteudo)) return;
   const s = linha.querySelector('.info .s');
   if (!s || s.querySelector('.selo-e')) return;
   // (no lugar dele: depois da setinha de baixada, antes da cifra e do vídeo)
   const ind = s.querySelector('.ind');
   const baixada = ind?.querySelector('.ind-baixada, .ind-baixando');
-  if (baixada) baixada.insertAdjacentHTML('afterend', seloExplicita(titulo, artista));
-  else if (ind) ind.insertAdjacentHTML('afterbegin', seloExplicita(titulo, artista));
-  else s.insertAdjacentHTML('afterbegin', seloExplicita(titulo, artista));
+  const selo = seloExplicita(titulo, artista, conteudo);
+  if (baixada) baixada.insertAdjacentHTML('afterend', selo);
+  else if (ind) ind.insertAdjacentHTML('afterbegin', selo);
+  else s.insertAdjacentHTML('afterbegin', selo);
 }
 // As fotinhas dos artistas ao lado do nome, nas linhas das listas: a do primeiro artista e, grudada nela, a do segundo
 // (o "feat." do título e os nomes separados por vírgula ou "&": "Tove Lo, Grand Theft Auto VI", "Lady Gaga feat.
@@ -10981,11 +10983,11 @@ function enriquecerLinhasMusicais(container, itens, { busca = false } = {}) {
     // saber se é explícita, e o selo entra na linha assim que chega (antes só aparecia ao abrir a música)
     const trocaCapa = busca || capaProvisoria(item.cover || item.capa || '');
     if (!trocaCapa && explicitaGuardada(titulo, artista) === undefined) {
-      capaOficial(titulo, artista).then(() => porSeloExplicita(linha, titulo, artista)).catch(() => {});
+      capaOficial(titulo, artista).then(() => porSeloExplicita(linha, titulo, artista, item.content)).catch(() => {});
     }
     if (trocaCapa) {
       capaOficial(titulo, artista).then((url) => {
-        porSeloExplicita(linha, titulo, artista);
+        porSeloExplicita(linha, titulo, artista, item.content);
         // (sem capa oficial: só então a miniatura do vídeo, que antes aparecia primeiro e era trocada pela oficial —
         // a capa "nada a ver" que piscava na busca)
         if (!url && busca && item.video?.capa && !item.capa) { item.semCapaOficial = true; url = item.video.capa; }
@@ -11064,12 +11066,50 @@ async function jsonpUmaVez(url, tempo) {
 // achar lá, no iTunes, pela música com o mesmo título e o mesmo artista. '' se nenhum tiver. O último valor fica
 // guardado no aparelho (vale sem internet)
 const capasOficiais = new Map();
-// Se a música é explícita (como o "E" do Spotify): o Deezer e o iTunes dizem, na mesma busca da capa. Fica guardado no
-// aparelho, junto com a capa; a letra continua inteira (só o selo indica)
-const marcarExplicita = (k, sim) => { void comUltimoValor('explicita', k, Promise.resolve(sim ? 'sim' : 'nao')); };
-const explicitaGuardada = (titulo, artista) => { const k = chaveDaCapa(titulo, artista); return k ? ultimoValorDoArtista('explicita', k) : undefined; };
-const explicitaConhecida = (titulo, artista) => explicitaGuardada(titulo, artista) === 'sim';
-const seloExplicita = (titulo, artista) => (explicitaConhecida(titulo, artista) ? '<span class="selo-e" title="Explícita" aria-label="Explícita">E</span>' : '');
+// Se a música é explícita (como o "E" do Spotify), automático, como no mercado (lib/explicita.js): o catálogo (o
+// Deezer e o iTunes dizem, na mesma busca da capa: 'sim', 'nao' ou 'sem', quando nenhum dos dois tem a música), o nome
+// da faixa ("(Explicit)") e, para a música que o catálogo não tem ou não marca, a leitura da letra salva no aparelho
+// (palavrão, termo sexual explícito, ofensa, em português, inglês e espanhol). O do catálogo fica guardado no aparelho,
+// junto com a capa; a letra continua inteira (só o selo indica)
+// ('explicitaCat': a regra nova, em que vale qualquer gravação da música no catálogo, e não só a da capa escolhida; a
+// guardada pela regra antiga, 'explicita', é procurada de novo quando a linha aparece)
+const TIPO_EXPLICITA = 'explicitaCat';
+const marcarExplicita = (k, cat) => { void comUltimoValor(TIPO_EXPLICITA, k, Promise.resolve(cat === true ? 'sim' : cat === false ? 'nao' : 'sem')); };
+const explicitaGuardada = (titulo, artista) => { const k = chaveDaCapa(titulo, artista); return k ? ultimoValorDoArtista(TIPO_EXPLICITA, k) : undefined; };
+// a leitura da letra, uma vez por texto
+const letrasLidas = new Map();
+function leituraDaLetra(conteudo) {
+  if (!conteudo || SEM_CIFRA.test(conteudo)) return null;
+  let r = letrasLidas.get(conteudo);
+  if (!r) {
+    r = analisarLetra(letraDe(conteudo));
+    if (letrasLidas.size > 2000) letrasLidas.clear();
+    letrasLidas.set(conteudo, r);
+  }
+  return r;
+}
+// a letra da música da biblioteca com o mesmo título e artista (para o selo das telas que só têm o nome: o player, a
+// busca); o índice é refeito no máximo a cada 2 s
+let letrasPorChave = null;
+let letrasPorChaveEm = 0;
+function letraDaBiblioteca(titulo, artista) {
+  const k = chaveDaCapa(titulo, artista);
+  if (!k) return '';
+  if (!letrasPorChave || Date.now() - letrasPorChaveEm > 2000) {
+    letrasPorChave = new Map();
+    for (const s of db.songs()) { const c = chaveDaCapa(s.title, s.artist); if (c && s.content && !letrasPorChave.has(c)) letrasPorChave.set(c, s.content); }
+    letrasPorChaveEm = Date.now();
+  }
+  return letrasPorChave.get(k) || '';
+}
+// conteudo: a cifra ou a letra da música, quando a tela já a tem (sem ela, a da biblioteca)
+function explicitaConhecida(titulo, artista, conteudo) {
+  const g = explicitaGuardada(titulo, artista);
+  if (g === 'sim' || tituloExplicito(titulo)) return true;
+  const letra = leituraDaLetra(conteudo || letraDaBiblioteca(titulo, artista));
+  return decidirExplicita({ catalogo: g === 'nao' ? false : null, letra, titulo });
+}
+const seloExplicita = (titulo, artista, conteudo) => (explicitaConhecida(titulo, artista, conteudo) ? '<span class="selo-e" title="Explícita" aria-label="Explícita">E</span>' : '');
 // (o primeiro artista, sem separar a dupla: a capa de "Jorge & Mateus" era procurada só com "Jorge")
 const artistaDaCapa = (artista) => primeiroArtistaDe(artista);
 const chaveDaCapa = (titulo, artista) => {
@@ -11205,14 +11245,16 @@ function capaOficial(titulo, artista) {
       // candidatas depende de quais imagens abrem a tempo, e com a internet do celular oscilando ela mudava de uma vez
       // para outra — a capa trocava sozinha)
       const conhecida = capaConhecida(titulo, artista);
+      const musica = { titulo: tituloLimpo(titulo), artista: artistaDaCapa(artista) };
+      // (explícita: qualquer gravação da música no catálogo marcada, e não só a da capa: a capa escolhida às vezes é a
+      // versão limpa ou a coletânea. "cleaned", no iTunes, é a versão limpa de uma explícita)
+      if (l.length) marcarExplicita(k, catalogoExplicito(l, (c) => problemaDaCapa(c, musica)));
       if (conhecida) {
-        const musica = { titulo: tituloLimpo(titulo), artista: artistaDaCapa(artista) };
         const ck = chaveDaImagem(conhecida);
         const mesma = l.find((c) => chaveDaImagem(c.url) === ck);
-        if (mesma && !problemaDaCapa(mesma, musica)) { marcarExplicita(k, mesma.explicita); return conhecida; }
+        if (mesma && !problemaDaCapa(mesma, musica)) return conhecida;
       }
       const melhor = await maiorCapaDisponivel(l);
-      if (melhor) marcarExplicita(k, melhor.explicita); // ("cleaned", no iTunes: a versão limpa de uma explícita)
       return melhor?.url || '';
     });
     capasOficiais.set(k, busca.then((url) => {

@@ -321,7 +321,9 @@ test('a capa da busca é a mesma ao abrir a música, sem piscar outra antes', as
   assert.match(app, /aplicarCapaDaPrevia\(capaDaBusca \|\| capaConhecida\(novo\.title, novo\.artist\)\)/);
   // (a capa guardada que continua entre as achadas, da gravação certa, fica)
   const oficial = app.slice(app.indexOf('function capaOficial('), app.indexOf('// Confere a capa da música salva'));
-  assert.match(oficial, /if \(mesma && !problemaDaCapa\(mesma, musica\)\) \{ marcarExplicita\(k, mesma\.explicita\); return conhecida; \}/);
+  assert.match(oficial, /if \(mesma && !problemaDaCapa\(mesma, musica\)\) return conhecida;/);
+  // (o selo "E" vem de todas as gravações da música no catálogo, e não só da capa escolhida)
+  assert.match(oficial, /marcarExplicita\(k, catalogoExplicito\(l, \(c\) => problemaDaCapa\(c, musica\)\)\)/);
   assert.ok(oficial.indexOf('return conhecida') < oficial.indexOf('maiorCapaDisponivel(l)'), 'a guardada é conferida antes de escolher entre as imagens que abrem');
 });
 
