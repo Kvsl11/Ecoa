@@ -43,7 +43,7 @@ import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
-import { faixaDaPrevia, tempoDaPrevia } from './lib/convite-musica.js';
+import { desenharFundoDaPrevia, faixaDaPrevia, faixaDoItunes, tempoDaPrevia } from './lib/convite-musica.js';
 import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
@@ -20307,9 +20307,12 @@ function viewOuvir(titulo = '', artista = '') {
   }, ESPERA_DO_APLICATIVO);
 }
 // O link compartilhado para quem não entrou: só a prévia, como a do Spotify — a capa parada, o nome, o artista, a barra
-// e o tempo (de 0:00 a 0:30) —, sem texto de convite, com o trecho de 30 s do Deezer tocando e o fundo em movimento nas
-// cores da capa, acompanhando a batida. Ao fim dos 30 s (ou em "Pular"), fica a tela de entrada do app; entrando, a
-// música abre inteira (viewOuvir). Sem a prévia da faixa certa, a tela de entrada aparece direto
+// e o tempo (de 0:00 a 0:30) —, sem texto de convite, com o trecho de 30 s do Deezer (ou, sem ele, do iTunes) tocando e
+// o fundo em movimento nas cores da capa, acompanhando a batida. A tela da prévia fica até a pessoa tocar em "Pular":
+// ao fim do trecho, ela volta ao começo, pronta para tocar de novo; sem o trecho (a música não está no Deezer nem no
+// iTunes, ou sem internet), fica com o nome e o aviso de que a prévia não está disponível. Só o "Pular" leva à tela de
+// entrada (antes, ela abria sozinha ao fim do trecho ou sem ele, e a pessoa não chegava a ver a prévia); entrando, a
+// música abre inteira (viewOuvir)
 const SEGUNDOS_DA_PREVIA = 30;
 let conviteDaMusica = null;
 function fecharConviteDaMusica() {
@@ -20319,9 +20322,9 @@ function fecharConviteDaMusica() {
   conviteDaMusica.el.remove();
   conviteDaMusica = null;
 }
-// as cores das luzes do fundo da prévia: as fortes da capa (até 3), mais claras, em --c1, --c2 e --c3; sem elas (capa
-// cinza ou sem a leitura liberada), ficam a cor do app e duas vizinhas
-async function coresDoFundoDaPrevia(el, url) {
+// as cores das luzes do fundo da prévia: as fortes da capa (até 3), mais claras; null sem elas (capa cinza ou sem a
+// leitura liberada: ficam a cor do app e duas vizinhas)
+async function coresDoFundoDaPrevia(url) {
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -20331,19 +20334,19 @@ async function coresDoFundoDaPrevia(el, url) {
     const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, 32, 32);
     const cores = coresDaCapa(ctx.getImageData(0, 0, 32, 32).data);
-    if (!cores || !el.isConnected) return;
+    if (!cores) return null;
     const viva = (k) => { const x = cores[k % cores.length]; return `hsl(${(x.h + (k >= cores.length ? 40 * k : 0)) % 360} ${Math.min(90, x.s + 25)}% ${Math.min(62, x.l + 22)}%)`; };
-    [0, 1, 2].forEach((k) => el.style.setProperty(`--c${k + 1}`, viva(k)));
-  } catch { /* fica a cor do app */ }
+    return [0, 1, 2].map(viva);
+  } catch { return null; }
 }
 function mostrarConviteDaMusica(titulo, artista) {
   const chave = `${titulo}|${artista}`;
   if (conviteDaMusica?.chave === chave && conviteDaMusica.el.isConnected) return;
   fecharConviteDaMusica();
   const el = document.createElement('section');
-  el.className = 'convite-musica carregando sem-analise';
+  el.className = 'convite-musica carregando';
   el.setAttribute('aria-label', 'Prévia da música');
-  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><i class="cm-c1"></i><i class="cm-c2"></i><i class="cm-c3"></i><b class="cm-luz cm-l1"></b><b class="cm-luz cm-l2"></b><b class="cm-luz cm-l3"></b></div>
+  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><canvas></canvas></div>
     <button class="cm-pular" type="button">Pular</button>
     <div class="cm-conteudo">
       <div class="cm-capa">${icon('music', 56)}</div>
@@ -20351,10 +20354,23 @@ function mostrarConviteDaMusica(titulo, artista) {
       <div class="cm-trilha" aria-hidden="true"><i></i></div>
       <div class="cm-tempos"><span class="cm-tempo">0:00</span><span>${tempoDaPrevia(SEGUNDOS_DA_PREVIA)}</span></div>
       <button class="cm-play" type="button" aria-label="Ouvir a prévia">${icon('play', 30)}</button>
+      <p class="cm-indisponivel" hidden>Prévia indisponível</p>
     </div>`;
   document.body.append(el);
   document.documentElement.classList.add('com-convite');
-  const fundo = $('.cm-fundo', el);
+  // o fundo: um canvas pequeno, esticado pelo CSS na tela toda (desenharFundoDaPrevia), redesenhado a uns 30 quadros
+  // por segundo; com "reduzir movimento", parado
+  const tela = $('.cm-fundo canvas', el);
+  tela.width = 64;
+  tela.height = Math.max(64, Math.min(160, Math.round(64 * (innerHeight / Math.max(1, innerWidth)))));
+  const pincel = tela.getContext('2d');
+  const parado = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const acento = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#22d3ee';
+  const fundoDe = { img: null, cores: [acento, `color-mix(in srgb, ${acento} 60%, #ff4fa0)`, `color-mix(in srgb, ${acento} 50%, #7c5cff)`] };
+  // (o canvas não aceita color-mix em todo navegador: sem ele, as três luzes na cor do app)
+  try { pincel.fillStyle = fundoDe.cores[1]; if (!/^(#|rgb)/.test(pincel.fillStyle) || pincel.fillStyle === '#000000') fundoDe.cores = [acento, acento, acento]; } catch { fundoDe.cores = [acento, acento, acento]; }
+  const inicioDoFundo = performance.now();
+  let ultimoDesenho = -1;
   const play = $('.cm-play', el);
   const barra = $('.cm-trilha i', el);
   const tempo = $('.cm-tempo', el);
@@ -20370,18 +20386,18 @@ function mostrarConviteDaMusica(titulo, artista) {
     play.innerHTML = icon(tocando ? 'pause' : 'play', 30);
     play.setAttribute('aria-label', tocando ? 'Pausar a prévia' : 'Ouvir a prévia');
   };
-  // a cada quadro: a barra, o tempo (0:00 a 0:30) e a força da batida no fundo (--nivel, de 0 a 1: o quanto o som sobe
-  // acima da média do último segundo, calculado pelo tempo entre os quadros). O nível vai só no fundo: posto na tela
-  // toda, redesenhava também o texto a cada quadro, que ficava borrado. Onde o som não pode ser analisado, as luzes
-  // pulsam pelo CSS (classe sem-analise)
+  // a cada quadro: a barra, o tempo (0:00 a 0:30) e a força da batida no fundo (nivel, de 0 a 1: o quanto o som sobe
+  // acima da média do último segundo, calculado pelo tempo entre os quadros). Onde o som não pode ser analisado, as
+  // luzes pulsam num compasso fixo enquanto toca
   const passo = (agora = performance.now()) => {
     if (!vivo()) return;
     const dt = Math.min(0.5, antes ? (agora - antes) / 1000 : 0.016);
     antes = agora;
     const p = (s) => 1 - Math.exp(-dt / s);
     const seg = Math.min(SEGUNDOS_DA_PREVIA, audio.currentTime || 0);
-    barra.style.width = `${(seg / SEGUNDOS_DA_PREVIA) * 100}%`;
-    tempo.textContent = tempoDaPrevia(seg);
+    barra.style.transform = `scaleX(${(seg / SEGUNDOS_DA_PREVIA).toFixed(4)})`;
+    const rotulo = tempoDaPrevia(seg);
+    if (tempo.textContent !== rotulo) tempo.textContent = rotulo;
     if (analise && !audio.paused) {
       analise.no.getByteFrequencyData(analise.dados);
       let soma = 0; const ate = Math.min(analise.dados.length, 48);
@@ -20390,8 +20406,15 @@ function mostrarConviteDaMusica(titulo, artista) {
       media = media ? media + (energia - media) * p(1) : energia;
       const alvo = Math.max(0, Math.min(1, (energia - media) * 9 + 0.2));
       nivel += (alvo - nivel) * p(alvo > nivel ? 0.05 : 0.25);
+    } else if (!audio.paused) {
+      const alvo = 0.25 + 0.35 * Math.max(0, Math.sin((agora / 1000) * Math.PI * 2 / 0.9));
+      nivel += (alvo - nivel) * p(0.1);
     } else nivel += (0 - nivel) * p(0.3);
-    fundo.style.setProperty('--nivel', nivel.toFixed(3));
+    const t = (agora - inicioDoFundo) / 1000;
+    if (!parado ? t - ultimoDesenho >= 1 / 30 : ultimoDesenho < 0 || fundoDe.mudou) {
+      ultimoDesenho = t; fundoDe.mudou = false;
+      desenharFundoDaPrevia(pincel, tela.width, tela.height, { img: fundoDe.img, cores: fundoDe.cores, nivel: parado ? 0 : nivel, t: parado ? 0 : t });
+    }
     quadro = requestAnimationFrame(passo);
   };
   audio.addEventListener('play', () => {
@@ -20401,15 +20424,14 @@ function mostrarConviteDaMusica(titulo, artista) {
         const no = ctx.createAnalyser(); no.fftSize = 256; no.smoothingTimeConstant = 0.6;
         ctx.createMediaElementSource(audio).connect(no).connect(ctx.destination);
         analise = { ctx, no, dados: new Uint8Array(no.frequencyBinCount) };
-        el.classList.remove('sem-analise');
       } catch { analise = false; }
     }
     analise?.ctx?.resume?.().catch(() => {});
     marcar();
   });
   audio.addEventListener('pause', marcar);
-  // (acabou a prévia: a tela de entrada, para entrar e ouvir a música inteira)
-  audio.addEventListener('ended', () => { if (vivo()) fecharConviteDaMusica(); });
+  // (acabou o trecho: volta ao começo, parado, para tocar de novo; a tela de entrada só pelo "Pular")
+  audio.addEventListener('ended', () => { try { audio.currentTime = 0; } catch { /* segue */ } marcar(); });
   play.onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
   $('.cm-pular', el).onclick = fecharConviteDaMusica;
   conviteDaMusica = {
@@ -20421,23 +20443,39 @@ function mostrarConviteDaMusica(titulo, artista) {
     },
   };
   quadro = requestAnimationFrame(passo);
-  // a faixa da prévia no Deezer (a capa, as cores e o trecho de 30 s), em até 8 s; sem ela, a tela de entrada
+  // a faixa da prévia (a capa, as cores e o trecho de 30 s): no Deezer e, sem ela, no iTunes, em até 12 s. Sem nenhuma,
+  // a tela fica com o nome e o aviso, sem o botão de tocar
   (async () => {
-    const buscar = async (q) => (navigator.onLine ? faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`).catch(() => null), titulo, artista) : null);
-    const achar = async () => await buscar([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')) || buscar(`${artista} ${titulo}`.trim());
-    const faixa = await Promise.race([achar(), new Promise((ok) => setTimeout(() => ok(null), 8000))]);
+    const limite = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((ok) => setTimeout(() => ok(null), ms))]);
+    const noDeezer = async (q) => faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`).catch(() => null), titulo, artista);
+    const noItunes = async (q) => faixaDoItunes(await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=15`).catch(() => null), titulo, artista);
+    const termo = `${artista} ${titulo}`.trim();
+    const achar = async () => {
+      if (!navigator.onLine) return null;
+      return await limite(noDeezer([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')), 6000)
+        || await limite(noDeezer(termo), 5000) || await limite(noItunes(termo), 6000);
+    };
+    const faixa = await limite(achar(), 12000);
     if (!vivo()) return;
-    if (!faixa) { fecharConviteDaMusica(); return; }
+    if (!faixa) {
+      el.classList.remove('carregando');
+      el.classList.add('sem-previa');
+      $('.cm-indisponivel', el).hidden = false;
+      return;
+    }
     if (faixa.capa) {
       $('.cm-capa', el).innerHTML = `<img src="${esc(faixa.capa)}" alt="" referrerpolicy="no-referrer">`;
-      el.style.setProperty('--capa', `url("${faixa.capa.replace(/"/g, '%22')}")`);
-      void coresDoFundoDaPrevia(el, faixa.capa);
+      const capaDoFundo = new Image();
+      capaDoFundo.referrerPolicy = 'no-referrer';
+      capaDoFundo.onload = () => { fundoDe.img = capaDoFundo; fundoDe.mudou = true; };
+      capaDoFundo.src = faixa.capa;
+      void coresDoFundoDaPrevia(faixa.capa).then((cores) => { if (cores) { fundoDe.cores = cores; fundoDe.mudou = true; } });
     }
     // (com a leitura liberada, para o fundo acompanhar o som; se o servidor recusar, a prévia toca sem a análise)
     audio.crossOrigin = 'anonymous';
     audio.addEventListener('error', () => {
       if (audio.crossOrigin === null || !vivo()) return;
-      audio.removeAttribute('crossorigin'); analise = false; el.classList.add('sem-analise');
+      audio.removeAttribute('crossorigin'); analise = false;
       audio.src = faixa.previa; audio.play().catch(marcar);
     }, { once: true });
     audio.src = faixa.previa;
