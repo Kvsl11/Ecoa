@@ -6654,3 +6654,9 @@ html.pp #player .pl-artista-foto::after { background: linear-gradient(180deg, rg
    Uma palavra traduzida mais comprida que o lugar dela (um botão, o título de um cartão) quebra dentro do próprio
    lugar em vez de passar por cima do vizinho. Só vale quando não há outro ponto de quebra, e só fora do português. */
 :root:not([lang^="pt"]) :is(.btn, .tile, .setting .t, .setting .s, .track .t, .track .s, h1, h2, h3, label, .lista-menu button) { overflow-wrap: anywhere; }
+
+/* ---- listas compridas (a biblioteca, as Músicas curtidas, a playlist) ----
+   O navegador calculava e desenhava todas as linhas ao abrir a lista, mesmo as centenas que estão fora da tela. Com
+   content-visibility, só as linhas perto da tela são montadas; as outras guardam o lugar (a altura medida, ou 64 px
+   antes de aparecerem pela primeira vez) e entram ao rolar. */
+.tracks > .track { content-visibility: auto; contain-intrinsic-size: auto 64px; }

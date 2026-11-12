@@ -83,6 +83,12 @@ export function criarTradutor(dic, { ehDado = () => false } = {}) {
         break;
       }
     }
+    // o mesmo texto com reticências ou dois-pontos no fim ("Salvando…", "Fonte:"): o texto conhecido, com o fim de volta
+    if (r === null) {
+      const fim = /^(.*[A-Za-zÀ-ÿ)])(…|\.\.\.|:)$/.exec(texto);
+      const semFim = fim && exatos.get(fim[1]);
+      if (semFim !== undefined && semFim !== null && fim && pode(palavrasDe(fim[1]))) r = aplicar(semFim, []) + fim[2];
+    }
     // vários textos numa linha só ("Playlist · 12 músicas"): cada um por si
     if (r === null && nivel < 2) {
       for (const sep of [' · ', ' • ', ' — ']) {

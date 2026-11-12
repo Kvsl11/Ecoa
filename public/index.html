@@ -22,7 +22,9 @@
   <script>
     // aplica tema e cor salvos antes de desenhar a página (evita "piscar")
     try {
-      var p = (JSON.parse(localStorage.getItem('songbook.v1') || '{}').prefs) || {};
+      // (os ajustes ficam também num bloco pequeno, à parte: ler o da biblioteca inteira, de alguns MB, só para saber o
+      // tema, atrasava a abertura do app)
+      var p = JSON.parse(localStorage.getItem('songbook.prefs') || 'null') || (JSON.parse(localStorage.getItem('songbook.v1') || '{}').prefs) || {};
       // (no app de Android, o modo do aparelho é o último que o Android informou: o WebView responde pelo tema do app)
       var ts = /EcoaAndroid/.test(navigator.userAgent) ? localStorage.getItem('songbook.temaSistema') : '';
       var t = p.theme === 'auto' ? (ts === 'dark' || ts === 'light' ? ts : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) : (p.theme || 'dark');

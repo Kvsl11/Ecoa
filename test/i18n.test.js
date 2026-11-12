@@ -93,6 +93,16 @@ test('dicionários: os textos mais vistos do app', () => {
   assert.equal(espanhol('28 músicas'), '28 canciones');
   assert.equal(ingles('8–14 de nov.'), 'Nov 8–14');
   assert.equal(ingles('Baixando 37%'), 'Downloading 37%');
+  // os botões que mudam de texto enquanto trabalham (a atualização do app, a limpeza do cache)
+  assert.equal(ingles('Baixando…'), 'Downloading…');
+  assert.equal(ingles('Baixando… 42%'), 'Downloading… 42%');
+  assert.equal(ingles('Instalando…'), 'Installing…');
+  assert.equal(ingles('Limpando…'), 'Clearing…');
+  assert.equal(espanhol('Limpando…'), 'Borrando…');
+  assert.equal(espanhol('Baixando…'), 'Descargando…');
+  // um texto conhecido com reticências ou dois-pontos no fim, mesmo sem entrada própria
+  assert.equal(ingles('Preparando…'), 'Preparing…');
+  assert.equal(ingles('Artista:'), 'Artist:');
 });
 
 // a nota da versão aparece no idioma do aparelho: o título e cada item entram nos dois dicionários
