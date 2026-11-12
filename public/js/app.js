@@ -6792,12 +6792,10 @@ const semLinhasDeAcordes = (sinc) => {
       b.setAttribute('aria-label', fone ? `Tocando em ${fone}: ouvir em outro aparelho` : 'Ouvir em outro aparelho');
     }
     const onde = $('.pl-onde', el);
-    // (o ícone em duas camadas, uma sobre a outra: a de baixo, mais grossa e escura, é o contorno no modo claro)
-    const comContorno = (nome, tam) => `<span class="ic-contorno">${icon(nome, tam)}${icon(nome, tam)}</span>`;
-    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${comContorno(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 13)}<span>${esc(fone)}</span>` : ''; }
+    if (onde) { onde.hidden = !fone; onde.innerHTML = fone ? `${icon(tipoFone && tipoFone !== 'bluetooth' ? 'fone' : 'bluetooth', 13)}<span>${esc(fone)}</span>` : ''; }
     // (na barrinha de baixo, o botão de aparelhos vira o fone, na cor do app; sem fone, ele some no celular)
     const lado = $('.pl-lado [data-pl="aparelhos"]', el);
-    if (lado) lado.innerHTML = fone ? comContorno('fone', 18) : icon('aparelhos', 18);
+    if (lado) lado.innerHTML = icon(fone ? 'fone' : 'aparelhos', 18);
     // (na barrinha de cima também: o fone em verde no lugar do artista)
     const sub = $('.pl-fixo small', el);
     if (sub) { sub.classList.toggle('com-fone', Boolean(fone)); sub.hidden = !fone; sub.innerHTML = fone ? `${icon('fone', 16)}<span>${esc(fone)}</span>` : ''; }
@@ -8128,9 +8126,9 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
   const r = await openDialog(`
     <h3>${esc(titulo)}</h3>
     <div class="chips" id="pk-abas"><button class="chip" data-aba="biblioteca" aria-pressed="false">${icon('library', 14)} Biblioteca</button><button class="chip" data-aba="internet" aria-pressed="false">${icon('search', 14)} Procurar na internet</button></div>
-    <label class="field">${icon('search', 18)}<input class="search" type="search" id="pk-q"></label>
+    <div class="pk-busca"><label class="field">${icon('search', 18)}<input class="search" type="search" id="pk-q"></label>${varias ? '<button class="link-btn pk-todas" data-todas hidden>Selecionar todas</button>' : ''}</div>
     <div id="pk-res" class="pk-res"></div>
-    ${varias ? `<div class="acts pk-acts"><button class="btn ghost small" data-todas>Selecionar todas</button><span class="spacer"></span><button class="btn ghost" data-no>Cancelar</button><button class="btn primary" data-adicionar disabled>Adicionar</button></div>`
+    ${varias ? `<div class="acts pk-acts"><button class="btn ghost" data-no>Cancelar</button><button class="btn primary" data-adicionar disabled>Adicionar</button></div>`
     : `<div class="acts"><button class="btn ghost" data-nova>${icon('edit', 16)} Criar do zero</button><span class="spacer"></span><button class="btn ghost" data-no>Fechar</button></div>`}`,
   (dlg, done) => {
     dlg.classList.add('pk-dlg');
@@ -8154,7 +8152,7 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
         const songs = varias ? achadas.filter((s) => !ja.has(s.id)) : achadas;
         const todasJa = varias && achadas.length && !songs.length;
         box.innerHTML = varias ? `<ul class="tracks">${songs.map(linhaMarcavel).join('')}</ul>`
-          + (songs.length ? '' : `<p class="muted">${todasJa ? (q ? 'As músicas da biblioteca com esse nome já estão na playlist.' : 'Todas as músicas da biblioteca já estão na playlist.') : 'Nada na biblioteca.'} <button class="link-btn" data-ir-internet>Procurar ${q ? `“${esc(q)}”` : 'outras'} na internet</button></p>`)
+          + (songs.length ? '' : `<p class="muted">${todasJa ? (q ? 'As músicas da biblioteca com esse nome já estão na playlist.' : 'Todas as músicas da biblioteca já estão na playlist.') : 'Nada na biblioteca.'} <button class="link-btn" data-ir-internet>${q ? `Procurar “${esc(q)}” na internet` : 'Procurar outras na internet'}</button></p>`)
           : `<ul class="tracks">${songs.map((s) => linhaMusica(s, s.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '')).join('')}</ul>`
           + (songs.length ? '' : `<p class="muted">Nada na biblioteca. <button class="link-btn" data-ir-internet>Procurar “${esc(q)}” na internet</button></p>`);
         return;
@@ -8176,9 +8174,7 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
     const visiveis = () => [...box.querySelectorAll('li.pk-item:not(.pk-ja)')].map((li) => li.dataset.id);
     const atualizarBarra = () => {
       if (!varias) return;
-      const b = $('[data-adicionar]', dlg);
-      b.disabled = !marcadas.length;
-      b.textContent = marcadas.length ? `Adicionar ${marcadas.length}` : 'Adicionar';
+      $('[data-adicionar]', dlg).disabled = !marcadas.length; // (o botão diz só "Adicionar", sem a quantidade marcada)
       const vs = visiveis();
       $('[data-todas]', dlg).textContent = vs.length && vs.every((id) => marcadas.includes(id)) ? 'Desmarcar todas' : 'Selecionar todas';
       $('[data-todas]', dlg).hidden = aba !== 'biblioteca' || !vs.length;
