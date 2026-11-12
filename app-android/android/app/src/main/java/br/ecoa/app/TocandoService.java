@@ -116,8 +116,8 @@ public class TocandoService extends Service {
             .addAction(R.drawable.ic_anterior, ctx.getString(R.string.acao_voltar), EcoaWidget.botao(ctx, Acoes.ANTERIOR, 21))
             .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, ctx.getString(tocando ? R.string.acao_pausar : R.string.acao_tocar), EcoaWidget.botao(ctx, tocando ? Acoes.PAUSAR : Acoes.TOCAR, 22)) // (explícito: o que o botão mostra é o que ele faz)
             .addAction(R.drawable.ic_proxima, ctx.getString(R.string.acao_pular), EcoaWidget.botao(ctx, Acoes.PROXIMA, 23));
-        // (pausada, o botão Fechar: pausa e tira o aviso, sem precisar abrir o app e fechar a música no player)
-        if (!tocando) b.addAction(R.drawable.ic_fechar, ctx.getString(R.string.acao_fechar), EcoaWidget.botao(ctx, Acoes.FECHAR, 24));
+        // (sem botão de fechar: pausada, o aviso deixa de ser fixo e é dispensado arrastando para o lado, como nos
+        // outros players; o dedo passa pelo setDeleteIntent, que pausa e tira o aviso e o player do Android)
         b.setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 // (com a sessão de mídia, o aviso vira o player do Android: a capa, a barra do tempo, a tela de bloqueio)
                 .setMediaSession(Sessao.de(ctx).getSessionToken())
