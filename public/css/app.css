@@ -5879,13 +5879,6 @@ html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index:
 /* o tempo embaixo da barra: o que já tocou à esquerda (andando) e os 30 s da prévia à direita */
 .cm-tempos { align-self: stretch; display: flex; justify-content: space-between; margin-top: 8px; color: rgb(255 255 255 / 0.7); font-size: 12px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 8px rgb(0 0 0 / 0.5); }
 .convite-musica.carregando .cm-tempos { visibility: hidden; }
-/* o clipe no quadro da capa (recortado no meio, como o Canvas do Spotify): entra por cima da capa quando já está tocando
-   há 4 s, sem o título do YouTube; não recebe toques */
-.cm-clipe { position: absolute; top: 50%; left: 50%; width: 178%; height: 100%; border: 0; transform: translate(-50%, -50%) scale(1.04); pointer-events: none;
-  opacity: 0; transition: opacity 0.8s; }
-.convite-musica.com-clipe .cm-clipe { opacity: 1; }
-.convite-musica.com-clipe .cm-capa img { opacity: 0; transition: opacity 0.8s 0.2s; }
-.cm-nota { display: grid; place-items: center; }
 .cm-play { display: grid; place-items: center; width: 64px; height: 64px; margin-top: 22px; border: 0; border-radius: 50%; background: #fff; color: #07090b; cursor: pointer;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.4); }
 .cm-play:active { transform: scale(0.94); }
