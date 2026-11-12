@@ -195,13 +195,22 @@ test('a prévia do link compartilhado: só a faixa certa, com o trecho de 30 s',
   const resposta = { data: [
     { title: 'Blood In Your Eyes (Live)', preview: '', artist: { name: 'Tove Lo' } },
     { title: 'Blood In Your Eyes', preview: 'https://x/outra.mp3', artist: { name: 'Outra Pessoa' }, album: {} },
-    { title: 'Blood In Your Eyes', preview: 'https://x/certa.mp3', artist: { name: 'Tove Lo' }, album: { cover_xl: 'https://x/capa.jpg' } },
+    { title: 'Blood In Your Eyes', preview: 'https://x/certa.mp3', duration: 201, artist: { name: 'Tove Lo' }, album: { cover_xl: 'https://x/capa.jpg' } },
   ] };
-  assert.deepEqual(faixaDaPrevia(resposta, 'Blood In Your Eyes', 'Tove Lo'), { titulo: 'Blood In Your Eyes', artista: 'Tove Lo', capa: 'https://x/capa.jpg', previa: 'https://x/certa.mp3' });
+  assert.deepEqual(faixaDaPrevia(resposta, 'Blood In Your Eyes', 'Tove Lo'), { titulo: 'Blood In Your Eyes', artista: 'Tove Lo', capa: 'https://x/capa.jpg', previa: 'https://x/certa.mp3', duracao: 201 });
   assert.equal(faixaDaPrevia(resposta, 'Outra Música', 'Tove Lo'), null); // (nada de tocar outra música)
   assert.equal(faixaDaPrevia(null, 'X'), null);
   const semCapa = { data: [{ title: 'Blood In Your Eyes', preview: 'p.mp3', artist: { name: 'Tove Lo' }, album: { cover_xl: null, md5_image: 'dc492b8d028525c713a52713b9bb005d' } }] };
   assert.match(faixaDaPrevia(semCapa, 'Blood In Your Eyes', 'Tove Lo').capa, /dc492b8d028525c713a52713b9bb005d\/1000x1000/);
   assert.equal(comparavel('Coração (Ao Vivo) feat. Fulano'), 'coracao');
   assert.equal(tempoDaPrevia(29.7), '0:29');
+});
+
+test('a prévia toca o refrão do clipe: o tempo da letra, com a cena de abertura do clipe somada', async () => {
+  const { inicioDoRefraoNoClipe } = await import('../public/js/lib/convite-musica.js');
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 201 }), 52.4); // (mesma duração)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 230 }), 82.4); // (30 s de cena antes)
+  assert.equal(inicioDoRefraoNoClipe({ duracaoGravacao: 200, duracaoClipe: 200 }), 60); // (sem a letra: 30% da música)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 190, duracaoGravacao: 200, duracaoClipe: 200 }), 169); // (cabem os 30 s)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 50, duracaoGravacao: 200, duracaoClipe: 500 }), 50); // (outro corte: não soma)
 });
