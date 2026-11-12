@@ -42,6 +42,7 @@ import { cromaDoAudio, tomQueCasa } from './lib/tom.js';
 import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
+import { chaveDaParte } from './lib/missa.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
 import { desenharFundoDaPrevia, faixaDaPrevia, faixaDoItunes, tempoDaPrevia } from './lib/convite-musica.js';
 import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, lerLinkDaMusica, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
@@ -1663,6 +1664,12 @@ setTimeout(() => limparAudios(new Set(db.songs().flatMap((s) => [...(s.audioProp
 const CACHE_BAIXADOS = 'songbook-baixados';
 function chaveBaixada(yt) { return `yt:${yt}`; }
 // o download deste vídeo do YouTube, se alguma música o baixou ({ tipo, tamanho }; null se não)
+// as outras músicas que têm baixado algum arquivo desta (o mesmo vídeo): os arquivos delas são reaproveitados
+function baixadoQuemTemOMesmo(s) {
+  if (!s) return [];
+  const yts = new Set(arquivosParaBaixar(s).map((a) => a.yt));
+  return db.songs().filter((x) => x.id !== s.id && Object.keys(x.baixado?.arquivos || {}).some((yt) => yts.has(yt)));
+}
 function baixadoDe(yt) {
   for (const s of db.songs()) { const a = s.baixado?.arquivos?.[yt]; if (a) return a; }
   return null;
@@ -1767,6 +1774,13 @@ function usarArquivosJaBaixados(s, { avisar = false, qualidade = false } = {}) {
   return true;
 }
 async function baixarMusica(song, { perguntou = false, qualidade = false, avisar = false } = {}) {
+  // (o que a música diz ter é conferido no aparelho antes: o arquivo que não está lá é baixado de novo, em vez de o
+  // "Baixar" achar que ela já está baixada e não fazer nada)
+  const s0 = song?.id && db.song(song.id);
+  if (s0 && !baixando.has(s0.id)) {
+    const quem = [s0, ...baixadoQuemTemOMesmo(s0)].filter((x) => x.baixado);
+    if (quem.length) await conferirArquivosBaixados(quem).catch(() => {});
+  }
   const s = song?.id && db.song(song.id);
   if (s && avisar) {
     baixarComAviso.add(s.id);
@@ -2096,8 +2110,11 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
 
   // (o que já está no aparelho fica; com qualidade, o que está numa qualidade menor que a escolhida baixa de novo, e o
   // arquivo de antes continua valendo até o novo chegar inteiro)
+  // (só vale o que está guardado de verdade no aparelho: a marca de outra música não basta)
+  const chavesAntes = await chavesNoAparelho({ novas: true }).catch(() => null);
   const jaTem = ({ yt, video }) => {
     const ja = baixadoDe(yt);
+    if (ja && chavesAntes && !chavesAntes.has(chaveBaixada(yt))) return null;
     return ja && (!video || String(ja.tipo).startsWith('video')) && !(qualidade && foraDaQualidade(ja, video, qualidade === 'todas')) ? ja : null;
   };
   // O servidor prepara o som e o clipe ao mesmo tempo (o YouTube para o servidor é a parte demorada): enquanto o som
@@ -2148,6 +2165,13 @@ async function baixarAgora(id, { qualidade = false, sinal } = {}) {
       if (video && !String(r.tipo || blob.type).startsWith('video/')) throw new Error('o servidor mandou só o áudio, não o videoclipe');
       atualizarProgresso(yt, 0.99);
       await guardarAudio(chaveBaixada(yt), blob);
+      // (conferido no aparelho: o arquivo guardado, inteiro. Sem espaço, o navegador pode não guardar sem dar erro)
+      const guardado = await lerAudio(chaveBaixada(yt)).catch(() => null);
+      if (!guardado?.size || Math.abs(guardado.size - blob.size) > 1024) {
+        await apagarAudio(chaveBaixada(yt)).catch(() => {});
+        throw new Error('o aparelho não guardou o arquivo (falta de espaço?)');
+      }
+      chavesAgora = null;
       // (alturaConferida: o celular e o servidor já tentam os outros jeitos quando a imagem vem menor que a pedida, e
       // ficam com a maior que o vídeo tem: a altura que veio é a de verdade dele)
       arquivos[yt] = { tipo: r.tipo || blob.type, tamanho: blob.size, ...(r.qualidade ? { qualidade: r.qualidade } : {}), ...(r.altura ? { altura: r.altura, alturaConferida: true } : {}) };
@@ -2633,8 +2657,15 @@ document.addEventListener('click', async (e) => {
   e.preventDefault();
   const set = setParaBaixar(b.dataset.baixarSet);
   if (!set) return;
-  const ss = musicasDoSet(set);
+  let ss = musicasDoSet(set);
   // baixando: o toque pausa onde está (as baixadas ficam; tocar de novo baixa o resto)
+  if (!ss.some((s) => baixando.has(s.id))) {
+    // (antes de dizer que está tudo baixado, confere no aparelho: o arquivo que sumiu volta para baixar)
+    b.classList.add('conferindo');
+    await conferirArquivosBaixados(ss).catch(() => {});
+    b.classList.remove('conferindo');
+    ss = musicasDoSet(db.set(set.id) || set);
+  }
   if (ss.some((s) => baixando.has(s.id))) {
     pausarDownloads(ss);
     const feitas = ss.filter((s) => !precisaBaixar(db.song(s.id) || s)).length;
@@ -2649,7 +2680,8 @@ document.addEventListener('click', async (e) => {
     }
     return;
   }
-  if (faltam.some((s) => arquivosParaBaixar(s).length) && !(await temServidorParaBaixar())) { toast('Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado)'); return; }
+  if (faltam.some((s) => arquivosParaBaixar(s).length) && !(await temServidorParaBaixar())) { void ask({ title: 'Não deu para baixar', text: 'Para baixar o áudio e o vídeo, ligue o servidor no seu computador (Ajustes → Avançado).', ok: 'Entendi', cancel: false }); return; }
+  if (!faltam.some((s) => arquivosParaBaixar(s).length)) { void ask({ title: 'Nada para baixar', text: 'As músicas que faltam não têm áudio nem vídeo. Escolha um vídeo para elas (⋮ → Escolher um vídeo) e tente de novo.', ok: 'Entendi', cancel: false }); return; }
   if (!(await podeBaixarAgora())) return;
   // (continua de onde parou: só as que faltam, e a pausa sai)
   for (const s of faltam) { if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined }); await baixarMusica(db.song(s.id), { perguntou: true }); }
@@ -2664,13 +2696,15 @@ document.addEventListener('click', async (e) => {
   const s = db.song(b.dataset.baixar);
   if (!s) { toast('Salve a música na biblioteca para baixar'); return; }
   if (baixando.has(s.id)) { toast(`Baixando: ${baixando.get(s.id).pct}%`); return; }
-  if (s.baixado && !precisaBaixar(s)) {
+  // (a seta verde conferida no aparelho antes de oferecer "Remover": sem o arquivo, ela baixa de novo)
+  if (s.baixado) await conferirArquivosBaixados([s]).catch(() => {});
+  if (db.song(s.id)?.baixado && !precisaBaixar(db.song(s.id))) {
     if (await ask({ title: 'Remover o download?', text: `“${s.title}” continua na biblioteca, mas só toca com internet.`, ok: 'Remover', danger: true })) { await removerDownload(s); toast('Download removido'); }
     return;
   }
   // (tocar para baixar tira a pausa desta música)
-  if (s.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
-  baixarMusica(db.song(s.id));
+  if (db.song(s.id)?.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
+  baixarMusica(db.song(s.id), { avisar: true });
 });
 // salvar na biblioteca já baixa a música (como o "Baixar" ligado numa playlist do Spotify), com o servidor ligado, no
 // Wi-Fi (ou com os dados móveis liberados) e com "Baixar ao salvar" ligado. Várias de uma vez (importar um backup) não:
@@ -2884,8 +2918,11 @@ const REVISAO_MUSICAS = REVISOES[REVISOES.length - 1].rev;
 const revisando = new Set();
 const sincOkDe = (x) => x?.sincronia?.fonte === 'lrclib' && x.sincronia.video === videoDaLetra(x) && x.sincronia.tempos?.length && !x.sincronia.provisoria;
 // pode baixar sem perguntar (como o "Baixar ao salvar"): com o servidor ligado e fora dos dados móveis (ou liberados)
+// (o baixador do próprio celular, no APK, também vale: antes só o servidor do computador contava, e no APK sem ele o
+// download incompleto, ou o arquivo que sumiu, nunca voltava a baixar sozinho)
 const podeBaixarSozinho = async () => {
   if (!navigator.onLine || (navigator.connection?.type === 'cellular' && !db.prefs().baixarDadosMoveis)) return false;
+  if (baixadorDoAparelho()) return true;
   await carregarServidor().catch(() => {});
   return Boolean(servidorIA().url);
 };
@@ -2919,6 +2956,75 @@ async function tirarArquivosQueSobram(id) {
   for (const yt of sobram) delete arquivos[yt];
   db.updateSong(id, { baixado: { ...s.baixado, arquivos, tamanho: Object.values(arquivos).reduce((a, f) => a + (f.tamanho || 0), 0) } });
   for (const yt of sobram) if (!db.songs().some((x) => x.id !== id && x.baixado?.arquivos?.[yt])) await apagarAudio(chaveBaixada(yt)).catch(() => {});
+}
+
+// ---- Os downloads conferidos no aparelho: a música só fica "baixada" com os arquivos guardados de verdade. Antes a
+// marca na música bastava: com o arquivo apagado (os dados do app limpos, o aparelho sem espaço, a gravação que não
+// terminou) ou só marcado por outra música com o mesmo vídeo, a seta verde aparecia, o "Baixar" dizia que já estava
+// baixada e nada tocava sem internet. O arquivo que falta, ou que veio vazio, sai da música e ela volta a baixar
+let chavesAgora = null; // { em, chaves }: as chaves do armazenamento, lidas há pouco (ler é barato, mas não a cada linha)
+async function chavesNoAparelho({ novas = false } = {}) {
+  if (!novas && chavesAgora && performance.now() - chavesAgora.em < 3000) return chavesAgora.chaves;
+  const chaves = await chavesDosAudios();
+  chavesAgora = { em: performance.now(), chaves };
+  return chaves;
+}
+const MINIMO_DO_ARQUIVO = 10000; // (o mesmo do download: abaixo disso o arquivo chegou vazio)
+// confere os arquivos destas músicas (todas as baixadas, sem a lista); tamanho: abre cada um para ver o tamanho (o
+// arquivo não é lido inteiro). Devolve as músicas que perderam algum arquivo (marcadas para baixar de novo)
+async function conferirArquivosBaixados(songs = null, { tamanho = true } = {}) {
+  const lista = (songs || db.songs()).map((x) => x?.id && db.song(x.id)).filter((x) => x?.baixado?.arquivos);
+  if (!lista.length) return [];
+  let chaves;
+  try { chaves = await chavesNoAparelho({ novas: true }); } catch { return []; } // (sem o armazenamento agora: nada se tira)
+  const perderam = new Set();
+  const vistos = new Set();
+  for (const s of lista) {
+    for (const [yt, info] of Object.entries(db.song(s.id)?.baixado?.arquivos || {})) {
+      if (vistos.has(yt)) continue;
+      vistos.add(yt);
+      let ok = chaves.has(chaveBaixada(yt));
+      if (ok && tamanho) {
+        const blob = await lerAudio(chaveBaixada(yt)).catch(() => undefined);
+        // (undefined: não deu para ler agora; só o arquivo que abriu e está vazio, ou menor que o baixado, conta como falta)
+        if (blob !== undefined) ok = Boolean(blob?.size >= MINIMO_DO_ARQUIVO) && !(info?.tamanho > 0 && Math.abs(blob.size - info.tamanho) > 1024);
+      }
+      if (ok) continue;
+      for (const x of db.songs()) if (x.baixado?.arquivos?.[yt]) perderam.add(x.id);
+      await esquecerArquivo(yt);
+      chaves.delete(chaveBaixada(yt));
+    }
+  }
+  if (perderam.size) { chavesAgora = null; avisarDownloads(); }
+  return [...perderam].map((id) => db.song(id)).filter(Boolean);
+}
+// as que perderam arquivo voltam a baixar sozinhas (a pessoa já tinha pedido para baixar), menos as pausadas
+async function rebaixarOQueSumiu(songs) {
+  const voltar = songs.filter((x) => x && !x.baixarPausado && precisaBaixar(x) && midiaDe(x));
+  if (!voltar.length || !(await podeBaixarSozinho())) return;
+  for (const x of voltar) await baixarMusica(db.song(x.id), { perguntou: true });
+}
+// ao abrir o app (todas, só a existência dos arquivos) e ao voltar para ele, no máximo a cada 10 minutos
+let conferidoEm = 0;
+async function conferirDownloadsDoAparelho() {
+  if (conferidoEm && performance.now() - conferidoEm < 10 * 60e3) return;
+  conferidoEm = performance.now();
+  const perderam = await conferirArquivosBaixados(null, { tamanho: false }).catch(() => []);
+  if (perderam.length) await rebaixarOQueSumiu(perderam).catch(() => {});
+}
+setTimeout(() => void conferirDownloadsDoAparelho(), 6000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => void conferirDownloadsDoAparelho(), 4000); });
+// as músicas de um repertório ou playlist aberto (a seta verde que aparece é conferida, com o tamanho)
+const conferidoDoSet = new Map();
+function conferirDownloadsDoSet(set) {
+  if (!set?.items?.length || performance.now() - (conferidoDoSet.get(set.id) ?? -1e9) < 60e3) return;
+  conferidoDoSet.set(set.id, performance.now());
+  void conferirArquivosBaixados(musicasDoSet(set)).then((perderam) => {
+    if (!perderam.length) return;
+    atualizarIndicadores();
+    document.querySelectorAll(`[data-baixar-set="${set.id}"]`).forEach((b) => { b.outerHTML = botaoBaixarSet(db.set(set.id) || set); });
+    return rebaixarOQueSumiu(perderam);
+  }).catch(() => {});
 }
 
 async function esquecerArquivo(yt) {
@@ -8642,13 +8748,15 @@ const botaoMais = (nome) => `<button class="icon-btn mais-linha" data-menu aria-
 // depois a parte da missa, a bolinha e o nome do artista e a duração, separados por "•"; o tom fica ao lado dos ⋮.
 // Antes a parte vinha antes dos ícones e, quando o download mudava de estado, o ícone era posto de novo no começo da
 // linha: em umas linhas ele ficava antes da parte e em outras depois. E sobravam separadores ("Vídeo • · 0:58")
-function linhaItemRepertorio(set, it, i, { atual = -1, fila = false } = {}) {
+function linhaItemRepertorio(set, it, i, { atual = -1, fila = false, comVideo = false } = {}) {
   const s = db.song(it.songId);
+  // (o "Vídeo" ligado: a imagem do clipe no lugar da capa, e o ícone do vídeo sai da linha, como na playlist)
+  const thumb = comVideo && s?.youtube && !ehArquivo(s.youtube);
   const artista = s?.artist ? `${miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s))}<span class="sub-txt" translate="no">${esc(s.artist)}</span>` : '';
-  return `<li class="track set-item ${i === atual ? 'atual' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">
-    <span class="lead"><span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>${capa(s || {})}</span>
+  return `<li class="track set-item${thumb ? ' com-thumb' : ''} ${i === atual ? 'atual' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">
+    <span class="lead"><span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>${thumb ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="" loading="lazy"></div>` : capa(s || {})}</span>
     <a class="info" href="#/repertorio/${set.id}/${i}" ${fila ? 'data-ir' : ''}><div class="t ${i === atual ? 'playing' : ''}" translate="no">${i === atual ? icon('music', 13, 'style="display:inline;vertical-align:-1px;margin-right:4px"') : ''}${esc(s?.title || '(música removida)')}</div>
-      <div class="s">${indicadores(s)}${it.label ? `<b class="parte-tag sub-sep">${esc(it.label)}</b>` : ''}${artista ? `<span class="sub-artista sub-sep">${artista}</span>` : ''}<span class="dur-faixa${s?.duracao ? ' sub-sep' : ''}">${s?.duracao ? fmtTempo(s.duracao) : ''}</span></div></a>
+      <div class="s">${indicadores(thumb ? { ...s, youtube: '' } : s)}${it.label ? `<b class="parte-tag sub-sep">${esc(it.label)}</b>` : ''}${artista ? `<span class="sub-artista sub-sep">${artista}</span>` : ''}<span class="dur-faixa${s?.duracao ? ' sub-sep' : ''}">${s?.duracao ? fmtTempo(s.duracao) : ''}</span></div></a>
     <span class="acts">${s ? `${s.key ? `<span class="chip sm key" translate="no">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}` : `<button class="icon-btn danger" data-rm aria-label="Remover do repertório" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
 }
 
@@ -18038,6 +18146,32 @@ async function novoRepertorio(tipo = '') {
 // direita. Nos chips: Adicionar, Vídeo (as faixas com a imagem do clipe),
 // Editar (tela própria: tirar e mudar a ordem), Nome e detalhes (folha) e Ordenar (só a vista; a ordem salva não muda)
 const ORDENS_PLAYLIST = [['personalizada', 'Ordem personalizada'], ['titulo', 'Título'], ['artista', 'Artista'], ['adicionadas', 'Adicionadas recentemente']];
+// O Ordenar do repertório muda a ordem guardada (a do PDF, do PowerPoint e do play): a ordem da missa (pela parte de
+// cada canto: Entrada, Ato Penitencial, Glória… Comunhão, Ação de Graças, Canto Final), o título ou o artista. As que
+// não têm parte conhecida ficam no fim, na ordem em que estavam
+const ORDENS_REPERTORIO = [['missa', 'Ordem da missa'], ['titulo', 'Título'], ['artista', 'Artista']];
+const ORDEM_DA_MISSA = ['entrada', 'sinal', 'ato', 'gloria', 'leitura1', 'salmo', 'leitura2', 'sequencia', 'aclamacao', 'evangelho', 'oferendas', 'santo', 'oracao', 'cordeiro', 'comunhao', 'gracas', 'final'];
+function posicaoNaMissa(label, song) {
+  const nome = label || song?.parte || '';
+  const n = normalizar(nome);
+  if (!n) return Infinity;
+  if (/acao de gracas|pos ?comunhao/.test(n)) return ORDEM_DA_MISSA.indexOf('gracas');
+  const k = chaveDaParte(nome);
+  return k ? ORDEM_DA_MISSA.indexOf(k) : Infinity;
+}
+function ordenarRepertorio(items, modo) {
+  const comPos = items.map((it, k) => ({ it, k, s: db.song(it.songId) }));
+  const cmpTexto = (a, b) => a.localeCompare(b, LOCALE, { sensitivity: 'base' });
+  const chave = modo === 'missa' ? (x) => posicaoNaMissa(x.it.label, x.s) : null;
+  comPos.sort((a, b) => {
+    if (chave) return (chave(a) === chave(b) ? 0 : chave(a) < chave(b) ? -1 : 1) || a.k - b.k;
+    const ta = modo === 'artista' ? a.s?.artist || '' : a.s?.title || '';
+    const tb = modo === 'artista' ? b.s?.artist || '' : b.s?.title || '';
+    if (!ta !== !tb) return ta ? -1 : 1; // (sem nome, no fim)
+    return cmpTexto(ta, tb) || a.k - b.k;
+  });
+  return comPos.map((x) => x.it);
+}
 const fmtDuracaoCurta = (seg) => { const m = Math.round(seg / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
 function resumoPlaylist(set) {
   const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
@@ -18075,6 +18209,7 @@ function viewPlaylist(set) {
   setTab('biblioteca');
   setTint(corDaMusica(set.name));
   const comVideo = videoNaPlaylist(set);
+  conferirDownloadsDoSet(set);
   const ordem = ordemGuardadaDaPlaylist(id);
   const alternarVideo = () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewPlaylist(db.set(id)); };
   setHeader(set.name, { back: '#/biblioteca/playlists', actions: [{ icon: 'more', label: 'Mais opções', onClick: () => menuDaPlaylist(set, { comVideo, alternarVideo }) }] });
@@ -18717,7 +18852,7 @@ function editarPlaylist(set) {
   document.body.append(dlg);
   const mudou = () => JSON.stringify(itens) !== JSON.stringify(set.items);
   const desenhar = () => {
-    dlg.innerHTML = `<div class="pl-ed-cab"><button class="icon-btn" data-voltar aria-label="Voltar" title="Voltar">${icon('back', 24)}</button><h3>Editar playlist</h3>
+    dlg.innerHTML = `<div class="pl-ed-cab"><button class="icon-btn" data-voltar aria-label="Voltar" title="Voltar">${icon('back', 24)}</button><h3>${ehPlaylist(set) ? 'Editar playlist' : 'Editar repertório'}</h3>
         <button class="link-btn pl-det-salvar" data-pl-salvar ${mudou() ? '' : 'disabled'}>Salvar</button></div>
       <ul class="tracks pl-ed-lista${selecionando ? ' selecionando' : ''}">${itens.map((it, i) => { const s = db.song(it.songId); return `<li class="track pl-ed-item${marcados.has(i) ? ' marcado' : ''}" data-i="${i}">
         ${selecionando ? `<span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>` : `<button class="icon-btn pl-ed-tirar" data-rm aria-label="Tirar ${esc(s?.title || '')}" title="Tirar">${icon('menosCirculo', 22)}</button>`}
@@ -18768,13 +18903,22 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   // no jeito da playlist do Spotify: a capa grande no meio, o nome, o tipo e a data, a duração; os botões (baixar,
   // editar) à esquerda e o aleatório e o play à direita; embaixo, os chips das ações (Adicionar, Criar música, Data…)
   const aleat = Boolean(db.prefs().aleatorio);
+  // (os mesmos botões da playlist: a prévia dos clipes, compartilhar, o Vídeo, o Editar — tirar e mudar a ordem — e o
+  // Ordenar, que no repertório muda a ordem guardada, com a ordem da missa)
+  const comVideo = !pl && videoNaPlaylist(set);
+  conferirDownloadsDoSet(set);
+  const entrando = capinhaEntrou !== id;
+  capinhaEntrou = id;
+  aoSair(() => { capinhaEntrou = null; });
   view.innerHTML = `
     <section class="spot-topo"><button class="capa-editar" id="capa-ed" aria-label="Editar capa e detalhes" title="Editar capa e detalhes">${capaRepertorio(set)}<span class="lapis">${icon('edit', 28)}<small>Escolher foto</small></span></button>
       <h2 id="set-nome" class="editavel" title="Editar detalhes">${esc(set.name)}</h2>
       <div class="spot-dono">${tipo} · ${esc(dataPorExtenso(set.date))}</div>
       <div class="spot-dur">${icon('clock', 14)}<span id="set-resumo">${resumoRepertorio(set)}</span></div></section>
     <div class="spot-acoes">
+      ${set.items.length ? htmlDaCapinha(set, entrando) : ''}
       ${set.items.length ? botaoBaixarSet(set) : ''}
+      <button class="icon-btn" id="pl-share" aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
       <button class="icon-btn" id="ren" aria-label="Editar detalhes" title="Editar capa, nome e tipo">${icon('edit', 22)}</button>
       <span class="spacer"></span>
       ${set.items.length ? `<button class="icon-btn spot-aleat${aleat ? ' ligado' : ''}" id="set-aleat" aria-pressed="${aleat}" aria-label="Aleatório" title="Aleatório">${icon('shuffle', 24)}</button>` : ''}
@@ -18784,6 +18928,9 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     <nav class="chips spot-chips" aria-label="Ações d${pl ? 'a playlist' : 'o repertório'}">
       <button class="chip" id="add" title="Adicionar música da biblioteca">${icon('plus', 16)} Adicionar</button>
       <a class="chip" href="#/editar/novo/${id}" title="Escrever uma música nova (letra, cifra, estrutura) e já colocar neste repertório">${icon('edit', 15)} Criar música</a>
+      ${set.items.length ? `<button class="chip" id="pl-video" aria-pressed="${comVideo}" title="Mostrar as faixas com a imagem do clipe e tocar no vídeo">${icon('videoclipe', 15)} Vídeo</button>` : ''}
+      ${set.items.length && !selecionando ? `<button class="chip" id="pl-editar" title="Tirar músicas e mudar a ordem">${icon('rows', 15)} Editar</button>` : ''}
+      ${set.items.length > 1 && !selecionando ? `<button class="chip" id="set-ordenar" title="Pôr as músicas na ordem da missa, por título ou por artista">${icon('ordenar', 15)} Ordenar</button>` : ''}
       <span class="spot-data">${campoData('set-date', set.date, 'Data do repertório')}</span>
       ${set.items.length ? `<button class="chip" id="exp" title="Exportar o repertório inteiro em PDF (com ou sem cifra) ou backup">${icon('file', 15)} PDF</button>` : ''}
       ${set.items.length ? `<button class="chip" id="pptx" title="Gerar o PowerPoint da missa no modelo do grupo, com as letras nos lugares certos">${icon('grid', 15)} PowerPoint</button>` : ''}
@@ -18792,7 +18939,7 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     </nav>
     ${!pl && set.items.length && set.date && !selecionando ? '<div id="revisao"></div>' : ''}
     ${set.items.length ? `${selecionando ? '<p class="muted" style="font-size:13px;margin:0 0 6px">Toque nas músicas para marcar ou desmarcar.</p>' : ''}
-    <ul class="tracks ${selecionando ? 'selecionando' : ''}">${set.items.map((it, i) => linhaItemRepertorio(set, it, i)).join('')}</ul>
+    <ul class="tracks ${selecionando ? 'selecionando' : ''}${comVideo ? ' com-video' : ''}">${set.items.map((it, i) => linhaItemRepertorio(set, it, i, { comVideo })).join('')}</ul>
     <div class="barra-sel" id="barra-sel" ${selecionando ? '' : 'hidden'}>
       <span id="sel-n"></span><button class="btn small ghost" id="sel-todos"></button><span class="spacer"></span>
       <button class="btn small ghost" id="sel-cancelar">Cancelar</button><button class="btn small danger solid" id="sel-remover">${icon('trash', 15)} Remover</button></div>` : `<div class="empty"><div class="bubble">${icon('music', 30)}</div><h3>${tipo} vazi${pl ? 'a' : 'o'}</h3><p>Adicione músicas da sua biblioteca ou crie uma do zero.</p>
@@ -18813,6 +18960,26 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   $('#capa-ed').onclick = editar;
   $('#set-nome').onclick = editar;
   $('#exp')?.addEventListener('click', () => exportarRepertorioPdf(set));
+  if (!pl) {
+    $('#pl-mini')?.addEventListener('click', () => previaDaPlaylist(set));
+    if ($('#pl-mini')) animarCapinha(set);
+    $('#pl-share').onclick = () => compartilharPlaylist(set);
+    $('#pl-video')?.addEventListener('click', () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewSet(id); });
+    $('#pl-editar')?.addEventListener('click', () => editarPlaylist(set));
+    $('#set-ordenar')?.addEventListener('click', async () => {
+      const v = await escolherNaLista({ menu: true, titulo: 'Ordenar por', cls: 'bib-folha', opcoes: ORDENS_REPERTORIO.map(([valor, rotulo]) => ({ valor, rotulo })) });
+      if (!v) return;
+      const atual = db.set(id);
+      const nova = ordenarRepertorio(atual.items, v);
+      if (JSON.stringify(nova) === JSON.stringify(atual.items)) { await ask({ title: 'Já está nesta ordem', text: 'As músicas do repertório já estão nesta ordem.', ok: 'OK', cancel: false }); return; }
+      // (muda a ordem guardada — a do PDF, do PowerPoint e do play —: pergunta antes)
+      if (!(await ask({ title: 'Mudar a ordem do repertório?', text: 'A ordem guardada do repertório, a do PDF, do PowerPoint e do play, passa a ser esta. Dá para arrastar depois para ajustar.', ok: 'Mudar' }))) return;
+      atual.items = nova;
+      db.saveSet(atual);
+      desenharLateral();
+      viewSet(id);
+    });
+  }
   $('#pptx')?.addEventListener('click', () => exportarPowerPoint(set));
   $('#del').onclick = async () => {
     if (await ask({ title: `Excluir ${tipo.toLowerCase()}?`, text: `“${set.name}” será apagad${pl ? 'a' : 'o'}. As músicas continuam na biblioteca.`, ok: 'Excluir', danger: true })) {
@@ -18843,6 +19010,7 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     toast(v ? 'Aleatório ligado' : 'Aleatório desligado');
   });
   $('#set-play')?.addEventListener('click', (e) => {
+    if (comVideo) player.paraModoVideo();
     if (!player.aleatorio()) { if (pl) { e.preventDefault(); tocarPlaylist(set); } return; }
     const com = set.items.map((it, k) => (midiaDe(db.song(it.songId)) ? k : -1)).filter((k) => k >= 0);
     const k = com.length ? com[Math.floor(Math.random() * com.length)] : 0;
@@ -18889,6 +19057,8 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     ativarArrastar(ul, (de, para) => { mover(set.items, de, para); db.saveSet(set); viewSet(id); });
     ul.addEventListener('click', (e) => {
       const li = e.target.closest('li[data-i]');
+      // (com o Vídeo ligado, a música abre tocando no clipe)
+      if (!pl && comVideo && li && e.target.closest('.info')) player.paraModoVideo();
       if (pl && li && e.target.closest('.info')) {
         e.preventDefault();
         const jaTocava = playerAberto(); // (com o player já aberto, a música só troca nele)

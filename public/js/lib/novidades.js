@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 674, data: '2026-11-12', titulo: "Downloads conferidos no aparelho: a música só aparece como baixada com os arquivos guardados; repertório ganha os botões da playlist",
+    itens: [
+      { tipo: 'correcao', texto: "A música era exibida como baixada, com a seta verde, apenas pela marcação guardada nela, sem conferência dos arquivos no aparelho. Com o arquivo apagado (dados do aplicativo limpos, falta de espaço, gravação interrompida) ou apenas marcado por outra música com o mesmo vídeo, a seta verde permanecia, o botão \"Baixar\" considerava a música já baixada e nada era reproduzido sem internet. Os arquivos passaram a ser conferidos no armazenamento do aparelho: na abertura do aplicativo e no retorno a ele (no máximo a cada 10 minutos), ao abrir um repertório ou uma playlist, antes de cada download e antes de oferecer \"Remover o download\". O arquivo ausente, vazio ou menor que o baixado é retirado da música, que volta a ser baixada automaticamente, exceto quando o download foi pausado. Em teste em navegador, com três músicas marcadas como baixadas e apenas uma com o arquivo guardado, as três exibiam a seta verde; após a correção, somente a música com o arquivo manteve a seta e as outras duas voltaram para a fila." },
+      { tipo: 'correcao', texto: "Após gravar cada arquivo, o aplicativo passou a lê-lo de volta e comparar o tamanho; se o aparelho não guardou o arquivo inteiro, o download conta como falha e é tentado de novo, em vez de a música ficar marcada como baixada. O arquivo de outra música com o mesmo vídeo só é reaproveitado quando está de fato no aparelho." },
+      { tipo: 'correcao', texto: "No aplicativo Android sem o servidor do computador, os downloads incompletos e os arquivos ausentes não voltavam a ser baixados automaticamente, porque a nova tentativa exigia o servidor. O baixador do próprio celular passou a valer para essas tentativas. Quando o download não pode começar (sem servidor ou baixador, ou sem áudio e vídeo para baixar), o motivo passou a ser exibido em uma janela; antes, o toque no botão não tinha efeito visível." },
+      { tipo: 'novo', texto: "A tela do repertório passou a ter os mesmos botões da playlist, mantendo os existentes: a prévia dos clipes, Compartilhar, Vídeo (as faixas com a imagem do clipe, tocando no vídeo), Editar (retirar músicas e mudar a ordem arrastando) e Ordenar, que altera a ordem guardada do repertório (a do PDF, do PowerPoint e da reprodução), após confirmação, pela ordem da missa (Entrada, Ato Penitencial, Glória… Comunhão, Ação de Graças, Canto Final), por título ou por artista." },
+      { tipo: 'melhoria', texto: "Pendente: verificado em navegador, em 390 px, em português, inglês e espanhol; o download completo pelo baixador do celular não foi executado em aparelho." },
+    ],
+  },
+  {
     versao: 673, data: '2026-11-12', titulo: "Lista do repertório passa a seguir a da playlist: ícones sempre no início da linha, antes da parte da missa",
     itens: [
       { tipo: 'melhoria', texto: "Na lista do repertório, a parte da missa vinha antes dos ícones da música; quando o download mudava de estado (baixando, incompleto, baixado), o ícone era inserido de novo no início da linha, e em algumas músicas ele ficava antes da parte e em outras depois. A linha passou a seguir a mesma ordem da playlist em todas as músicas: os ícones (download, selo \"E\", karaokê, cifra e vídeo), a parte da missa, o artista com a foto e a duração, separados por \"•\". O tom passou a ficar ao lado do botão de opções, como na playlist." },
@@ -82,14 +92,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: "A prévia era fechada automaticamente, com a exibição da tela de entrada, ao fim do trecho, quando o Deezer não tinha a música com trecho de 30 segundos e quando a busca demorava mais de 8 segundos; em alguns links, a tela de entrada aparecia sem que a prévia fosse vista. A prévia passou a permanecer aberta até o toque em \"Pular\": ao fim do trecho, volta ao início, parada; sem trecho disponível, exibe a capa, o nome e o aviso \"Prévia indisponível\"." },
       { tipo: 'melhoria', texto: "Quando o Deezer não tem a música com trecho de 30 segundos, a prévia passou a buscar o trecho e a capa no iTunes, com a mesma conferência de nome e artista." },
       { tipo: 'melhoria', texto: "Pendente: a prévia foi conferida em navegador, em 390 px, com som, tocando até o fim e voltando ao início, e com uma música inexistente; o desempenho do fundo não foi medido em aparelho." },
-    ],
-  },
-  {
-    versao: 664, data: '2026-11-12', titulo: "Prévia do link compartilhado: capa parada, sem o clipe, e somente o fundo em movimento nas cores da capa",
-    itens: [
-      { tipo: 'melhoria', texto: "Na prévia exibida a quem abre o link de uma música sem estar com a conta, o clipe oficial era reproduzido dentro do quadro da capa a partir do refrão. A prévia passou a manter a capa parada, sem vídeo, e a reproduzir somente o trecho de 30 segundos do Deezer (somente quando a faixa encontrada tem o mesmo nome e o mesmo artista); o movimento fica restrito ao fundo, formado por três camadas desfocadas da própria capa, que giram e se deslocam lentamente, e por três focos de luz nas cores extraídas da capa, cuja intensidade acompanha as batidas do trecho (análise do áudio; onde ela não é permitida, os focos pulsam em compasso fixo). A barra de progresso continua com o tempo decorrido (de 0:00 a 0:30), e ao fim da prévia (ou em \"Pular\") é exibida a tela de entrada. Como o trecho é o escolhido pelo Deezer, a prévia deixa de corresponder necessariamente ao refrão." },
-      { tipo: 'correcao', texto: "O clipe da prévia era iniciado com o pedido de som junto com o de reprodução, o que impedia o início em alguns navegadores; após 8 segundos sem reprodução, a prévia passava ao trecho do Deezer. Com a remoção do clipe da prévia, o problema deixa de ocorrer." },
-      { tipo: 'melhoria', texto: "Pendente: a prévia foi conferida em navegador, em 390 px, com som (gravação de tela com áudio), tocando até 0:30 e passando à tela de entrada; não executada em aparelho." },
     ],
   },
 ];
