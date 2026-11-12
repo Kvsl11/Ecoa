@@ -8638,14 +8638,18 @@ function resumoRepertorio(set) {
 // os ⋮ de uma linha de música (abrem o menuDaMusica)
 const botaoMais = (nome) => `<button class="icon-btn mais-linha" data-menu aria-label="Mais opções para ${esc(nome)}" title="Mais opções">${icon('more', 20)}</button>`;
 
+// A linha segue a da playlist (linhaDaPlaylist): os ícones primeiro (o download, o "E", o karaokê, a cifra, o vídeo),
+// depois a parte da missa, a bolinha e o nome do artista e a duração, separados por "•"; o tom fica ao lado dos ⋮.
+// Antes a parte vinha antes dos ícones e, quando o download mudava de estado, o ícone era posto de novo no começo da
+// linha: em umas linhas ele ficava antes da parte e em outras depois. E sobravam separadores ("Vídeo • · 0:58")
 function linhaItemRepertorio(set, it, i, { atual = -1, fila = false } = {}) {
   const s = db.song(it.songId);
+  const artista = s?.artist ? `${miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s))}<span class="sub-txt" translate="no">${esc(s.artist)}</span>` : '';
   return `<li class="track set-item ${i === atual ? 'atual' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">
     <span class="lead"><span class="marca-sel" aria-hidden="true">${icon('check', 14)}</span>${capa(s || {})}</span>
-    <a class="info" href="#/repertorio/${set.id}/${i}" ${fila ? 'data-ir' : ''}><div class="t ${i === atual ? 'playing' : ''}">${i === atual ? icon('music', 13, 'style="display:inline;vertical-align:-1px;margin-right:4px"') : ''}${esc(s?.title || '(música removida)')}</div>
-      <div class="s">${it.label ? `<b class="parte-tag">${esc(it.label)}</b> ` : ''}${indicadores(s)}${esc(s?.artist || '')}<span class="dur-faixa">${s?.duracao ? ` · ${fmtTempo(s.duracao)}` : ''}</span></div></a>
-    ${s?.key ? `<span class="chip sm key">${esc(s.key)}</span>` : '<span></span>'}
-    <span class="acts">${s ? botaoMais(s.title) : `<button class="icon-btn danger" data-rm aria-label="Remover do repertório" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
+    <a class="info" href="#/repertorio/${set.id}/${i}" ${fila ? 'data-ir' : ''}><div class="t ${i === atual ? 'playing' : ''}" translate="no">${i === atual ? icon('music', 13, 'style="display:inline;vertical-align:-1px;margin-right:4px"') : ''}${esc(s?.title || '(música removida)')}</div>
+      <div class="s">${indicadores(s)}${it.label ? `<b class="parte-tag sub-sep">${esc(it.label)}</b>` : ''}${artista ? `<span class="sub-artista sub-sep">${artista}</span>` : ''}<span class="dur-faixa${s?.duracao ? ' sub-sep' : ''}">${s?.duracao ? fmtTempo(s.duracao) : ''}</span></div></a>
+    <span class="acts">${s ? `${s.key ? `<span class="chip sm key" translate="no">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}` : `<button class="icon-btn danger" data-rm aria-label="Remover do repertório" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
 }
 
 // Os ⋮ de uma música numa lista (como no Spotify): uma folha com a capa, o nome e o que dá para fazer com ela.
@@ -18058,7 +18062,7 @@ function linhaDaPlaylist(set, it, i, comVideo) {
   const thumb = comVideo && s?.youtube ? `<div class="cover pl-thumb"><img src="https://i.ytimg.com/vi/${esc(s.youtube)}/mqdefault.jpg" referrerpolicy="no-referrer" alt="" loading="lazy"></div>` : capa(s || {});
   return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
     <div class="info"><div class="t">${esc(s?.title || '(música removida)')}</div>
-      <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${s?.artist ? miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s)) : ''}${esc(s?.artist || '')}</div></div>
+      <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${s?.artist ? miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s)) : ''}${s?.artist ? `<span class="sub-txt" translate="no">${esc(s.artist)}</span>` : ''}</div></div>
     <span class="acts">${s ? `${s.key ? `<span class="chip sm key" translate="no">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}` : `<button class="icon-btn danger" data-rm aria-label="Remover da playlist" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
 }
 function viewPlaylist(set) {
@@ -18823,7 +18827,7 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
     const [sg, k] = item;
     const d = await duracaoDaMusica(sg).catch(() => 0);
     if (!$('#set-resumo')) return;
-    if (d) view.querySelectorAll(`.set-item[data-i="${k}"] .dur-faixa`).forEach((x) => { x.textContent = ` · ${fmtTempo(d)}`; });
+    if (d) view.querySelectorAll(`.set-item[data-i="${k}"] .dur-faixa`).forEach((x) => { x.textContent = fmtTempo(d); x.classList.add('sub-sep'); });
     const atual = db.set(id);
     if (atual) $('#set-resumo').textContent = resumoRepertorio(atual);
     return proximaDuracao();

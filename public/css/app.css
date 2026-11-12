@@ -1020,7 +1020,23 @@ body.no-lumen .main-col { margin: 0 !important; }
 }
 
 /* ============================================================ arrastar e soltar / fila */
-.track.set-item { grid-template-columns: auto 1fr auto auto; }
+.track.set-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+/* a segunda linha do repertório e da playlist: os ícones, a parte da missa, o artista e a duração, separados por "•"
+   (logo depois dos ícones, sem o "•", como no Spotify). O nome do artista encurta com "…" e a duração fica à vista */
+.track .s > * { flex: none; }
+.track .s .sub-sep::before { content: '•'; margin-right: 6px; color: var(--muted); font-weight: 400; }
+.track .s .sub-sep:first-child::before, .track .s .ind + .sub-sep::before { content: none; }
+.track .s .sub-artista { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
+/* (a parte da missa é o mais importante da linha do repertório: fica inteira, até 55% da largura; quem encurta é o artista) */
+.track .s .parte-tag { max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+/* (no repertório, com a parte da missa na linha, o vídeo fica só no ícone: a palavra "Vídeo" tirava o lugar da parte e
+   da duração no celular) */
+.set-item:not(.pl-item) .s:has(.parte-tag) .ind-txt, .set-item:not(.pl-item) .s:has(.parte-tag) .ind-sep { display: none; }
+.track .s .sub-txt { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.track .s .sub-artista .artistas-mini, .track .s .sub-artista .artista-mini { flex: none; }
+.track .s .dur-faixa:empty { display: none; }
+/* o "•" depois de "Vídeo" só com algo depois dele */
+.track .s > .ind:last-child .ind-sep, .track .s > .ind:not(:has(~ :not(:empty))) .ind-sep { display: none; }
 .track .drag { width: 32px; height: 40px; border-radius: 6px; cursor: grab; touch-action: none; color: var(--subtle); }
 .track .drag:active { cursor: grabbing; }
 .track.set-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
