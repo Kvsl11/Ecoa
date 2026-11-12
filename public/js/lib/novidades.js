@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 671, data: '2026-11-12', titulo: "Player de mídia das notificações: botão de fechar removido; pausado, é dispensado arrastando para o lado",
+    itens: [
+      { tipo: 'melhoria', texto: "Com a música pausada, o player de mídia do Android exibia um botão \"X\" adicional, incluído pelo aplicativo como ação do aviso e como ação personalizada da sessão de mídia. O botão foi removido das duas origens. Com a música pausada, o aviso deixa de ser fixo e é dispensado arrastando para o lado, como nos demais players; ao ser dispensado, a música permanece pausada e o aviso e o player do Android são retirados, pelo mesmo caminho já usado antes. Disponível mediante atualização do aplicativo." },
+      { tipo: 'melhoria', texto: "Pendente: a alteração não foi executada em aparelho; a montagem do APK é feita pelo workflow Android." },
+    ],
+  },
+  {
     versao: 670, data: '2026-11-12', titulo: "Nome da música em movimento deixa de aparecer duas vezes, sobreposto, no player, na letra e na cifra",
     itens: [
       { tipo: 'correcao', texto: "O nome que não cabe na linha anda para o lado seguido de uma cópia, e cada um tinha a própria animação. Quando o nome mudava (troca de música, chegada do artista), a cópia era refeita e recomeçava do zero, enquanto o nome seguia do ponto em que estava; fora de passo, ao fim da volta o nome reaparecia no início com a cópia ainda passando por cima dele, e o texto era exibido duas vezes, sobreposto. Ao refazer a cópia, o nome e a cópia passaram a recomeçar juntos, e a cada desenho a largada de todas as linhas do grupo é igualada à da primeira. A correção vale para a barra de reprodução, a tela Tocando agora, a barra superior e o nome exibido na letra e na cifra. Em teste em navegador, com troca do nome após 2,5 s, a defasagem entre o nome e a cópia passou de 2500 ms para 0 ms." },
@@ -83,15 +90,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: "Na tela de edição, com o modo Letra selecionado, a aba \"Ver como fica\" exibia a cifra completa, com os acordes acima da letra, embora esse modo permita corrigir apenas o texto. A prévia passou a acompanhar o modo de edição: no modo Letra, os acordes, as linhas só de acordes e as partes apenas instrumentais deixam de ser exibidos; nos modos Letra e cifra e Colchetes, a prévia continua com os acordes. A cifra guardada não é alterada." },
       { tipo: 'melhoria', texto: "O painel \"Partes, acordes e ferramentas\" do editor exibia em duas faixas de rolagem lateral, com botões de mesma aparência, os atalhos para inserir uma parte (Chorus, Verse, Bridge…) e os atalhos para ir até as partes já escritas; partes de mesmo nome apareciam repetidas (\"Bridge\", \"Bridge\") e as duas faixas pareciam duplicadas. O painel passou a ser dividido em grupos com título — Inserir parte, Ferramentas, Acordes e Ir até a parte —, com os botões quebrando linha em vez de ficarem ocultos na rolagem lateral; as partes da música são numeradas na ordem em que aparecem. No modo Letra, mudar o tom e completar a cifra deixam de ser exibidos, porque esse modo não altera os acordes." },
       { tipo: 'melhoria', texto: "Pendente: conferido em navegador, em 390 px, em português e inglês; não executado em aparelho." },
-    ],
-  },
-  {
-    versao: 661, data: '2026-11-12', titulo: 'Música salva pela busca ou pelo álbum já entra com a capa do álbum, também na notificação do download',
-    itens: [
-      { tipo: 'correcao', texto: 'Ao salvar uma música pelo botão + da busca, da página do álbum ou do artista, a música era gravada sem capa, embora a linha exibisse a capa do álbum. Até a procura da capa terminar em segundo plano, a biblioteca, a tela da música, o player e a notificação do download exibiam o quadro do vídeo ou a foto do artista. A capa exibida na linha passou a ser gravada com a música no momento em que ela é salva; sem ela, é usada a capa já conhecida para o título e o artista. Capas provisórias (quadro do vídeo, foto do artista) não são gravadas. Em teste, a música salva pela busca, que antes ficava sem capa, passou a ter a capa do álbum três segundos após o toque.' },
-      { tipo: 'correcao', texto: 'A notificação do download e a de reprodução passaram a usar a capa do álbum já conhecida quando a música ainda tem apenas uma capa provisória; o quadro do vídeo é usado somente quando não há outra.' },
-      { tipo: 'melhoria', texto: 'As músicas já salvas que continuam sem a capa do álbum a procuram novamente, em segundo plano. A capa escolhida manualmente é mantida.' },
-      { tipo: 'melhoria', texto: 'Pendente: conferido em navegador, na busca; não executado em aparelho. A notificação do download depende do aplicativo de Android e não foi exibida no teste.' },
     ],
   },
 ];

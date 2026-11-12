@@ -11,7 +11,6 @@
     <string name="acao_tocar">Play</string>
     <string name="acao_pausar">Pause</string>
     <string name="acao_pular">Next</string>
-    <string name="acao_fechar">Close</string>
     <string name="canal_downloads">Downloads</string>
     <string name="canal_downloads_desc">Progress and completion of song downloads</string>
     <string name="canal_tocando">Now playing</string>

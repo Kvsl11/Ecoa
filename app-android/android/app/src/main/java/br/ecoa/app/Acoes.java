@@ -33,7 +33,7 @@ public final class Acoes {
     static void fazer(Context ctx, String acao) {
         android.content.SharedPreferences p = ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE);
         boolean tocando = p.getBoolean("tocando", false);
-        // O aviso dispensado (o dedo ou o botão Fechar): a música pausa e o aviso e o player do Android saem. Antes só o
+        // O aviso dispensado com o dedo: a música pausa e o aviso e o player do Android saem. Antes só o
         // aviso saía, e a música podia seguir tocando
         if (FECHAR.equals(acao)) {
             marcarPausado(ctx, p, tocando);
