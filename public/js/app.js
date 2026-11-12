@@ -17498,13 +17498,21 @@ function viewEditor(id, setId) {
         <p class="ed-modo-dica" id="ed-modo-dica"></p>
         <details class="ed-ferramentas" id="ed-ferramentas"${db.prefs().edFerramentas ? ' open' : ''}>
         <summary>${icon('plus', 16)}<span><b>Partes, acordes e ferramentas</b><small id="ed-ferramentas-resumo"></small></span>${icon('down', 16)}</summary>
-        <div class="ed-linha barra" aria-label="Partes e ferramentas">
-          <div class="seg"><button class="tom-btn" id="ed-tom" aria-label="Mudar o tom da cifra" title="Mudar o tom da cifra inteira (altera o texto)"><span class="val" id="ed-tom-val"></span>${icon('down', 14)}</button></div>
-          ${partes.map(([n, ic, t]) => `<button class="chip parte" data-parte-ed="${n}" title="${t}">${icon(ic, 14)} ${n}</button>`).join('')}
-          <button class="chip" data-parte-ed="(" title="Uma observação, ex.: (2x) ou (só vozes)">${icon('info', 14)} Observação</button>
-          <button class="chip" id="completar" title="Repete a sequência de acordes da estrofe cifrada nas estrofes que estão sem acordes">${icon('sparkles', 14)} Completar cifra</button>
-          <button class="chip" id="conv" title="Organiza cifra colada de outro site (acordes numa linha, letra na outra)">${icon('sparkles', 14)} Organizar colada</button>
-          ${isNew ? '' : `<button class="chip" id="trazer" title="Buscar no Cifra Club ou colar cifra/letra de qualquer site">${icon('upload', 14)} Trazer da internet</button>`}
+        <div class="ed-grupo">
+          <small class="ed-grupo-tit">Inserir parte</small>
+          <div class="ed-chips barra" aria-label="Inserir parte">
+            ${partes.map(([n, ic, t]) => `<button class="chip parte" data-parte-ed="${n}" title="${t}" translate="no">${icon(ic, 14)} ${n}</button>`).join('')}
+            <button class="chip parte" data-parte-ed="(" title="Uma observação, ex.: (2x) ou (só vozes)">${icon('info', 14)} Observação</button>
+          </div>
+        </div>
+        <div class="ed-grupo">
+          <small class="ed-grupo-tit">Ferramentas</small>
+          <div class="ed-chips barra" aria-label="Ferramentas">
+            <div class="seg ed-so-cifra"><button class="tom-btn" id="ed-tom" aria-label="Mudar o tom da cifra" title="Mudar o tom da cifra inteira (altera o texto)"><span class="val" id="ed-tom-val"></span>${icon('down', 14)}</button></div>
+            <button class="chip ed-so-cifra" id="completar" title="Repete a sequência de acordes da estrofe cifrada nas estrofes que estão sem acordes">${icon('sparkles', 14)} Completar cifra</button>
+            <button class="chip" id="conv" title="Organiza cifra colada de outro site (acordes numa linha, letra na outra)">${icon('sparkles', 14)} Organizar colada</button>
+            ${isNew ? '' : `<button class="chip" id="trazer" title="Buscar no Cifra Club ou colar cifra/letra de qualquer site">${icon('upload', 14)} Trazer da internet</button>`}
+          </div>
         </div>
         <div class="chord-pal" id="pal"></div>
         <div class="ed-estrutura" id="ed-estrutura"></div>
@@ -17536,6 +17544,8 @@ function viewEditor(id, setId) {
   // escolhido faz)
   const dica = () => {
     $('#pal').hidden = formato === 'letra';
+    // (no modo Letra os acordes não se mexem: mudar o tom e completar a cifra ficam nos outros modos)
+    view.querySelectorAll('.ed-so-cifra').forEach((x) => (x.hidden = formato === 'letra'));
     // (embaixo dos jeitos de editar, uma frase diz o que o escolhido faz)
     $('#ed-modo-dica').textContent = formato === 'letra' ? 'Corrija só o texto. Os acordes continuam nas mesmas sílabas.'
       : formato === 'acima' ? 'Os acordes ficam na linha de cima, alinhados com a sílaba em que entram.'
@@ -17562,13 +17572,19 @@ function viewEditor(id, setId) {
     const m = /^\s*\[([^\]]+)\]\s*$/.exec(l);
     return m && !CIFRA_NO_TEXTO.test(m[1].trim()) ? { nome: m[1].trim(), linha: i } : null;
   }).filter(Boolean);
+  // a prévia segue o jeito de editar: na aba Letra, só a letra (sem acordes, sem linhas só de acordes)
+  const desenharPrevia = () => {
+    const el = $('#prev-song');
+    el.classList.toggle('so-letra', formato === 'letra');
+    el.innerHTML = renderSong(montar()).html;
+  };
   let t;
   const atualizar = () => {
     ajustarAltura(); // (qualquer mudança no texto: digitar, trazer da internet, mudar o tom, completar…)
     clearTimeout(t);
     t = setTimeout(() => {
       if (!ta.isConnected) return;
-      $('#prev-song').innerHTML = renderSong(montar()).html;
+      desenharPrevia();
       // status: linhas, partes e acordes; e o rascunho guardado no aparelho
       const nAcordes = acordesDaCifra().length;
       const nPartes = partesDoTexto().length;
@@ -17584,7 +17600,8 @@ function viewEditor(id, setId) {
       + `<button class="chip mais" data-outro-acorde title="Escrever qualquer acorde">${icon('plus', 13)} Outro</button>`;
     // mapa da estrutura: um toque leva até a parte
     const ps = partesDoTexto();
-    $('#ed-estrutura').innerHTML = ps.length ? `<small>${icon('list', 14)} Estrutura</small>${ps.map((x) => `<button class="chip" data-linha="${x.linha}">${esc(x.nome)}</button>`).join('')}` : '';
+    // (numeradas na ordem da música: duas partes com o mesmo nome — "Bridge", "Bridge" — deixam de parecer repetidas)
+    $('#ed-estrutura').innerHTML = ps.length ? `<small class="ed-grupo-tit">Ir até a parte</small><div class="ed-chips">${ps.map((x, i) => `<button class="chip" data-linha="${x.linha}"><span class="n">${i + 1}</span><span translate="no">${esc(x.nome)}</span></button>`).join('')}</div>` : '';
     // cabeçalho: capa, resumo
     const yt = youtubeId(campo('yt').value);
     // (a capa da própria música — a do álbum —, inteira; antes era sempre o quadro do vídeo, que é largo: cortado num
@@ -17774,7 +17791,7 @@ function viewEditor(id, setId) {
   };
   view.querySelectorAll('[data-aba]').forEach((b) => (b.onclick = () => {
     const prev = b.dataset.aba === 'previa';
-    if (prev) $('#prev-song').innerHTML = renderSong(montar()).html;
+    if (prev) desenharPrevia();
     // no celular, um ou outro; no computador, os dois lado a lado (CSS)
     view.querySelector('.editor-split').classList.toggle('so-previa', prev);
     view.querySelectorAll('[data-aba]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
