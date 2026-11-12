@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 662, data: '2026-11-12', titulo: "Prévia do editor no modo Letra sem os acordes; painel \"Partes, acordes e ferramentas\" reorganizado",
+    itens: [
+      { tipo: 'correcao', texto: "Na tela de edição, com o modo Letra selecionado, a aba \"Ver como fica\" exibia a cifra completa, com os acordes acima da letra, embora esse modo permita corrigir apenas o texto. A prévia passou a acompanhar o modo de edição: no modo Letra, os acordes, as linhas só de acordes e as partes apenas instrumentais deixam de ser exibidos; nos modos Letra e cifra e Colchetes, a prévia continua com os acordes. A cifra guardada não é alterada." },
+      { tipo: 'melhoria', texto: "O painel \"Partes, acordes e ferramentas\" do editor exibia em duas faixas de rolagem lateral, com botões de mesma aparência, os atalhos para inserir uma parte (Chorus, Verse, Bridge…) e os atalhos para ir até as partes já escritas; partes de mesmo nome apareciam repetidas (\"Bridge\", \"Bridge\") e as duas faixas pareciam duplicadas. O painel passou a ser dividido em grupos com título — Inserir parte, Ferramentas, Acordes e Ir até a parte —, com os botões quebrando linha em vez de ficarem ocultos na rolagem lateral; as partes da música são numeradas na ordem em que aparecem. No modo Letra, mudar o tom e completar a cifra deixam de ser exibidos, porque esse modo não altera os acordes." },
+      { tipo: 'melhoria', texto: "Pendente: conferido em navegador, em 390 px, em português e inglês; não executado em aparelho." },
+    ],
+  },
+  {
     versao: 661, data: '2026-11-12', titulo: 'Música salva pela busca ou pelo álbum já entra com a capa do álbum, também na notificação do download',
     itens: [
       { tipo: 'correcao', texto: 'Ao salvar uma música pelo botão + da busca, da página do álbum ou do artista, a música era gravada sem capa, embora a linha exibisse a capa do álbum. Até a procura da capa terminar em segundo plano, a biblioteca, a tela da música, o player e a notificação do download exibiam o quadro do vídeo ou a foto do artista. A capa exibida na linha passou a ser gravada com a música no momento em que ela é salva; sem ela, é usada a capa já conhecida para o título e o artista. Capas provisórias (quadro do vídeo, foto do artista) não são gravadas. Em teste, a música salva pela busca, que antes ficava sem capa, passou a ter a capa do álbum três segundos após o toque.' },
@@ -89,13 +97,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: 'A ampliação da capa animada passou a incluir uma linha de medição a mais (1,9% da altura), para que a borda borrada da faixa também fique fora da área visível. Em vídeos de teste com faixas de 11,9% da altura, brancas, cinza e pretas, a ampliação calculada foi de 1,391, que corta 14,0% de cada lado; no vídeo sem faixas, a ampliação padrão foi mantida.' },
       { tipo: 'melhoria', texto: 'A mesma medição passou a valer para os quadros do clipe exibidos quando ele não está baixado, para a prévia e para a capinha das playlists. As medidas guardadas no aparelho, feitas apenas para faixas pretas, são descartadas e refeitas automaticamente na próxima exibição de cada clipe.' },
       { tipo: 'melhoria', texto: 'Pendente: a medição foi verificada por testes automatizados e em navegador, com vídeos de teste gerados; não foi executada no aplicativo com o clipe em que o problema foi observado nem em aparelho. Molduras laterais não são tratadas.' },
-    ],
-  },
-  {
-    versao: 652, data: '2026-11-11', titulo: 'Barra de reprodução do celular: ícone e nome do fone sem contorno, nos modos claro e escuro',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, o ícone de Bluetooth e o nome do fone conectado, abaixo do título, haviam recebido na versão 650 um contorno em tom escuro da cor da música (traço de 4,6 no ícone e de 1,5 px no texto). O contorno foi removido nos modos claro e escuro: o ícone e o nome passaram a ser desenhados apenas na cor do aplicativo. O contorno do ícone do fone, à direita, e do botão da música salva não foi alterado.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração foi conferida pelas regras de estilo; não foi executada em aparelho.' },
     ],
   },
 ];
