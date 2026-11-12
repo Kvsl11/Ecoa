@@ -231,3 +231,15 @@ test('o fundo da prévia é desenhado num canvas pequeno: a capa em três camada
   desenharFundoDaPrevia(ctx, 64, 138, {}); // (sem a capa e sem as cores: só o fundo escuro)
   assert.deepEqual(feitos, ['pinta']);
 });
+
+test('o link do cartão do Vídeo leva o clipe e o ponto do refrão, e é lido de volta', async () => {
+  const { linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, lerLinkDaMusica, ENDERECO_DO_ECOA } = await import('../public/js/lib/cartao.js');
+  assert.equal(linkDaMusicaNoEcoa('Levitating', 'Dua Lipa', { video: 'TUVcZfQe-Kw', inicio: 47.6 }), `${ENDERECO_DO_ECOA}#/ouvir/Levitating/Dua%20Lipa/video/TUVcZfQe-Kw/47`);
+  assert.equal(linkDaMusicaNoEcoa('Levitating', 'Dua Lipa', { video: 'TUVcZfQe-Kw' }), `${ENDERECO_DO_ECOA}#/ouvir/Levitating/Dua%20Lipa/video/TUVcZfQe-Kw`);
+  assert.equal(linkDaMusicaNoEcoa('Levitating', '', { video: 'TUVcZfQe-Kw', inicio: 10 }), `${ENDERECO_DO_ECOA}#/ouvir/Levitating/-/video/TUVcZfQe-Kw/10`); // (sem o artista: "-")
+  assert.equal(linkDaMusicaNoEcoa('Levitating', 'Dua Lipa', { video: 'não é id' }), `${ENDERECO_DO_ECOA}#/ouvir/Levitating/Dua%20Lipa`); // (a Música e a Letra: sem o vídeo)
+  assert.ok(linkParaAbrirNoAplicativo('Levitating', 'Dua Lipa', { video: 'TUVcZfQe-Kw', inicio: 47 }).startsWith('intent://ouvir/Levitating/Dua%20Lipa/video/TUVcZfQe-Kw/47#Intent;'));
+  assert.deepEqual(lerLinkDaMusica(['Levitating', 'Dua Lipa', 'video', 'TUVcZfQe-Kw', '47']), { titulo: 'Levitating', artista: 'Dua Lipa', video: { id: 'TUVcZfQe-Kw', inicio: 47 } });
+  assert.deepEqual(lerLinkDaMusica(['Levitating', '-', 'video', 'TUVcZfQe-Kw']), { titulo: 'Levitating', artista: '', video: { id: 'TUVcZfQe-Kw', inicio: 0 } });
+  assert.deepEqual(lerLinkDaMusica(['Levitating', 'Dua Lipa']), { titulo: 'Levitating', artista: 'Dua Lipa', video: null });
+});

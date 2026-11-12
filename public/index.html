@@ -32,6 +32,7 @@
         try { if (localStorage.getItem('songbook.conta')) return null; } catch (e) {}
         var ler = function (x) { try { return decodeURIComponent(x || ''); } catch (e) { return x || ''; } };
         var titulo = ler(m[1]), artista = ler(m[2]);
+        if (artista === '-') artista = ''; // (o link do vídeo sem o artista)
         var P = window.__previaInicial;
         if (P && P.titulo === titulo && P.artista === artista) return P;
         var cmp = function (t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[([][^)\]]*[)\]]/g, ' ').replace(/\b(feat|ft)\.?\s.*$/, ' ').replace(/[^a-z0-9]+/g, ' ').trim(); };
@@ -184,9 +185,40 @@
           + '<span class="cm-play" aria-hidden="true"></span></div>'; // (a barra, o tempo e o botão guardam o lugar, escondidos enquanto carrega)
         el.querySelector('.cm-titulo').textContent = ler(m[1]);
         var artista = ler(m[2]);
+        if (artista === '-') artista = ''; // (o link do vídeo sem o artista)
         if (artista) el.querySelector('.cm-artista').textContent = artista; else el.querySelector('.cm-artista').remove();
         document.body.appendChild(el);
         raiz.classList.add('com-convite');
+        // (o fundo: uma imagem num canvas pequeno, esticado na tela — a ampliação desfoca, sem filtro pesado)
+        var fundo = function (img) {
+          var c = document.createElement('canvas'); c.width = 24; c.height = 52;
+          var g = c.getContext('2d'); g.globalAlpha = 0.6;
+          if ('filter' in g) g.filter = 'blur(2px) saturate(1.4)'; // (sem ele, o canvas esticado aparecia quadriculado)
+          var lado = Math.max(c.width, c.height) * 1.4;
+          g.drawImage(img, (c.width - lado) / 2, (c.height - lado) / 2, lado, lado);
+          el.querySelector('.cm-fundo').appendChild(c);
+        };
+        // (o link do cartão do Vídeo: o quadro deitado com a miniatura do clipe, e o fundo nas cores dela; o app põe o
+        // clipe tocando no lugar)
+        var doVideo = /^#\/ouvir\/[^/]+\/[^/]*\/video\/([\w-]{11})/.exec(location.hash);
+        if (doVideo) {
+          el.classList.add('com-video');
+          var mini = new Image();
+          mini.fetchPriority = 'high';
+          var media = 'https://i.ytimg.com/vi/' + doVideo[1] + '/mqdefault.jpg';
+          mini.onerror = function () { if (mini.src !== media) mini.src = media; };
+          mini.onload = function () {
+            if (!el.isConnected) return;
+            // (sem a grande, o YouTube devolve uma imagem de 120 px: a média, em 16:9)
+            if (mini.naturalWidth <= 120 && mini.src !== media) { mini.src = media; return; }
+            var quadro = el.querySelector('.cm-capa');
+            quadro.innerHTML = '';
+            var mostra = mini.cloneNode(); mostra.alt = ''; quadro.appendChild(mostra);
+            fundo(mini);
+          };
+          mini.src = 'https://i.ytimg.com/vi/' + doVideo[1] + '/maxresdefault.jpg';
+          return;
+        }
         // (a capa da prévia, que o <head> já foi buscar no Deezer: entra na tela e no fundo assim que chega)
         var P = window.__buscarPreviaInicial && window.__buscarPreviaInicial();
         if (P) P.aoCarregar(function (img) {
@@ -194,13 +226,7 @@
           var quadro = el.querySelector('.cm-capa');
           quadro.innerHTML = '';
           var mostra = img.cloneNode(); mostra.alt = ''; quadro.appendChild(mostra);
-          // (o fundo: a capa num canvas pequeno, esticado na tela — a ampliação desfoca, sem filtro pesado)
-          var c = document.createElement('canvas'); c.width = 24; c.height = 52;
-          var g = c.getContext('2d'); g.globalAlpha = 0.6;
-          if ('filter' in g) g.filter = 'blur(2px) saturate(1.4)'; // (sem ele, o canvas esticado aparecia quadriculado)
-          var lado = Math.max(c.width, c.height) * 1.4;
-          g.drawImage(img, (c.width - lado) / 2, (c.height - lado) / 2, lado, lado);
-          el.querySelector('.cm-fundo').appendChild(c);
+          fundo(img);
         });
       };
       window.__conviteInicial();
