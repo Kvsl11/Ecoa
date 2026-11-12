@@ -31,20 +31,54 @@ public final class Acoes {
     // O comando chega como Intent à Activity, em vez de depender de um evento JS enviado a um WebView
     // suspenso em segundo plano. O Android retoma a tela e onNewIntent entrega a ação ao player.
     static void fazer(Context ctx, String acao) {
-        if (FECHAR.equals(acao)) { TocandoService.desligar(ctx); Sessao.parar(ctx); return; }
         android.content.SharedPreferences p = ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE);
         boolean tocando = p.getBoolean("tocando", false);
+        // O aviso dispensado (o dedo ou o botão Fechar): a música pausa e o aviso e o player do Android saem. Antes só o
+        // aviso saía, e a música podia seguir tocando
+        if (FECHAR.equals(acao)) {
+            marcarPausado(ctx, p, tocando);
+            p.edit().putBoolean("dispensado", true).apply();
+            EcoaWebView.acordar();
+            EcoaPlugin.entregar(PAUSAR);
+            EcoaWebView.rodar("window.ecoaComando&&window.ecoaComando('pausar')");
+            TocandoService.desligar(ctx);
+            Sessao.parar(ctx);
+            EcoaWidget.atualizarTodos(ctx);
+            return;
+        }
+        // O pausar vale na hora para o aviso e o player do Android: eles passam a "pausado" (e o aviso pode ser
+        // dispensado) sem esperar a página responder. Antes ficavam em "tocando" até a página confirmar — com ela
+        // adormecida em segundo plano, a confirmação não vinha, e o aviso ficava preso. O "alternar" com a música tocando
+        // vira um pausar explícito: o comando não inverte o estado se a página estiver com outro
+        if (ALTERNAR.equals(acao) && tocando) acao = PAUSAR;
+        if (PAUSAR.equals(acao)) {
+            marcarPausado(ctx, p, tocando);
+            Sessao.atualizar(ctx);
+            TocandoService.atualizar(ctx);
+            EcoaWidget.atualizarTodos(ctx);
+        }
         // (pausar e ir a um ponto não precisam de tela; tocar e pular precisam quando a música vem do YouTube, que não
         // toca com a página escondida)
         boolean semTela = p.getBoolean("doAparelho", false) || PAUSAR.equals(acao) || (ALTERNAR.equals(acao) && tocando) || acao.startsWith(IR);
         // Com o player já carregado, a página é acordada e recebe o comando direto: não traz a Activity para a frente
         // nem recria a tela só para pausar ou trocar de faixa.
         EcoaWebView.acordar();
+        // (o pausar vai também direto para a página, sem passar pelo aviso do plugin, que atrasava com ela adormecida)
+        if (PAUSAR.equals(acao)) EcoaWebView.rodar("window.ecoaComando&&window.ecoaComando('pausar')");
         if (EcoaPlugin.entregar(acao)) {
             if (!semTela) trazerParaFrente(ctx, null);
             return;
         }
         trazerParaFrente(ctx, acao);
+    }
+
+    // a música passa a pausada para o aviso, o widget e o player do Android, no ponto em que estava
+    private static void marcarPausado(Context ctx, android.content.SharedPreferences p, boolean tocando) {
+        long agora = android.os.SystemClock.elapsedRealtime();
+        float tempo = p.getFloat("tempo", 0f);
+        if (tocando) tempo += Math.max(0, agora - p.getLong("quando", agora)) / 1000f;
+        p.edit().putBoolean("tocando", false).putFloat("tempo", tempo).putLong("quando", agora).apply();
+        EcoaWebView.definirTocando(false);
     }
 
     // abre (ou traz para a frente) o app; com a ação, ela é feita quando a tela estiver pronta

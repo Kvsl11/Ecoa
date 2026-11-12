@@ -808,6 +808,8 @@ public class EcoaPlugin extends Plugin {
         SharedPreferences.Editor e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         // (outra música: a frase cantada da anterior sai do widget)
         if (!titulo.equals(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("titulo", ""))) e.remove("frase");
+        // (tocando, o aviso volta a aparecer, mesmo que tenha sido dispensado antes)
+        if (tocando) e.putBoolean("dispensado", false);
         e.putString("titulo", titulo).putString("artista", artista).putBoolean("tocando", tocando)
             .putBoolean("doAparelho", Boolean.TRUE.equals(call.getBoolean("doAparelho", false)))
             .putFloat("duracao", duracao == null ? 0f : duracao.floatValue()).putFloat("tempo", tempo == null ? 0f : tempo.floatValue())

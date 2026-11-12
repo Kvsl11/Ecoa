@@ -6060,9 +6060,30 @@ const semLinhasDeAcordes = (sinc) => {
     },
     alternar() {
       if (!atual) return;
-      if (estado === 'tocando') { comando('pauseVideo'); estado = 'pausado'; } else { comando('playVideo'); estado = 'tocando'; }
+      if (estado === 'tocando') { api.pausar(); return; }
+      comando('playVideo'); estado = 'tocando';
       desenhar();
       avisar();
+    },
+    // Pausa de verdade tudo o que pode estar tocando — o arquivo do aparelho (o áudio, o vídeo, o karaokê), o YouTube (o
+    // player e a reserva, que toca junto) e a música que sai numa transição —, sem depender do estado guardado. Antes o
+    // pausar da notificação só valia com o estado em "tocando", e só para uma das fontes: com o estado errado, ou numa
+    // transição, a música continuava
+    pausar() {
+      if (!atual) return;
+      acabarTransicao(true);
+      for (const m of [som, somAudio, somVideo, somKaraoke, mudo, ...tela.querySelectorAll('audio, video')]) { try { m?.pause(); } catch { /* já parado */ } }
+      for (const f of tela.querySelectorAll('iframe')) { try { f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'); } catch { /* sem o vídeo */ } }
+      comando('pauseVideo');
+      estado = 'pausado';
+      desenhar();
+      avisar();
+    },
+    // tocar, mesmo com o estado já em "tocando" (o estado errado deixava o tocar da notificação sem efeito)
+    retomar() {
+      if (!atual) return;
+      comando('playVideo');
+      if (estado !== 'tocando') { estado = 'tocando'; desenhar(); avisar(); }
     },
     // a página vai ser desenhada de novo: o vídeo sai da telinha antes (senão iria embora com a página velha)
     soltar: () => tirarDaTelinha(),
@@ -24031,6 +24052,7 @@ if (ecoaNativo) {
   let ultimoTempo = 0;
   let ultimoEm = 0;
   let ultimoTocando = false;
+  let mandadoEm = 0;
   const mandar = () => {
     const a = player.atual;
     if (!a?.titulo) { if (ultimo) { ultimo = ''; void ecoaNativo.parou().catch(() => {}); } return; }
@@ -24044,7 +24066,10 @@ if (ecoaNativo) {
     const tempo = Math.max(0, Number(player.tempoAgora) || 0);
     const chave = JSON.stringify({ ...dados, duracao });
     const esperado = ultimoEm ? ultimoTempo + (ultimoTocando ? (performance.now() - ultimoEm) / 1000 : 0) : -99;
-    if (chave === ultimo && Math.abs(esperado - tempo) < 3) return;
+    // (o mesmo estado é mandado de novo a cada 10 s: se a notificação ou o player do Android ficaram com um estado velho
+    // — o app adormecido não respondeu, o serviço da notificação foi encerrado —, eles se acertam sozinhos)
+    if (chave === ultimo && Math.abs(esperado - tempo) < 3 && performance.now() - mandadoEm < 10000) return;
+    mandadoEm = performance.now();
     ultimo = chave;
     ultimoTempo = tempo;
     ultimoEm = performance.now();
@@ -24057,23 +24082,32 @@ if (ecoaNativo) {
   // (a duração só se sabe depois que a música abre, e o player não avisa quando ela chega: sem isto, o player do Android
   // ficava em 00:00 / 00:00 e a barra não andava. A cada 2 s confere; só manda de novo quando mudou de verdade)
   setInterval(() => { if (player.atual) mandar(); }, 2000);
-  ecoaNativo.addListener('acao', ({ acao } = {}) => {
+  // Os comandos da notificação, do widget, do fone e do player do Android. Chegam pelo plugin e, o pausar e o fechar,
+  // também direto (window.ecoaComando, chamado pela parte nativa): com a página adormecida em segundo plano, o aviso do
+  // plugin podia atrasar. Pausar duas vezes não faz mal
+  const comandoNativo = (acao) => {
     // (tocou numa notificação de download: abre a página dela)
     if (/^abrir:#/.test(acao || '')) { location.hash = acao.slice(6); return; }
     // (com o app abrindo pelo widget, a última música ainda pode estar voltando: espera um pouco por ela)
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
       if (acao === 'alternar') player.alternar();
-      // (do player do Android e do fone: tocar e pausar explícitos; repetido ou atrasado, o comando não inverte o estado)
-      else if (acao === 'tocar') { if (player.estado !== 'tocando') player.alternar(); }
-      else if (acao === 'pausar') { if (player.estado === 'tocando') player.alternar(); }
+      // (do player do Android e do fone: tocar e pausar explícitos, que valem mesmo com o estado guardado errado; repetido
+      // ou atrasado, o comando não inverte o estado)
+      else if (acao === 'tocar') player.retomar();
+      else if (acao === 'pausar' || acao === 'fechar') player.pausar();
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
       else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)
-      mandar();
+      // (o estado vai para o Android agora e de novo logo depois: o YouTube muda de estado um pouco depois do comando)
+      ultimo = ''; mandar();
+      setTimeout(() => { ultimo = ''; mandar(); }, 700);
+      setTimeout(() => { ultimo = ''; mandar(); }, 2000);
     };
     fazer();
-  });
+  };
+  ecoaNativo.addListener('acao', ({ acao } = {}) => comandoNativo(acao));
+  window.ecoaComando = (acao) => { try { comandoNativo(String(acao || '')); } catch { /* sem o player */ } return 'ok'; };
   // (pronto para receber a ação que abriu o app, se foi um botão do widget)
   void ecoaNativo.pronto().catch(() => {});
   // As capas das músicas baixadas guardadas no app, de antemão: tocando sem internet, o aviso de "tocando" e o widget

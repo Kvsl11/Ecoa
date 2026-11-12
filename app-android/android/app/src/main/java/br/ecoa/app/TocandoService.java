@@ -39,8 +39,12 @@ public class TocandoService extends Service {
     // A música mudou, pausou ou voltou. O serviço fica em primeiro plano só enquanto toca: pausado, ele solta o aviso
     // (que continua na tela, com os botões) e o aviso pode ser dispensado com o dedo. Antes ficava preso até fechar o
     // player, mesmo com a música pausada
+    // Com o serviço encerrado pelo Android (pausado em segundo plano, ele pode ser fechado depois de um tempo), o aviso
+    // continua sendo atualizado: antes ficava parado no último estado, às vezes em "tocando" e sem poder ser dispensado.
+    // O aviso dispensado (ou o player fechado) não volta sozinho com a música pausada: só quando ela tocar de novo
     static void atualizar(Context ctx) {
-        if (!ligado) return;
+        SharedPreferences p = ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE);
+        if (!ligado && p.getBoolean("dispensado", false) && !tocando(ctx)) return;
         TocandoService s = instancia;
         if (s != null) {
             if (tocando(ctx)) s.paraFrente();
@@ -52,6 +56,7 @@ public class TocandoService extends Service {
     }
 
     static void desligar(Context ctx) {
+        ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE).edit().putBoolean("dispensado", true).apply();
         ctx.stopService(new Intent(ctx, TocandoService.class));
         // (solto do serviço, o aviso não some sozinho com ele)
         try { ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).cancel(ID); } catch (Exception e) { /* nada a tirar */ }
@@ -109,9 +114,11 @@ public class TocandoService extends Service {
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(R.drawable.ic_anterior, ctx.getString(R.string.acao_voltar), EcoaWidget.botao(ctx, Acoes.ANTERIOR, 21))
-            .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, ctx.getString(tocando ? R.string.acao_pausar : R.string.acao_tocar), EcoaWidget.botao(ctx, Acoes.ALTERNAR, 22))
-            .addAction(R.drawable.ic_proxima, ctx.getString(R.string.acao_pular), EcoaWidget.botao(ctx, Acoes.PROXIMA, 23))
-            .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+            .addAction(tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar, ctx.getString(tocando ? R.string.acao_pausar : R.string.acao_tocar), EcoaWidget.botao(ctx, tocando ? Acoes.PAUSAR : Acoes.TOCAR, 22)) // (explícito: o que o botão mostra é o que ele faz)
+            .addAction(R.drawable.ic_proxima, ctx.getString(R.string.acao_pular), EcoaWidget.botao(ctx, Acoes.PROXIMA, 23));
+        // (pausada, o botão Fechar: pausa e tira o aviso, sem precisar abrir o app e fechar a música no player)
+        if (!tocando) b.addAction(R.drawable.ic_fechar, ctx.getString(R.string.acao_fechar), EcoaWidget.botao(ctx, Acoes.FECHAR, 24));
+        b.setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 // (com a sessão de mídia, o aviso vira o player do Android: a capa, a barra do tempo, a tela de bloqueio)
                 .setMediaSession(Sessao.de(ctx).getSessionToken())
                 .setShowActionsInCompactView(0, 1, 2));
