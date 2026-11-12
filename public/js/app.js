@@ -43,6 +43,7 @@ import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
+import { faixaDaPrevia, tempoDaPrevia, inicioDoRefraoNoClipe } from './lib/convite-musica.js';
 import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
@@ -719,7 +720,7 @@ function dadosParaCompartilhar(song) {
 // um redimensionador público (como na cor da capa). null sem capa, sem internet ou sem resposta em 6 s
 async function imagemDaCapaParaCartao(src, { largura = 0 } = {}) {
   if (!src) return null;
-  const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=900&h=900&fit=cover&output=jpg`];
+  const tentativas = /^(data|blob):/.test(src) ? [src] : [src, `https://wsrv.nl/?url=${encodeURIComponent(src.replace(/#.*$/, ''))}&w=1600&h=1600&fit=cover&output=jpg&q=92`];
   for (const url of tentativas) {
     try {
       const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout?.(6000) });
@@ -842,9 +843,17 @@ async function compartilharMusica(musica) {
     versos: m === 'letra' ? marcados.map((i) => linhas[i]) : [], ...(previa?.m === m && !gravando ? aoVivo(previa) : {}) });
   let tAnim = 0; // (o instante da animação do fundo, em segundos)
   let gravando = false;
-  const imagem = () => new Promise((ok) => {
-    try { const c = desenharCartao(document.createElement('canvas'), dadosDo(modo)); c.toBlob(ok, 'image/jpeg', 0.92); } catch { ok(null); }
-  });
+  // (a imagem enviada sai em 4K — o cartão desenhado no dobro: 2160 px de largura —; se o aparelho não tem memória
+  // para ela, em Full HD, 1080 px)
+  const imagem = async () => {
+    for (const escala of [2, 1]) {
+      const blob = await new Promise((ok) => {
+        try { const c = desenharCartao(document.createElement('canvas'), { ...dadosDo(modo), escala }); c.toBlob(ok, 'image/jpeg', 0.95); } catch { ok(null); }
+      });
+      if (blob?.size) return blob;
+    }
+    return null;
+  };
   // O que é enviado: com a música (o trecho da letra ou do clipe) ou com o fundo animado, o cartão em vídeo; sem eles,
   // a imagem. O vídeo dura o trecho da música ou, só com o fundo animado, uma volta da animação (o fim emenda no
   // começo). Se o aparelho não grava vídeo do canvas, sai a imagem e o aviso diz isso
@@ -20264,51 +20273,280 @@ addEventListener('songbook:nuvem', () => {
   if (/^#?\/?(biblioteca(\/[^/]*)?|repertorios|repertorio\/[^/]+)?$/.test(location.hash)) route();
 });
 
-// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>): abre a música — a da biblioteca, se a pessoa
-// já a tem; senão, trazida pelo nome e pelo artista, como as da busca. Abre sozinha na primeira vez; voltando a esta
-// tela (a seta do celular), fica o botão, para a música não abrir de novo a cada volta.
-// No navegador do Android, o link é entregue antes ao aplicativo instalado (o index.html faz isso ao chegar). Se o
-// aplicativo abriu, o navegador saiu da frente, e esta tela fica só com os botões; se a página continua na frente
-// depois de ESPERA_DO_APLICATIVO, não há aplicativo, e a música abre aqui mesmo
+// A música recebida por um link compartilhado (#/ouvir/<nome>/<artista>), igual no APK, no navegador (celular, tablet
+// e computador): sem conta, fica a tela de entrada, com o link guardado no endereço; entrando, a música abre direto na
+// tela dela — a da biblioteca, se a pessoa já a tem; senão, trazida pelo nome e pelo artista, como as da busca —,
+// mesmo com o player aberto (antes, com o player aberto, ela só ia para o player e ficava na frente uma tela com os
+// botões "Abrir a música" e "Procurar na busca"). O link é trocado pelo Início no histórico: voltando da música, fica o
+// Início, e não uma tela intermediária.
+// No navegador do Android, o link é entregue antes ao aplicativo instalado (o index.html faz isso ao chegar): se o
+// aplicativo abriu, o navegador saiu da frente e fica no Início; se a página continua na frente depois de
+// ESPERA_DO_APLICATIVO, não há aplicativo, e a música abre aqui mesmo
 const ESPERA_DO_APLICATIVO = 1600;
 const noNavegadorDoAndroid = () => /Android/i.test(navigator.userAgent) && !noApk();
 function viewOuvir(titulo = '', artista = '') {
   if (!titulo) return viewNotFound();
-  setTab('inicio');
-  setHeader('Música compartilhada', { back: '#/' });
-  const android = noNavegadorDoAndroid();
-  const abrir = () => { void abrirMusica({ titulo, artista }, '#/'); };
-  view.innerHTML = `<section class="ouvir-link">
-    <div class="cover">${icon('music', 44)}</div>
-    <h2>${esc(titulo)}</h2>${artista ? `<p class="muted">${esc(artista)}</p>` : ''}
-    <div class="ouvir-acoes">
-      ${android ? `<a class="btn primary" href="${esc(linkParaAbrirNoAplicativo(titulo, artista))}">${icon('enviarApp', 18)} Abrir no aplicativo</a>` : ''}
-      <button class="btn${android ? '' : ' primary'}" data-ouvir>${icon('play', 18)} ${android ? 'Ouvir aqui' : 'Abrir a música'}</button>
-      <button class="btn" data-procurar>${icon('search', 18)} Procurar na busca</button>
-    </div></section>`;
-  $('[data-ouvir]', view).onclick = abrir;
-  $('[data-procurar]', view).onclick = () => {
-    sessionStorage.setItem('busca', [titulo, artista].filter(Boolean).join(' '));
-    sessionStorage.setItem('buscaFiltro', 'musicas');
-    location.hash = '#/buscar';
-  };
-  const chave = `ouvir:${titulo}|${artista}`;
-  if (sessionStorage.getItem('ouvirAberta') === chave) return;
-  if (!android) { sessionStorage.setItem('ouvirAberta', chave); abrir(); return; }
-  // (só logo depois da tentativa de abrir o aplicativo: mais tarde, a tela é só a dos botões)
-  const tentouEm = Number(sessionStorage.getItem('ecoa.noAppEm')) || 0;
-  if (sessionStorage.getItem('ecoa.noApp') !== location.hash || Date.now() - tentouEm > 15000) return;
+  // (sem conta: a prévia da música e o convite para entrar, por cima da tela de entrada; o link fica no endereço e a
+  // música abre inteira depois de entrar)
+  if (!usuarioConta()) { setTab('inicio'); view.innerHTML = ''; mostrarConviteDaMusica(titulo, artista); return; }
+  fecharConviteDaMusica();
+  // (o index.html acabou de tentar entregar este link ao aplicativo instalado?)
+  let tentouOApp = false;
+  try { tentouOApp = noNavegadorDoAndroid() && sessionStorage.getItem('ecoa.noApp') === location.hash && Date.now() - (Number(sessionStorage.getItem('ecoa.noAppEm')) || 0) < 15000; } catch { /* sem sessionStorage */ }
+  history.replaceState(null, '', '#/');
+  route();
+  const abrir = () => { void abrirMusica({ titulo, artista }, '#/', null, { tela: true }); };
+  if (!tentouOApp) { abrir(); return; }
   let saiu = document.visibilityState !== 'visible';
   const aoSairDaFrente = () => { if (document.visibilityState !== 'visible') saiu = true; };
   document.addEventListener('visibilitychange', aoSairDaFrente);
-  const espera = setTimeout(() => {
+  setTimeout(() => {
     document.removeEventListener('visibilitychange', aoSairDaFrente);
-    if (saiu || document.visibilityState !== 'visible') return;
-    sessionStorage.setItem('ouvirAberta', chave);
+    if (saiu || document.visibilityState !== 'visible' || location.hash !== '#/') return;
     abrir();
   }, ESPERA_DO_APLICATIVO);
-  limpezas.push(() => { clearTimeout(espera); document.removeEventListener('visibilitychange', aoSairDaFrente); });
 }
+// O link compartilhado para quem não entrou: só a prévia, como a do Spotify — a capa, o nome, o artista, a barra e o
+// tempo (de 0:00 a 0:30) —, sem texto de convite. A prévia é o refrão: o clipe oficial no YouTube, tocando a partir do
+// refrão (achado pela letra sincronizada) dentro do quadro da capa — a cena do clipe passa ali, com as pessoas e o que
+// mais se mexe nela —, com o som do clipe. Sem o clipe, o trecho de 30 s do Deezer, sobre a capa com movimento leve.
+// Ao fim dos 30 s (ou em "Pular"), fica a tela de entrada do app; entrando, a música abre inteira (viewOuvir). Sem
+// nenhuma das duas prévias, a tela de entrada aparece direto
+const SEGUNDOS_DA_PREVIA = 30;
+let conviteDaMusica = null;
+function fecharConviteDaMusica() {
+  document.documentElement.classList.remove('com-convite');
+  if (!conviteDaMusica) return;
+  conviteDaMusica.parar?.();
+  conviteDaMusica.el.remove();
+  conviteDaMusica = null;
+}
+// as cores das luzes do fundo da prévia: as fortes da capa (até 3), mais claras, em --c1, --c2 e --c3; sem elas (capa
+// cinza ou sem a leitura liberada), ficam a cor do app e duas vizinhas
+async function coresDoFundoDaPrevia(el, url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    await img.decode();
+    const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, 32, 32);
+    const cores = coresDaCapa(ctx.getImageData(0, 0, 32, 32).data);
+    if (!cores || !el.isConnected) return;
+    const viva = (k) => { const x = cores[k % cores.length]; return `hsl(${(x.h + (k >= cores.length ? 40 * k : 0)) % 360} ${Math.min(90, x.s + 25)}% ${Math.min(62, x.l + 22)}%)`; };
+    [0, 1, 2].forEach((k) => el.style.setProperty(`--c${k + 1}`, viva(k)));
+  } catch { /* fica a cor do app */ }
+}
+function mostrarConviteDaMusica(titulo, artista) {
+  const chave = `${titulo}|${artista}`;
+  if (conviteDaMusica?.chave === chave && conviteDaMusica.el.isConnected) return;
+  fecharConviteDaMusica();
+  const el = document.createElement('section');
+  el.className = 'convite-musica carregando';
+  el.setAttribute('aria-label', 'Prévia da música');
+  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><i class="cm-c1"></i><i class="cm-c2"></i><i class="cm-c3"></i><b class="cm-luz cm-l1"></b><b class="cm-luz cm-l2"></b><b class="cm-luz cm-l3"></b></div>
+    <button class="cm-pular" type="button">Pular</button>
+    <div class="cm-conteudo">
+      <div class="cm-capa"><span class="cm-nota">${icon('music', 56)}</span></div>
+      <div class="cm-nomes"><h1 class="cm-titulo" translate="no">${esc(titulo)}</h1>${artista ? `<p class="cm-artista" translate="no">${esc(artista)}</p>` : ''}</div>
+      <div class="cm-trilha" aria-hidden="true"><i></i></div>
+      <div class="cm-tempos"><span class="cm-tempo">0:00</span><span>${tempoDaPrevia(SEGUNDOS_DA_PREVIA)}</span></div>
+      <button class="cm-play" type="button" aria-label="Ouvir a prévia">${icon('play', 30)}</button>
+    </div>`;
+  document.body.append(el);
+  document.documentElement.classList.add('com-convite');
+  const capa = $('.cm-capa', el);
+  const fundo = $('.cm-fundo', el);
+  const play = $('.cm-play', el);
+  const barra = $('.cm-trilha i', el);
+  const tempo = $('.cm-tempo', el);
+  const vivo = () => conviteDaMusica?.el === el;
+  // a prévia que toca: { tipo: 'yt', f, inicio, tempo, em, estado, mudo } (o clipe) ou { tipo: 'deezer', audio }
+  let fonte = null;
+  let quadro = 0;
+  let nivel = 0; let media = 0; let antes = 0;
+  let analise = null;
+  const ytCmd = (func, args = []) => { try { fonte?.f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*'); } catch { /* sem o clipe */ } };
+  const tocando = () => (fonte?.tipo === 'yt' ? fonte.estado === 1 : Boolean(fonte?.audio && !fonte.audio.paused));
+  // os segundos já tocados da prévia (o clipe conta a partir do refrão; entre um aviso de tempo e outro, anda pelo relógio)
+  const tocado = () => {
+    if (fonte?.tipo === 'yt') return Math.max(0, fonte.tempo - fonte.inicio + (fonte.estado === 1 && fonte.em ? (performance.now() - fonte.em) / 1000 : 0));
+    return fonte?.audio?.currentTime || 0;
+  };
+  const marcar = () => {
+    const som = fonte?.tipo === 'yt' && fonte.mudo;
+    const t = tocando() && !som;
+    el.classList.toggle('tocando', tocando());
+    play.innerHTML = icon(som ? 'som' : t ? 'pause' : 'play', 30);
+    play.setAttribute('aria-label', som ? 'Ouvir com som' : t ? 'Pausar a prévia' : 'Ouvir a prévia');
+  };
+  // a cada quadro: a barra, o tempo (0:00 a 0:30), a força da batida no fundo (só na prévia do Deezer, que deixa
+  // analisar o som; no clipe, as luzes pulsam pelo CSS) e o fim da prévia
+  const passo = (agora = performance.now()) => {
+    if (!vivo()) return;
+    const dt = Math.min(0.5, antes ? (agora - antes) / 1000 : 0.016);
+    antes = agora;
+    const p = (s) => 1 - Math.exp(-dt / s);
+    const seg = Math.min(SEGUNDOS_DA_PREVIA, tocado());
+    barra.style.width = `${(seg / SEGUNDOS_DA_PREVIA) * 100}%`;
+    tempo.textContent = tempoDaPrevia(seg);
+    if (analise && tocando()) {
+      analise.no.getByteFrequencyData(analise.dados);
+      let soma = 0; const ate = Math.min(analise.dados.length, 48);
+      for (let k = 2; k < ate; k++) soma += analise.dados[k];
+      const energia = soma / (ate - 2) / 255;
+      media = media ? media + (energia - media) * p(1) : energia;
+      const alvo = Math.max(0, Math.min(1, (energia - media) * 9 + 0.2));
+      nivel += (alvo - nivel) * p(alvo > nivel ? 0.05 : 0.25);
+    } else nivel += (0 - nivel) * p(0.3);
+    // (só no fundo: posto na tela toda, redesenhava também o texto a cada quadro, que ficava borrado)
+    fundo.style.setProperty('--nivel', nivel.toFixed(3));
+    // (acabou a prévia: a tela de entrada, para entrar e ouvir a música inteira)
+    if (fonte && tocado() >= SEGUNDOS_DA_PREVIA - 0.05) { fecharConviteDaMusica(); return; }
+    quadro = requestAnimationFrame(passo);
+  };
+  const aoMsg = (e) => {
+    if (fonte?.tipo !== 'yt' || e.source !== fonte.f.contentWindow) return;
+    let msg; try { msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
+    // (o clipe que o dono não deixa tocar fora do YouTube — comum nos de gravadora —: tenta outro clipe uma vez; sem ele,
+    // a prévia do Deezer)
+    if (msg?.event === 'onError') { void outroClipe(); return; }
+    const info = msg?.info;
+    if (!info || typeof info !== 'object') return;
+    if (typeof info.currentTime === 'number') { fonte.tempo = info.currentTime; fonte.em = performance.now(); }
+    if (typeof info.muted === 'boolean') fonte.mudo = info.muted;
+    if (typeof info.playerState === 'number') {
+      fonte.estado = info.playerState;
+      fonte.em = performance.now();
+      // (o clipe aparece no quadro da capa depois de 2,5 s tocando: o título que o YouTube põe por cima já sumiu)
+      if (info.playerState === 1 && !fonte.mostrar) fonte.mostrar = setTimeout(() => { if (vivo()) el.classList.add('com-clipe'); }, 2500);
+      // (sem a legenda que o YouTube liga sozinho, traduzida, por cima da cena)
+      if (info.playerState === 1) { clearTimeout(fonte.falhou); el.classList.remove('carregando'); ytCmd('unloadModule', ['captions']); ytCmd('unloadModule', ['cc']); }
+    }
+    marcar();
+  };
+  window.addEventListener('message', aoMsg);
+  const deezer = { faixa: null };
+  // o trecho do Deezer (a reserva, sem o clipe): o áudio dele, analisado para o fundo acompanhar a batida
+  const usarDeezer = () => {
+    if (!vivo() || fonte?.tipo === 'deezer') return;
+    if (fonte?.tipo === 'yt') { fonte.f.remove(); clearTimeout(fonte.mostrar); clearTimeout(fonte.falhou); el.classList.remove('com-clipe'); }
+    const faixa = deezer.faixa;
+    if (!faixa) { fecharConviteDaMusica(); return; }
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.crossOrigin = 'anonymous';
+    fonte = { tipo: 'deezer', audio };
+    el.classList.add('sem-analise');
+    audio.addEventListener('play', () => {
+      if (analise === null) {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const no = ctx.createAnalyser(); no.fftSize = 256; no.smoothingTimeConstant = 0.6;
+          ctx.createMediaElementSource(audio).connect(no).connect(ctx.destination);
+          analise = { ctx, no, dados: new Uint8Array(no.frequencyBinCount) };
+          el.classList.remove('sem-analise');
+        } catch { analise = false; }
+      }
+      analise?.ctx?.resume?.().catch(() => {});
+      marcar();
+    });
+    audio.addEventListener('pause', marcar);
+    // (se o servidor recusar a leitura do som, a prévia toca sem a análise)
+    audio.addEventListener('error', () => {
+      if (audio.crossOrigin === null || !vivo()) return;
+      audio.removeAttribute('crossorigin'); analise = false; el.classList.add('sem-analise');
+      audio.src = faixa.previa; audio.play().catch(marcar);
+    }, { once: true });
+    audio.src = faixa.previa;
+    el.classList.remove('carregando');
+    audio.play().catch(marcar);
+  };
+  let refraoDoClipe = null; // (para levar o refrão a outro clipe: { refrao, duracaoGravacao })
+  let tentouOutro = false;
+  const outroClipe = async () => {
+    const id = fonte?.tipo === 'yt' ? fonte.id : '';
+    if (tentouOutro || !id || !refraoDoClipe) { usarDeezer(); return; }
+    tentouOutro = true;
+    clearTimeout(fonte.falhou); clearTimeout(fonte.mostrar); fonte.f.remove(); el.classList.remove('com-clipe');
+    fonte = { tipo: 'esperando' };
+    const outro = await Promise.race([procurarClipe(titulo, artista, id).catch(() => null), new Promise((ok) => setTimeout(() => ok(null), 6000))]);
+    if (!vivo()) return;
+    if (!outro?.id || outro.id === id) { fonte = null; usarDeezer(); return; }
+    usarClipe(outro.id, inicioDoRefraoNoClipe({ ...refraoDoClipe, duracaoClipe: Number(outro.segundos) || 0, segundos: SEGUNDOS_DA_PREVIA }));
+  };
+  // o clipe no quadro da capa, a partir do refrão: começa sem som (é o que todo navegador deixa tocar sozinho) e o som
+  // é ligado logo em seguida; onde o navegador não deixa, o botão vira "Ouvir com som" e, tocado, o refrão recomeça com
+  // som. Sem tocar em 8 s (o clipe não pode ser incorporado, ou a internet não deixou), fica a prévia do Deezer
+  const usarClipe = (id, inicio) => {
+    const p = new URLSearchParams({ autoplay: '1', mute: '1', controls: '0', disablekb: '1', fs: '0', iv_load_policy: '3', playsinline: '1', rel: '0', modestbranding: '1', enablejsapi: '1', cc_load_policy: '0', start: String(Math.floor(inicio)) });
+    if (/^https?:/.test(location.origin)) p.set('origin', location.origin);
+    const f = document.createElement('iframe');
+    f.className = 'cm-clipe';
+    f.src = `${YT_SEM_CONTA}${encodeURIComponent(id)}?${p}`;
+    f.allow = 'autoplay; encrypted-media';
+    f.tabIndex = -1; f.title = ''; f.setAttribute('aria-hidden', 'true');
+    fonte = { tipo: 'yt', id, f, inicio: Math.floor(inicio), tempo: Math.floor(inicio), em: 0, estado: -1, mudo: true };
+    f.addEventListener('load', () => {
+      f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 7 }), '*');
+      ytCmd('unMute'); ytCmd('setVolume', [100]); ytCmd('playVideo');
+    });
+    fonte.falhou = setTimeout(usarDeezer, 8000);
+    capa.append(f);
+  };
+  play.onclick = () => {
+    if (fonte?.tipo === 'yt') {
+      // (sem som: o refrão recomeça com som; com som, pausa ou continua)
+      if (fonte.mudo) { ytCmd('unMute'); ytCmd('setVolume', [100]); ytCmd('seekTo', [fonte.inicio, true]); ytCmd('playVideo'); fonte.tempo = fonte.inicio; fonte.em = performance.now(); fonte.mudo = false; }
+      else if (fonte.estado === 1) ytCmd('pauseVideo'); else ytCmd('playVideo');
+    } else if (fonte?.audio) { if (fonte.audio.paused) fonte.audio.play().catch(() => {}); else fonte.audio.pause(); }
+    marcar();
+  };
+  $('.cm-pular', el).onclick = fecharConviteDaMusica;
+  conviteDaMusica = {
+    chave, el,
+    parar: () => {
+      cancelAnimationFrame(quadro);
+      window.removeEventListener('message', aoMsg);
+      if (fonte?.tipo === 'yt') { clearTimeout(fonte.mostrar); clearTimeout(fonte.falhou); ytCmd('pauseVideo'); }
+      try { fonte?.audio?.pause(); fonte?.audio?.removeAttribute('src'); } catch { /* já parado */ }
+      if (analise) analise.ctx.close?.().catch(() => {});
+    },
+  };
+  quadro = requestAnimationFrame(passo);
+  // ao mesmo tempo: a faixa no Deezer (a capa, as cores, a duração e o trecho de reserva), o clipe oficial no YouTube
+  // e a letra sincronizada (para achar o refrão). O clipe tem até 9 s para ser achado; sem ele, vai o trecho do Deezer
+  (async () => {
+    const limite = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((ok) => setTimeout(() => ok(null), ms))]);
+    const buscarDeezer = async (q) => (navigator.onLine ? faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`).catch(() => null), titulo, artista) : null);
+    const pDeezer = limite((async () => await buscarDeezer([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')) || buscarDeezer(`${artista} ${titulo}`.trim()))(), 8000);
+    const pClipe = navigator.onLine ? limite(procurarClipe(titulo, artista), 9000) : Promise.resolve(null);
+    // (a letra já começa junto: a duração da faixa só escolhe entre edições parecidas da mesma letra)
+    const pLetra = navigator.onLine ? limite(letraSincronizadaJa(titulo, artista), 8000) : Promise.resolve(null);
+    const faixa = await pDeezer;
+    if (!vivo()) return;
+    deezer.faixa = faixa;
+    if (faixa?.capa) {
+      capa.insertAdjacentHTML('afterbegin', `<img src="${esc(faixa.capa)}" alt="" referrerpolicy="no-referrer">`);
+      $('.cm-nota', el)?.remove();
+      el.style.setProperty('--capa', `url("${faixa.capa.replace(/"/g, '%22')}")`);
+      void coresDoFundoDaPrevia(el, faixa.capa);
+    }
+    const clipe = await pClipe;
+    if (!vivo()) return;
+    if (!clipe?.id) { usarDeezer(); return; }
+    const sinc = await pLetra;
+    if (!vivo()) return;
+    const refrao = trechoDoRefrao(sinc?.linhas?.length ? sinc : null, SEGUNDOS_DA_PREVIA);
+    refraoDoClipe = { refrao: refrao?.inicio, duracaoGravacao: faixa?.duracao || 0 };
+    usarClipe(clipe.id, inicioDoRefraoNoClipe({ ...refraoDoClipe, duracaoClipe: Number(clipe.segundos) || 0, segundos: SEGUNDOS_DA_PREVIA }));
+  })();
+}
+// entrou na conta ou saiu do link: o convite sai (entrando, viewOuvir abre a música inteira)
+addEventListener('songbook:conta', () => { if (usuarioConta()) fecharConviteDaMusica(); });
+addEventListener('hashchange', () => { if (conviteDaMusica && !/^#\/ouvir\//.test(location.hash)) fecharConviteDaMusica(); });
+
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início
   if (rotaInicial) {

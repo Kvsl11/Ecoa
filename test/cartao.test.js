@@ -165,3 +165,52 @@ test('os versos enchem conforme são cantados: de 0 a 1 cada um, do começo ao f
   assert.deepEqual(preenchimentoDosVersos(tempos, [1, 9], 30), [1, 1]); // (sem o tempo da linha: cheia)
   assert.equal(preenchimentoDosVersos(null, [1], 3), null);
 });
+
+test('os três cartões são desenhados inteiros (a letra com os versos, o vídeo com o rótulo) e a imagem sai em 4K', async () => {
+  const { desenharCartao, coresDoCartao } = await import('../public/js/lib/cartao.js');
+  globalThis.Path2D ??= class { constructor(d) { this.d = d; } };
+  const textos = [];
+  const contexto = new Proxy({ measureText: (x) => ({ width: String(x).length * 20 }), fillText: (x) => textos.push(x), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }) }, {
+    get: (alvo, k) => (k in alvo ? alvo[k] : () => {}),
+    set: (alvo, k, v) => { alvo[k] = v; return true; },
+  });
+  const tela = () => ({ width: 0, height: 0, getContext: () => contexto });
+  const cor = coresDoCartao('hsl(260 60% 40%)')[0];
+  const base = { titulo: 'Blood In Your Eyes', artista: 'Tove Lo', cor, duracao: 241, t: 2.5 };
+  for (const animacao of ['', 'ondas']) {
+    textos.length = 0;
+    desenharCartao(tela(), { ...base, modo: 'letra', versos: ['Better hang with me', 'Fast cars, big lips'], animacao, preenchido: [1, 0.4] });
+    assert.ok(textos.includes('Música · Tove Lo'), 'a letra mostra o artista');
+    assert.ok(textos.some((x) => /Better hang/.test(x)) && textos.includes('Ecoa'), 'a letra mostra os versos e a marca');
+  }
+  textos.length = 0;
+  desenharCartao(tela(), { ...base, modo: 'video' });
+  assert.ok(textos.includes('Videoclipe · 4:01'));
+  const grande = desenharCartao(tela(), { ...base, modo: 'musica', escala: 2 });
+  assert.deepEqual([grande.width, grande.height], [2160, 3840]);
+});
+
+test('a prévia do link compartilhado: só a faixa certa, com o trecho de 30 s', async () => {
+  const { faixaDaPrevia, comparavel, tempoDaPrevia } = await import('../public/js/lib/convite-musica.js');
+  const resposta = { data: [
+    { title: 'Blood In Your Eyes (Live)', preview: '', artist: { name: 'Tove Lo' } },
+    { title: 'Blood In Your Eyes', preview: 'https://x/outra.mp3', artist: { name: 'Outra Pessoa' }, album: {} },
+    { title: 'Blood In Your Eyes', preview: 'https://x/certa.mp3', duration: 201, artist: { name: 'Tove Lo' }, album: { cover_xl: 'https://x/capa.jpg' } },
+  ] };
+  assert.deepEqual(faixaDaPrevia(resposta, 'Blood In Your Eyes', 'Tove Lo'), { titulo: 'Blood In Your Eyes', artista: 'Tove Lo', capa: 'https://x/capa.jpg', previa: 'https://x/certa.mp3', duracao: 201 });
+  assert.equal(faixaDaPrevia(resposta, 'Outra Música', 'Tove Lo'), null); // (nada de tocar outra música)
+  assert.equal(faixaDaPrevia(null, 'X'), null);
+  const semCapa = { data: [{ title: 'Blood In Your Eyes', preview: 'p.mp3', artist: { name: 'Tove Lo' }, album: { cover_xl: null, md5_image: 'dc492b8d028525c713a52713b9bb005d' } }] };
+  assert.match(faixaDaPrevia(semCapa, 'Blood In Your Eyes', 'Tove Lo').capa, /dc492b8d028525c713a52713b9bb005d\/1000x1000/);
+  assert.equal(comparavel('Coração (Ao Vivo) feat. Fulano'), 'coracao');
+  assert.equal(tempoDaPrevia(29.7), '0:29');
+});
+
+test('a prévia toca o refrão do clipe: o tempo da letra, com a cena de abertura do clipe somada', async () => {
+  const { inicioDoRefraoNoClipe } = await import('../public/js/lib/convite-musica.js');
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 201 }), 52.4); // (mesma duração)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 52.4, duracaoGravacao: 200, duracaoClipe: 230 }), 82.4); // (30 s de cena antes)
+  assert.equal(inicioDoRefraoNoClipe({ duracaoGravacao: 200, duracaoClipe: 200 }), 60); // (sem a letra: 30% da música)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 190, duracaoGravacao: 200, duracaoClipe: 200 }), 169); // (cabem os 30 s)
+  assert.equal(inicioDoRefraoNoClipe({ refrao: 50, duracaoGravacao: 200, duracaoClipe: 500 }), 50); // (outro corte: não soma)
+});
