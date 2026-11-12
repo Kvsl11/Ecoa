@@ -5839,6 +5839,10 @@ html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index:
    desfocadas pelo CSS, que no celular passavam da memória de vídeo e faziam a tela piscar */
 .cm-fundo { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #07090b; }
 .cm-fundo canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* (na tela inicial, a capa entra aos poucos) */
+#convite-inicial .cm-fundo canvas { animation: cm-aparece 0.8s ease both; }
+#convite-inicial .cm-capa img { animation: cm-aparece 0.5s ease both; }
+@keyframes cm-aparece { from { opacity: 0; } }
 /* (o escurecido por cima, para o nome ler bem; mais leve no meio, onde fica a capa) */
 .cm-fundo::after { content: ""; position: absolute; inset: 0; background: radial-gradient(90% 70% at 50% 35%, rgb(7 9 11 / 0.05), rgb(7 9 11 / 0.4)), linear-gradient(180deg, transparent 42%, rgb(7 9 11 / 0.5) 62%, rgb(7 9 11 / 0.6)); }
 /* (acima do conteúdo: antes o bloco do meio, que começa no alto da tela, ficava por cima e o toque não chegava ao botão) */

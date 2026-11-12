@@ -20,6 +20,67 @@
     } catch (e) {}
   </script>
   <script>
+    // A prévia do link de uma música (#/ouvir/<nome>/<artista>) para quem não entrou: a busca no Deezer e a capa
+    // começam aqui, no primeiro instante, em paralelo com o resto da página — com a internet lenta, buscadas só depois
+    // do CSS (ou do app), chegavam tarde e a prévia aparecia como indisponível. A faixa certa (o mesmo nome e o mesmo
+    // artista) tem a capa carregada em 500 px (leve); a tela inicial (no <body>) e o app (window.__previaInicial) usam
+    // o que vier daqui. Também chamada quando o endereço passa a ser o link antes de o app carregar (o APK)
+    try {
+      window.__buscarPreviaInicial = function () {
+        var m = /^#\/ouvir\/([^/]+)(?:\/([^/]*))?/.exec(location.hash);
+        if (!m || window.__songbookOk || /[?&]entrar\b/.test(location.search)) return null;
+        try { if (localStorage.getItem('songbook.conta')) return null; } catch (e) {}
+        var ler = function (x) { try { return decodeURIComponent(x || ''); } catch (e) { return x || ''; } };
+        var titulo = ler(m[1]), artista = ler(m[2]);
+        var P = window.__previaInicial;
+        if (P && P.titulo === titulo && P.artista === artista) return P;
+        var cmp = function (t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[([][^)\]]*[)\]]/g, ' ').replace(/\b(feat|ft)\.?\s.*$/, ' ').replace(/[^a-z0-9]+/g, ' ').trim(); };
+        var par = function (a, b) { var x = cmp(a), y = cmp(b); return !!(x && y) && (x === y || x.indexOf(y) >= 0 || y.indexOf(x) >= 0); };
+        var avisar = [];
+        P = window.__previaInicial = { titulo: titulo, artista: artista, resposta: undefined, img: null, espera: [],
+          aoCarregar: function (fn) { if (P.img) fn(P.img); else avisar.push(fn); } };
+        // (duas buscas: a exata, pelo artista e pelo nome, e — sem a faixa certa nela, como acontece com algumas músicas,
+        // que o Deezer só acha pelo texto — a simples, "artista nome")
+        var pedir = function (q, cb) {
+          var sc = document.createElement('script');
+          sc.fetchPriority = 'high';
+          sc.src = 'https://api.deezer.com/search?q=' + encodeURIComponent(q) + '&limit=8&output=jsonp&callback=' + cb;
+          sc.onerror = function () { window[cb](null); };
+          document.head.appendChild(sc);
+        };
+        var achar = function (d) {
+          return ((d && d.data) || []).filter(function (x) { return x && x.preview && par(x.title_short || x.title, titulo) && (!artista || par(x.artist && x.artist.name, artista)); })[0];
+        };
+        var concluir = function (d) {
+          if (P.resposta !== undefined) return;
+          P.resposta = d || null;
+          try {
+            var f = achar(d);
+            var al = (f && f.album) || {};
+            var md5 = al.md5_image || (f && f.md5_image) || '';
+            var capa = f ? (al.cover_big || al.cover_xl || al.cover_medium || (/^[0-9a-f]{32}$/.test(md5) ? 'https://cdn-images.dzcdn.net/images/cover/' + md5 + '/500x500-000000-80-0-0.jpg' : '')) : '';
+            if (capa) {
+              var img = new Image();
+              img.fetchPriority = 'high'; // (na frente dos arquivos do app, que com a internet lenta ocupavam a banda toda)
+              img.onload = function () { P.img = img; avisar.splice(0).forEach(function (fn) { try { fn(img); } catch (e) {} }); };
+              img.src = capa;
+            }
+          } catch (e) {}
+          P.espera.splice(0).forEach(function (fn) { try { fn(P.resposta); } catch (e) {} });
+        };
+        window.__previaDeezer2 = function (d) { concluir(d); };
+        window.__previaDeezer = function (d) {
+          var f = null; try { f = achar(d); } catch (e) {}
+          if (f || !artista) concluir(d);
+          else pedir((artista + ' ' + titulo).trim(), '__previaDeezer2');
+        };
+        pedir((artista ? 'artist:"' + artista + '" ' : '') + 'track:"' + titulo + '"', '__previaDeezer');
+        return P;
+      };
+      window.__buscarPreviaInicial();
+    } catch (e) {}
+  </script>
+  <script>
     // aplica tema e cor salvos antes de desenhar a página (evita "piscar")
     try {
       // (os ajustes ficam também num bloco pequeno, à parte: ler o da biblioteca inteira, de alguns MB, só para saber o
@@ -126,6 +187,21 @@
         if (artista) el.querySelector('.cm-artista').textContent = artista; else el.querySelector('.cm-artista').remove();
         document.body.appendChild(el);
         raiz.classList.add('com-convite');
+        // (a capa da prévia, que o <head> já foi buscar no Deezer: entra na tela e no fundo assim que chega)
+        var P = window.__buscarPreviaInicial && window.__buscarPreviaInicial();
+        if (P) P.aoCarregar(function (img) {
+          if (!el.isConnected) return;
+          var quadro = el.querySelector('.cm-capa');
+          quadro.innerHTML = '';
+          var mostra = img.cloneNode(); mostra.alt = ''; quadro.appendChild(mostra);
+          // (o fundo: a capa num canvas pequeno, esticado na tela — a ampliação desfoca, sem filtro pesado)
+          var c = document.createElement('canvas'); c.width = 24; c.height = 52;
+          var g = c.getContext('2d'); g.globalAlpha = 0.6;
+          if ('filter' in g) g.filter = 'blur(2px) saturate(1.4)'; // (sem ele, o canvas esticado aparecia quadriculado)
+          var lado = Math.max(c.width, c.height) * 1.4;
+          g.drawImage(img, (c.width - lado) / 2, (c.height - lado) / 2, lado, lado);
+          el.querySelector('.cm-fundo').appendChild(c);
+        });
       };
       window.__conviteInicial();
       addEventListener('hashchange', function () { try { window.__conviteInicial(); } catch (e) {} });
