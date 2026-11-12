@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 668, data: '2026-11-12', titulo: "Aviso de versão nova do aplicativo Android passa a ser exibido nas notificações do celular",
+    itens: [
+      { tipo: 'melhoria', texto: "O aviso de versão nova do APK era exibido como uma folha sobre a tela do aplicativo, interrompendo o uso. O aviso passou a ser enviado às notificações do Android, com a versão instalada, a nova e até três novidades que chegam com ela; o toque na notificação inicia o download do APK, com o andamento na própria notificação a cada 10%, e abre o instalador do Android, que pergunta antes de instalar. O aviso é enviado uma vez por versão e repetido após 12 horas; com músicas sendo baixadas, ele aguarda o fim dos downloads, para não substituir a notificação deles. Com as notificações bloqueadas, a atualização continua disponível em Ajustes → Sobre." },
+      { tipo: 'melhoria', texto: "Pendente: verificado por testes automatizados; o envio da notificação, o toque e o download do APK não foram verificados em aparelho." },
+    ],
+  },
+  {
     versao: 667, data: '2026-11-12', titulo: "Selo \"E\" de música explícita passa a ser atribuído automaticamente, pelo catálogo e pela leitura da letra",
     itens: [
       { tipo: 'correcao', texto: "O selo \"E\" era atribuído somente pela marcação da gravação escolhida para a capa no Deezer ou no iTunes; quando a capa escolhida era a versão limpa ou uma coletânea, a música explícita ficava sem o selo. A marcação passou a considerar todas as gravações da mesma música e do mesmo artista no catálogo (exceto karaokê, cover e tributo), e a versão \"cleaned\" do iTunes continua indicando que existe a explícita. As marcações guardadas pela regra anterior são consultadas de novo quando a linha da música aparece." },
@@ -89,14 +96,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Na folha "Adicionar a esta playlist", o botão "Selecionar todas" dividia o rodapé com "Cancelar" e "Adicionar"; quando ele era ocultado (lista vazia ou busca na internet), os dois botões ficavam encostados à direita, com larguras diferentes. Os dois passaram a ocupar a largura inteira, com o mesmo tamanho (168 px cada em tela de 390 px), e "Selecionar todas" foi movido para baixo do campo de busca. O botão "Adicionar" deixou de exibir a quantidade de músicas marcadas.' },
       { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, o atalho "Procurar outras na internet" da mesma folha exibia a palavra "outras" em português. O texto passou a ter entrada própria nos dois dicionários.' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações foram conferidas em navegador, em 390 px, nos modos claro e escuro, em inglês e espanhol; não foram executadas em aparelho. No aplicativo de Android, elas chegam quando a atualização é instalada em Ajustes.' },
-    ],
-  },
-  {
-    versao: 658, data: '2026-11-12', titulo: 'Aplicativo de Android: o conteúdo só muda quando a atualização é instalada em Ajustes',
-    itens: [
-      { tipo: 'correcao', texto: 'No aplicativo de Android, cada versão nova do site era baixada e ativada automaticamente, com recarga da tela durante o uso, antes de a atualização ser instalada em Ajustes → Sobre → Atualização do app. A atualização continuava indicada, porque ela instala o APK, cujo número não havia mudado. O pacote de arquivos baixado por um APK passou a permanecer em uso enquanto esse APK estiver instalado: uma versão nova do site não é baixada nem recarrega a tela. O conteúdo é trocado quando o APK é atualizado em Ajustes. No site, aberto pelo navegador, a atualização automática foi mantida.' },
-      { tipo: 'melhoria', texto: 'Em simulação em navegador, duas versões seguidas do site com o mesmo número de APK não alteraram o pacote em uso nem pediram recarga da tela; o registro com outro número de APK baixou o pacote novo e removeu o anterior; sem número de APK, a versão nova entrou automaticamente.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração não foi executada em aparelho. Ela passa a valer com a publicação desta versão do site, sem exigir um APK novo. Em consequência, as correções publicadas no site deixam de chegar ao aplicativo até a atualização ser instalada em Ajustes.' },
     ],
   },
 ];

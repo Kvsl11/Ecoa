@@ -20060,38 +20060,39 @@ async function atualizarApk(bt, aoAndar) {
     if (bt) bt.disabled = false;
   }
 }
-// O aviso de versão nova do APK (ao abrir o app): uma folha com o ícone, "1.27 → 1.29", o que muda com ela (as
-// novidades que dependem da atualização do app) e, ao tocar em Atualizar, o andamento do download ali mesmo
-async function oferecerAtualizacaoApk(r) {
-  // (o nome curto de cada versão que mexeu no app de Android: "O play no meio do círculo", "Copiar a letra e a cifra"…)
-  // (as novidades que vêm DENTRO do APK novo e que este ainda não tem: o robô publica junto com a versão. Antes eram as
-  // do próprio app instalado, as antigas)
-  const doApp = novidadesQueChegam(r.publicada).slice(0, 5).map((n) => n.titulo);
-  await openDialog(`
-    <div class="apk-at">
-      <div class="apk-at-cab"><span class="apk-at-ic">${logo(52)}</span><span class="grow"><h3>Nova versão do app</h3>
-        <span class="apk-at-versoes"><i>${esc(r.instalada?.nome || 'antiga')}</i>${icon('next', 14)}<b>${esc(r.publicada.nome)}</b></span></span></div>
-      ${doApp.length ? `<div class="apk-at-novo"><small>O que vem com ela</small><ul>${doApp.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-      <div class="apk-at-andamento" hidden><div class="apk-at-barra"><i></i></div><small>Baixando…</small></div>
-      <p class="apk-at-nota">${icon('check', 14)} Suas músicas, playlists e downloads continuam. O Android pergunta antes de instalar.</p>
-    </div>
-    <div class="acts"><button class="btn ghost" data-no>Agora não</button><button class="btn primary" data-ok>${icon('download', 16)} Atualizar</button></div>`,
-  (dlg, done) => {
-    $('[data-no]', dlg).onclick = () => done(null);
-    setTimeout(() => $('[data-ok]', dlg)?.focus({ preventScroll: true }), 0);
-    const ok = $('[data-ok]', dlg);
-    ok.onclick = async () => {
-      const and = $('.apk-at-andamento', dlg);
-      const barra = $('.apk-at-barra i', dlg);
-      const rot = $('.apk-at-andamento small', dlg);
-      and.hidden = false;
-      ok.disabled = true;
-      ok.textContent = 'Baixando…';
-      const foi = await atualizarApk(null, (pct) => { barra.style.width = `${pct}%`; rot.textContent = pct >= 100 ? 'Abrindo o instalador…' : `Baixando… ${pct}%`; });
-      if (foi) { barra.style.width = '100%'; rot.textContent = 'Abrindo o instalador do Android…'; setTimeout(() => done(true), 1500); }
-      else { and.hidden = true; ok.disabled = false; ok.innerHTML = `${icon('download', 16)} Tentar de novo`; }
-    };
+// O aviso de versão nova do APK vai para as notificações do celular, e não mais para uma folha por cima do app: tocar
+// na notificação abre o app em #/atualizar-app, que baixa o APK novo (o andamento também na notificação) e abre a tela
+// de instalar do Android. A notificação usa a mesma tag do começo ao fim: cada passo troca o anterior
+const TAG_ATUALIZACAO_APK = 'apk-atualizacao';
+async function notificarAtualizacaoApk(r) {
+  const de = r.instalada?.nome || t('antiga');
+  const novo = novidadesQueChegam(r.publicada).slice(0, 3).map((n) => t(n.titulo));
+  return notificarSistema({
+    titulo: `${t('Nova versão do app')}: ${de} → ${r.publicada.nome}`,
+    texto: `${t('Toque para atualizar. Suas músicas, playlists e downloads continuam.')}${novo.length ? `\n• ${novo.join('\n• ')}` : ''}`,
+    tag: TAG_ATUALIZACAO_APK,
+    href: '#/atualizar-app',
   });
+}
+let atualizandoApkPelaNotificacao = false;
+async function atualizarApkPelaNotificacao() {
+  if (atualizandoApkPelaNotificacao) return;
+  atualizandoApkPelaNotificacao = true;
+  try {
+    // (o andamento a cada 10%, e só sem música baixando: a notificação dos downloads é a do serviço deles)
+    let ultimo = -10;
+    const andamento = (pct) => {
+      if (baixando.size || pct - ultimo < 10) return;
+      ultimo = pct;
+      void notificarSistema({ titulo: 'Baixando a atualização do app', texto: `${pct}%`, tag: TAG_ATUALIZACAO_APK, silenciosa: true, pct });
+    };
+    andamento(0);
+    const foi = await atualizarApk(null, andamento);
+    if (foi) void notificarSistema({ titulo: 'Atualização baixada', texto: 'Abrindo o instalador do Android.', tag: TAG_ATUALIZACAO_APK, silenciosa: true });
+    else void notificarSistema({ titulo: 'Não deu para atualizar o app', texto: 'Toque para tentar de novo.', tag: TAG_ATUALIZACAO_APK, href: '#/atualizar-app', silenciosa: true });
+  } finally {
+    atualizandoApkPelaNotificacao = false;
+  }
 }
 // a linha "Atualização do app" (Ajustes → Sobre, só no APK)
 async function mostrarAtualizacaoApk() {
@@ -23955,6 +23956,12 @@ function route() {
     case 'oracao': return viewOracao(b);
     case 'fontes': return viewFontes();
     case 'novidades': return viewNovidades(b);
+    // (o toque na notificação de versão nova do APK: a atualização começa e a tela volta para onde estava, ou o Início)
+    case 'atualizar-app': {
+      if (history.length > 1) history.back(); else location.replace('#/');
+      if (noApk()) void atualizarApkPelaNotificacao();
+      return;
+    }
     case 'estatisticas': return viewEstatisticas(b);
     case 'recentes': return viewRecentes(b);
     case 'offline': return viewOffline();
@@ -24184,19 +24191,22 @@ if (ecoaNativo) {
   void ecoaNativo.versao?.().then((info) => { if (info?.codigo) anotarVersoesApk([{ codigo: info.codigo, nome: info.nome || String(info.codigo), web: NOVIDADES[0]?.versao }]); }).catch(() => {});
   // A atualização do APK: confere ao abrir o app (um pouco depois, sem atrapalhar a abertura) e também ao voltar para
   // ele (no máximo a cada 20 minutos): o app fica dias aberto em segundo plano, e conferir só ao abrir deixava a versão
-  // nova sem aviso. Avisa uma vez por versão; com "Agora não", avisa de novo depois de 12 horas
+  // nova sem aviso. Avisa uma vez por versão, nas notificações do celular (não mais numa folha dentro do app); a
+  // notificação dispensada volta depois de 12 horas. Com música baixando, o aviso espera (a notificação comum tiraria a
+  // dos downloads do lugar)
   let conferidoEm = 0;
   const conferirEAvisar = async () => {
     if (!navigator.onLine || document.visibilityState === 'hidden' || Date.now() - conferidoEm < 20 * 60e3) return;
+    if (baixando.size) return;
     conferidoEm = Date.now();
     const r = await conferirAtualizacaoApk().catch(() => null);
-    if (!r?.nova || !r.instalada?.codigo || document.querySelector('.apk-at')) return;
+    if (!r?.nova || !r.instalada?.codigo || atualizandoApkPelaNotificacao || baixando.size) return;
     const avisado = db.prefs().apkAvisado;
     const avisadoEm = Number(db.prefs().apkAvisadoEm) || 0;
     if (avisado === r.publicada.codigo && Date.now() - avisadoEm < 12 * 3600e3) return;
+    if (!(await notificarAtualizacaoApk(r))) return;
     db.setPref('apkAvisado', r.publicada.codigo);
     db.setPref('apkAvisadoEm', Date.now());
-    void oferecerAtualizacaoApk(r);
   };
   setTimeout(conferirEAvisar, 8000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(conferirEAvisar, 3000); });
