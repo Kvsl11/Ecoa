@@ -3608,6 +3608,14 @@ const player = (() => {
   let planoPronto = null;
   let passoDaTransicao = () => {};
   let estado = 'parado'; // tocando | pausado | parado
+  // A pausa pedida (pelo botão, pela notificação, pelo fone): quando foi (performance.now; 0 sem pausa pedida) e o ponto
+  // em que a música estava. Enquanto ela vale, nada volta a tocar sozinho: o YouTube que avisa "tocando" (ignorou o
+  // pausar, ou voltou depois dele) e o arquivo que recomeça são pausados de novo, e o tempo não anda. Só um tocar
+  // pedido (o play, a notificação, o fone, outra música, tocar no próprio vídeo) tira a pausa. Antes o player do
+  // YouTube voltava a tocar cerca de 1 s depois do pausar, no app e na notificação, e a música seguia com o botão em
+  // "tocar"
+  let pausaFirme = 0;
+  let tempoDaPausa = 0;
   let tempo = 0;
   let marcaTempo = 0;
   let pendente = null;
@@ -5010,6 +5018,26 @@ const semLinhasDeAcordes = (sinc) => {
     else atual = null;
   };
   const comandoYt = (func, args = []) => iframeAtual()?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+  // A pausa pedida segue valendo (pausaFirme): o que voltou a tocar sozinho — o player do YouTube e o de reserva, o
+  // arquivo do aparelho e as outras versões dele — é pausado de novo, e o player continua "pausado", no ponto da pausa
+  let seguradaEm = 0;
+  const segurarPausa = () => {
+    if (!pausaFirme || !atual) return;
+    for (const m of [som, somAudio, somVideo, somKaraoke]) { try { if (m && !m.paused) m.pause(); } catch { /* já parado */ } }
+    // (o pedido ao YouTube no máximo a cada 300 ms: ele avisa o tempo várias vezes por segundo)
+    if (performance.now() - seguradaEm > 300) {
+      seguradaEm = performance.now();
+      for (const f of tela.querySelectorAll('iframe')) { try { f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'); } catch { /* sem o vídeo */ } }
+    }
+    tempo = tempoDaPausa;
+    marcaTempo = performance.now();
+    if (estado === 'tocando') { estado = 'pausado'; desenhar(); avisar(); }
+  };
+  // (e confere a cada segundo: o YouTube que voltou sem avisar o estado, o arquivo que recomeçou)
+  setInterval(() => {
+    if (!pausaFirme || !atual) return;
+    if ((!local && estadoYt === 1) || [som, somAudio, somVideo, somKaraoke].some((m) => m && !m.paused && !m.muted && m.volume > 0.05)) segurarPausa();
+  }, 1000);
   // o YouTube avisa o anúncio num evento só dele (o estado do vídeo não muda): é preciso pedir (antes e depois do
   // "listening": o anúncio pode começar logo, e o aviso que passou antes do pedido não volta)
   const ouvirAnuncio = (f) => f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onAdStateChange'] }), '*');
@@ -5157,6 +5185,8 @@ const semLinhasDeAcordes = (sinc) => {
     m.addEventListener('durationchange', () => { if (doSom() && m.duration > 0 && Number.isFinite(m.duration)) { duracao = m.duration; desenhar(); } });
     m.addEventListener('play', () => {
       if (!doSom()) return;
+      // (com a pausa pedida, o arquivo não volta a tocar sozinho: veja pausaFirme)
+      if (pausaFirme) { m.pause(); return; }
       estado = 'tocando'; desenhar(); avisar();
       // (a próxima música, sendo um vídeo do aparelho, começou com o app em segundo plano: vai para o som também)
       if (m === somVideo && document.visibilityState === 'hidden') setTimeout(() => passarParaOSom(), 50);
@@ -5209,7 +5239,8 @@ const semLinhasDeAcordes = (sinc) => {
   tela.addEventListener('click', (e) => { if (!e.target.closest('.pl-tela-cheia')) mostrarCtrl(); });
   addEventListener('blur', () => setTimeout(() => {
     const f = document.activeElement;
-    if (f?.tagName === 'IFRAME' && tela.contains(f)) { mostrarCtrl(); f.blur(); }
+    // (o toque no próprio vídeo do YouTube pode ser o play dele: a pausa pedida deixa de segurar a música)
+    if (f?.tagName === 'IFRAME' && tela.contains(f)) { pausaFirme = 0; mostrarCtrl(); f.blur(); }
   }, 0));
   const elementoDe = (l) => (l.karaoke ? elementoKaraoke() : l.video ? (somVideo ||= criarSom(Object.assign(document.createElement('video'), { playsInline: true, className: 'pl-local', poster: SEM_CARTAZ })))
     : (somAudio ||= criarSom(new Audio())));
@@ -5934,6 +5965,9 @@ const semLinhasDeAcordes = (sinc) => {
     // segundos do vídeo agora (o YouTube avisa algumas vezes por segundo; entre um aviso e outro, estima)
     // (no máximo 2 s além do último aviso: com o app em segundo plano o vídeo para de avisar, e a letra corria sozinha
     // muito à frente do que se cantava)
+    // o tocar que o sistema manda logo depois de uma pausa (até 1,5 s): não é da pessoa — ninguém pausa e toca de novo
+    // tão rápido pela notificação ou pelo fone — e era ele que fazia a música voltar sozinha depois do pausar
+    get acabouDePausar() { return Boolean(pausaFirme) && performance.now() - pausaFirme < 1500; },
     get tempoAgora() { return tempo + (estado === 'tocando' && marcaTempo && !anuncio ? Math.min(2, (performance.now() - marcaTempo) / 1000) : 0); },
     // passando o anúncio do YouTube (a música ainda não começou)
     get emAnuncio() { return Boolean(anuncio); },
@@ -5978,6 +6012,9 @@ const semLinhasDeAcordes = (sinc) => {
       // (a última música, voltando ao abrir o app: no ponto em que tinha parado)
       if (inicio > 0) { tempo = inicio; pendente = inicio; pendenteEm = performance.now(); }
       estado = pausado ? 'pausado' : 'tocando';
+      // (outra música, tocando: a pausa da anterior não vale para ela; aberta pausada, fica pausada de verdade)
+      pausaFirme = pausado ? performance.now() : 0;
+      tempoDaPausa = tempo;
       montar({ autoplay: !pausado });
       desenhar();
       avisar();
@@ -6062,19 +6099,25 @@ const semLinhasDeAcordes = (sinc) => {
         if (certo !== null && Math.abs(certo - api.tempoAgora) > 1) api.irPara(certo); else desenhar();
       } else desenhar();
     },
-    irPara(seg) {
+    // tocar: false só leva ao ponto, sem tirar a pausa (a barra do tempo da notificação e da tela de bloqueio: antes,
+    // mexer nela com a música pausada fazia a música voltar a tocar)
+    irPara(seg, { tocar = true } = {}) {
       if (!atual) return;
       tempo = Math.max(0, seg);
       marcaTempo = performance.now();
       pendente = local ? null : tempo;
       pendenteEm = performance.now();
       tentativasIda = 0;
+      if (pausaFirme) tempoDaPausa = tempo;
       comando('seekTo', [tempo, true]);
-      if (estado !== 'tocando') { comando('playVideo'); estado = 'tocando'; desenhar(); avisar(); }
+      if (estado !== 'tocando' && tocar) { pausaFirme = 0; comando('playVideo'); estado = 'tocando'; desenhar(); avisar(); }
+      else desenhar();
     },
     alternar() {
       if (!atual) return;
       if (estado === 'tocando') { api.pausar(); return; }
+      pausaFirme = 0;
+      marcaTempo = performance.now(); // (o tempo anda a partir de agora: antes pulava até 2 s ao voltar a tocar)
       comando('playVideo'); estado = 'tocando';
       desenhar();
       avisar();
@@ -6085,6 +6128,10 @@ const semLinhasDeAcordes = (sinc) => {
     // transição, a música continuava
     pausar() {
       if (!atual) return;
+      if (!pausaFirme) tempoDaPausa = api.tempoAgora;
+      pausaFirme = performance.now();
+      tempo = tempoDaPausa;
+      marcaTempo = performance.now();
       acabarTransicao(true);
       for (const m of [som, somAudio, somVideo, somKaraoke, mudo, ...tela.querySelectorAll('audio, video')]) { try { m?.pause(); } catch { /* já parado */ } }
       for (const f of tela.querySelectorAll('iframe')) { try { f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'); } catch { /* sem o vídeo */ } }
@@ -6096,8 +6143,9 @@ const semLinhasDeAcordes = (sinc) => {
     // tocar, mesmo com o estado já em "tocando" (o estado errado deixava o tocar da notificação sem efeito)
     retomar() {
       if (!atual) return;
+      pausaFirme = 0;
       comando('playVideo');
-      if (estado !== 'tocando') { estado = 'tocando'; desenhar(); avisar(); }
+      if (estado !== 'tocando') { marcaTempo = performance.now(); estado = 'tocando'; desenhar(); avisar(); }
     },
     // a página vai ser desenhada de novo: o vídeo sai da telinha antes (senão iria embora com a página velha)
     soltar: () => tirarDaTelinha(),
@@ -6273,7 +6321,7 @@ const semLinhasDeAcordes = (sinc) => {
         artwork: !ytDaCapa() && !/^https?:/.test(atual.capa || '') ? [] : [{ src: capa, sizes: '480x360', type: 'image/jpeg' }, { src: `https://i.ytimg.com/vi/${ytDaCapa()}/mqdefault.jpg`, sizes: '320x180', type: 'image/jpeg' }],
       });
       const acao = (nome, fn) => { try { ms.setActionHandler(nome, fn); } catch { /* ação não suportada */ } };
-      acao('play', () => { if (estado !== 'tocando') api.alternar(); });
+      acao('play', () => { if (estado !== 'tocando' && !api.acabouDePausar) api.alternar(); });
       acao('pause', () => { if (estado === 'tocando') api.alternar(); });
       acao('stop', () => api.fechar());
       acao('seekto', (d) => { if (typeof d.seekTime === 'number') api.irPara(d.seekTime); });
@@ -6560,7 +6608,7 @@ const semLinhasDeAcordes = (sinc) => {
       if (anuncio) {
         marcaTempo = 0;
         const antes = estado;
-        if (info.playerState === 1) estado = 'tocando';
+        if (info.playerState === 1) { if (pausaFirme) segurarPausa(); else estado = 'tocando'; }
         desenhar();
         if (antes !== estado) avisar();
         return;
@@ -6578,6 +6626,11 @@ const semLinhasDeAcordes = (sinc) => {
         else if (longe && ++tentativasIda < 8) { comando('seekTo', [pendente + andou, true]); return; }
         else { pendente = null; tentativasIda = 0; }
       }
+      // (com a pausa pedida, o tempo fica no ponto da pausa: o YouTube que seguiu tocando é pausado de novo)
+      if (usarTempo && pausaFirme) {
+        if (info.currentTime > tempoDaPausa + 0.75) segurarPausa();
+        usarTempo = false;
+      }
       if (usarTempo) { tempo = info.currentTime; marcaTempo = performance.now(); }
       if (typeof info.duration === 'number' && info.duration > 0 && !outroVideo) {
         duracaoVista(atual.youtube, info.duration);
@@ -6587,7 +6640,8 @@ const semLinhasDeAcordes = (sinc) => {
         }
       }
       const antes = estado;
-      if (info.playerState === 1) { estado = 'tocando'; prepararReserva(); }
+      if (info.playerState === 1 && pausaFirme) segurarPausa();
+      else if (info.playerState === 1) { estado = 'tocando'; prepararReserva(); }
       else if (info.playerState === 2) estado = 'pausado';
       else if (info.playerState === 0) {
         // (o "acabou" do vídeo que acabou de entrar na troca, parado no fim antes de ir ao ponto: não é o fim da música)
@@ -24299,14 +24353,17 @@ if (ecoaNativo) {
     // (com o app abrindo pelo widget, a última música ainda pode estar voltando: espera um pouco por ela)
     const fazer = (vez = 0) => {
       if (!player.atual) { if (vez < 20) setTimeout(() => fazer(vez + 1), 250); return; }
-      if (acao === 'alternar') player.alternar();
+      // (o tocar que chega logo depois de uma pausa vem do sistema, não da pessoa: veja player.acabouDePausar)
+      if ((acao === 'tocar' || (acao === 'alternar' && player.estado !== 'tocando')) && player.acabouDePausar) { /* ignorado */ }
+      else if (acao === 'alternar') player.alternar();
       // (do player do Android e do fone: tocar e pausar explícitos, que valem mesmo com o estado guardado errado; repetido
       // ou atrasado, o comando não inverte o estado)
       else if (acao === 'tocar') player.retomar();
       else if (acao === 'pausar' || acao === 'fechar') player.pausar();
       else if (acao === 'proxima') player.pular(1);
       else if (acao === 'anterior') { if ((player.tempoAgora || 0) > 3 || !player.pular(-1)) player.irPara(0); }
-      else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0)); // (a barra do tempo do Android)
+      // (a barra do tempo do Android: leva ao ponto sem tirar a pausa)
+      else if (/^ir:/.test(acao || '')) player.irPara(Math.max(0, Number(acao.slice(3)) || 0), { tocar: player.estado === 'tocando' });
       // (o estado vai para o Android agora e de novo logo depois: o YouTube muda de estado um pouco depois do comando)
       ultimo = ''; mandar();
       setTimeout(() => { ultimo = ''; mandar(); }, 700);
