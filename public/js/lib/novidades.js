@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 657, data: '2026-11-12', titulo: 'Desempenho: gravações da biblioteca agrupadas e listas compridas mais leves; textos de progresso traduzidos',
+    itens: [
+      { tipo: 'correcao', texto: 'Cada alteração em uma música gravava a biblioteca inteira no armazenamento do aparelho, de forma síncrona. Ao abrir uma playlist de 28 músicas e iniciar a reprodução, com biblioteca de teste de 300 músicas (2,3 MB), a biblioteca era regravada 57 vezes em 20 segundos, e a tela ficava bloqueada durante cada gravação. As alterações consecutivas passaram a ser reunidas em uma única gravação, 600 ms após a última e no máximo 2,5 s após a primeira; o que está pendente é gravado quando o aplicativo vai para segundo plano ou é fechado. No mesmo teste, as gravações caíram de 57 para 7, e o tempo de tela bloqueada por elas, de 959 ms para 106 ms, medido em navegador de computador.' },
+      { tipo: 'melhoria', texto: 'Nas listas compridas (biblioteca, Músicas curtidas e playlist), todas as linhas eram calculadas e desenhadas na abertura, inclusive as que estão fora da tela. As linhas fora da área visível passaram a ser montadas apenas ao rolar. Com 400 músicas, em tamanho de tablet, o tempo em tarefas longas na abertura da lista caiu de 723 ms para 420 ms, medido em navegador de computador.' },
+      { tipo: 'melhoria', texto: 'Na abertura do aplicativo, o tema passou a ser lido do bloco de ajustes, e não mais da biblioteca inteira. Com o player aberto, a conferência do lugar do vídeo passou de 60 para 20 vezes por segundo quando o vídeo já está posicionado. Na tela inicial, a fileira "Clipes de artistas parecidos" passou a consultar o Deezer e o YouTube somente quando a página é rolada até as fileiras de clipes.' },
+      { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, os textos de progresso dos botões permaneciam em português ("Baixando…", "Instalando…", "Limpando…", entre outros), porque a varredura dos textos não incluía palavras isoladas seguidas de reticências. Foram acrescentadas 33 entradas aos dois dicionários, e um texto conhecido seguido de reticências ou de dois-pontos passou a ser traduzido mesmo sem entrada própria.' },
+      { tipo: 'melhoria', texto: 'Pendente: as medições foram feitas em navegador de computador, em tamanho de tablet (800 × 1280), com bibliotecas de teste; não foram executadas em tablet nem em celular. O custo de desenho do aparelho (o vídeo, a capa animada e as animações do painel "Tocando agora") não foi medido e pode responder por parte dos travamentos observados.' },
+    ],
+  },
+  {
     versao: 656, data: '2026-11-12', titulo: 'Artista e álbum pelo catálogo do Deezer; busca com músicas e artistas em alta no Brasil e no mundo; mais clipes na tela inicial',
     itens: [
       { tipo: 'melhoria', texto: 'A página do artista, a lista de álbuns e a página do álbum eram montadas com a discografia do Cifra Club, que traz apenas as músicas com cifra. Passaram a usar o catálogo do Deezer: as 50 músicas mais tocadas, todos os lançamentos (álbuns, EPs, singles e coletâneas, com capa, ano e tipo) e, no álbum, as faixas, a data de lançamento, a duração e a gravadora. Do Cifra Club vem apenas a cifra, procurada quando a música é aberta; a lista das músicas com cifra fica na aba "Com cifra". O artista que o Deezer não tem continua com a página anterior. No teste com um artista, foram exibidos 50 músicas e 75 lançamentos.' },
@@ -84,13 +94,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'No modo claro, o título "Sobre o artista", exibido sobre a foto do artista, herdava o tom escuro do texto do cartão e ficava ilegível sobre fotos escuras. O título passou a ser sempre branco, com sombra reforçada, e a faixa escurecida no alto da foto foi intensificada (de 45% para 62% de preto no topo, até desaparecer a 42% da altura), o que mantém a leitura sobre fotos escuras, claras ou coloridas, nos modos claro e escuro.' },
       { tipo: 'melhoria', texto: 'Os demais textos sobre imagem foram conferidos pelas regras de estilo (os quadros de "Explorar o artista", a duração nos vídeos relacionados, o topo sobre a capa animada, o cabeçalho da música com o clipe ao fundo e os cartões da tela inicial): já usam cor fixa branca com sombra ou escurecimento e não foram alterados.' },
       { tipo: 'melhoria', texto: 'Pendente: a correção foi verificada em navegador, em página de teste com o cartão sobre fundos preto, branco e amarelo, nos dois modos; não foi executada no aplicativo com fotos reais nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 647, data: '2026-11-11', titulo: 'Barra de reprodução do celular: linha de progresso de ponta a ponta do cartão',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, a linha de progresso começava e terminava 8 px para dentro das bordas do cartão, com 2 px de altura. Passou a ocupar a largura inteira do cartão, do início ao fim, com 3 px de altura, acompanhando os cantos arredondados inferiores (o cartão recorta a linha nos cantos). O vídeo da barra passou a terminar logo acima da linha, com o canto inferior esquerdo reto. A alteração vale para os modos claro e escuro.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração foi medida em navegador, em página de teste com a marcação da barra (cartão e linha de 8 a 382 px, em tela de 390 px), nos dois modos; não foi executada no aplicativo nem em aparelho.' },
     ],
   },
 ];

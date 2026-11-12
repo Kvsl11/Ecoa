@@ -3758,8 +3758,15 @@ const player = (() => {
   // diminuía o zoom e não voltava, e o mini player saía do lugar, cortado embaixo
   const telaFixa = ehTablet();
   if (telaFixa) tela.classList.add('fixa');
+  // (com o vídeo já dentro do lugar dele — o moveBefore —, não há posição para acompanhar a cada quadro: só conferir
+  // se o lugar mudou. Aí a conferência roda 20 vezes por segundo, e não 60: no tablet, com o painel sempre aberto, isto
+  // nunca parava)
+  let pulos = 0;
+  let assentado = false;
   const seguir = () => {
     quadro = requestAnimationFrame(seguir);
+    if (assentado && ++pulos % 3) return;
+    assentado = false;
     if (!btnTelaCheia.isConnected && !tela.hidden && tela.firstElementChild) tela.append(btnTelaCheia);
     // o vídeo em tela cheia (o botão do YouTube ou o do vídeo baixado) fica onde está: mudar ele de lugar (ao girar a
     // tela, o lugar dele no player muda) tirava da tela cheia, e o vídeo girava, saía e voltava ao normal
@@ -3773,7 +3780,7 @@ const player = (() => {
     // player, ficava deslocado (uma parte cortada, outra sobrando)
     const naMini = a === mini && document.documentElement.classList.contains('pp');
     if (a && mover && (noPalco() || naMini)) porNaTelinha(a); else tirarDaTelinha();
-    if (dentro()) { poeEstilo('visibility', escondida ? 'hidden' : 'visible'); poeEstilo('clipPath', ''); if (tela.classList.contains('no-palco') !== noPalco()) tela.classList.toggle('no-palco', noPalco()); return; }
+    if (dentro()) { poeEstilo('visibility', escondida ? 'hidden' : 'visible'); poeEstilo('clipPath', ''); if (tela.classList.contains('no-palco') !== noPalco()) tela.classList.toggle('no-palco', noPalco()); assentado = true; return; }
     const r = a?.isConnected ? a.getBoundingClientRect() : null;
     if (!r || !r.width || !r.height) { poeEstilo('visibility', 'hidden'); return; }
     // (no tablet a tela solta é fixa na janela: ver o CSS de #pl-tela)
@@ -9219,8 +9226,16 @@ function carregarClipesRelacionados(box) {
   if (!navigator.onLine) return;
   clipesRelacionados = [];
   const vistos = new Set();
-  fileiraDeClipes($('.inicio-clipes-rel', box), clipesDosSeusArtistas(vistos));
-  fileiraDeClipes($('.inicio-clipes-parecidos', box), clipesDeArtistasParecidos(vistos));
+  const dosSeus = $('.inicio-clipes-rel', box);
+  fileiraDeClipes(dosSeus, clipesDosSeusArtistas(vistos));
+  // (a fileira dos parecidos consulta o Deezer e o YouTube para vários artistas: só começa quando a pessoa rola a página
+  // até a fileira de cima, e não junto com a abertura do app)
+  const parecidos = $('.inicio-clipes-parecidos', box);
+  if (!parecidos || !dosSeus) return;
+  let comecou = false;
+  const comecar = () => { if (comecou || !parecidos.isConnected) return; comecou = true; olho?.disconnect(); fileiraDeClipes(parecidos, clipesDeArtistasParecidos(vistos)); };
+  const olho = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) comecar(); }, { rootMargin: '300px' }) : null;
+  if (olho) olho.observe(dosSeus.previousElementSibling || dosSeus); else setTimeout(comecar, 6000);
 }
 // tocar no clipe: toca já no modo vídeo. O da biblioteca toca a música de lá (com a letra, a cifra e os arquivos dela)
 function ligarClipes(box) {

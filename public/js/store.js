@@ -39,9 +39,36 @@ let state = load();
 // músicas salvas por versões anteriores ainda não têm capa/vídeo extraídos do conteúdo
 for (const s of state.songs) if ((s.youtube === undefined || s.parte === undefined) && s.content) Object.assign(s, metaFrom(s.content));
 
+// Gravar é montar o texto da biblioteca inteira (alguns MB, com as cifras e as letras sincronizadas) e escrevê-lo no
+// armazenamento, tudo de uma vez e segurando a tela enquanto isso. Cada mudança gravava na hora: abrir uma playlist de
+// 28 músicas e tocar gravava a biblioteca inteira 57 vezes em 20 s (a duração de cada música, o vídeo de cada faixa, as
+// revisões em segundo plano), e a tela engasgava a cada uma, mais ainda no tablet e com a biblioteca grande.
+// As mudanças seguidas agora viram uma gravação só: 600 ms depois da última, e no máximo 2,5 s depois da primeira. O
+// que está na memória já vale na hora; e nada fica por gravar ao sair (o app indo para o fundo, a página fechando).
+const ESPERA_GRAVAR = 600;
+const MAXIMO_SEM_GRAVAR = 2500;
+let gravacaoPendente = 0;
+let pedidaEm = 0;
 function persist() {
-  // (os ajustes primeiro: pequenos, cabem mesmo quando o bloco da biblioteca não cabe)
+  // (os ajustes primeiro e na hora: pequenos, cabem mesmo quando o bloco da biblioteca não cabe)
   try { localStorage.setItem(KEY_PREFS, JSON.stringify(state.prefs)); } catch { /* sem armazenamento */ }
+  // (fora do navegador, nos testes e no servidor, grava na hora)
+  if (typeof document === 'undefined' || typeof window === 'undefined') { gravarAgora(); return; }
+  if (!gravacaoPendente) pedidaEm = Date.now();
+  clearTimeout(gravacaoPendente);
+  gravacaoPendente = setTimeout(gravarAgora, Math.max(0, Math.min(ESPERA_GRAVAR, MAXIMO_SEM_GRAVAR - (Date.now() - pedidaEm))));
+}
+// grava já o que estiver esperando (ao sair do app, e antes de quem precisa do que está guardado)
+function gravarPendente() { if (gravacaoPendente) gravarAgora(); }
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') gravarPendente(); });
+  window.addEventListener('pagehide', gravarPendente);
+  window.addEventListener('beforeunload', gravarPendente);
+  document.addEventListener('freeze', gravarPendente);
+}
+function gravarAgora() {
+  clearTimeout(gravacaoPendente);
+  gravacaoPendente = 0;
   const json = JSON.stringify(state);
   try {
     localStorage.setItem(KEY, json);
@@ -208,6 +235,7 @@ export const db = {
     }
     for (const s of data.sets || []) if (!state.sets.some((x) => x.id === s.id)) state.sets.push(s);
     persist();
+    gravarPendente(); // (o backup que acabou de entrar: na hora)
     return n;
   },
   // ---- conta Google (conta.js): a biblioteca como vai para a nuvem e o que chega dela
@@ -234,5 +262,8 @@ export const db = {
   clear() {
     state = { songs: [], sets: [], recent: [], prefs: { ...DEFAULT_PREFS } };
     persist();
+    gravarPendente(); // (apagar tudo: na hora)
   },
+  // grava já o que estiver esperando para gravar (as mudanças seguidas são juntadas: ver persist)
+  gravarJa: gravarPendente,
 };
