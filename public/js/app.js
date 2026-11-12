@@ -43,9 +43,11 @@ import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { chaveDaParte } from './lib/missa.js';
+import { codigoQR } from './lib/qr.js';
+import { desenharCartaoDaLista, lerCodigoDaLista, linkDaLista, linkDaListaNoAplicativo, MUSICAS_NO_CARTAO, TAMANHO_DO_CARTAO_DA_LISTA, textoDaLista } from './lib/cartao-lista.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
 import { desenharFundoDaPrevia, faixaDaPrevia, faixaDoItunes, tempoDaPrevia } from './lib/convite-musica.js';
-import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, lerLinkDaMusica, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
+import { ENDERECO_DO_ECOA, indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, lerLinkDaMusica, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
 import { batida, bordasDoSom, MAX_TRANSICAO, planoAutomix, planoCrossfade, volumes } from './lib/automix.js';
@@ -18260,7 +18262,7 @@ function viewPlaylist(set) {
   $('#pl-capa').onclick = detalhes;
   $('#pl-nome').onclick = detalhes;
   $('#pl-mini')?.addEventListener('click', () => previaDaPlaylist(set));
-  $('#pl-share').onclick = () => compartilharPlaylist(set);
+  $('#pl-share').onclick = () => compartilharLista(set);
   $('#pl-video').onclick = alternarVideo;
   $('#pl-editar')?.addEventListener('click', () => editarPlaylist(set));
 
@@ -18722,10 +18724,8 @@ function previaDaPlaylist(set, inicio = 0) {
   ativar(k0);
   raf = requestAnimationFrame(andar);
 }
-function compartilharPlaylist(set) {
-  const linhas = set.items.map((it, i) => { const s = db.song(it.songId); return s ? `${i + 1}. ${s.title}${s.artist ? ` — ${s.artist}` : ''}` : ''; }).filter(Boolean);
-  compartilhar({ title: set.name, text: [set.name, set.descricao, '', ...linhas].filter((x) => x !== undefined).join('\n').trim() });
-}
+// (o "Compartilhar" dos ⋮ da playlist: a mesma folha com o cartão — antes só o texto com a lista)
+const compartilharPlaylist = (set) => compartilharLista(set);
 // escolhe uma foto do aparelho para a capa
 function trocarCapaDoSet(set, depois = () => viewSet(set.id)) {
   const inp = document.createElement('input');
@@ -18963,7 +18963,7 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   if (!pl) {
     $('#pl-mini')?.addEventListener('click', () => previaDaPlaylist(set));
     if ($('#pl-mini')) animarCapinha(set);
-    $('#pl-share').onclick = () => compartilharPlaylist(set);
+    $('#pl-share').onclick = () => compartilharLista(set);
     $('#pl-video')?.addEventListener('click', () => { guardarPrefBib(`pl.${id}.video`, comVideo ? '' : '1'); viewSet(id); });
     $('#pl-editar')?.addEventListener('click', () => editarPlaylist(set));
     $('#set-ordenar')?.addEventListener('click', async () => {
@@ -20600,9 +20600,12 @@ function viewOuvir(...partes) {
   // (sem conta: a prévia da música e o convite para entrar, por cima da tela de entrada; o link fica no endereço e a
   // música abre inteira depois de entrar)
   // (com "?entrar", a volta do "Ouvir completa" no navegador sem o aplicativo: fica a tela de entrada)
+  // (com "?baixarApp" — o Chrome voltou pela reserva do link, sem o app instalado — ou o "?entrar" dos links de antes: a
+  // prévia com o painel de baixar o app, e o download já começando. A entrada pela web não aparece mais no link)
   if (!usuarioConta()) {
     setTab('inicio'); view.innerHTML = '';
-    if (/[?&]entrar\b/.test(location.search)) fecharConviteDaMusica(); else mostrarConviteDaMusica(titulo, artista, video);
+    mostrarConviteDaMusica(titulo, artista, video);
+    if (/[?&](baixarApp|entrar)\b/.test(location.search) && !noApk()) mostrarBaixarApp({ oQue: 'musica', abrirNoApp: intentDaMusicaComReserva(titulo, artista, video), comecar: /[?&]baixarApp\b/.test(location.search) });
     return;
   }
   fecharConviteDaMusica();
@@ -20623,6 +20626,304 @@ function viewOuvir(...partes) {
     abrir();
   }, ESPERA_DO_APLICATIVO);
 }
+// ---- Baixar o app: o link compartilhado (uma música, uma playlist, um repertório) aberto no navegador por quem não
+// tem o app leva ao app, e não à entrada pela web. No navegador do Android: com o app instalado, ele abre no link; sem
+// ele, o download do APK começa (do site do Ecoa no GitHub, o mesmo do "Baixar o app para Android") e a tela mostra os
+// passos — instalar e voltar para abrir o link no app, onde a pessoa entra com a conta. Nos navegadores de dentro de
+// outros aplicativos (o do WhatsApp, o do Instagram), o mesmo, com a dica de abrir no Chrome se o download não
+// começar. No iPhone e no computador (o app é só para Android), o código QR do download, para o celular Android.
+// (a página de reserva do link: o mesmo endereço com "?baixarApp", aonde o Chrome volta quando o app não está instalado)
+const enderecoParaBaixarApp = () => `${location.origin}${location.pathname}?baixarApp${location.hash}`;
+const noNavegadorInterno = () => /; wv\)/.test(navigator.userAgent);
+let downloadDoApkComecou = false;
+function comecarDownloadDoApk() {
+  downloadDoApkComecou = true;
+  const a = document.createElement('a');
+  a.href = new URL(LINK_APK, location.href).href;
+  a.download = 'Ecoa.apk';
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+// o QR do download do app, num canvas (o endereço do APK: curto, cabe no código)
+function canvasDoQrDoApp(lado = 168) {
+  const m = codigoQR(URL_APK_PUBLICADO);
+  const n = m.length + 8; // (com a margem branca de 4 módulos)
+  const c = document.createElement('canvas');
+  const px = Math.max(2, Math.floor((lado * (devicePixelRatio || 1)) / n));
+  c.width = c.height = n * px;
+  c.style.width = c.style.height = `${lado}px`;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#000';
+  m.forEach((linha, y) => linha.forEach((escuro, x) => { if (escuro) g.fillRect((x + 4) * px, (y + 4) * px, px, px); }));
+  return c;
+}
+// o painel por cima da prévia. oQue: 'musica' | 'playlist' | 'repertorio'; abrirNoApp: o endereço intent:// do link
+// (a reserva dele é a página "?baixarApp"); comecar: o download começa já (a página voltou pela reserva)
+function mostrarBaixarApp({ oQue = 'musica', abrirNoApp = '', comecar = false } = {}) {
+  document.querySelector('.baixar-app')?.remove();
+  const android = /Android/i.test(navigator.userAgent);
+  const titulo = { musica: 'Baixe o app para ouvir a música completa', playlist: 'Baixe o app para abrir a playlist', repertorio: 'Baixe o app para abrir o repertório' }[oQue];
+  const el = document.createElement('section');
+  el.className = 'baixar-app';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', android ? titulo : 'O app do Ecoa é para Android');
+  el.innerHTML = `<div class="ba-folha">
+      <button class="icon-btn ba-fechar" type="button" aria-label="Fechar" title="Fechar">${icon('x', 22)}</button>
+      <div class="ba-icone" aria-hidden="true">${logo(54)}</div>
+      ${android ? `<h2>${titulo}</h2>
+        <p class="ba-sub">O Ecoa é um app para Android. Com ele, você entra com a sua conta e ouve tudo completo, com a letra e o vídeo.</p>
+        <ol class="ba-passos">
+          <li><b>Baixe o app</b><small>O download aparece nas notificações do celular.</small></li>
+          <li><b>Abra o arquivo e toque em Instalar</b><small>Se o Android pedir, permita instalar apps desta fonte.</small></li>
+          <li><b>Volte aqui e toque em “Abrir no app”</b><small>Entre com a sua conta e pronto.</small></li>
+        </ol>
+        <p class="ba-estado" role="status" ${comecar || downloadDoApkComecou ? '' : 'hidden'}>${icon('check', 16)} O download começou</p>
+        ${noNavegadorInterno() ? '<p class="ba-dica">Se o download não começar, abra este link no Chrome: toque em ⋮ → Abrir no navegador.</p>' : ''}
+        <div class="ba-botoes">
+          <button class="btn primary ba-baixar" type="button">${icon('download', 18)} Baixar o app</button>
+          ${abrirNoApp ? `<a class="btn ba-abrir" href="${esc(abrirNoApp)}">${icon('external', 18)} Abrir no app</a>` : ''}
+        </div>`
+    : `<h2>O app do Ecoa é para Android</h2>
+        <p class="ba-sub">Aponte a câmera de um celular Android para o código e baixe o app. Depois, abra este mesmo link no celular.</p>
+        <div class="ba-qr"></div>
+        <div class="ba-botoes"><button class="btn ba-copiar" type="button">${icon('link', 18)} Copiar o link</button></div>`}
+    </div>`;
+  if (!android) $('.ba-qr', el).append(canvasDoQrDoApp());
+  const fechar = () => el.remove();
+  el.addEventListener('click', async (e) => {
+    if (e.target === el || e.target.closest('.ba-fechar')) { fechar(); return; }
+    if (e.target.closest('.ba-baixar')) { comecarDownloadDoApk(); $('.ba-estado', el).hidden = false; return; }
+    if (e.target.closest('.ba-copiar')) {
+      const ok = await copiarTexto(`${location.origin}${location.pathname}${location.hash}`);
+      e.target.closest('.ba-copiar').innerHTML = `${icon(ok ? 'check' : 'x', 18)} ${ok ? 'Link copiado' : 'Não consegui copiar'}`;
+    }
+  });
+  el.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
+  document.body.append(el);
+  $('.ba-baixar, .ba-copiar', el)?.focus({ preventScroll: true });
+  if (comecar && android && !downloadDoApkComecou) comecarDownloadDoApk();
+}
+// "Abrir no app" do link (o botão da prévia): no navegador do Android, tenta o app instalado (a reserva, sem ele, é a
+// página que começa o download); se a página continua na frente, o painel aparece. Nos outros, o painel direto
+function levarAoApp({ oQue, abrirNoApp }) {
+  if (/Android/i.test(navigator.userAgent) && !noNavegadorInterno() && abrirNoApp) {
+    location.href = abrirNoApp;
+    setTimeout(() => { if (document.visibilityState === 'visible') mostrarBaixarApp({ oQue, abrirNoApp }); }, ESPERA_DO_APLICATIVO);
+    return;
+  }
+  mostrarBaixarApp({ oQue, abrirNoApp });
+}
+// o intent:// do link da música, com a reserva na página que baixa o app
+const intentDaMusicaComReserva = (titulo, artista, video) => (linkParaAbrirNoAplicativo(titulo, artista, video ? { video: video.id, inicio: video.inicio } : {}) || '')
+  .replace(/S\.browser_fallback_url=[^;]*;/, `S.browser_fallback_url=${encodeURIComponent(enderecoParaBaixarApp())};`);
+
+// ---- Compartilhar uma playlist ou um repertório (os botões de compartilhar das duas telas): a folha com o cartão
+// (lib/cartao-lista.js), as cores e os destinos, como a da música; o link abre a prévia da lista (viewLista)
+const dadosDaListaParaLink = (set) => ({
+  nome: set.name, tipo: ehPlaylist(set) ? 'playlist' : 'repertorio', data: set.date || '',
+  musicas: set.items.map((it) => { const s = db.song(it.songId); return s ? { titulo: s.title, artista: s.artist || '', parte: it.label || '', video: s.youtube && !ehArquivo(s.youtube) ? s.youtube : '' } : null; }).filter(Boolean),
+});
+const duracaoDaLista = (seg) => { const m = Math.round(seg / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+function resumoDaListaParaCartao(set) {
+  const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
+  const total = songs.reduce((a, s) => a + (s.duracao || 0), 0);
+  const partes = [t(qtdMusicas(set.items.length))];
+  if (!ehPlaylist(set) && set.date) partes.push(dataPorExtenso(set.date));
+  else if (total >= 60) partes.push(duracaoDaLista(total));
+  return partes.join(' · ');
+}
+async function compartilharLista(set) {
+  if (!set?.items?.length) return;
+  const pl = ehPlaylist(set);
+  const songs = set.items.map((it) => ({ it, s: db.song(it.songId) })).filter((x) => x.s);
+  const cores = coresDoCartao(corDaMusica(set.name));
+  let cor = 0;
+  const link = await linkDaLista(dadosDaListaParaLink(set));
+  const rotulo = t(pl ? 'Playlist' : 'Repertório');
+  const resumo = resumoDaListaParaCartao(set);
+  const texto = () => textoDaLista({ nome: set.name, rotulo, resumo, musicas: songs.map(({ it, s }) => ({ titulo: s.title, artista: s.artist || '', parte: it.label })), link, mais: t('e mais {} músicas') });
+  const nativo = noApk() ? pluginEcoa() : null;
+  const podeEnviar = Boolean(nativo?.compartilharCartao || navigator.share);
+  // as imagens: a capa da lista e as capas das músicas que aparecem no cartão (as que não abrirem ficam com a nota)
+  const dados = {
+    nome: set.name, rotulo, resumo, capa: null, capas: [],
+    musicas: songs.slice(0, MUSICAS_NO_CARTAO).map(({ it, s }) => ({ titulo: s.title, artista: s.artist || '', parte: it.label ? t(it.label) : '', capa: null })),
+    maisTexto: songs.length > MUSICAS_NO_CARTAO ? t(`+ ${qtdMusicas(songs.length - MUSICAS_NO_CARTAO)}`) : '',
+    rodape: t('Ouça no app Ecoa'),
+  };
+  await Promise.race([document.fonts?.load?.('800 96px Figtree'), new Promise((ok) => setTimeout(ok, 1200))]).catch(() => {});
+  const destino = (v, ic, nome, cls = '') => `<button class="cs-destino ${cls}" data-cs="${v}"><span class="cs-bola">${MARCA_DO_DESTINO[ic] ? marcaDoDestino(ic) : icon(ic, 22)}</span><small>${nome}</small></button>`;
+  const { l, a } = TAMANHO_DO_CARTAO_DA_LISTA;
+  await openDialog(`
+    <div class="cs cs-lista" data-tela="cartoes">
+      <div class="cs-cartoes">
+        <div class="cs-trilho"><div class="cs-slide" role="img" aria-label="${esc(t(pl ? 'Cartão da playlist' : 'Cartão do repertório'))}"><canvas width="${l}" height="${a}" style="aspect-ratio:${l}/${a}"></canvas></div></div>
+        <div class="cs-linha">
+          <div class="cs-cores" role="radiogroup" aria-label="Cor do cartão">${cores.map((c, i) => `<button class="cs-cor" role="radio" data-cor="${i}" style="--c:${c.fundo}" aria-label="${esc(c.nome)}" title="${esc(c.nome)}"></button>`).join('')}</div>
+        </div>
+        <p class="cs-estado" role="status" hidden></p>
+        <div class="cs-destinos">
+          ${destino('link', 'link', 'Copiar link')}
+          ${destino('whatsapp', 'whatsapp', 'WhatsApp', 'cs-whats')}
+          ${podeEnviar ? destino('instagram', 'instagram', 'Instagram', 'cs-insta') : ''}
+          ${destino('telegram', 'telegram', 'Telegram', 'cs-telegram')}
+          ${destino('facebook', 'facebook', 'Facebook', 'cs-face')}
+          ${destino('x', 'x', 'X', 'cs-x')}
+          ${destino('texto', 'copy', 'Copiar lista')}
+          ${nativo ? '' : destino('salvar', 'download', 'Salvar imagem')}
+          ${podeEnviar ? destino('mais', 'enviarApp', 'Mais') : ''}
+        </div>
+      </div>
+    </div>`, (dlg) => {
+    const canvas = $('canvas', dlg);
+    const desenhar = () => { desenharCartaoDaLista(canvas, { ...dados, cor: cores[cor] }); dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor))); };
+    desenhar();
+    const avisar = (msg, carregando = false) => { const p = $('.cs-estado', dlg); p.hidden = !msg; p.textContent = msg; p.classList.toggle('carregando', carregando); };
+    // (as capas chegam aos poucos: o cartão é redesenhado a cada uma)
+    if (set.capa) imagemDaCapaParaCartao(set.capa).then((img) => { if (img && dlg.isConnected) { dados.capa = img; desenhar(); } });
+    const unicas = [...new Map(songs.map(({ s }) => [capaDaMusica(s), s])).entries()].filter(([u]) => u).slice(0, 4);
+    unicas.forEach(([u], k) => imagemDaCapaParaCartao(u.replace('/mqdefault.jpg', '/hqdefault.jpg')).then((img) => { if (img && dlg.isConnected) { dados.capas[k] = img; desenhar(); } }));
+    songs.slice(0, MUSICAS_NO_CARTAO).forEach(({ s }, k) => {
+      const u = capaDaMusica(s);
+      if (u) imagemDaCapaParaCartao(u).then((img) => { if (img && dlg.isConnected) { dados.musicas[k].capa = img; desenhar(); } });
+    });
+    const imagem = async () => {
+      for (const escala of [2, 1]) {
+        const blob = await new Promise((ok) => { try { desenharCartaoDaLista(document.createElement('canvas'), { ...dados, cor: cores[cor], escala }).toBlob(ok, 'image/jpeg', 0.95); } catch { ok(null); } });
+        if (blob?.size) return blob;
+      }
+      return null;
+    };
+    const nomeDoArquivo = `${(set.name || 'lista').replace(/[\\/:*?"<>|]+/g, ' ').trim()} - Ecoa.jpg`;
+    const enviar = async (pacote = '') => {
+      const blob = await imagem();
+      if (nativo?.compartilharCartao) {
+        await nativo.compartilharCartao({ titulo: set.name, texto: texto(), pacote, ...(blob ? { imagem: await base64DoBlob(blob), tipo: blob.type } : {}) });
+        return;
+      }
+      const arquivo = blob && typeof File === 'function' ? new File([blob], nomeDoArquivo, { type: blob.type }) : null;
+      if (arquivo && navigator.canShare?.({ files: [arquivo] })) await navigator.share({ files: [arquivo], title: set.name, text: texto() });
+      else await navigator.share({ title: set.name, text: texto() });
+    };
+    dlg.addEventListener('click', async (e) => {
+      const c = e.target.closest('[data-cor]');
+      if (c) { cor = Number(c.dataset.cor); desenhar(); return; }
+      const b = e.target.closest('[data-cs]');
+      if (!b || b.disabled) return;
+      const acao = b.dataset.cs;
+      avisar('');
+      if (acao === 'link') { avisar((await copiarTexto(link)) ? t('Link copiado') : t('Não consegui copiar')); return; }
+      if (acao === 'texto') { avisar((await copiarTexto(texto())) ? t('Lista copiada: é só colar onde quiser') : t('Não consegui copiar')); return; }
+      b.disabled = true;
+      try {
+        if (acao === 'salvar') {
+          const blob = await imagem();
+          if (!blob) throw new Error(t('a imagem não pôde ser gerada'));
+          const link2 = document.createElement('a');
+          link2.href = URL.createObjectURL(blob);
+          link2.download = nomeDoArquivo;
+          document.body.append(link2); link2.click(); link2.remove();
+          setTimeout(() => URL.revokeObjectURL(link2.href), 4000);
+        } else if (acao === 'whatsapp' && !nativo?.compartilharCartao) window.open(`https://wa.me/?text=${encodeURIComponent(texto())}`, '_blank', 'noopener');
+        else if (PAGINA_DO_DESTINO[acao] && !nativo?.compartilharCartao) window.open(PAGINA_DO_DESTINO[acao](link, `${set.name} · ${rotulo}`), '_blank', 'noopener');
+        else if (PACOTE_DO_DESTINO[acao] && nativo?.compartilharCartao) await enviar(PACOTE_DO_DESTINO[acao]).catch((erro) => { if (erro?.code === 'sem-app') return enviar(); throw erro; });
+        else await enviar();
+      } catch (erro) {
+        if (erro?.name !== 'AbortError') avisar(`${t('Não foi possível compartilhar')}${erro?.message ? `: ${erro.message}` : '.'}`);
+      }
+      b.disabled = false;
+    });
+  }, { folha: true });
+}
+
+// ---- A lista recebida (#/lista/<código>): a prévia da playlist ou do repertório que alguém compartilhou. Sem a conta:
+// a tela da prévia (a capa em mosaico, o nome, o resumo e as músicas) e o convite para baixar o app (no navegador) ou
+// para entrar (no app). Com a conta: a mesma lista, com "Salvar na biblioteca" (as músicas que a pessoa já tem entram
+// direto; as outras são trazidas da internet pelo nome, uma de cada vez) e cada música abrindo ao tocar nela
+let conviteDaLista = null;
+function fecharConviteDaLista() {
+  conviteDaLista?.remove();
+  conviteDaLista = null;
+  document.documentElement.classList.remove('com-convite-lista');
+}
+const capaDaMusicaDaLista = (m) => (m.video ? `https://i.ytimg.com/vi/${m.video}/mqdefault.jpg` : '');
+function htmlDaListaRecebida(lista) {
+  const comCapa = [...new Set(lista.musicas.map(capaDaMusicaDaLista).filter(Boolean))];
+  const capaHtml = comCapa.length >= 4 ? `<div class="cover mosaic">${comCapa.slice(0, 4).map((u) => `<div class="cover"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>`).join('')}</div>`
+    : comCapa.length ? `<div class="cover"><img src="${esc(comCapa[0])}" alt="" referrerpolicy="no-referrer"></div>`
+      : `<div class="cover gen" style="--h:${hue(lista.nome)}">${icon(lista.tipo === 'playlist' ? 'disc' : 'list', 40)}</div>`;
+  const quantas = `<span>${esc(qtdMusicas(lista.musicas.length + lista.mais))}</span>`;
+  const resumo = lista.tipo === 'repertorio' && lista.data ? `${quantas}<span translate="no"> · ${esc(dataPorExtenso(lista.data))}</span>` : quantas;
+  return `<div class="lr-topo"><div class="lr-capa">${capaHtml}</div>
+      <p class="lr-tipo">${lista.tipo === 'playlist' ? 'Playlist' : 'Repertório'}</p>
+      <h1 class="lr-nome" translate="no">${esc(lista.nome)}</h1>
+      <p class="lr-resumo">${resumo}</p></div>
+    <ol class="tracks lr-musicas">${lista.musicas.map((m, i) => `<li class="track lr-item" data-i="${i}">
+      ${m.video ? `<div class="cover"><img src="${esc(capaDaMusicaDaLista(m))}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>` : `<div class="cover gen" style="--h:${hue(m.titulo)}">${icon('music', 18)}</div>`}
+      <div class="info"><div class="t" translate="no">${esc(m.titulo)}</div><div class="s">${m.parte ? `<b class="parte-tag sub-sep">${esc(m.parte)}</b>` : ''}${m.artista ? `<span class="sub-txt sub-sep" translate="no">${esc(m.artista)}</span>` : ''}</div></div></li>`).join('')}</ol>
+    ${lista.mais ? `<p class="muted lr-mais">${esc(t(`+ ${qtdMusicas(lista.mais)}`))}</p>` : ''}`;
+}
+async function viewLista(codigo) {
+  const lista = await lerCodigoDaLista(codigo);
+  if (!lista?.musicas.length) return viewNotFound();
+  const oQue = lista.tipo;
+  // sem a conta: a prévia por cima da tela de entrada, com o convite para o app
+  if (!usuarioConta()) {
+    setTab('inicio'); view.innerHTML = '';
+    fecharConviteDaLista();
+    const el = document.createElement('section');
+    el.className = 'convite-lista';
+    el.style.setProperty('--lr-cor', corDaMusica(lista.nome));
+    el.setAttribute('aria-label', lista.tipo === 'playlist' ? 'Prévia da playlist' : 'Prévia do repertório');
+    el.innerHTML = `<div class="lr-rolar">${htmlDaListaRecebida(lista)}</div>
+      <div class="lr-pe"><button class="btn primary lr-app" type="button">${icon(noApk() ? 'pessoa' : 'download', 18)} ${noApk() ? 'Entrar para salvar' : 'Abrir no app'}</button></div>`;
+    document.body.append(el);
+    document.documentElement.classList.add('com-convite-lista');
+    conviteDaLista = el;
+    const intent = linkDaListaNoAplicativo(`${ENDERECO_DO_ECOA}#/lista/${codigo}`, enderecoParaBaixarApp());
+    $('.lr-app', el).onclick = () => {
+      // (no app: a tela de entrada dele; entrando, a lista abre de novo, já com a conta)
+      if (noApk()) { fecharConviteDaLista(); return; }
+      levarAoApp({ oQue, abrirNoApp: intent });
+    };
+    if (/[?&](baixarApp|entrar)\b/.test(location.search) && !noApk()) mostrarBaixarApp({ oQue, abrirNoApp: intent, comecar: /[?&]baixarApp\b/.test(location.search) });
+    return;
+  }
+  fecharConviteDaLista();
+  if (/[?&](baixarApp|entrar)\b/.test(location.search)) history.replaceState(null, '', `${location.pathname}${location.hash}`);
+  setTab('biblioteca');
+  setTint(corDaMusica(lista.nome));
+  setHeader(lista.nome, { back: '#/', eyebrow: lista.tipo === 'playlist' ? 'Playlist' : 'Repertório' });
+  view.innerHTML = `<section class="lista-recebida">${htmlDaListaRecebida(lista)}
+    <div class="lr-acoes"><button class="btn primary" id="lr-salvar">${icon('plus', 18)} Salvar na biblioteca</button></div></section>`;
+  view.querySelector('.lr-musicas').addEventListener('click', (e) => {
+    const li = e.target.closest('[data-i]');
+    if (!li) return;
+    const m = lista.musicas[Number(li.dataset.i)];
+    void abrirMusica({ titulo: m.titulo, artista: m.artista, ...(m.video ? { video: { id: m.video, url: `https://www.youtube.com/watch?v=${m.video}` } } : {}) }, location.hash, li, { tela: true });
+  });
+  $('#lr-salvar').onclick = async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    const items = [];
+    let faltou = 0;
+    for (const [k, m] of lista.musicas.entries()) {
+      b.innerHTML = `${icon('download', 18)} ${esc(t(`Salvando ${k + 1} de ${lista.musicas.length}…`))}`;
+      let id = musicaSalva({ titulo: m.titulo, artista: m.artista })?.id;
+      if (!id) id = await salvarDaInternet('musica', { titulo: m.titulo, artista: m.artista, ...(m.video ? { video: { id: m.video, url: `https://www.youtube.com/watch?v=${m.video}` } } : {}) }).catch(() => null);
+      if (id) items.push({ songId: id, label: m.parte || '', em: Date.now() + k }); else faltou++;
+    }
+    if (!items.length) { b.disabled = false; b.innerHTML = `${icon('plus', 18)} Salvar na biblioteca`; await ask({ title: 'Não deu para salvar', text: 'Nenhuma música desta lista pôde ser trazida agora. Confira a internet e tente de novo.', ok: 'Entendi', cancel: false }); return; }
+    const novo = db.saveSet({ name: lista.nome, date: lista.data || hojeISO(), items, ...(lista.tipo === 'playlist' ? { tipo: 'playlist' } : {}) });
+    desenharLateral();
+    if (faltou) await ask({ title: 'Salvo, com músicas faltando', text: faltou === 1 ? '1 música ficou de fora: não deu para trazê-la agora.' : `${faltou} músicas ficaram de fora: não deu para trazê-las agora.`, ok: 'Entendi', cancel: false });
+    location.hash = `#/repertorio/${novo.id}`;
+  };
+}
+
 // O link compartilhado para quem não entrou: só a prévia, como a do Spotify — a capa parada, o nome, o artista, a barra
 // e o tempo (de 0:00 a 0:30) —, sem texto de convite, com o trecho de 30 s do Deezer (ou, sem ele, do iTunes) tocando e
 // o fundo em movimento nas cores da capa, acompanhando a batida. A tela da prévia fica até a pessoa tocar em "Pular":
@@ -20671,7 +20972,7 @@ function mostrarConviteDaMusica(titulo, artista, video = null) {
   el.className = `convite-musica carregando${video ? ' com-video' : ''}`;
   el.setAttribute('aria-label', video ? 'Prévia do vídeo' : 'Prévia da música');
   el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><canvas></canvas></div>
-    <button class="cm-pular" type="button">Ouvir completa</button>
+    <button class="cm-pular" type="button">${noApk() ? 'Ouvir completa' : 'Ouvir no app'}</button>
     <div class="cm-conteudo">
       <div class="cm-capa">${video ? `<img src="${esc(miniatura)}" alt="" referrerpolicy="no-referrer" data-reserva="${esc(miniaturaMedia)}">` : icon('music', 56)}</div>
       <div class="cm-nomes"><h1 class="cm-titulo" translate="no">${esc(titulo)}</h1>${artista ? `<p class="cm-artista" translate="no">${esc(artista)}</p>` : ''}</div>
@@ -20875,16 +21176,13 @@ function mostrarConviteDaMusica(titulo, artista, video = null) {
   // aplicativo instalado (que abre na música, ou no vídeo) e, sem ele, a volta a este endereço com "?entrar" — a tela de
   // entrada da web; no iPhone, no computador e nos navegadores de dentro de outros aplicativos (que não abrem o
   // aplicativo), a tela de entrada da web
+  // (fora do app, o "Ouvir no app": o app instalado abre na música; sem ele, o download do app — mostrarBaixarApp. A
+  // entrada pela web não é mais oferecida no link: quem recebe baixa o app e entra nele)
   $('.cm-pular', el).onclick = () => {
     audio.pause();
     if (clipe) ytCmd('pauseVideo');
-    const ua = navigator.userAgent;
-    if (!noApk() && /Android/i.test(ua) && !/; wv\)/.test(ua)) {
-      const web = `${location.origin}${location.pathname}?entrar${location.hash}`;
-      const intent = linkParaAbrirNoAplicativo(titulo, artista, video ? { video: video.id, inicio: video.inicio } : {});
-      if (intent) { location.href = intent.replace(/S\.browser_fallback_url=[^;]*;/, `S.browser_fallback_url=${encodeURIComponent(web)};`); return; }
-    }
-    fecharConviteDaMusica();
+    if (noApk()) { fecharConviteDaMusica(); return; }
+    levarAoApp({ oQue: 'musica', abrirNoApp: intentDaMusicaComReserva(titulo, artista, video) });
   };
   conviteDaMusica = {
     chave, el,
@@ -24311,6 +24609,7 @@ function route() {
   const palco = document.body.classList.contains('performance') && /^#\/repertorio\/[^/]+\/\d+/.test(location.hash);
   if (palco) sessionStorage.setItem('palco', '1'); else sairPalco({ navegando: true });
   const [a, b, c, d, e, f] = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  if (a !== 'lista') fecharConviteDaLista();
   // a última tela de lista (biblioteca, repertório, busca…): o editor volta para ela, não para a música
   if (!['musica', 'editar'].includes(a) && !(a === 'repertorio' && c !== undefined)) ultimaLista = location.hash || '#/';
   view.scrollTop = 0;
@@ -24345,6 +24644,7 @@ function route() {
     case 'partituras': return viewPartituras();
     case 'compartilhado': return viewCompartilhado();
     case 'ouvir': return viewOuvir(b, c, d, e, f);
+    case 'lista': return viewLista(b);
     case 'oracoes': return viewOracoes();
     case 'oracao': return viewOracao(b);
     case 'fontes': return viewFontes();

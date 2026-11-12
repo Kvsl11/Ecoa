@@ -243,12 +243,13 @@ public class MainActivity extends BridgeActivity {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
         android.net.Uri uri = intent.getData();
         String rota = null;
-        if ("ecoa".equals(uri.getScheme()) && "ouvir".equals(uri.getHost())) {
+        // (e o link de uma playlist ou repertório compartilhado: ecoa://lista/<código> ou .../#/lista/<código>)
+        if ("ecoa".equals(uri.getScheme()) && ("ouvir".equals(uri.getHost()) || "lista".equals(uri.getHost()))) {
             String caminho = uri.getEncodedPath();
-            if (caminho != null && caminho.length() > 1) rota = "#/ouvir" + caminho;
+            if (caminho != null && caminho.length() > 1) rota = "#/" + uri.getHost() + caminho;
         } else if ("https".equals(uri.getScheme()) && "kvsl11.github.io".equals(uri.getHost())) {
             String parte = uri.getEncodedFragment();
-            if (parte != null && parte.startsWith("/ouvir/")) rota = "#" + parte;
+            if (parte != null && (parte.startsWith("/ouvir/") || parte.startsWith("/lista/"))) rota = "#" + parte;
         }
         // (o link foi atendido: girar a tela ou voltar ao app não o abre de novo)
         intent.setData(null);

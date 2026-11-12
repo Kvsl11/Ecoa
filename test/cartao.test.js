@@ -119,9 +119,9 @@ test('o link de música aberto no navegador do Android é entregue ao aplicativo
   const { linkParaAbrirNoAplicativo, linkDaMusicaNoEcoa } = await import('../public/js/lib/cartao.js');
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
   const script = /<script>([\s\S]*?)<\/script>/.exec(html)[1];
-  assert.ok(script.includes('intent://ouvir/'), 'o primeiro script da página é o que entrega o link');
+  assert.ok(script.includes("'intent://'"), 'o primeiro script da página é o que entrega o link');
   const abrir = (href, userAgent, guardado = {}) => {
-    const location = { href, hash: href.includes('#') ? href.slice(href.indexOf('#')) : '' };
+    const location = { href, hash: href.includes('#') ? href.slice(href.indexOf('#')) : '', search: /\?[^#]*/.exec(href)?.[0] || '' };
     const sessionStorage = { getItem: (k) => guardado[k] ?? null, setItem: (k, v) => { guardado[k] = String(v); } };
     vm.runInNewContext(script, { location, navigator: { userAgent }, sessionStorage, window: {}, Date, encodeURIComponent, String });
     return { foi: location.href, guardado };
@@ -140,6 +140,12 @@ test('o link de música aberto no navegador do Android é entregue ao aplicativo
   assert.equal(abrir(link, android.replace('Pixel 8)', 'Pixel 8; wv)')).foi, link);
   const inicio = link.split('#')[0] + '#/biblioteca';
   assert.equal(abrir(inicio, android).foi, inicio);
+  // o link de uma playlist ou repertório compartilhado também vai para o app (ecoa://lista/<código>)
+  const lista = `${link.split('#')[0]}#/lista/zAbC_12-x`;
+  assert.equal(abrir(lista, android).foi, `intent://lista/zAbC_12-x#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=${encodeURIComponent(lista)};end`);
+  // (de volta pela reserva, sem o app — "?baixarApp" —, a página fica: é ela que baixa o app)
+  const reserva = `${link.split('#')[0]}?baixarApp#${link.split('#')[1]}`;
+  assert.equal(abrir(reserva, android).foi, reserva);
 });
 
 test('o trecho da música dos versos escolhidos: do começo do primeiro ao fim do último, entre 4 e 30 s', async () => {
