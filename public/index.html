@@ -9,13 +9,13 @@
     // ao recarregar nem ao voltar; o app.js (viewOuvir) confere depois se o aplicativo abriu. Nos navegadores internos de
     // outros aplicativos ("; wv)" na identificação), que mostram uma página de erro para esse endereço, fica o botão.
     try {
-      var ecoaLink = /^#\/ouvir\/(.+)/.exec(location.hash);
+      var ecoaLink = /^#\/(ouvir|lista)\/(.+)/.exec(location.hash);
       var ecoaUA = navigator.userAgent;
       if (ecoaLink && /Android/i.test(ecoaUA) && !/EcoaAndroid/.test(ecoaUA) && !/; wv\)/.test(ecoaUA) && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
-        && sessionStorage.getItem('ecoa.noApp') !== location.hash && !/[?&]entrar\b/.test(location.search)) {
+        && sessionStorage.getItem('ecoa.noApp') !== location.hash && !/[?&](entrar|baixarApp)\b/.test(location.search)) {
         sessionStorage.setItem('ecoa.noApp', location.hash);
         sessionStorage.setItem('ecoa.noAppEm', String(Date.now()));
-        location.href = 'intent://ouvir/' + ecoaLink[1] + '#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+        location.href = 'intent://' + ecoaLink[1] + '/' + ecoaLink[2] + '#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
       }
     } catch (e) {}
   </script>

@@ -164,7 +164,7 @@ export function umaLinha(medir, texto, largura) {
 
 // uma imagem já carregada cortada para caber no retângulo (como o object-fit: cover), com os cantos arredondados; sem
 // ela, um quadro com a nota
-function desenharImagem(c, img, x, y, l, a, raio, cor) {
+export function desenharImagem(c, img, x, y, l, a, raio, cor) {
   c.save();
   retangulo(c, x, y, l, a, raio);
   c.clip();
@@ -203,6 +203,9 @@ function marca(c, x, y, cor, lado = 56) {
   c.textAlign = 'left';
   c.fillText('Ecoa', x + lado * 0.86, y - lado * 0.27);
 }
+
+// (a mesma marca, para o cartão da playlist e do repertório: lib/cartao-lista.js)
+export const marcaDoEcoa = (c, x, y, cor, lado) => marca(c, x, y, cor, lado);
 
 // Os fundos animados do cartão (a tela "Personalizar"): desenhados por cima da cor (ou da imagem de fundo), na cor do
 // texto do cartão, bem transparentes — servem a qualquer uma das cores. O cartão animado sai como vídeo, e o movimento

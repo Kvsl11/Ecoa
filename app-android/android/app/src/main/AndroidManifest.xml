@@ -37,6 +37,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ecoa" android:host="ouvir" />
+                <!-- (a playlist ou o repertório compartilhado: ecoa://lista/<código>) -->
+                <data android:scheme="ecoa" android:host="lista" />
             </intent-filter>
 
         </activity>

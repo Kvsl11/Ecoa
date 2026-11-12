@@ -1020,7 +1020,23 @@ body.no-lumen .main-col { margin: 0 !important; }
 }
 
 /* ============================================================ arrastar e soltar / fila */
-.track.set-item { grid-template-columns: auto 1fr auto auto; }
+.track.set-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+/* a segunda linha do repertório e da playlist: os ícones, a parte da missa, o artista e a duração, separados por "•"
+   (logo depois dos ícones, sem o "•", como no Spotify). O nome do artista encurta com "…" e a duração fica à vista */
+.track .s > * { flex: none; }
+.track .s .sub-sep::before { content: '•'; margin-right: 6px; color: var(--muted); font-weight: 400; }
+.track .s .sub-sep:first-child::before, .track .s .ind + .sub-sep::before { content: none; }
+.track .s .sub-artista { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
+/* (a parte da missa é o mais importante da linha do repertório: fica inteira, até 55% da largura; quem encurta é o artista) */
+.track .s .parte-tag { max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+/* (no repertório, com a parte da missa na linha, o vídeo fica só no ícone: a palavra "Vídeo" tirava o lugar da parte e
+   da duração no celular) */
+.set-item:not(.pl-item) .s:has(.parte-tag) .ind-txt, .set-item:not(.pl-item) .s:has(.parte-tag) .ind-sep { display: none; }
+.track .s .sub-txt { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.track .s .sub-artista .artistas-mini, .track .s .sub-artista .artista-mini { flex: none; }
+.track .s .dur-faixa:empty { display: none; }
+/* o "•" depois de "Vídeo" só com algo depois dele */
+.track .s > .ind:last-child .ind-sep, .track .s > .ind:not(:has(~ :not(:empty))) .ind-sep { display: none; }
 .track .drag { width: 32px; height: 40px; border-radius: 6px; cursor: grab; touch-action: none; color: var(--subtle); }
 .track .drag:active { cursor: grabbing; }
 .track.set-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -5428,6 +5444,10 @@ video.pl-mini-anim { transform: scale(var(--zoom, 1)); }
 .pl-faixas .track { grid-template-columns: auto minmax(0, 1fr) auto; cursor: pointer; }
 .pl-faixas .track.com-thumb > .cover { width: 76px; height: 43px; border-radius: 3px; }
 .pl-thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* o repertório com o Vídeo ligado (os mesmos botões da playlist): a imagem do clipe larga e o chip marcado */
+.track.set-item.com-thumb .lead > .cover { width: 76px; height: 43px; border-radius: 3px; overflow: hidden; }
+.spot-chips .chip[aria-pressed="true"] { background: #fff; color: #000; border-color: #fff; }
+:root[data-theme="light"] .spot-chips .chip[aria-pressed="true"] { background: #000; color: #fff; }
 .pl-vazia { padding-top: 24px; }
 /* "Nome e detalhes": Cancelar · título · Salvar no topo; a capa ao lado do nome e da descrição */
 .pl-det-cab { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 22px 18px 12px; }
@@ -5832,7 +5852,7 @@ html.sem-conta .entrada { hyphens: manual; -webkit-hyphens: manual; position: fi
    mesma desfocada, o nome, o artista, a barra do tempo e o play; ao fim, a tela de entrada. Igual no celular, no tablet
    e no computador (o bloco no meio) */
 .convite-musica { display: none; }
-html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; overflow: hidden;
+html.com-convite .convite-musica { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; overflow: hidden;
   background: #07090b; color: #fff; isolation: isolate; hyphens: manual; -webkit-hyphens: manual; }
 /* o fundo em movimento: um canvas pequeno (64 px de largura) com a capa girando e as luzes nas cores dela, desenhado
    no app.js (desenharFundoDaPrevia) e esticado aqui na tela toda — a ampliação desfoca. Antes eram camadas enormes
@@ -6811,3 +6831,76 @@ html.pp #player .pl-artista-foto::after { background: linear-gradient(180deg, rg
    content-visibility, só as linhas perto da tela são montadas; as outras guardam o lugar (a altura medida, ou 64 px
    antes de aparecerem pela primeira vez) e entram ao rolar. */
 .tracks > .track { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+
+/* ---- Baixar o app (o link compartilhado aberto no navegador sem o app): o painel por cima da prévia, com os passos
+   (Android) ou o código QR do download (iPhone e computador). O "Ouvir no app" da prévia fica em destaque */
+html:not(.app-android) .cm-pular { background: #fff; color: #000; }
+.baixar-app { position: fixed; inset: 0; z-index: 230; display: grid; align-items: end; justify-items: center; background: rgb(0 0 0 / 0.55);
+  animation: ba-entra 0.2s ease both; }
+@keyframes ba-entra { from { opacity: 0; } }
+.ba-folha { position: relative; width: min(100%, 460px); max-height: 92dvh; overflow: auto; box-sizing: border-box; background: #16181c; color: #fff;
+  border-radius: 22px 22px 0 0; padding: 26px 22px calc(22px + env(safe-area-inset-bottom)); text-align: center; animation: ba-sobe 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes ba-sobe { from { transform: translateY(40px); opacity: 0; } }
+@media (min-width: 700px) { .baixar-app { align-items: center; } .ba-folha { border-radius: 22px; } }
+.ba-fechar { position: absolute; top: 10px; right: 10px; color: rgb(255 255 255 / 0.7); }
+.ba-icone { display: grid; place-items: center; width: 72px; height: 72px; margin: 4px auto 12px; border-radius: 18px; background: #0891b2; }
+.ba-folha h2 { margin: 0 0 8px; font-size: 21px; line-height: 1.25; text-align: center; text-wrap: balance; }
+.ba-sub { margin: 0 auto 16px; max-width: 34ch; color: rgb(255 255 255 / 0.72); font-size: 14.5px; line-height: 1.45; }
+.ba-passos { list-style: none; counter-reset: passo; margin: 0 0 14px; padding: 0; text-align: left; display: grid; gap: 10px; }
+.ba-passos li { counter-increment: passo; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; align-items: start; padding: 10px 12px;
+  border-radius: 14px; background: rgb(255 255 255 / 0.06); }
+.ba-passos li::before { content: counter(passo); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: #0891b2; color: #fff; font-weight: 800; font-size: 14px; }
+.ba-passos b { font-size: 15px; }
+.ba-passos small { color: rgb(255 255 255 / 0.64); font-size: 13px; line-height: 1.35; }
+.ba-estado { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; color: #4ade80; font-weight: 700; font-size: 14px; }
+.ba-dica { margin: 0 0 12px; color: rgb(255 255 255 / 0.7); font-size: 13px; }
+.ba-botoes { display: grid; gap: 10px; }
+.ba-botoes .btn { justify-content: center; min-height: 48px; font-size: 16px; }
+.ba-qr { display: grid; place-items: center; margin: 0 auto 16px; padding: 10px; width: max-content; border-radius: 14px; background: #fff; }
+.ba-qr canvas { display: block; image-rendering: pixelated; }
+
+/* ---- A playlist ou o repertório recebido por link (#/lista/…): sem a conta, a prévia em tela cheia por cima da
+   entrada, na cor do nome; com a conta, a mesma lista na tela, com "Salvar na biblioteca" */
+.convite-lista { display: none; }
+html.com-convite-lista .convite-lista { position: fixed; inset: 0; z-index: 210; display: flex; flex-direction: column; color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--lr-cor) 70%, #000) 0%, #0b0c0e 62%); }
+.lr-rolar { flex: 1; overflow: auto; padding: calc(28px + env(safe-area-inset-top)) 18px 18px; }
+.lr-topo { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.lr-capa .cover { width: min(58vw, 240px); height: min(58vw, 240px); border-radius: 10px; box-shadow: 0 18px 50px rgb(0 0 0 / 0.45); overflow: hidden; }
+.lr-capa .cover.mosaic { display: grid; grid-template-columns: 1fr 1fr; }
+.lr-capa .cover.mosaic .cover { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+.lr-capa .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lr-tipo { margin: 18px 0 2px; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; }
+.lr-nome { margin: 0; font-size: clamp(22px, 6.4vw, 30px); line-height: 1.15; overflow-wrap: anywhere; }
+.lr-resumo { margin: 6px 0 0; font-size: 14px; opacity: 0.72; }
+.lr-musicas { list-style: none; margin: 18px 0 0; padding: 0; }
+.lr-musicas .track { grid-template-columns: auto minmax(0, 1fr); margin: 0; }
+.lr-musicas .cover { width: 48px; height: 48px; border-radius: 4px; overflow: hidden; }
+.lr-musicas .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.convite-lista .track .s { color: rgb(255 255 255 / 0.66); }
+.convite-lista .parte-tag { color: #7dd3fc; }
+.lr-mais { text-align: center; margin: 8px 0 0; }
+.lr-pe { padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, #0b0c0e 40%); }
+.lr-pe .btn { width: 100%; justify-content: center; min-height: 50px; font-size: 16px; }
+.lista-recebida .lr-musicas .track { cursor: pointer; }
+.lr-acoes { display: flex; justify-content: center; margin: 18px 0 8px; }
+/* as prévias de 30 s na lista recebida: o botão sobre a capinha, a barra embaixo do nome e a linha que toca na cor */
+.lr-musicas .track { grid-template-columns: auto minmax(0, 1fr); cursor: pointer; }
+.lr-capinha { position: relative; width: 48px; height: 48px; flex: none; }
+.lr-capinha .cover { width: 48px; height: 48px; }
+.lr-tocar { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 4px; color: #fff; background: rgb(0 0 0 / 0.38);
+  opacity: 0.85; transition: opacity 0.15s, background 0.15s; }
+.lr-item.tocando .lr-tocar { background: rgb(8 145 178 / 0.72); opacity: 1; }
+.lr-item.carregando .lr-tocar svg { animation: lr-pisca 0.9s ease-in-out infinite alternate; }
+@keyframes lr-pisca { from { opacity: 0.25; } }
+.lr-item.tocando .t { color: #7dd3fc; }
+.lr-barra { height: 3px; margin-top: 6px; border-radius: 2px; background: rgb(255 255 255 / 0.12); overflow: hidden; visibility: hidden; }
+.lr-item.tocando .lr-barra, .lr-item.carregando .lr-barra { visibility: visible; }
+.lr-barra i { display: block; height: 100%; width: 0%; background: #7dd3fc; transition: width 0.25s linear; }
+.lr-sem { color: rgb(255 255 255 / 0.5); }
+.lr-dica { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 14px 0 0; font-size: 13px; color: rgb(255 255 255 / 0.6); }
+.lr-yt { position: fixed; left: 0; bottom: 0; width: 2px; height: 2px; border: 0; opacity: 0.01; pointer-events: none; }
+.lista-recebida .lr-tocar, .lista-recebida .lr-barra, .lista-recebida .lr-dica { display: none; }
+.lista-recebida .lr-capinha .cover { border-radius: 4px; overflow: hidden; }
+.lr-capinha .cover.gen > svg { display: none; }

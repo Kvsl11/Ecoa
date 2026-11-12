@@ -12,4 +12,10 @@
     <string name="canal_tocando">Tocando agora</string>
     <string name="canal_tocando_desc">A música tocando no Ecoa, com os botões</string>
     <string name="aviso_download">Acompanhe o andamento do download no Ecoa.</string>
+    <!-- o convite do Ecoa (o cartão de reserva e o texto que vai junto) -->
+    <string name="convite_texto">Conheça o Ecoa! Ouça, cante e ecoe.</string>
+    <string name="convite_rotulo">Música do Ecoa</string>
+    <string name="convite_lema">Ouça, cante e ecoe.</string>
+    <string name="convite_recursos">Cifras • letras sincronizadas • acordes</string>
+    <string name="convite_baixar">BAIXE O APK PARA ANDROID</string>
 </resources>

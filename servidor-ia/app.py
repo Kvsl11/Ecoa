@@ -765,6 +765,8 @@ class PedidoDuvida(BaseModel):
     voz: bool = False
     # arquivos enviados pela pessoa: [{nome, tipo, dados (base64)}]
     anexos: list[dict] = []
+    # o idioma do aparelho ('pt', 'en', 'es'): a resposta vem nele
+    idioma: str = "pt"
 
 
 @app.post("/duvida", dependencies=[Depends(conferir_chave)])
@@ -775,7 +777,7 @@ def tirar_duvida(pedido: PedidoDuvida):
         raise HTTPException(501, "este servidor não tem a chave da IA (ANTHROPIC_API_KEY ou GEMINI_API_KEY)")
     if qual == "gemini":
         try:
-            return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos)
+            return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos, idioma=pedido.idioma)
         except ValueError as e:
             raise HTTPException(422, str(e))
         except duvidas.ErroGemini as e:
@@ -785,7 +787,7 @@ def tirar_duvida(pedido: PedidoDuvida):
     import anthropic
 
     try:
-        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos)
+        return duvidas.responder(pedido.pergunta, pedido.historico, pedido.contexto, pedido.voz, pedido.anexos, idioma=pedido.idioma)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except anthropic.RateLimitError:

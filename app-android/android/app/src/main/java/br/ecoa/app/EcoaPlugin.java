@@ -608,7 +608,7 @@ public class EcoaPlugin extends Plugin {
 
     private void iniciarLumenAoVivo(PluginCall call) {
         String instrucao = call.getString("instrucao",
-            "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em português do Brasil, naturalmente e com frases curtas.");
+            "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em " + GeminiLive.linguaDoAparelho() + ", naturalmente e com frases curtas.");
         GeminiLive.iniciar(instrucao, ContextCompat.getMainExecutor(getContext()), new GeminiLive.Retorno() {
             @Override public void sucesso() {
                 JSObject r = new JSObject();
@@ -906,7 +906,7 @@ public class EcoaPlugin extends Plugin {
     // Sem a imagem da interface, usa o cartão simples desenhado aqui.
     @PluginMethod
     public void compartilharApp(PluginCall call) {
-        String texto = call.getString("texto", "Conheça o Ecoa! Ouça, cante e ecoe.");
+        String texto = call.getString("texto", getContext().getString(R.string.convite_texto));
         // Sempre usa o endereço oficial do APK do Ecoa, mesmo se uma versão antiga da interface
         // enviar por engano o link legado do Songbook.
         String url = "https://kvsl11.github.io/Ecoa/Ecoa.apk";
@@ -977,7 +977,7 @@ public class EcoaPlugin extends Plugin {
                     ctx, ctx.getPackageName() + ".fileprovider", arquivo);
                 enviar.setType(tipo);
                 enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
-                enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), "Música do Ecoa", uri));
+                enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), ctx.getString(R.string.convite_rotulo), uri));
                 enviar.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } else {
                 enviar.setType("text/plain");
@@ -1033,17 +1033,17 @@ public class EcoaPlugin extends Plugin {
         canvas.drawText("Ecoa", 540, 690, paint);
         paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
         paint.setTextSize(48f);
-        canvas.drawText("Ouça, cante e ecoe.", 540, 775, paint);
+        canvas.drawText(ctx.getString(R.string.convite_lema), 540, 775, paint);
         paint.setColor(0xFFB8D5E2);
         paint.setTextSize(34f);
-        canvas.drawText("Cifras • letras sincronizadas • acordes", 540, 890, paint);
+        canvas.drawText(ctx.getString(R.string.convite_recursos), 540, 890, paint);
 
         paint.setColor(0xFF22D3EE);
         canvas.drawRoundRect(205, 1010, 875, 1128, 34, 34, paint);
         paint.setColor(0xFF062333);
         paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
         paint.setTextSize(34f);
-        canvas.drawText("BAIXE O APK PARA ANDROID", 540, 1083, paint);
+        canvas.drawText(ctx.getString(R.string.convite_baixar), 540, 1083, paint);
         try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) {
             if (!card.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, saida)) {
                 throw new IllegalStateException("Não foi possível gerar a imagem do convite.");
