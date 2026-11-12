@@ -52,7 +52,24 @@ import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
 import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
+import { IDIOMA, LOCALE, t, traduzirArvore, iniciarTraducao, definirDados } from './lib/i18n.js';
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
+
+// o app no idioma do aparelho (português, inglês ou espanhol; os outros idiomas, em inglês): troca os textos da tela
+iniciarTraducao();
+// (os nomes guardados na biblioteca nunca são trocados: uma música chamada "Hoje" continua "Hoje" em qualquer idioma)
+if (IDIOMA !== 'pt') {
+  let nomes = null, lidoEm = 0;
+  definirDados((texto) => {
+    if (!nomes || Date.now() - lidoEm > 4000) {
+      lidoEm = Date.now();
+      nomes = new Set();
+      for (const m of db.songs()) for (const v of [m.title, m.artist, m.album, m.composer]) if (v) nomes.add(String(v).replace(/\s+/g, ' ').trim());
+      for (const r of db.sets()) if (r.name) nomes.add(String(r.name).replace(/\s+/g, ' ').trim());
+    }
+    return nomes.has(texto);
+  });
+}
 
 const $ = (sel, el = document) => el.querySelector(sel);
 // celular: a tela fica em pé (tablet e computador giram à vontade). O navegador só deixa travar no app instalado
@@ -526,6 +543,8 @@ const podeNotificarNoSistema = () =>
 
 // fixa: no APK, a notificação do download em andamento, que não sai ao arrastar (só quando a fila acaba); pct: a barra
 async function notificarSistema({ titulo, texto = '', tag = '', href = '', silenciosa = false, renovar = false, imagem = '', fixa = false, pct = -1 }) {
+  // (o aviso do sistema não passa pela tela: o texto é trocado aqui para o idioma do aparelho)
+  titulo = t(titulo); texto = t(texto);
   const nativo = pluginEcoa();
   if (nativo?.avisar) {
     try { await nativo.avisar({ titulo: titulo || 'Ecoa', texto, tag, href, silenciosa: silenciosa && !renovar, imagem, fixa, pct }); return true; } catch { return false; }
@@ -1190,7 +1209,7 @@ function download(name, text, type = 'text/plain') {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-const fmtData = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+const fmtData = (iso) => (!iso ? '' : IDIOMA === 'pt' || !/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' }));
 // ---- o carregando do app todo (como no Spotify): o contorno do que vai aparecer, no lugar exato, com um brilho
 // passando — no lugar do círculo girando com um texto embaixo. O texto fica para o leitor de tela. Os tipos:
 //   lista (linhas com capa), linhas (só os <li>, para dentro de uma lista), grade (capas lado a lado), pagina (a capa
@@ -1220,7 +1239,8 @@ const somaDias = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const DIAS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-const dataPorExtenso = (iso) => (iso ? `${DIAS_SEMANA[new Date(iso + 'T12:00:00').getDay()]}, ${fmtData(iso)}` : 'Escolher data');
+const dataPorExtenso = (iso) => (!iso ? 'Escolher data' : IDIOMA === 'pt' ? `${DIAS_SEMANA[new Date(iso + 'T12:00:00').getDay()]}, ${fmtData(iso)}`
+  : new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }));
 
 // Campo de data: botão com a data por extenso que abre o calendário do próprio app (o do aparelho é genérico
 // e mostra o formato do idioma do sistema). O valor fica num campo escondido com o id pedido.
@@ -3169,7 +3189,7 @@ async function revisarMusica(id, pendentes, chaves) {
 async function consertarMusica(id, { passo = () => {} } = {}) {
   const s = db.song(id);
   if (!s) return [];
-  const n = (x) => Number(x || 0).toLocaleString('pt-BR');
+  const n = (x) => Number(x || 0).toLocaleString(LOCALE);
   const antes = { capa: s.cover || '', sinc: JSON.stringify(s.sincronia || null), audio: versoesDe(s)?.audio || '', arquivos: Object.keys(s.baixado?.arquivos || {}).join(), rebaixar: Boolean(s.rebaixar) };
   const mudou = [];
   if (midiaDe(s) && navigator.onLine && !(s.sincronia && s.sincronia.fonte !== 'lrclib')) {
@@ -4437,7 +4457,7 @@ const player = (() => {
     if (comInfo) Promise.all([dzP, canalGuardado(nomeBusca).catch(() => null)]).then(([dz, canal]) => {
       const num = $('.pl-extra .pl-artista-num', el);
       if (!num || extraDe !== chave) return;
-      const curto = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString('pt-BR')} mil` : n.toLocaleString('pt-BR'));
+      const curto = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString(LOCALE, { maximumFractionDigits: 1 })} mi` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString(LOCALE)} mil` : n.toLocaleString(LOCALE));
       const partes = [dz?.fas && `${curto(dz.fas)} fãs no Deezer`, canal?.inscritos && `${curto(canal.inscritos)} inscritos`].filter(Boolean);
       if (partes.length) num.textContent = partes.join(' · ');
       $('.pl-extra .pl-selo', el).hidden = !(canal?.inscritos || deezerConfirmados.has(normalizar(nomeBusca)));
@@ -6921,7 +6941,7 @@ const semLinhasDeAcordes = (sinc) => {
     const song = musicaTocando();
     const sim = (x) => (x ? 'sim' : 'não');
     const seg = (x) => (Number(x) > 0 ? `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, '0')}` : '?');
-    const n = (x) => Number(x || 0).toLocaleString('pt-BR');
+    const n = (x) => Number(x || 0).toLocaleString(LOCALE);
     const vs = song && versoesDe(song);
     const sc = song?.sincronia;
     const secoes = [];
@@ -7066,7 +7086,7 @@ const semLinhasDeAcordes = (sinc) => {
     if (iArt > 1) secoes.splice(1, 0, ...secoes.splice(iArt, 1));
     const problemas = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'erro').map((i) => i.problema));
     const avisos = secoes.flatMap((s) => s.itens.filter((i) => i.problema && i.estado === 'aviso').map((i) => i.problema));
-    const cab = [`App ${APP_VERSAO} · ${new Date().toLocaleString('pt-BR')} · ${navigator.onLine ? 'com internet' : 'sem internet'}`,
+    const cab = [`App ${APP_VERSAO} · ${new Date().toLocaleString(LOCALE)} · ${navigator.onLine ? 'com internet' : 'sem internet'}`,
       `Música: ${atual?.titulo || '?'} — ${atual?.artista || '?'} (${atual?.songId || 'sem id'}${song ? '' : ', não encontrada'})`];
     const marca = { ok: '✓', aviso: '!', erro: '✗' };
     const texto = [...cab, ...secoes.flatMap((s) => ['', `[${s.titulo}]`, ...s.itens.map((i) => `${marca[i.estado] ? marca[i.estado] + ' ' : ''}${i.rotulo}: ${i.completo || i.valor}`)])].join('\n');
@@ -10383,7 +10403,7 @@ async function abrirParecidos(nome, titulo = '') {
   }
   // (e, sem nada mesmo, o cartão não fica sem resposta: abre as músicas do artista)
   if (!l.length) { if (!navigator.onLine) { toast('Sem internet'); return; } toast(`Não achei artistas parecidos agora: abrindo as músicas de ${nome}`); irParaArtista(nome); return; }
-  const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidos com ${esc(nome)}</h3>`, opcoes: l.map((x, i) => ({ valor: i, rotulo: x.nome, sub: x.fas ? `${x.fas.toLocaleString('pt-BR')} fãs no Deezer` : 'Artista',
+  const v = await escolherNaLista({ menu: true, cabeca: `<h3>Parecidos com ${esc(nome)}</h3>`, opcoes: l.map((x, i) => ({ valor: i, rotulo: x.nome, sub: x.fas ? `${x.fas.toLocaleString(LOCALE)} fãs no Deezer` : 'Artista',
     capa: `<span class="lista-capa redonda"${x.foto ? ` style="background-image:url('${esc(x.foto)}')"` : ''}>${x.foto ? '' : semFotoArtista(18)}</span>` })) });
   if (v !== undefined && l[v]) irParaArtista(l[v].nome);
 }
@@ -10500,7 +10520,7 @@ function explorarCreditos(d) {
     const num = $('.cr-ficha-num', ficha);
     deezerDoArtista(p.nome, i === 0 ? { titulo } : {}).then((dz) => {
       if (fichaDe !== i || !num.isConnected) return;
-      num.textContent = dz?.fas ? `${dz.fas.toLocaleString('pt-BR')} fãs no Deezer${dz.albuns ? ` · ${dz.albuns.toLocaleString('pt-BR')} álbuns` : ''}` : 'Toque para ver as músicas';
+      num.textContent = dz?.fas ? `${dz.fas.toLocaleString(LOCALE)} fãs no Deezer${dz.albuns ? ` · ${dz.albuns.toLocaleString(LOCALE)} álbuns` : ''}` : 'Toque para ver as músicas';
     }).catch(() => { num.textContent = 'Toque para ver as músicas'; });
   };
   dlg.addEventListener('click', async (e) => {
@@ -11648,7 +11668,7 @@ async function abrirSobreArtista({ nome, slug = '', titulo = '' }) {
   // os números grandes (como os ouvintes do Spotify): os inscritos no canal do YouTube e os fãs no Deezer, os que
   // houver, os dois lidos na hora. (Os seguidores no Spotify não entram: a API do Spotify deixou de dar os seguidores aos
   // apps novos em 2026, e os da TheAudioDB eram uma cópia meses atrasada: 70M para quem já passava de 90M)
-  const num = (n, rotulo) => `<div><b>${n.toLocaleString('pt-BR')}</b><small>${rotulo}</small></div>`;
+  const num = (n, rotulo) => `<div><b>${n.toLocaleString(LOCALE)}</b><small>${rotulo}</small></div>`;
   const numeros = [canal?.inscritos && num(canal.inscritos, 'inscritos no YouTube'), dz?.fas && num(dz.fas, 'fãs no Deezer')].filter(Boolean);
   if (numeros.length) { const caixa = tela.querySelector('.sa-numeros'); caixa.hidden = false; caixa.innerHTML = numeros.join(''); }
   // a apresentação: a da Wikipédia ou, sem ela, a biografia em português da TheAudioDB
@@ -15856,7 +15876,7 @@ async function viewCompartilhado() {
       <div class="row"><a class="btn primary" href="#/partituras">${icon('score', 16)} Ir para Partituras</a></div></div>`;
     return;
   }
-  const mb = (arquivo.size / 1048576).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const mb = (arquivo.size / 1048576).toLocaleString(LOCALE, { maximumFractionDigits: 1 });
   view.innerHTML = `<div class="ia"><div class="ia-fontes"><div class="ia-fonte destaque">
       <div class="ia-fonte-cab"><span class="part-acao-ic">${icon('upload', 22)}</span><div><b>${esc(arquivo.name)}</b><small>${mb} MB · a IA ouve e escreve a partitura da música que você escolher</small></div></div>
       <div class="ia-fonte-acts"><button class="btn small primary" id="comp-escolher">${icon('sparkles', 15)} Escolher a música</button></div></div></div></div>`;
@@ -16432,7 +16452,7 @@ function viewSong(id, ctx = {}) {
     ['Ano', metaR.year],
     ['Tom original', tomBase],
     [/letras\.mus\.br|lrclib|vagalume/.test(song.source || '') ? 'Fonte da letra' : /cifraclub/.test(song.source || '') ? 'Fonte da cifra' : 'Fonte', fonte && song.source ? `<a href="${esc(song.source)}" target="_blank" rel="noopener">${esc(fonte)}</a>` : esc(fonte), true],
-    ['Na biblioteca desde', !isPreview && song.createdAt ? new Date(song.createdAt).toLocaleDateString('pt-BR') : ''],
+    ['Na biblioteca desde', !isPreview && song.createdAt ? new Date(song.createdAt).toLocaleDateString(LOCALE) : ''],
   ].filter(([, v]) => v);
   // a página do artista (do Cifra Club) quando a cifra veio de lá: o "Seguir" do Spotify vira "Ver artista"
   const slugArtista = /cifraclub\.com\.br\/([^/?#]+)/.exec(song.source || '')?.[1];
@@ -17405,7 +17425,7 @@ function viewEditor(id, setId) {
   try {
     const r = JSON.parse(localStorage.getItem(chaveRascunho) || 'null');
     if (r?.content && r.content !== inicial) {
-      const quando = new Date(r.t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const quando = new Date(r.t).toLocaleString(LOCALE, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       const box = $('#ed-rascunho');
       box.hidden = false;
       box.innerHTML = `${icon('info', 18)}<span><b>Você tem um rascunho não salvo</b><small>De ${quando}. Quer continuar de onde parou?</small></span>
@@ -17491,7 +17511,7 @@ function linhaDaPlaylist(set, it, i, comVideo) {
   return `<li class="track set-item pl-item${comVideo && s?.youtube ? ' com-thumb' : ''}" data-i="${i}" data-musica="${esc(it.songId)}">${thumb}
     <div class="info"><div class="t">${esc(s?.title || '(música removida)')}</div>
       <div class="s">${indicadores(s && comVideo ? { ...s, youtube: '' } : s)}${s?.artist ? miniDosArtistas(s.title, s.artist, fotoReal(s.fotoArtista) || fotoReal(fotoConhecida(ehDaLiturgia(s) ? nomeReligioso(s.artist) : primeiroArtistaDe(s.artist))), ehDaLiturgia(s)) : ''}${esc(s?.artist || '')}</div></div>
-    <span class="acts">${s ? botaoMais(s.title) : `<button class="icon-btn danger" data-rm aria-label="Remover da playlist" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
+    <span class="acts">${s ? `${s.key ? `<span class="chip sm key" translate="no">${esc(s.key)}</span>` : ''}${botaoMais(s.title)}` : `<button class="icon-btn danger" data-rm aria-label="Remover da playlist" title="Remover">${icon('x', 18)}</button>`}</span></li>`;
 }
 function viewPlaylist(set) {
   const id = set.id;
@@ -17830,13 +17850,16 @@ function previaDaPlaylist(set, inicio = 0) {
       // nas linhas das listas; a foto que falta é procurada por preencherFotosDosOutros)
       const outros = ehDaLiturgia(s) ? [] : outrosArtistasDe(s.title, s.artist || '');
       const fotoDoSegundo = outros.length ? fotoReal(fotoConhecida(outros[0])) : '';
-      const maisFotos = outros.length ? `<span class="pv-foto extra" data-artista-extra data-nome="${esc(outros[0])}" data-titulo="${esc(s.title || '')}" title="${esc(outros[0])}">${fotoDoSegundo ? `<img src="${esc(fotoDoSegundo)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${outros.length > 1 ? `<span class="pv-foto extra mais" title="${esc(outros.slice(1).join(', '))}" aria-label="e mais ${outros.length - 1}">+${outros.length - 1}</span>` : ''}` : '';
+      // o nome de quem canta: o primeiro e, entre parênteses, os outros ("Lady Gaga (feat. Bruno Mars)"); cada nome
+      // e cada foto leva à página daquele artista
+      const principalDaPrevia = outros.length ? primeiroArtistaDe(s.artist) : s.artist;
+      const maisFotos = outros.length ? `<span class="pv-foto extra" role="link" tabindex="0" data-ir-artista="${esc(outros[0])}" data-artista-extra data-nome="${esc(outros[0])}" data-titulo="${esc(s.title || '')}" title="${esc(outros[0])}" translate="no">${fotoDoSegundo ? `<img src="${esc(fotoDoSegundo)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${outros.length > 1 ? `<span class="pv-foto extra mais" title="${esc(outros.slice(1).join(', '))}" aria-label="e mais ${outros.length - 1}">+${outros.length - 1}</span>` : ''}` : '';
       return `<section class="pv-slide" data-k="${k}">
       <div class="pv-video"><img class="pv-fundo" src="https://i.ytimg.com/vi/${esc(s.youtube)}/hq720.jpg" referrerpolicy="no-referrer" data-yt="${esc(s.youtube)}" alt=""></div><div class="pv-sombra"></div>
       <div class="pv-info">
         <div class="pv-meta">
-          <div class="pv-artista">${s.artist ? `<span class="pv-fotos"><span class="pv-foto" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${maisFotos}</span>
-            <span class="pv-quem"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(s.artist)}">${esc(s.artist)}</a><small class="pv-seg" hidden></small></span>` : ''}</div>
+          <div class="pv-artista">${s.artist ? `<span class="pv-fotos"><span class="pv-foto" role="link" tabindex="0" data-ir-artista="${esc(principalDaPrevia)}" data-artista-foto data-nome="${esc(s.artist)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer">` : icon('mic', 16)}</span>${maisFotos}</span>
+            <span class="pv-quem"><span class="pv-nomes" translate="no"><a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(principalDaPrevia)}">${esc(principalDaPrevia)}</a>${outros.length ? ` <span class="pv-feat">(feat. ${outros.map((n) => `<a class="pv-nome" href="#/artista-pelo-nome/${encodeURIComponent(n)}">${esc(n)}</a>`).join(', ')})</span>` : ''}</span><small class="pv-seg" hidden></small></span>` : ''}</div>
           <button class="icon-btn pv-compartilhar" data-compartilhar aria-label="Compartilhar" title="Compartilhar">${icon('share', 22)}</button>
           <div class="pv-tags" hidden></div>
           <button class="icon-btn pv-mais" data-mais aria-label="Mais opções" title="Mais opções">${icon('maisEmPe', 22)}</button></div>
@@ -17993,6 +18016,8 @@ function previaDaPlaylist(set, inicio = 0) {
     if (!slide) return;
     const { i, s } = faixas[Number(slide.dataset.k)];
     if (e.target.closest('.pv-nome')) { fechar(); return; }
+    const irArtista = e.target.closest('[data-ir-artista]');
+    if (irArtista?.dataset.irArtista) { fechar(); location.hash = '#/artista-pelo-nome/' + encodeURIComponent(irArtista.dataset.irArtista); return; }
     if (e.target.closest('[data-compartilhar]')) {
       void compartilharMusica(dadosParaCompartilhar(s));
       return;
@@ -20226,7 +20251,7 @@ function viewServidorIA() {
   let conferindo = false;
   const marcarQuando = (ligado) => {
     const q = $('#sv-quando');
-    if (q) q.textContent = `Ao vivo · conferido às ${new Date().toLocaleTimeString('pt-BR')}${ligado ? '' : ' · esperando o Codespace ligar'}`;
+    if (q) q.textContent = `Ao vivo · conferido às ${new Date().toLocaleTimeString(LOCALE)}${ligado ? '' : ' · esperando o Codespace ligar'}`;
   };
   const verificar = async ({ silencioso = false } = {}) => {
     const st = $('#sv-status');
@@ -20378,7 +20403,7 @@ function viewConectarYoutube() {
       </ol></details>
     <p class="muted cy-nota">${icon('lock', 14)} O arquivo vai só para o servidor do Ecoa, que o usa para baixar o áudio.</p></div>`;
   const texto = $('#cy-texto');
-  const quando = (t) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
+  const quando = (t) => new Date(t).toLocaleString(LOCALE, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' às');
   const enviar = $('#cy-enviar');
   const mostrarEnvio = (sim) => { enviar.hidden = !sim; $('#cy-trocar').textContent = sim ? 'Cancelar' : 'Trocar'; };
   // o cartão do estado: conectado (com o arquivo e quando foi enviado), não conectado ou o erro do servidor
@@ -21309,7 +21334,7 @@ async function partesDaLiturgia({ partes, data }) {
   if (!achadas.length) return null;
   return {
     data,
-    titulo: data === hojeISO() ? 'Liturgia de hoje' : `Liturgia de ${new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', ...(data.slice(0, 4) !== hojeISO().slice(0, 4) && { year: 'numeric' }) })}`,
+    titulo: data === hojeISO() ? 'Liturgia de hoje' : `Liturgia de ${new Date(`${data}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', ...(data.slice(0, 4) !== hojeISO().slice(0, 4) && { year: 'numeric' }) })}`,
     celebracao: lit?.celebracao || pocket?.titulo || '',
     partes: achadas,
     fontes: [...new Set(achadas.map((p) => p.fonte))],
@@ -21337,7 +21362,7 @@ async function sugestoesDaMissa({ partes, data }) {
   });
   return {
     data,
-    titulo: data === hojeISO() ? 'Missa de hoje' : `Missa de ${new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', ...(data.slice(0, 4) !== hojeISO().slice(0, 4) && { year: 'numeric' }) })}`,
+    titulo: data === hojeISO() ? 'Missa de hoje' : `Missa de ${new Date(`${data}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', ...(data.slice(0, 4) !== hojeISO().slice(0, 4) && { year: 'numeric' }) })}`,
     celebracao: [lit.celebracao, lit.ano].filter(Boolean).join(', '),
     partes: achadas,
   };
@@ -21532,7 +21557,7 @@ const comPrazo = (promessa, ms) => Promise.race([promessa, new Promise((r) => se
 async function contextoDoApp(pergunta) {
   const hoje = hojeISO();
   const data = dataDaPergunta(pergunta, hoje);
-  const dia = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const dia = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const l = [`Hoje é ${dia(hoje)}.`];
   // as leituras direto da CNBB (rápido); a missa com as sugestões de cantos (mais lenta) vem junto, se der tempo
   const [litCnbb, missa] = await Promise.all([
@@ -21885,7 +21910,7 @@ const falaDaResposta = (m) => {
   if (!partes.length) partes.push('Não achei nada sobre isso no acervo nem na internet. Tente perguntar com outras palavras.');
   return partes.join(' ');
 };
-const horaCurta = (t) => (t ? new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
+const horaCurta = (t) => (t ? new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' }) : '');
 // o índice das dúvidas: o texto de cada canto do acervo e de cada canto do Hinário (feito uma vez, na 1ª pergunta)
 let indiceDuvidas = null;
 // os arquivos do acervo do Drive (PDFs, áudios, documentos), pelo nome e pela pasta: "tem algo sobre casamento?"
@@ -22375,7 +22400,7 @@ function viewDuvidas() {
       if (r === 'sem') { toast('Não achei o microfone do aparelho', { tipo: 'erro' }); return; }
     }
     const rec = new ReconhecerVoz();
-    rec.lang = 'pt-BR';
+    rec.lang = LOCALE;
     rec.interimResults = true;
     rec.continuous = false;
     const antes = campo.value.trim() ? `${campo.value.trim()} ` : '';
@@ -22922,7 +22947,7 @@ function viewDuvidas() {
       const sessao = () => {
         const r = new ReconhecerVoz();
         rec = r;
-        r.lang = 'pt-BR';
+        r.lang = LOCALE;
         r.interimResults = true;
         r.continuous = true;
         ouvido = '';
@@ -23084,8 +23109,8 @@ async function desenharMissalDoDia(data) {
 
 // ---- Estatísticas (como as do Spotify): o que você ouviu esta semana — os minutos, o artista e a música mais
 // ouvidos — e os destaques dos meses que passaram. As contas saem do registro das tocadas (só deste aparelho)
-const fmtMin = (seg) => minutos(seg).toLocaleString('pt-BR');
-const plural = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
+const fmtMin = (seg) => minutos(seg).toLocaleString(LOCALE);
+const plural = (n, um, varios) => `${n.toLocaleString(LOCALE)} ${n === 1 ? um : varios}`;
 function fotoDoArtistaOuvido(art) {
   const nome = normalizar(art.nome);
   const s = db.songs().find((x) => x.fotoArtista && normalizar(x.artist || '') === nome);
@@ -23097,7 +23122,7 @@ const linkDaOuvida = (m) => (m.id && db.song(m.id) ? `#/musica/${encodeURICompon
 function compartilharSemana(r, periodo) {
   const texto = [`Minha semana no Ecoa (${rotuloDoPeriodo(periodo)}): ${plural(minutos(r.segundos), 'minuto ouvido', 'minutos ouvidos')}.`,
     r.artistas[0] ? `Artista mais ouvido: ${r.artistas[0].nome}.` : '', r.musicas[0] ? `Música mais ouvida: ${r.musicas[0].t}${r.musicas[0].a ? ` (${r.musicas[0].a})` : ''}.` : ''].filter(Boolean).join(' ');
-  if (navigator.share) navigator.share({ title: 'Minha semana no Ecoa', text: texto }).catch(() => {});
+  if (navigator.share) navigator.share({ title: t('Minha semana no Ecoa'), text: t(texto) }).catch(() => {});
   else { navigator.clipboard?.writeText(texto); toast('Resumo copiado'); }
 }
 function viewEstatisticas(sub) {
@@ -23674,7 +23699,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 // a tela Novidades: as versões, da mais nova para a mais antiga, cada mudança com o tipo (novo, melhoria, correção)
 // ---- Economia de dados e offline (como no Spotify): o que baixar, a economia de dados, o armazenamento e o cache
-const fmtBytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round((n || 0) / 1e3)} KB`);
+const fmtBytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString(LOCALE, { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round((n || 0) / 1e3)} KB`);
 // os caches que dá para limpar (as capas e os dados guardados enquanto se usa o app); o pacote do app e os downloads ficam
 const ehCacheLimpavel = (k) => k === 'songbook-imagens' || k === 'songbook-extras' || /-api$/.test(k);
 // Levar os downloads (o navegador e o app de Android guardam cada um no seu canto: o outro não enxerga): um arquivo com
@@ -23913,7 +23938,7 @@ function viewNovidades(versao) {
   setTab('');
   setTint('#1f3a44');
   setHeader('Novidades', { back: '#/ajustes/sobre' });
-  const data = (d) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const data = (d) => new Date(d + 'T12:00:00').toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
   view.innerHTML = `<h2 class="greet">Novidades do app</h2>
     <p class="muted nv-intro">O que foi corrigido e melhorado em cada atualização. ${noApk() ? '<span class="nv-versao-app">Você está no app de Android.</span>' : `Você está na versão ${esc(APP_VERSAO)}.`}</p>
     <div class="nv-lista">${NOVIDADES.map((n) => {

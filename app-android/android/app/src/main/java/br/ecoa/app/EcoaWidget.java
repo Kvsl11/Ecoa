@@ -128,12 +128,12 @@ public class EcoaWidget extends AppWidgetProvider {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), layout);
         v.setTextViewText(R.id.w_titulo, titulo.isEmpty() ? "Ecoa" : titulo);
         String artista = p.getString("artista", "");
-        v.setTextViewText(R.id.w_artista, titulo.isEmpty() ? "Toque para abrir" : artista);
+        v.setTextViewText(R.id.w_artista, titulo.isEmpty() ? ctx.getString(R.string.widget_toque) : artista);
         porFrase(ctx, v, layout);
         if (capa != null) v.setImageViewBitmap(R.id.w_capa, capa); else v.setImageViewResource(R.id.w_capa, R.drawable.widget_sem_capa);
         v.setInt(R.id.w_fundo, "setColorFilter", cor);
         v.setImageViewResource(R.id.w_tocar, tocando ? R.drawable.ic_pausar : R.drawable.ic_tocar);
-        v.setContentDescription(R.id.w_tocar, tocando ? "Pausar" : "Tocar");
+        v.setContentDescription(R.id.w_tocar, ctx.getString(tocando ? R.string.acao_pausar : R.string.acao_tocar));
         v.setOnClickPendingIntent(R.id.w_anterior, botao(ctx, Acoes.ANTERIOR, 1));
         v.setOnClickPendingIntent(R.id.w_tocar, botao(ctx, Acoes.ALTERNAR, 2));
         v.setOnClickPendingIntent(R.id.w_proxima, botao(ctx, Acoes.PROXIMA, 3));

@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_descricao">La última canción reproducida en Ecoa, con los botones</string>
+    <string name="widget_abrir">Abrir Ecoa</string>
+    <string name="widget_toque">Toca para abrir</string>
+    <string name="acao_voltar">Anterior</string>
+    <string name="acao_tocar">Reproducir</string>
+    <string name="acao_pausar">Pausar</string>
+    <string name="acao_pular">Siguiente</string>
+    <string name="canal_downloads">Descargas</string>
+    <string name="canal_downloads_desc">El progreso y el fin de las descargas de las canciones</string>
+    <string name="canal_tocando">Reproduciendo</string>
+    <string name="canal_tocando_desc">La canción que suena en Ecoa, con los botones</string>
+    <string name="aviso_download">Sigue el progreso de la descarga en Ecoa.</string>
+</resources>

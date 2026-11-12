@@ -5,6 +5,18 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 655, data: '2026-11-12', titulo: 'Idioma do aparelho (português, inglês e espanhol); cifra das músicas em coreano sobre a letra em hangul; tom na playlist; artistas da prévia',
+    itens: [
+      { tipo: 'novo', texto: 'O aplicativo exibia todos os textos em português, independentemente do idioma configurado no aparelho. Passou a seguir o idioma do aparelho: português do Brasil, inglês e espanhol; nos demais idiomas, é exibido em inglês. Os textos das telas, dos menus, dos avisos do sistema, do cartão de convite e do PDF são trocados por dicionários com cerca de 2.600 entradas em inglês e 2.400 em espanhol; datas e números passaram a usar o formato do idioma. Os nomes de músicas, artistas e playlists, as letras, as cifras e os textos da liturgia não são traduzidos.' },
+      { tipo: 'melhoria', texto: 'Dezenove telas foram conferidas em inglês e em espanhol, na largura de 390 px: a verificação automática não encontrou texto além da largura da tela nem cortado em botões e cartões. Dois rótulos em espanhol que quebravam no meio da palavra foram encurtados ("Tiempos litúrgicos" e "Descargar lo guardado").' },
+      { tipo: 'novo', texto: 'Os textos nativos do Android (widget da tela inicial, botões e canais de notificação do player e dos downloads) passaram a seguir o idioma do aparelho. Disponível mediante atualização do aplicativo.' },
+      { tipo: 'correcao', texto: 'Nas músicas em coreano, a letra sincronizada vem em hangul e a cifra dos sites traz a letra romanizada. A comparação palavra a palavra descartava o hangul, os acordes não eram passados para a letra sincronizada e a aba Cifra exibia a letra romanizada, sem acompanhar o canto. As palavras em hangul passaram a ser romanizadas (Romanização Revisada) e comparadas pelo som, com tolerância de uma letra (duas nas palavras de sete letras ou mais): os acordes são exibidos sobre a mesma letra da aba Letra, com o destaque da frase cantada. Em um trecho de teste de quatro frases, os doze acordes foram posicionados.' },
+      { tipo: 'melhoria', texto: 'Na lista de músicas da playlist, o tom da música passou a ser exibido ao lado do menu de cada faixa, como já ocorria nas Músicas curtidas.' },
+      { tipo: 'melhoria', texto: 'Na prévia da playlist, nas músicas com mais de um artista, apenas o nome do primeiro era exibido e as fotos não respondiam ao toque. O nome passou a incluir os participantes entre parênteses ("Lady Gaga (feat. Bruno Mars)"), e cada foto e cada nome abre a página do respectivo artista.' },
+      { tipo: 'melhoria', texto: 'Pendente: a tradução, o tom na playlist e a prévia foram verificados em navegador e por testes automatizados; não foram executados em aparelho. Os textos nativos do Android não foram compilados nem executados. Permanecem em português as respostas do Lumen, as notas das versões anteriores a esta e parte das mensagens de erro vindas do Android. A cifra em coreano foi verificada por teste automatizado com um trecho de letra; não foi executada no aplicativo com a música em que o problema foi observado.' },
+    ],
+  },
+  {
     versao: 654, data: '2026-11-11', titulo: 'Fila de reprodução na mesma ordem em que a playlist e as Músicas curtidas estão ordenadas',
     itens: [
       { tipo: 'correcao', texto: 'A opção "Ordenar por" da playlist e das Músicas curtidas alterava apenas a lista exibida. A fila do player era montada sempre na ordem salva (na playlist, a ordem personalizada; nas Músicas curtidas, a ordem interna da biblioteca), de modo que uma lista ordenada por artista era reproduzida em outra sequência. A fila passou a ser montada na ordenação escolhida em cada lista: título, artista, álbum ou adicionadas recentemente. Ao alterar a ordenação com uma música em reprodução, a fila é refeita na nova ordem a partir da música atual; ao desligar o aleatório, a fila retorna à ordenação da lista.' },
@@ -76,14 +88,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Na tela "Sobre", o quadro ao lado do nome do aplicativo exibia o ícone completo (a marca branca sobre o quadrado em degradê azul) em 18 px. Passou a exibir somente a marca, em traço vetorial de 26 px, sem o fundo azul, na cor do texto do aplicativo: escura no modo claro e clara no modo escuro.' },
       { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada em navegador, em página de teste com a marcação da linha, nos dois modos; não foi executada no aplicativo nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 645, data: '2026-11-11', titulo: 'Compartilhamento: telas "Escolher os versos" e "Personalizar" na tela toda, com versão para o modo claro',
-    itens: [
-      { tipo: 'correcao', texto: 'As telas "Escolher os versos" e "Personalizar" abriam dentro da folha de compartilhar (94% da altura), com a alça da folha acima delas. Na tela dos versos, a alça formava uma faixa na cor da folha (branca no modo claro) sobre o fundo colorido, com os cantos arredondados aparentes. As duas telas passaram a ocupar a tela toda, sem a alça, nos dois modos; ao voltar aos cartões, a folha retorna ao tamanho anterior.' },
-      { tipo: 'melhoria', texto: 'A tela "Escolher os versos" tinha uma única aparência (a cor do cartão cheia, com o texto branco), usada também no modo claro. No modo claro, passou a ter fundo em degradê da cor do cartão misturada com branco (de 30% a 12% da cor), com o texto em tom escuro da mesma cor e os versos escolhidos e o botão "Continuar" em fundo escuro com texto branco. O modo escuro não foi alterado. A tela "Personalizar" já seguia o modo do aplicativo.' },
-      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador, em página de teste com a marcação da folha (390 × 800), nos dois modos; não foram executadas no aplicativo nem em aparelho.' },
     ],
   },
 ];

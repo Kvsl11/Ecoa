@@ -5384,7 +5384,10 @@ dialog.pl-previa::backdrop { background: #000; }
 .pv-mais { grid-column: 2; grid-row: 2; }
 .pv-artista { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pv-quem { display: flex; flex-direction: column; min-width: 0; }
-.pv-quem .pv-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* (o nome de quem canta e, entre parênteses, os outros: uma linha só, com reticências quando não cabe) */
+.pv-nomes { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
+.pv-feat, .pv-feat .pv-nome { font-weight: 500; font-size: 14px; color: rgb(255 255 255 / 0.88); }
+.pv-foto[data-ir-artista] { cursor: pointer; }
 .pv-seg { color: rgb(255 255 255 / 0.85); font-size: 12.5px; text-shadow: 0 1px 4px rgb(0 0 0 / 0.5); }
 /* as hashtags: quantas houver, numa linha que se arrasta para o lado */
 .pv-tags { grid-column: 1; grid-row: 2; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain;
@@ -6646,3 +6649,8 @@ dialog.cs-dlg.cs-tela-toda .cs-personalizar { padding-top: calc(10px + env(safe-
    sobre as fotos escuras */
 html.pp #player .pl-artista-foto h4 { color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 2px 12px rgb(0 0 0 / 0.6); }
 html.pp #player .pl-artista-foto::after { background: linear-gradient(180deg, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.28) 22%, transparent 42%, transparent 70%, rgb(0 0 0 / 0.35) 100%); }
+
+/* ---- o app em inglês e espanhol (js/lib/i18n.js) ----
+   Uma palavra traduzida mais comprida que o lugar dela (um botão, o título de um cartão) quebra dentro do próprio
+   lugar em vez de passar por cima do vizinho. Só vale quando não há outro ponto de quebra, e só fora do português. */
+:root:not([lang^="pt"]) :is(.btn, .tile, .setting .t, .setting .s, .track .t, .track .s, h1, h2, h3, label, .lista-menu button) { overflow-wrap: anywhere; }

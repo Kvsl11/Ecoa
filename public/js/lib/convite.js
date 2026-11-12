@@ -1,6 +1,7 @@
 // O convite do Ecoa ("Compartilhar o Ecoa", nos ⋮ da conta): o texto que vai na mensagem e o cartão (imagem) que vai
 // junto, com o código QR do endereço. O cartão é desenhado num <canvas> que a tela entrega; o resto não usa DOM.
 import { codigoQR } from './qr.js';
+import { t } from './i18n.js';
 
 export const APK_DO_ECOA = 'https://kvsl11.github.io/Ecoa/Ecoa.apk';
 export const LARGURA = 1080;
@@ -19,18 +20,18 @@ export function dadosDoConvite({ android = false, site = '', nome = '' } = {}) {
   return {
     url,
     quem,
-    titulo: 'Ecoa — Ouça, cante e ecoe',
+    titulo: t('Ecoa — Ouça, cante e ecoe'),
     texto: [
-      'Conheça o Ecoa 🎵',
-      'Músicas com letra sincronizada, cifras, acordes e karaokê em um só aplicativo.',
-      android ? 'Baixe para Android:' : 'Abra no navegador:',
+      t('Conheça o Ecoa 🎵'),
+      t('Músicas com letra sincronizada, cifras, acordes e karaokê em um só aplicativo.'),
+      t(android ? 'Baixe para Android:' : 'Abra no navegador:'),
     ].join('\n'),
-    chamada: android ? 'Baixe para Android' : 'Abra no navegador',
-    instrucao: 'Aponte a câmera para o código',
+    chamada: t(android ? 'Baixe para Android' : 'Abra no navegador'),
+    instrucao: t('Aponte a câmera para o código'),
     // (a última linha do cartão. No APK, o link já baixa o arquivo do aplicativo, sem abrir página nenhuma: o cartão
     // diz isso em vez de mostrar o endereço da hospedagem. No navegador, o endereço do site, sem o https://)
-    endereco: android ? 'Download direto do aplicativo' : url.replace(/^https?:\/\//, '').replace(/\/$/, ''),
-    recursos: ['Letra sincronizada', 'Cifras e acordes', 'Karaokê', 'Músicas offline'],
+    endereco: android ? t('Download direto do aplicativo') : url.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+    recursos: ['Letra sincronizada', 'Cifras e acordes', 'Karaokê', 'Músicas offline'].map(t),
   };
 }
 
@@ -116,7 +117,7 @@ export function desenharConvite(canvas, dados) {
   let y = 372;
   if (dados.quem) {
     c.font = fonte(600, 34);
-    const rotulo = `${dados.quem} convidou você`;
+    const rotulo = t(`${dados.quem} convidou você`);
     const l = c.measureText(rotulo).width + 56;
     c.fillStyle = 'rgba(34,211,238,0.14)';
     retangulo(c, M, y - 46, l, 68, 34); c.fill();
@@ -127,14 +128,21 @@ export function desenharConvite(canvas, dados) {
   } else y -= 6;
 
   // a frase
-  c.font = fonte(800, 132);
+  // (no idioma do aparelho; uma frase mais comprida que a portuguesa diminui até caber na largura do cartão)
+  const linha1 = t('Ouça, cante');
+  const linha2 = t('e ecoe.');
+  const corte = linha2.indexOf(' ') + 1;
+  let corpo = 132;
+  c.font = fonte(800, corpo);
+  const maior = Math.max(c.measureText(linha1).width, c.measureText(linha2).width);
+  if (maior > LARGURA - 2 * M) { corpo = Math.floor(corpo * (LARGURA - 2 * M) / maior); c.font = fonte(800, corpo); }
   c.fillStyle = '#fff';
-  escrever(c, 'Ouça, cante', M - 4, y + 118, -5);
-  const l = escrever(c, 'e ', M - 4, y + 256, -5);
+  escrever(c, linha1, M - 4, y + 118, -5);
+  const l = escrever(c, linha2.slice(0, corte), M - 4, y + 256, -5);
   const ciano = c.createLinearGradient(M + l, 0, M + l + 360, 0);
   ciano.addColorStop(0, '#67e8f9'); ciano.addColorStop(1, '#22d3ee');
   c.fillStyle = ciano;
-  escrever(c, 'ecoe.', M - 4 + l, y + 256, -5);
+  escrever(c, linha2.slice(corte), M - 4 + l, y + 256, -5);
   y += 256;
 
   // os recursos, em pílulas (quebrando a linha quando não cabem)

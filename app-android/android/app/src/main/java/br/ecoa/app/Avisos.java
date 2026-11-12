@@ -50,11 +50,11 @@ final class Avisos {
                 NotificationCompat.Builder b = new NotificationCompat.Builder(app, CANAL)
                     .setSmallIcon(R.drawable.ic_ecoa)
                     .setContentTitle(titulo == null || titulo.isEmpty() ? "Ecoa" : titulo)
-                    .setContentText(texto == null || texto.isEmpty() ? "Acompanhe o andamento do download no Ecoa." : texto)
-                    .setSubText("Downloads do Ecoa")
+                    .setContentText(texto == null || texto.isEmpty() ? app.getString(R.string.aviso_download) : texto)
+                    .setSubText(app.getString(R.string.canal_downloads))
                     .setStyle(new NotificationCompat.BigTextStyle()
                         .setBigContentTitle(titulo == null || titulo.isEmpty() ? "Ecoa" : titulo)
-                        .bigText(texto == null || texto.isEmpty() ? "Acompanhe o andamento do download no Ecoa." : texto))
+                        .bigText(texto == null || texto.isEmpty() ? app.getString(R.string.aviso_download) : texto))
                     .setContentIntent(toque)
                     .setAutoCancel(!fixa)
                     .setOngoing(fixa)
@@ -80,9 +80,9 @@ final class Avisos {
     private static void canal(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        if (nm.getNotificationChannel(CANAL) != null) return;
-        NotificationChannel c = new NotificationChannel(CANAL, "Downloads", NotificationManager.IMPORTANCE_LOW);
-        c.setDescription("O andamento e o fim dos downloads das músicas");
+        // (criado de novo a cada vez: o nome e a descrição acompanham o idioma do aparelho; o resto do canal não muda)
+        NotificationChannel c = new NotificationChannel(CANAL, ctx.getString(R.string.canal_downloads), NotificationManager.IMPORTANCE_LOW);
+        c.setDescription(ctx.getString(R.string.canal_downloads_desc));
         nm.createNotificationChannel(c);
     }
 

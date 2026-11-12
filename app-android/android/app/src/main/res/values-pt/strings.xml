@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_descricao">A última música tocada no Ecoa, com os botões</string>
+    <string name="widget_abrir">Abrir o Ecoa</string>
+    <string name="widget_toque">Toque para abrir</string>
+    <string name="acao_voltar">Voltar</string>
+    <string name="acao_tocar">Tocar</string>
+    <string name="acao_pausar">Pausar</string>
+    <string name="acao_pular">Pular</string>
+    <string name="canal_downloads">Downloads</string>
+    <string name="canal_downloads_desc">O andamento e o fim dos downloads das músicas</string>
+    <string name="canal_tocando">Tocando agora</string>
+    <string name="canal_tocando_desc">A música tocando no Ecoa, com os botões</string>
+    <string name="aviso_download">Acompanhe o andamento do download no Ecoa.</string>
+</resources>
