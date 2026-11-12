@@ -20315,8 +20315,26 @@ function fecharConviteDaMusica() {
   document.documentElement.classList.remove('com-convite');
   if (!conviteDaMusica) return;
   try { conviteDaMusica.audio.pause(); conviteDaMusica.audio.removeAttribute('src'); } catch { /* já parado */ }
+  conviteDaMusica.parar?.();
   conviteDaMusica.el.remove();
   conviteDaMusica = null;
+}
+// as cores das luzes do fundo da prévia: as fortes da capa (até 3), mais claras, em --c1, --c2 e --c3; sem elas (capa
+// cinza ou sem a leitura liberada), ficam a cor do app e duas vizinhas
+async function coresDoFundoDaPrevia(el, url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    await img.decode();
+    const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, 32, 32);
+    const cores = coresDaCapa(ctx.getImageData(0, 0, 32, 32).data);
+    if (!cores || !el.isConnected) return;
+    const viva = (k) => { const x = cores[k % cores.length]; return `hsl(${(x.h + (k >= cores.length ? 40 * k : 0)) % 360} ${Math.min(90, x.s + 25)}% ${Math.min(62, x.l + 22)}%)`; };
+    [0, 1, 2].forEach((k) => el.style.setProperty(`--c${k + 1}`, viva(k)));
+  } catch { /* fica a cor do app */ }
 }
 function mostrarConviteDaMusica(titulo, artista) {
   const chave = `${titulo}|${artista}`;
@@ -20325,7 +20343,7 @@ function mostrarConviteDaMusica(titulo, artista) {
   const el = document.createElement('section');
   el.className = 'convite-musica carregando';
   el.setAttribute('aria-label', 'Prévia da música');
-  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"></div>
+  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><i class="cm-c1"></i><i class="cm-c2"></i><i class="cm-c3"></i><b class="cm-luz cm-l1"></b><b class="cm-luz cm-l2"></b><b class="cm-luz cm-l3"></b></div>
     <button class="cm-pular" type="button">Pular</button>
     <div class="cm-conteudo">
       <div class="cm-capa">${icon('music', 56)}</div>
@@ -20338,6 +20356,51 @@ function mostrarConviteDaMusica(titulo, artista) {
   const audio = new Audio();
   audio.preload = 'auto';
   conviteDaMusica = { chave, el, audio };
+  // O fundo acompanha o som: a batida da prévia (0 a 1, suavizada) vai para --nivel, que aumenta e acende as luzes
+  // a cada batida. O Deezer libera a leitura do áudio (CORS); onde o aparelho não deixa
+  // analisar, fica a pulsação de sempre do CSS (classe sem-analise)
+  let analise = null;
+  let quadro = 0;
+  const fundo = $('.cm-fundo', el);
+  let nivel = 0;
+  let media = 0;
+  let antes = 0;
+  // (pelo tempo entre um quadro e outro, e não por quadro: nos aparelhos que desenham menos quadros por segundo, a média
+  // demorava a acompanhar e o fundo ficava sempre aceso)
+  const medir = (agora = performance.now()) => {
+    if (conviteDaMusica?.el !== el) return;
+    const dt = Math.min(0.5, antes ? (agora - antes) / 1000 : 0.016);
+    antes = agora;
+    const passo = (segundos) => 1 - Math.exp(-dt / segundos);
+    if (analise && !audio.paused) {
+      analise.no.getByteFrequencyData(analise.dados);
+      let soma = 0; const ate = Math.min(analise.dados.length, 48);
+      for (let k = 2; k < ate; k++) soma += analise.dados[k];
+      // (a batida: o quanto o som sobe acima da média do último segundo, e não o volume em si, que numa música alta
+      // deixava o fundo sempre aceso)
+      const energia = soma / (ate - 2) / 255;
+      media = media ? media + (energia - media) * passo(1) : energia;
+      const alvo = Math.max(0, Math.min(1, (energia - media) * 9 + 0.2));
+      nivel += (alvo - nivel) * passo(alvo > nivel ? 0.05 : 0.25);
+    } else nivel += (0 - nivel) * passo(0.3);
+    // (só no fundo: posto na tela toda, redesenhava também o texto a cada quadro, que ficava borrado)
+    fundo.style.setProperty('--nivel', nivel.toFixed(3));
+    quadro = requestAnimationFrame(medir);
+  };
+  const ligarAnalise = () => {
+    if (analise !== null) { analise?.ctx.resume?.().catch(() => {}); return; }
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const no = ctx.createAnalyser();
+      no.fftSize = 256; no.smoothingTimeConstant = 0.6;
+      ctx.createMediaElementSource(audio).connect(no).connect(ctx.destination);
+      analise = { ctx, no, dados: new Uint8Array(no.frequencyBinCount) };
+      ctx.resume?.().catch(() => {});
+    } catch { analise = false; el.classList.add('sem-analise'); }
+  };
+  conviteDaMusica.parar = () => { cancelAnimationFrame(quadro); if (analise) analise.ctx.close?.().catch(() => {}); };
+  audio.addEventListener('play', ligarAnalise);
+  quadro = requestAnimationFrame(medir);
   const play = $('.cm-play', el);
   const barra = $('.cm-trilha i', el);
   const marcar = () => {
@@ -20362,8 +20425,16 @@ function mostrarConviteDaMusica(titulo, artista) {
     if (!faixa) { fecharConviteDaMusica(); return; }
     if (faixa.capa) {
       $('.cm-capa', el).innerHTML = `<img src="${esc(faixa.capa)}" alt="" referrerpolicy="no-referrer">`;
-      $('.cm-fundo', el).style.backgroundImage = `url("${faixa.capa.replace(/"/g, '%22')}")`;
+      el.style.setProperty('--capa', `url("${faixa.capa.replace(/"/g, '%22')}")`);
+      void coresDoFundoDaPrevia(el, faixa.capa);
     }
+    // (com a leitura liberada, para o fundo acompanhar o som; se o servidor recusar, a prévia toca sem a análise)
+    audio.crossOrigin = 'anonymous';
+    audio.addEventListener('error', () => {
+      if (audio.crossOrigin === null || conviteDaMusica?.el !== el) return;
+      audio.removeAttribute('crossorigin'); analise = false; el.classList.add('sem-analise');
+      audio.src = faixa.previa; audio.play().catch(() => marcar());
+    }, { once: true });
     audio.src = faixa.previa;
     el.classList.remove('carregando');
     // (toca sozinha; onde o navegador não deixa o som começar sem um toque, fica o botão de play)

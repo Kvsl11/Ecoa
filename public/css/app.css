@@ -5834,18 +5834,63 @@ html.sem-conta .entrada { hyphens: manual; -webkit-hyphens: manual; position: fi
 .convite-musica { display: none; }
 html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; overflow: hidden;
   background: #07090b; color: #fff; isolation: isolate; hyphens: manual; -webkit-hyphens: manual; }
-.cm-fundo { position: absolute; inset: -60px; z-index: -1; background: radial-gradient(60% 40% at 50% 35%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%) center / cover no-repeat;
-  filter: blur(60px) saturate(1.3); opacity: 0.7; transform: scale(1.15); transition: opacity 0.6s; }
-.cm-fundo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(7 9 11 / 0.2), rgb(7 9 11 / 0.85)); }
+/* o fundo em movimento: três camadas da própria capa, desfocadas, girando e flutuando devagar em sentidos diferentes
+   (como o fundo animado do Apple Music), e três luzes nas cores da capa passeando por cima. Com a prévia tocando, o som
+   (--nivel, de 0 a 1, medido no app.js e posto só no fundo) aumenta e acende as luzes a cada batida */
+.convite-musica { --capa: none; --c1: var(--accent); --c2: color-mix(in srgb, var(--accent) 60%, #ff4fa0); --c3: color-mix(in srgb, var(--accent) 50%, #7c5cff); --nivel: 0; }
+.cm-fundo { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #07090b; }
+.cm-fundo i { position: absolute; left: 50%; top: 50%; width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; border-radius: 42%;
+  background: var(--capa) center / cover no-repeat; filter: blur(60px) saturate(1.7) brightness(1.15); opacity: 0.7; will-change: transform; }
+.cm-fundo .cm-c1 { animation: cm-gira 26s linear infinite; }
+.cm-fundo .cm-c2 { width: 110vmax; height: 110vmax; margin: -55vmax 0 0 -55vmax; opacity: 0.45; mix-blend-mode: screen; animation: cm-gira-volta 19s linear infinite; translate: -18vmax -14vmax; }
+.cm-fundo .cm-c3 { width: 95vmax; height: 95vmax; margin: -47.5vmax 0 0 -47.5vmax; opacity: 0.4; mix-blend-mode: overlay; animation: cm-gira 15s linear infinite; translate: 20vmax 18vmax; }
+@keyframes cm-gira { from { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.15); } to { transform: rotate(360deg) scale(1); } }
+@keyframes cm-gira-volta { from { transform: rotate(360deg) scale(1.1); } 50% { transform: rotate(180deg) scale(0.92); } to { transform: rotate(0deg) scale(1.1); } }
+.cm-luz { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; mix-blend-mode: screen; filter: blur(50px); will-change: transform, opacity;
+  opacity: calc(0.45 + var(--nivel) * 0.5); scale: calc(0.95 + var(--nivel) * 0.4); transition: opacity 0.15s, scale 0.15s; }
+.cm-l1 { left: -20vmax; top: -15vmax; background: radial-gradient(closest-side, var(--c1), transparent); animation: cm-passeia1 9s ease-in-out infinite alternate; }
+.cm-l2 { right: -25vmax; top: 25%; background: radial-gradient(closest-side, var(--c2), transparent); animation: cm-passeia2 11s ease-in-out infinite alternate; }
+.cm-l3 { left: 10%; bottom: -30vmax; background: radial-gradient(closest-side, var(--c3), transparent); animation: cm-passeia3 13s ease-in-out infinite alternate; }
+@keyframes cm-passeia1 { to { transform: translate(38vmax, 30vmax); } }
+@keyframes cm-passeia2 { to { transform: translate(-42vmax, -26vmax); } }
+@keyframes cm-passeia3 { to { transform: translate(24vmax, -38vmax); } }
+/* (o escurecido por cima, para o nome ler bem; mais leve no meio, onde fica a capa) */
+.cm-fundo::after { content: ""; position: absolute; inset: 0; background: radial-gradient(90% 70% at 50% 35%, rgb(7 9 11 / 0.05), rgb(7 9 11 / 0.4)), linear-gradient(180deg, transparent 42%, rgb(7 9 11 / 0.5) 62%, rgb(7 9 11 / 0.6)); }
+/* (onde o som não pode ser medido: as luzes pulsam num compasso fixo enquanto toca) */
+.convite-musica.sem-analise.tocando .cm-luz { animation-name: cm-passeia1, cm-bate; animation-duration: 9s, 0.9s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate, alternate; }
+.convite-musica.sem-analise.tocando .cm-l2 { animation-name: cm-passeia2, cm-bate; animation-duration: 11s, 0.9s; }
+.convite-musica.sem-analise.tocando .cm-l3 { animation-name: cm-passeia3, cm-bate; animation-duration: 13s, 0.9s; }
+@keyframes cm-bate { from { opacity: 0.4; } to { opacity: 0.85; } }
+@media (prefers-reduced-motion: reduce) { .cm-fundo i, .cm-luz, .cm-capa, .cm-capa img, .cm-capa::after { animation: none !important; } .cm-luz { scale: 1; } }
 .cm-pular { position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 16px; padding: 8px 14px; border: 0; border-radius: 999px;
   background: rgb(255 255 255 / 0.12); color: rgb(255 255 255 / 0.85); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .cm-conteudo { width: min(100%, 380px); display: flex; flex-direction: column; align-items: center; min-width: 0;
   padding: calc(56px + env(safe-area-inset-top)) 28px calc(32px + env(safe-area-inset-bottom)); animation: entrada-sobe 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .cm-capa { display: grid; place-items: center; width: min(78vw, 320px, 46vh); aspect-ratio: 1; overflow: hidden; border-radius: 12px;
-  background: rgb(255 255 255 / 0.08); color: rgb(255 255 255 / 0.5); box-shadow: 0 30px 70px rgb(0 0 0 / 0.6); transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); transform: scale(0.94); }
-.convite-musica.tocando .cm-capa { transform: none; }
+  background: rgb(255 255 255 / 0.08); color: rgb(255 255 255 / 0.5); box-shadow: 0 30px 70px rgb(0 0 0 / 0.6); }
 .cm-capa img { width: 100%; height: 100%; object-fit: cover; }
-.cm-nomes { align-self: stretch; min-width: 0; margin-top: 28px; }
+/* a capa viva (como as capas com movimento do Apple Music, até onde uma imagem parada permite): a imagem se aproxima e
+   desliza devagar dentro do quadro (Ken Burns, num ciclo de 22 s que vai e volta), o quadro flutua de leve, inclinando
+   um pouco, e um brilho atravessa a capa de tempos em tempos. Tudo pelo CSS, sem redesenhar o resto da tela */
+.cm-capa { position: relative; perspective: 900px; }
+.cm-capa img { transform-origin: 50% 45%; animation: cm-ken 22s ease-in-out infinite alternate; will-change: transform; }
+@keyframes cm-ken {
+  0% { transform: scale(1.04) translate(0, 0); }
+  35% { transform: scale(1.1) translate(-1.6%, -1.2%); }
+  70% { transform: scale(1.07) translate(1.4%, 0.8%); }
+  100% { transform: scale(1.12) translate(-0.6%, 1.4%); }
+}
+.convite-musica:not(.carregando) .cm-capa { animation: cm-flutua 9s ease-in-out infinite; }
+@keyframes cm-flutua {
+  0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+  25% { transform: translateY(-5px) rotateX(1.5deg) rotateY(-2deg); }
+  50% { transform: translateY(-2px) rotateX(-1deg) rotateY(1.5deg); }
+  75% { transform: translateY(-6px) rotateX(1deg) rotateY(2deg); }
+}
+.cm-capa::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.16) 48%, transparent 60%);
+  background-size: 250% 100%; background-position: 150% 0; animation: cm-brilho 8s ease-in-out 2s infinite; }
+@keyframes cm-brilho { 0%, 70% { background-position: 150% 0; } 100% { background-position: -100% 0; } }
+.cm-nomes { align-self: stretch; min-width: 0; margin-top: 28px; text-shadow: 0 1px 14px rgb(0 0 0 / 0.6), 0 0 2px rgb(0 0 0 / 0.35); }
 .cm-titulo { margin: 0; font-size: clamp(22px, 6.4vw, 28px); line-height: 1.2; font-weight: 800; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-artista { margin: 4px 0 0; color: rgb(255 255 255 / 0.68); font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-trilha { align-self: stretch; height: 4px; margin-top: 22px; border-radius: 4px; background: rgb(255 255 255 / 0.2); overflow: hidden; }
