@@ -33,7 +33,7 @@ import { canalOficial, doMesmoArtista, escolherAudio, fonteOficial, escolherClip
 import { TAXA as TAXA_CASAMENTO } from './lib/casamento.js';
 import { analisar as analisarMusica, corpoDaSincronia, corpoDaTranscricao, lerSincronia, lerTranscricao, montarCifra, nomesDoArquivo } from './lib/analise-musical.js';
 import { baixadorDoAparelho, baixarNoAparelho, lerBaixadoNoAparelho } from './lib/baixador-aparelho.js';
-import { chamarGemini as chamarGeminiModelo, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
+import { chamarGemini as chamarGeminiModelo, linguaDaResposta, responderNoAparelho, trechosDosPdfs } from './lib/lumen-local.js';
 import { estadoDaConexao, lentaPelasMedidas, TEXTO_DA_CONEXAO } from './lib/conexao.js';
 import { embaralharIndices, moverIndice, ordemDaPlaylist, ordenarCurtidas } from './lib/fila.js';
 import { faixasPeloDeezer, nomeSemExtras } from './lib/faixas.js';
@@ -22962,7 +22962,8 @@ function pcmGeminiParaWav(dados, mime) {
 }
 async function audioGeminiNoAparelho(nativo, texto) {
   const corpo = {
-    contents: [{ parts: [{ text: `Leia em voz alta, em português brasileiro, com naturalidade: ${texto}` }] }],
+    // (no idioma do aparelho, como a resposta)
+    contents: [{ parts: [{ text: `Leia em voz alta, em ${linguaDaResposta(IDIOMA)}, com naturalidade: ${texto}` }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: vozDoLumen().nome } } },
@@ -23558,7 +23559,7 @@ const estadoGemini = {};
 async function perguntarNoAparelho(nativo, { pergunta, historico, contexto = '', voz = false, anexos = [] }) {
   const achados = await indiceDoLumen().then((ix) => ix.buscar(pergunta, 14)).catch(() => []);
   const chamarGemini = (caminho, corpo) => nativo.gemini({ caminho, ...(corpo ? { corpo: JSON.stringify(corpo) } : {}), tempo: 150000 });
-  return responderNoAparelho({ pergunta, historico, contexto, voz, genero: generoLumen(), anexos, achados }, chamarGemini, estadoGemini);
+  return responderNoAparelho({ pergunta, historico, contexto, voz, genero: generoLumen(), anexos, achados, idioma: IDIOMA }, chamarGemini, estadoGemini);
 }
 // quantas palavras diferentes da pergunta aparecem no texto
 // quantas palavras (assuntos) a pergunta tem, sem as de conversa
@@ -23751,7 +23752,7 @@ function viewDuvidas() {
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
         const anexos = [{ nome: anexo.nome, tipo: anexo.tipo, dados: anexo.dados }];
         const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, voz, anexos })
-          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos }, tempo: 200e3 });
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: '', voz, genero: generoLumen(), anexos, idioma: IDIOMA }, tempo: 200e3 });
         if (ia?.resposta) return pronto({ ia });
       } catch (e) { if (e.status === 501) lumenSemIA = true; else resp.semIA = true; }
     }
@@ -23830,7 +23831,7 @@ function viewDuvidas() {
         const historico = conversaDuvidas.slice(0, -2).filter((m) => !m.carregando).slice(-6)
           .map((m) => ({ role: m.role, content: m.role === 'user' ? m.content : textoDaResposta(m) || '…' }));
         const ia = local ? await perguntarNoAparelho(local, { pergunta: q, historico, contexto: await contextoDoApp(q), voz })
-          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen() }, tempo: 150e3 });
+          : await chamar(cfgIA, '/duvida', { json: { pergunta: q, historico, contexto: await contextoDoApp(q), voz, genero: generoLumen(), idioma: IDIOMA }, tempo: 150e3 });
         if (ia?.resposta) {
           const { texto: semAcoes, depois } = acoesDaIA(ia.resposta);
           ia.resposta = semAcoes;
@@ -24392,7 +24393,7 @@ function viewDuvidas() {
         const inicio = antesDela;
         const qtas = contarPalavras(f);
         antesDela += qtas;
-        u.lang = 'pt-BR';
+        u.lang = LOCALE; // (a voz do aparelho no idioma dele, como a resposta)
         if (voz) u.voice = voz;
         u.rate = 1.04;
         u.onstart = () => { avancarLegenda(inicio, inicio + qtas); if (comInterrupcao()) ligarVigia(); };

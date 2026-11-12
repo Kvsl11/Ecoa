@@ -549,8 +549,16 @@ def sistema_do_genero(genero: str) -> str:
     """A voz é apenas uma preferência de áudio; o Gemini não assume personagem ou gênero."""
     return ''
 
+# a língua da resposta: a do aparelho de quem pergunta (os outros idiomas ficam em inglês, como o app)
+LINGUA_DA_RESPOSTA = {"pt": "português do Brasil", "en": "inglês (English)", "es": "espanhol (español)"}
+
+
+def com_idioma(texto: str, idioma: str = "pt") -> str:
+    return texto.replace("Responda em português do Brasil", f"Responda em {LINGUA_DA_RESPOSTA.get(idioma, LINGUA_DA_RESPOSTA['en'])}")
+
+
 def responder(pergunta: str, historico: list[dict] | None = None, contexto: str = "", voz: bool = False,
-              anexos: list[dict] | None = None, genero: str = "feminina") -> dict:
+              anexos: list[dict] | None = None, genero: str = "feminina", idioma: str = "pt") -> dict:
     pergunta = pergunta.strip()[:1000]
     if not pergunta:
         raise ValueError("escreva a pergunta")
@@ -563,7 +571,7 @@ def responder(pergunta: str, historico: list[dict] | None = None, contexto: str 
     mensagens.append({"role": "user", "content": montar_pergunta(pergunta, achados, (contexto or "")[:20000])})
     arquivos = _decodificar(anexos)
     pdf_junto = False
-    sistema = SISTEMA + sistema_do_genero(genero) + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
+    sistema = com_idioma(SISTEMA, idioma) + sistema_do_genero(genero) + (SISTEMA_VOZ if voz else "") + (SISTEMA_ANEXO if arquivos else "")
     # sem arquivo da pessoa: o PDF do acervo que trata do assunto vai inteiro (a IA lê o que ele diz de verdade)
     if not arquivos and os.environ.get("IA_PDF_DO_ACERVO", "1") != "0":
         escolhido = pdf_do_acervo(pergunta, achados)

@@ -33,6 +33,12 @@ final class GeminiLive {
 
     private GeminiLive() {}
 
+    // a língua da resposta: a do aparelho (português do Brasil, espanhol; os outros idiomas em inglês, como o app)
+    static String linguaDoAparelho() {
+        String l = java.util.Locale.getDefault().getLanguage();
+        return "pt".equals(l) ? "português do Brasil" : "es".equals(l) ? "espanhol (español)" : "inglês (English)";
+    }
+
     static void iniciar(String instrucao, Executor executor, Retorno retorno) {
         synchronized (GeminiLive.class) {
             if (sessao != null || iniciando) {
@@ -46,7 +52,7 @@ final class GeminiLive {
             // Voz padrão do Gemini Live; não há personagem nem seleção de gênero.
             Content sistema = new Content.Builder()
                 .addText(instrucao == null || instrucao.trim().isEmpty()
-                    ? "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em português do Brasil, com naturalidade, clareza e frases curtas."
+                    ? "Você é o Google Gemini integrado ao Ecoa. Não adote personagem ou identidade própria. Responda em " + linguaDoAparelho() + ", com naturalidade, clareza e frases curtas."
                     : instrucao)
                 .build();
 

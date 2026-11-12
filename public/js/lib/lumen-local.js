@@ -192,9 +192,15 @@ export async function chamarGemini(chamar, corpo, estado = {}, { modelos = 7, es
   throw new ErroGemini(0, 'nenhum modelo do Gemini disponível');
 }
 
+// A língua da resposta: a do aparelho (português do Brasil, inglês ou espanhol; os outros idiomas ficam em inglês, como o
+// app). A instrução é a mesma do servidor, com a língua trocada
+export const LINGUA_DA_RESPOSTA = { pt: 'português do Brasil', en: 'inglês (English)', es: 'espanhol (español)' };
+export const linguaDaResposta = (idioma) => LINGUA_DA_RESPOSTA[idioma] || LINGUA_DA_RESPOSTA.en;
+export const comIdioma = (texto, idioma = 'pt') => String(texto).replace('Responda em português do Brasil', `Responda em ${linguaDaResposta(idioma)}`);
+
 // A resposta do Lúmen, como a do servidor ({ resposta, fontes, web, usouWeb }). achados: os trechos do acervo que a
 // busca no aparelho achou ({ titulo, caminho, texto, id, tipo, nota }); anexos: [{ nome, tipo, dados (base64), texto? }]
-export async function responderNoAparelho({ pergunta, historico = [], contexto = '', voz = false, genero = 'feminina', anexos = [], achados = [] }, chamar, estado = {}) {
+export async function responderNoAparelho({ pergunta, historico = [], contexto = '', voz = false, genero = 'feminina', anexos = [], achados = [], idioma = 'pt' }, chamar, estado = {}) {
   pergunta = String(pergunta || '').trim().slice(0, 1000);
   if (!pergunta) throw new Error('escreva a pergunta');
   const usados = trechosQueImportam(achados);
@@ -202,7 +208,7 @@ export async function responderNoAparelho({ pergunta, historico = [], contexto =
     .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
   mensagens.push({ role: 'user', content: montarPergunta(pergunta, usados, String(contexto || '').slice(0, 20000)) });
   const arquivos = anexos.slice(0, 3).map(arquivoParaOGemini);
-  const sistema = SISTEMA + sistemaDoGenero(genero) + (voz ? SISTEMA_VOZ : '') + (arquivos.length ? SISTEMA_ANEXO : '');
+  const sistema = comIdioma(SISTEMA, idioma) + sistemaDoGenero(genero) + (voz ? SISTEMA_VOZ : '') + (arquivos.length ? SISTEMA_ANEXO : '');
   const dados = await chamarGemini(chamar, corpoDoGemini(mensagens, sistema, arquivos), estado);
   const { texto, web, usouWeb } = lerRespostaGemini(dados);
   if (!texto) throw new ErroGemini(502, 'a IA não mandou resposta');

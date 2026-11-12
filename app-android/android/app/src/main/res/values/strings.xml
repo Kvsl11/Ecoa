@@ -16,4 +16,10 @@
     <string name="canal_tocando">Now playing</string>
     <string name="canal_tocando_desc">The song playing on Ecoa, with the buttons</string>
     <string name="aviso_download">Follow the download progress in Ecoa.</string>
+    <!-- o convite do Ecoa (o cartão de reserva e o texto que vai junto) -->
+    <string name="convite_texto">Meet Ecoa! Listen, sing and echo.</string>
+    <string name="convite_rotulo">Ecoa song</string>
+    <string name="convite_lema">Listen, sing and echo.</string>
+    <string name="convite_recursos">Chord charts • synced lyrics • chords</string>
+    <string name="convite_baixar">GET THE APK FOR ANDROID</string>
 </resources>
