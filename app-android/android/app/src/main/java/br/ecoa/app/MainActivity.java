@@ -236,7 +236,9 @@ public class MainActivity extends BridgeActivity {
 
     // O link de uma música compartilhada que abriu o app: https://kvsl11.github.io/Ecoa/#/ouvir/<nome>/<artista> ou
     // ecoa://ouvir/<nome>/<artista>. A página vai para a tela da música (a rota "#/ouvir/..."). Com o app abrindo
-    // agora, a página ainda não carregou: tenta de novo a cada meio segundo, por até 30 s.
+    // agora, a página ainda não carregou: tenta de novo a cada meio segundo, por até 30 s. O endereço é trocado assim
+    // que a página existe, sem esperar o app carregar: quem não entrou vê a tela da prévia já (o index.html a mostra), e
+    // não a tela de entrada até o app terminar de abrir; com o app pronto, o endereço é conferido de novo.
     private void abrirLink(Intent intent) {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
         android.net.Uri uri = intent.getData();
@@ -251,7 +253,9 @@ public class MainActivity extends BridgeActivity {
         // (o link foi atendido: girar a tela ou voltar ao app não o abre de novo)
         intent.setData(null);
         if (rota == null) return;
-        final String js = "(function(){if(!window.__songbookOk)return 'nao';location.hash=" + org.json.JSONObject.quote(rota) + ";return 'ok'})()";
+        final String js = "(function(){if(!document.body)return 'nao';var r=" + org.json.JSONObject.quote(rota)
+            + ";if(location.hash!==r)location.hash=r;if(window.__conviteInicial)window.__conviteInicial();"
+            + "return window.__songbookOk?'ok':'nao'})()";
         final int[] tentativas = { 0 };
         final Runnable[] tentar = new Runnable[1];
         tentar[0] = () -> {

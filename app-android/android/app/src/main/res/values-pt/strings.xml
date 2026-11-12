@@ -7,6 +7,7 @@
     <string name="acao_tocar">Tocar</string>
     <string name="acao_pausar">Pausar</string>
     <string name="acao_pular">Pular</string>
+    <string name="acao_fechar">Fechar</string>
     <string name="canal_downloads">Downloads</string>
     <string name="canal_downloads_desc">O andamento e o fim dos downloads das músicas</string>
     <string name="canal_tocando">Tocando agora</string>

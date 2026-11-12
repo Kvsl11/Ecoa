@@ -47,6 +47,16 @@ public class EcoaWebView extends CapacitorWebView {
         });
     }
 
+    // roda um trecho de JavaScript na página, direto (o comando de pausar da notificação: chega mesmo que o aviso do
+    // plugin atrase). Uma vez agora e outra logo depois, para o caso de a página ainda estar acordando
+    static void rodar(String js) {
+        EcoaWebView w = atual;
+        if (w == null) return;
+        Runnable r = () -> { try { w.evaluateJavascript(js, null); } catch (Exception e) { /* a página não está pronta */ } };
+        w.post(r);
+        w.postDelayed(r, 600);
+    }
+
     // a música começou ou parou (o site avisa pelo plugin)
     static void definirTocando(boolean t) {
         if (tocando == t) return;

@@ -14,6 +14,8 @@ import android.support.v4.media.session.PlaybackStateCompat;
 final class Sessao {
     private static MediaSessionCompat sessao;
 
+    private static final String FECHAR = "fechar";
+
     private Sessao() {}
 
     static synchronized MediaSessionCompat de(Context ctx) {
@@ -29,6 +31,8 @@ final class Sessao {
             @Override public void onSkipToNext() { Acoes.fazer(app, Acoes.PROXIMA); }
             @Override public void onSkipToPrevious() { Acoes.fazer(app, Acoes.ANTERIOR); }
             @Override public void onSeekTo(long pos) { Acoes.fazer(app, Acoes.IR + (pos / 1000.0)); }
+            // (o botão Fechar do player do Android 13 em diante, com a música pausada)
+            @Override public void onCustomAction(String acao, android.os.Bundle extras) { if (FECHAR.equals(acao)) Acoes.fazer(app, Acoes.FECHAR); }
         });
         sessao.setActive(true);
         return sessao;
@@ -68,10 +72,12 @@ final class Sessao {
         Bitmap capa = Capas.ler(ctx);
         if (capa != null) m.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, capa);
         s.setMetadata(m.build());
-        s.setPlaybackState(new PlaybackStateCompat.Builder()
+        PlaybackStateCompat.Builder estado = new PlaybackStateCompat.Builder()
             .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE | PlaybackStateCompat.ACTION_PLAY_PAUSE
                 | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS | PlaybackStateCompat.ACTION_SEEK_TO)
-            .setState(toca ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, ponto, toca ? 1f : 0f, quando)
-            .build());
+            .setState(toca ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED, ponto, toca ? 1f : 0f, quando);
+        // (pausada: o botão Fechar no player do Android 13 em diante, que mostra os botões da sessão, e não os do aviso)
+        if (!toca) estado.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(FECHAR, ctx.getString(R.string.acao_fechar), R.drawable.ic_fechar).build());
+        s.setPlaybackState(estado.build());
     }
 }

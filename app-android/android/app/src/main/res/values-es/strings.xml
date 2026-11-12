@@ -7,6 +7,7 @@
     <string name="acao_tocar">Reproducir</string>
     <string name="acao_pausar">Pausar</string>
     <string name="acao_pular">Siguiente</string>
+    <string name="acao_fechar">Cerrar</string>
     <string name="canal_downloads">Descargas</string>
     <string name="canal_downloads_desc">El progreso y el fin de las descargas de las canciones</string>
     <string name="canal_tocando">Reproduciendo</string>
