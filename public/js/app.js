@@ -43,6 +43,7 @@ import { escolherCifra, parecencaDaLetra } from './lib/cifras.js';
 import { juntarRegistros, mesesFechados, minutos, podar, recentesPorDia, registrar, resumoDoPeriodo, rotuloDoDia, rotuloDoPeriodo, segundosPorDia, semanaDe, somarDias } from './lib/estatisticas.js';
 import { trechoDoRefrao } from './lib/refrao.js';
 import { videoDoCartao, prepararTrecho } from './lib/cartao-video.js';
+import { faixaDaPrevia, tempoDaPrevia } from './lib/convite-musica.js';
 import { indicesParaEscolher, trechoDosVersos, preenchimentoDosVersos, tamanhoDoCartao, ESTILOS_DO_TEXTO, MAXIMO_DE_VERSOS, coresDoCartao, linhasParaEscolher, versosIniciais, alternarVerso, textoDoCartao, desenharCartao, linkDaMusicaNoEcoa, linkParaAbrirNoAplicativo, FUNDOS_ANIMADOS, DURACAO_DA_ANIMACAO } from './lib/cartao.js';
 import { soOsDaBusca } from './lib/busca.js';
 import { ordenarCapas, escolherCapa, problemaDaCapa, chaveDaImagem, ehCapaReserva, capasDaMusicBrainz, faixasDaAudioDb, capaDaAudioDb, capasDaDiscografia } from './lib/capas.js';
@@ -20285,8 +20286,10 @@ const ESPERA_DO_APLICATIVO = 1600;
 const noNavegadorDoAndroid = () => /Android/i.test(navigator.userAgent) && !noApk();
 function viewOuvir(titulo = '', artista = '') {
   if (!titulo) return viewNotFound();
-  // (sem conta, a tela de entrada está na frente: o link fica no endereço e a música abre depois de entrar)
-  if (!usuarioConta()) { setTab('inicio'); view.innerHTML = ''; return; }
+  // (sem conta: a prévia da música e o convite para entrar, por cima da tela de entrada; o link fica no endereço e a
+  // música abre inteira depois de entrar)
+  if (!usuarioConta()) { setTab('inicio'); view.innerHTML = ''; mostrarConviteDaMusica(titulo, artista); return; }
+  fecharConviteDaMusica();
   // (o index.html acabou de tentar entregar este link ao aplicativo instalado?)
   let tentouOApp = false;
   try { tentouOApp = noNavegadorDoAndroid() && sessionStorage.getItem('ecoa.noApp') === location.hash && Date.now() - (Number(sessionStorage.getItem('ecoa.noAppEm')) || 0) < 15000; } catch { /* sem sessionStorage */ }
@@ -20303,6 +20306,96 @@ function viewOuvir(titulo = '', artista = '') {
     abrir();
   }, ESPERA_DO_APLICATIVO);
 }
+// O convite do link compartilhado para quem não entrou: a capa, o nome e o artista, o trecho de 30 s da música (a
+// prévia do Deezer, quando há a faixa certa) e o cartão para entrar com o Google — não a música inteira. Fica por cima
+// da tela de entrada até a pessoa entrar (aí a música abre inteira) ou tocar em "Agora não" (fica a tela de entrada)
+const LOGO_DO_GOOGLE = '<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+let conviteDaMusica = null;
+function fecharConviteDaMusica() {
+  document.documentElement.classList.remove('com-convite');
+  if (!conviteDaMusica) return;
+  try { conviteDaMusica.audio.pause(); conviteDaMusica.audio.removeAttribute('src'); } catch { /* já parado */ }
+  conviteDaMusica.el.remove();
+  conviteDaMusica = null;
+}
+function mostrarConviteDaMusica(titulo, artista) {
+  const chave = `${titulo}|${artista}`;
+  if (conviteDaMusica?.chave === chave && conviteDaMusica.el.isConnected) return;
+  fecharConviteDaMusica();
+  const el = document.createElement('section');
+  el.className = 'convite-musica';
+  el.setAttribute('aria-label', 'Música compartilhada');
+  const linkDoApp = noNavegadorDoAndroid() ? linkParaAbrirNoAplicativo(titulo, artista) : '';
+  el.innerHTML = `<div class="cm-fundo" aria-hidden="true"></div>
+    <div class="cm-conteudo">
+      <p class="cm-rotulo">${icon('music', 14)} Música compartilhada com você</p>
+      <div class="cm-capa">${icon('music', 56)}</div>
+      <h1 class="cm-titulo" translate="no">${esc(titulo)}</h1>
+      ${artista ? `<p class="cm-artista" translate="no">${esc(artista)}</p>` : ''}
+      <div class="cm-previa" hidden>
+        <button class="cm-play" type="button" aria-label="Ouvir a prévia">${icon('play', 26)}</button>
+        <div class="cm-barra"><div class="cm-trilha"><i></i></div><small><span class="cm-tempo">0:00</span><span>Prévia de 30 segundos</span></small></div>
+      </div>
+      <p class="cm-sem-previa" hidden>A prévia desta música não está disponível.</p>
+      <div class="cm-cartao">
+        <b>Ouça a música inteira no Ecoa</b>
+        <p>Entre com a sua conta Google para ouvir a música completa, com a letra sincronizada, a cifra e o clipe. É grátis.</p>
+        <button class="entrada-google cm-google" type="button">${LOGO_DO_GOOGLE}<span class="cm-google-rotulo">Entrar com o Google</span></button>
+        ${linkDoApp ? `<a class="cm-app" href="${esc(linkDoApp)}">${icon('enviarApp', 16)} Abrir no aplicativo</a>` : ''}
+        <p class="cm-erro" role="alert"></p>
+      </div>
+      <button class="cm-agora-nao" type="button">Agora não</button>
+    </div>`;
+  document.body.append(el);
+  document.documentElement.classList.add('com-convite');
+  const audio = new Audio();
+  audio.preload = 'none';
+  conviteDaMusica = { chave, el, audio };
+  const play = $('.cm-play', el);
+  const barra = $('.cm-trilha i', el);
+  const tempo = $('.cm-tempo', el);
+  const marcar = () => {
+    const tocando = !audio.paused;
+    play.innerHTML = icon(tocando ? 'pause' : 'play', 26);
+    play.setAttribute('aria-label', tocando ? 'Pausar a prévia' : 'Ouvir a prévia');
+  };
+  audio.addEventListener('play', marcar);
+  audio.addEventListener('pause', marcar);
+  audio.addEventListener('ended', () => { audio.currentTime = 0; marcar(); });
+  audio.addEventListener('timeupdate', () => {
+    barra.style.width = `${Math.min(100, (audio.currentTime / (audio.duration || 30)) * 100)}%`;
+    tempo.textContent = tempoDaPrevia(audio.currentTime);
+  });
+  play.onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
+  $('.cm-agora-nao', el).onclick = fecharConviteDaMusica;
+  const botao = $('.cm-google', el);
+  const rotulo = $('.cm-google-rotulo', el);
+  const erro = $('.cm-erro', el);
+  botao.onclick = async () => {
+    erro.textContent = '';
+    botao.disabled = true; rotulo.textContent = 'Entrando…';
+    audio.pause();
+    try { await entrarComGoogle(); } catch (e) { erro.textContent = e.message; }
+    if (el.isConnected) { botao.disabled = false; rotulo.textContent = 'Entrar com o Google'; }
+  };
+  // a faixa da prévia no Deezer: a capa e o trecho de 30 s (sem a faixa certa, ficam só o nome e o convite)
+  (async () => {
+    const buscar = async (q) => (navigator.onLine ? faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`).catch(() => null), titulo, artista) : null);
+    const faixa = await buscar([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')) || await buscar(`${artista} ${titulo}`.trim());
+    if (conviteDaMusica?.el !== el) return;
+    if (!faixa) { $('.cm-sem-previa', el).hidden = false; return; }
+    if (faixa.capa) {
+      $('.cm-capa', el).innerHTML = `<img src="${esc(faixa.capa)}" alt="" referrerpolicy="no-referrer">`;
+      $('.cm-fundo', el).style.backgroundImage = `url("${faixa.capa.replace(/"/g, '%22')}")`;
+    }
+    audio.src = faixa.previa;
+    $('.cm-previa', el).hidden = false;
+  })();
+}
+// entrou na conta ou saiu do link: o convite sai (entrando, viewOuvir abre a música inteira)
+addEventListener('songbook:conta', () => { if (usuarioConta()) fecharConviteDaMusica(); });
+addEventListener('hashchange', () => { if (conviteDaMusica && !/^#\/ouvir\//.test(location.hash)) fecharConviteDaMusica(); });
+
 function viewNotFound() {
   // ao recarregar numa tela que não existe mais (música temporária, item excluído), volta ao início
   if (rotaInicial) {
