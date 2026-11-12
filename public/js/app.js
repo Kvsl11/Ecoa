@@ -3842,7 +3842,9 @@ const player = (() => {
       if (!anda) { eco?.remove(); linha.classList.remove('anda'); linha.__giro = 0; return; }
       // (a cópia é refeita só quando o nome muda: refazer a cada desenho recomeçava o giro)
       const html = r.innerHTML;
+      let refeita = false;
       if (!eco || eco.__de !== html) {
+        refeita = true;
         eco?.remove();
         eco = r.cloneNode(true);
         eco.classList.add('eco');
@@ -3851,13 +3853,15 @@ const player = (() => {
         linha.append(eco);
       }
       const grupo = grupos.get(linha.parentElement) || [];
-      grupo.push({ linha, eco, largura: r.offsetWidth });
+      grupo.push({ linha, r, eco, refeita, largura: r.offsetWidth });
       grupos.set(linha.parentElement, grupo);
     });
     for (const grupo of grupos.values()) {
       // (o giro do grupo é o da linha mais comprida; na mais curta, o espaço até a cópia cresce para dar a mesma volta)
       const giro = Math.round(Math.max(...grupo.map((x) => x.largura)) + ESPACO_DO_GIRO);
-      const mudou = grupo.some((x) => x.linha.__giro !== giro || !x.linha.classList.contains('anda'));
+      // (a cópia refeita começa o passeio dela do zero, e o nome já estava no meio do dele: os dois ficavam fora de
+      // passo, e na volta o nome reaparecia no começo com a cópia ainda passando por cima — o nome duas vezes)
+      const mudou = grupo.some((x) => x.refeita || x.linha.__giro !== giro || !x.linha.classList.contains('anda'));
       for (const { linha, eco, largura } of grupo) {
         eco.style.marginLeft = `${giro - largura}px`;
         if (linha.__giro !== giro) {
@@ -3868,8 +3872,13 @@ const player = (() => {
         }
       }
       // (mudou algo numa linha: todas recomeçam do início, juntas)
-      if (mudou && grupo.length > 1) { grupo.forEach((x) => x.linha.classList.remove('anda')); void grupo[0].linha.offsetWidth; }
+      if (mudou) { grupo.forEach((x) => x.linha.classList.remove('anda')); void grupo[0].linha.offsetWidth; }
       grupo.forEach((x) => x.linha.classList.add('anda'));
+      // (e a garantia: o nome, a cópia e as linhas do grupo andam todos na mesma largada. Qualquer um que tenha saído
+      // do passo — a linha que estava escondida e voltou, por exemplo — é acertado pelo primeiro)
+      const giros = grupo.flatMap((x) => [x.r, x.eco]).map((x) => x.getAnimations?.()[0]).filter(Boolean);
+      const largada = giros[0]?.startTime;
+      if (largada != null) for (const g of giros) { if (g.startTime != null && g.startTime !== largada) g.startTime = largada; }
     }
   });
   const medirNomeDaBarrinha = medirNomes;
