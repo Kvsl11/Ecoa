@@ -20412,6 +20412,8 @@ function mostrarConviteDaMusica(titulo, artista) {
     // (o clipe que o dono não deixa tocar fora do YouTube — comum nos de gravadora —: tenta outro clipe uma vez; sem ele,
     // a prévia do Deezer)
     if (msg?.event === 'onError') { void outroClipe(); return; }
+    // (o YouTube respondeu: o clipe tem mais 12 s para começar, num aparelho lento ou com a internet fraca)
+    if (msg?.event === 'onReady') { clearTimeout(fonte.falhou); fonte.falhou = setTimeout(usarDeezer, 12000); ytCmd('playVideo'); }
     const info = msg?.info;
     if (!info || typeof info !== 'object') return;
     if (typeof info.currentTime === 'number') { fonte.tempo = info.currentTime; fonte.em = performance.now(); }
@@ -20419,10 +20421,19 @@ function mostrarConviteDaMusica(titulo, artista) {
     if (typeof info.playerState === 'number') {
       fonte.estado = info.playerState;
       fonte.em = performance.now();
-      // (o clipe aparece no quadro da capa depois de 2,5 s tocando: o título que o YouTube põe por cima já sumiu)
-      if (info.playerState === 1 && !fonte.mostrar) fonte.mostrar = setTimeout(() => { if (vivo()) el.classList.add('com-clipe'); }, 2500);
+      // (o clipe aparece no quadro da capa depois de 4 s tocando: o título que o YouTube põe por cima no começo já sumiu)
+      if (info.playerState === 1 && !fonte.mostrar) fonte.mostrar = setTimeout(() => { if (vivo()) el.classList.add('com-clipe'); }, 4000);
       // (sem a legenda que o YouTube liga sozinho, traduzida, por cima da cena)
       if (info.playerState === 1) { clearTimeout(fonte.falhou); el.classList.remove('carregando'); ytCmd('unloadModule', ['captions']); ytCmd('unloadModule', ['cc']); }
+      // O som é ligado só depois que o clipe começou (sem som, todo navegador deixa começar sozinho; pedido junto com o
+      // play, travava o começo em alguns). Se o navegador pausar ao ligar o som, o clipe volta a tocar sem som e o botão
+      // vira "Ouvir com som"
+      if (info.playerState === 1 && !fonte.pediuSom) {
+        fonte.pediuSom = performance.now();
+        ytCmd('unMute'); ytCmd('setVolume', [100]);
+      } else if (info.playerState === 2 && fonte.pediuSom && !fonte.pelaPessoa && performance.now() - fonte.pediuSom < 2500) {
+        ytCmd('mute'); ytCmd('playVideo'); fonte.mudo = true;
+      }
     }
     marcar();
   };
@@ -20490,7 +20501,7 @@ function mostrarConviteDaMusica(titulo, artista) {
     fonte = { tipo: 'yt', id, f, inicio: Math.floor(inicio), tempo: Math.floor(inicio), em: 0, estado: -1, mudo: true };
     f.addEventListener('load', () => {
       f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 7 }), '*');
-      ytCmd('unMute'); ytCmd('setVolume', [100]); ytCmd('playVideo');
+      ytCmd('playVideo');
     });
     fonte.falhou = setTimeout(usarDeezer, 8000);
     capa.append(f);
@@ -20498,6 +20509,7 @@ function mostrarConviteDaMusica(titulo, artista) {
   play.onclick = () => {
     if (fonte?.tipo === 'yt') {
       // (sem som: o refrão recomeça com som; com som, pausa ou continua)
+      fonte.pelaPessoa = true;
       if (fonte.mudo) { ytCmd('unMute'); ytCmd('setVolume', [100]); ytCmd('seekTo', [fonte.inicio, true]); ytCmd('playVideo'); fonte.tempo = fonte.inicio; fonte.em = performance.now(); fonte.mudo = false; }
       else if (fonte.estado === 1) ytCmd('pauseVideo'); else ytCmd('playVideo');
     } else if (fonte?.audio) { if (fonte.audio.paused) fonte.audio.play().catch(() => {}); else fonte.audio.pause(); }
