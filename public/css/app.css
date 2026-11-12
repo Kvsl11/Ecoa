@@ -5852,7 +5852,7 @@ html.sem-conta .entrada { hyphens: manual; -webkit-hyphens: manual; position: fi
    mesma desfocada, o nome, o artista, a barra do tempo e o play; ao fim, a tela de entrada. Igual no celular, no tablet
    e no computador (o bloco no meio) */
 .convite-musica { display: none; }
-html.sem-conta.com-convite .convite-musica { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; overflow: hidden;
+html.com-convite .convite-musica { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; overflow: hidden;
   background: #07090b; color: #fff; isolation: isolate; hyphens: manual; -webkit-hyphens: manual; }
 /* o fundo em movimento: um canvas pequeno (64 px de largura) com a capa girando e as luzes nas cores dela, desenhado
    no app.js (desenharFundoDaPrevia) e esticado aqui na tela toda — a ampliação desfoca. Antes eram camadas enormes
@@ -6885,3 +6885,22 @@ html.com-convite-lista .convite-lista { position: fixed; inset: 0; z-index: 210;
 .lr-pe .btn { width: 100%; justify-content: center; min-height: 50px; font-size: 16px; }
 .lista-recebida .lr-musicas .track { cursor: pointer; }
 .lr-acoes { display: flex; justify-content: center; margin: 18px 0 8px; }
+/* as prévias de 30 s na lista recebida: o botão sobre a capinha, a barra embaixo do nome e a linha que toca na cor */
+.lr-musicas .track { grid-template-columns: auto minmax(0, 1fr); cursor: pointer; }
+.lr-capinha { position: relative; width: 48px; height: 48px; flex: none; }
+.lr-capinha .cover { width: 48px; height: 48px; }
+.lr-tocar { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 4px; color: #fff; background: rgb(0 0 0 / 0.38);
+  opacity: 0.85; transition: opacity 0.15s, background 0.15s; }
+.lr-item.tocando .lr-tocar { background: rgb(8 145 178 / 0.72); opacity: 1; }
+.lr-item.carregando .lr-tocar svg { animation: lr-pisca 0.9s ease-in-out infinite alternate; }
+@keyframes lr-pisca { from { opacity: 0.25; } }
+.lr-item.tocando .t { color: #7dd3fc; }
+.lr-barra { height: 3px; margin-top: 6px; border-radius: 2px; background: rgb(255 255 255 / 0.12); overflow: hidden; visibility: hidden; }
+.lr-item.tocando .lr-barra, .lr-item.carregando .lr-barra { visibility: visible; }
+.lr-barra i { display: block; height: 100%; width: 0%; background: #7dd3fc; transition: width 0.25s linear; }
+.lr-sem { color: rgb(255 255 255 / 0.5); }
+.lr-dica { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 14px 0 0; font-size: 13px; color: rgb(255 255 255 / 0.6); }
+.lr-yt { position: fixed; left: 0; bottom: 0; width: 2px; height: 2px; border: 0; opacity: 0.01; pointer-events: none; }
+.lista-recebida .lr-tocar, .lista-recebida .lr-barra, .lista-recebida .lr-dica { display: none; }
+.lista-recebida .lr-capinha .cover { border-radius: 4px; overflow: hidden; }
+.lr-capinha .cover.gen > svg { display: none; }

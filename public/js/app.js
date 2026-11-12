@@ -2906,6 +2906,10 @@ const REVISOES = [
   // vídeo até a procura terminar (às vezes nem terminava). As salvas que ainda estão sem a capa do álbum a procuram
   // de novo. A escolhida pela pessoa fica
   { rev: 34, capaQueFalta: true, quais: (s) => !s.capaEscolhida && capaProvisoria(s.cover) && Boolean(s.title && s.artist) },
+  // v676: os cantos da Liturgia (acervo, Hinário, Cindy Ferrarezi, Músicas para Missa) salvos pelo "Montar repertório"
+  // entravam só com a cifra: sem o vídeo, sem a capa e, abertos, sem música. Os que estão assim procuram o vídeo, a capa,
+  // o áudio oficial e a letra sincronizada, como as músicas da Busca (completarCanto)
+  { rev: 35, canto: true, quais: (s) => cantoParaCompletar(s) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -3280,6 +3284,12 @@ async function revisarMusica(id, pendentes, chaves) {
   // o tom e o andamento (prepararMusicaImportada); sem internet, fica para a próxima revisão
   if (s?.audioProprio && quer('transcrever')) {
     if (!(await prepararMusicaImportada(id, { avisar: false }).catch(() => false))) completa = false;
+    s = db.song(id);
+    if (!s) return true;
+  }
+  // o canto da Liturgia sem o vídeo: procurado agora (completarCanto)
+  if (s && quer('canto') && cantoParaCompletar(s)) {
+    if (!(await completarCanto(id))) completa = false;
     s = db.song(id);
     if (!s) return true;
   }
@@ -16730,6 +16740,12 @@ function viewSong(id, ctx = {}) {
     }
   }
   if (isPreview) guardarPrevia();
+  // (o canto da Liturgia salvo sem o vídeo — montado antes desta versão, ou sem internet na hora —: o vídeo é procurado
+  // agora, uma vez por semana no máximo, e a música abre de novo com ele)
+  if (!isPreview && cantoParaCompletar(song) && Date.now() - (Number(song.videoProcuradoEm) || 0) > 7 * 864e5) {
+    const hashAqui = location.hash;
+    void completarCanto(song.id).then(() => { if (location.hash === hashAqui && db.song(song.id)?.youtube) viewSong(song.id, ctx); });
+  }
   if (isPreview) {
     const r = renderSong(song.content);
     song = { ...song, title: r.meta.title || 'Canto', artist: r.meta.artist || r.meta.subtitle || '', youtube: youtubeId(r.meta.youtube) || '', cover: r.meta.cover || '', pdf: r.meta.pdf || '', key: r.key, composer: r.meta.composer || r.meta.lyricist || '' };
@@ -16915,7 +16931,7 @@ function viewSong(id, ctx = {}) {
     // a falta da cifra não entra aqui: ela já aparece na aba "Letra · sem cifra" (o aviso só ocupava espaço)
     const falta = [];
     if (!linhasDaLetra(song.content).length) falta.push('letra');
-    if (!song.youtube && (!isPreview || preview.semVideo || String(song.source || '').startsWith('cnbb:'))) falta.push('vídeo');
+    if (!song.youtube && !completandoCanto.has(song.id) && (!isPreview || preview.semVideo || String(song.source || '').startsWith('cnbb:'))) falta.push('vídeo');
     box.innerHTML = falta.length ? `<div class="aviso">${icon('info', 18)}<span>Esta música não tem ${falta.length > 1 ? falta.slice(0, -1).join(', ') + ' nem ' + falta[falta.length - 1] : falta[0]}.</span></div>` : '';
   };
   const trazerCifraSozinho = async () => {
@@ -18907,6 +18923,8 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   // Ordenar, que no repertório muda a ordem guardada, com a ordem da missa)
   const comVideo = !pl && videoNaPlaylist(set);
   conferirDownloadsDoSet(set);
+  const semVideo = set.items.map((it) => db.song(it.songId)).filter((x) => cantoParaCompletar(x) && Date.now() - (Number(x.videoProcuradoEm) || 0) > 864e5);
+  if (semVideo.length && !selecionando) void completarCantos(semVideo.map((x) => x.id)).then(() => { if (location.hash === `#/repertorio/${id}` && semVideo.some((x) => db.song(x.id)?.youtube)) viewSet(id); });
   const entrando = capinhaEntrou !== id;
   capinhaEntrou = id;
   aoSair(() => { capinhaEntrou = null; });
@@ -19200,6 +19218,8 @@ async function revisarSet(set) {
         [content, source] = [m.chordpro, m.fonte];
       }
       const nova = db.songBySource(source) || db.saveSong({ content, source });
+      // (o canto novo sai pronto: o vídeo, a capa, o áudio e a letra; o repertório é redesenhado quando chegam)
+      if (cantoParaCompletar(nova)) void completarCanto(nova.id).then(() => { if (location.hash === `#/repertorio/${set.id}` && db.song(nova.id)?.youtube) viewSet(set.id); });
       const atual = db.set(set.id);
       const anterior = db.song(atual.items[a.i].songId)?.title;
       atual.items[a.i] = { ...atual.items[a.i], songId: nova.id };
@@ -19695,6 +19715,51 @@ async function missaLiturgica(missa, data) {
   return { ...missa, partes, repertorio: null, mpm: null, caderno, avisos: [] };
 }
 
+// ---- Os cantos da Liturgia (o acervo litúrgico, o Hinário da CNBB, a Cindy Ferrarezi, o Músicas para Missa) prontos
+// como as músicas da Busca: o vídeo certo (procurado pelo nome, pelo autor e, nos do acervo e do Hinário, como canto
+// litúrgico), a capa (a do vídeo; a do álbum, quando o autor é conhecido), o áudio oficial e a letra sincronizada.
+// Antes o "Montar repertório" salvava só a cifra: a maioria ficava sem capa e, aberta, sem música — era preciso
+// escolher um vídeo à mão. O texto oficial da CNBB (as leituras, o salmo do dia) fica como está.
+// true: pronto ou procurado; false: sem internet (tenta de novo depois)
+const completandoCanto = new Map();
+const cantoParaCompletar = (x) => Boolean(x) && !x.youtube && !x.audioProprio && ehDaLiturgia(x) && !String(x.source || '').startsWith('cnbb:');
+function completarCanto(id, { limite = 20000 } = {}) {
+  if (completandoCanto.has(id)) return completandoCanto.get(id);
+  const p = (async () => {
+    let x = db.song(id);
+    if (!cantoParaCompletar(x)) return true;
+    if (!navigator.onLine) return false;
+    const v = await noMaximo(videoDaMusica(x.title, x.artist, x.source), limite, null).catch(() => null);
+    x = db.song(id);
+    if (!x || x.youtube) return true;
+    if (!v?.url) { db.updateSong(id, { videoProcuradoEm: Date.now() }); return true; }
+    db.saveSong({ ...x, content: definirMeta(x.content, 'youtube', v.url), videoProcuradoEm: Date.now() });
+    // (o áudio oficial e a letra sincronizada, como ao abrir a música da Busca; a capa do álbum, quando o autor é
+    // conhecido — senão fica a do vídeo, que já aparece)
+    void prepararMusicaAoAbrir(db.song(id)).catch(() => null);
+    x = db.song(id);
+    if (x?.artist && confiavelNaLiturgia(x.artist) && !x.capaEscolhida && capaProvisoria(x.cover)) {
+      void noMaximo(capaOficial(x.title, x.artist), 30000, '').then((u) => { const y = db.song(id); if (u && y && !y.capaEscolhida && capaProvisoria(y.cover)) trocarCapaDaMusica(y, u); }).catch(() => {});
+    }
+    return true;
+  })().finally(() => completandoCanto.delete(id));
+  completandoCanto.set(id, p);
+  return p;
+}
+// vários de uma vez (o repertório montado, o aberto), três por vez; aoAndar(feitas, total) para o progresso
+async function completarCantos(ids, { aoAndar = () => {}, limite } = {}) {
+  const fila = [...new Set(ids)].filter((id) => cantoParaCompletar(db.song(id)));
+  let feitas = 0;
+  aoAndar(0, fila.length);
+  const trabalhar = async () => {
+    while (fila.length) {
+      await completarCanto(fila.shift(), { limite }).catch(() => false);
+      aoAndar(++feitas, feitas + fila.length);
+    }
+  };
+  await Promise.all([trabalhar(), trabalhar(), trabalhar()]);
+}
+
 async function songFromChoice(parte, valor, lit) {
   // canto do acervo litúrgico ou do Hinário da CNBB (Missa litúrgica): já está no app
   if (/^(acervo|hinario):/.test(valor)) {
@@ -19738,12 +19803,12 @@ async function montarRepertorio(missa, sel, data, { btn = $('#montar'), tipo = '
           continue;
         }
       }
-      if (pl && !song.youtube) {
-        const vid = await videoDaMusica(song.title, song.artist, song.source).catch(() => null);
-        if (vid) song = db.saveSong({ ...song, content: definirMeta(song.content, 'youtube', vid.url) });
-      }
       items.push({ songId: song.id, label: p.nome });
     }
+    // (o vídeo, a capa, o áudio e a letra de cada canto, três por vez, antes de abrir o repertório)
+    await completarCantos(items.map((it) => it.songId), {
+      aoAndar: (feitas, total) => { if (total) btn.innerHTML = `<span class="spin"></span><span class="txt">${esc(t(`Preparando ${feitas}/${total}`))}</span>`; },
+    });
     const set = db.saveSet({ name: `${pl ? 'Ouvir · ' : ''}Missa ${fmtData(data)} – ${lit.celebracao}`, date: data, items, ...(pl ? { tipo: 'playlist' } : {}) });
     desenharLateral();
     const nome = pl ? 'Playlist' : 'Repertório';
@@ -20602,7 +20667,8 @@ function viewOuvir(...partes) {
   // (com "?entrar", a volta do "Ouvir completa" no navegador sem o aplicativo: fica a tela de entrada)
   // (com "?baixarApp" — o Chrome voltou pela reserva do link, sem o app instalado — ou o "?entrar" dos links de antes: a
   // prévia com o painel de baixar o app, e o download já começando. A entrada pela web não aparece mais no link)
-  if (!usuarioConta()) {
+  // (no navegador, com ou sem a conta: o link é só a prévia, e a música inteira é no app — nada de web)
+  if (!usuarioConta() || !noApk()) {
     setTab('inicio'); view.innerHTML = '';
     mostrarConviteDaMusica(titulo, artista, video);
     if (/[?&](baixarApp|entrar)\b/.test(location.search) && !noApk()) mostrarBaixarApp({ oQue: 'musica', abrirNoApp: intentDaMusicaComReserva(titulo, artista, video), comecar: /[?&]baixarApp\b/.test(location.search) });
@@ -20845,6 +20911,7 @@ async function compartilharLista(set) {
 // direto; as outras são trazidas da internet pelo nome, uma de cada vez) e cada música abrindo ao tocar nela
 let conviteDaLista = null;
 function fecharConviteDaLista() {
+  conviteDaLista?.__parar?.();
   conviteDaLista?.remove();
   conviteDaLista = null;
   document.documentElement.classList.remove('com-convite-lista');
@@ -20862,31 +20929,155 @@ function htmlDaListaRecebida(lista) {
       <h1 class="lr-nome" translate="no">${esc(lista.nome)}</h1>
       <p class="lr-resumo">${resumo}</p></div>
     <ol class="tracks lr-musicas">${lista.musicas.map((m, i) => `<li class="track lr-item" data-i="${i}">
-      ${m.video ? `<div class="cover"><img src="${esc(capaDaMusicaDaLista(m))}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>` : `<div class="cover gen" style="--h:${hue(m.titulo)}">${icon('music', 18)}</div>`}
-      <div class="info"><div class="t" translate="no">${esc(m.titulo)}</div><div class="s">${m.parte ? `<b class="parte-tag sub-sep">${esc(m.parte)}</b>` : ''}${m.artista ? `<span class="sub-txt sub-sep" translate="no">${esc(m.artista)}</span>` : ''}</div></div></li>`).join('')}</ol>
+      <div class="lr-capinha">${m.video ? `<div class="cover"><img src="${esc(capaDaMusicaDaLista(m))}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>` : `<div class="cover gen" style="--h:${hue(m.titulo)}">${icon('music', 18)}</div>`}
+        <span class="lr-tocar" aria-hidden="true">${icon('play', 18)}</span></div>
+      <div class="info"><div class="t" translate="no">${esc(m.titulo)}</div><div class="s">${m.parte ? `<b class="parte-tag sub-sep">${esc(m.parte)}</b>` : ''}${m.artista ? `<span class="sub-txt sub-sep" translate="no">${esc(m.artista)}</span>` : ''}</div>
+        <div class="lr-barra" aria-hidden="true"><i></i></div></div></li>`).join('')}</ol>
     ${lista.mais ? `<p class="muted lr-mais">${esc(t(`+ ${qtdMusicas(lista.mais)}`))}</p>` : ''}`;
+}
+// As prévias de 30 s da lista recebida: tocar numa música toca o trecho dela — o do Deezer e, sem ele, o do iTunes (os
+// mesmos da prévia da música); sem os dois (muitos cantos de missa não estão neles), 30 s do próprio vídeo, num player do
+// YouTube escondido. Ao fim do trecho, passa para a próxima. As capas que faltam (as músicas sem o vídeo) vêm do Deezer
+// ou do iTunes, e o mosaico do topo se completa com elas. Devolve a função que para tudo
+function ligarPreviasDaLista(raiz, lista) {
+  const linhas = [...raiz.querySelectorAll('.lr-item')];
+  const audio = new Audio();
+  audio.preload = 'none';
+  let yt = null; // { f, fim }
+  let atual = -1;
+  let pedido = 0;
+  let relogio = 0;
+  const faixas = new Map();
+  const faixaDe = (i) => {
+    if (!faixas.has(i)) {
+      const m = lista.musicas[i];
+      const termo = `${m.artista} ${m.titulo}`.trim();
+      faixas.set(i, (async () => {
+        const dz = async (q) => faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`, 12000).catch(() => null), m.titulo, m.artista);
+        return (m.artista && await dz(`artist:"${m.artista}" track:"${m.titulo}"`)) || await dz(termo)
+          || faixaDoItunes(await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(termo)}&entity=song&limit=15`, 12000).catch(() => null), m.titulo, m.artista);
+      })().catch(() => null));
+    }
+    return faixas.get(i);
+  };
+  const marcar = (i, estado) => {
+    linhas.forEach((li, k) => {
+      li.classList.toggle('tocando', k === i && estado === 'tocando');
+      li.classList.toggle('carregando', k === i && estado === 'carregando');
+      if (k !== i || !estado) li.querySelector('.lr-barra i').style.width = '0%';
+      const ic = li.querySelector('.lr-tocar');
+      if (ic) ic.innerHTML = icon(k === i && estado === 'tocando' ? 'pause' : 'play', 18);
+    });
+  };
+  const barra = (i, frac) => { const b = linhas[i]?.querySelector('.lr-barra i'); if (b) b.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`; };
+  const pararTudo = () => {
+    pedido++;
+    clearInterval(relogio);
+    audio.pause();
+    if (yt) { yt.f.remove(); yt = null; }
+    marcar(-1, '');
+    atual = -1;
+  };
+  const proxima = (i) => { if (i + 1 < linhas.length) tocar(i + 1); else pararTudo(); };
+  const tocar = async (i) => {
+    pararTudo();
+    const meu = pedido;
+    atual = i;
+    marcar(i, 'carregando');
+    const faixa = await faixaDe(i);
+    if (meu !== pedido) return;
+    if (faixa?.previa) {
+      audio.src = faixa.previa;
+      try { await audio.play(); } catch { if (meu === pedido) { marcar(-1, ''); atual = -1; } return; }
+      if (meu === pedido) marcar(i, 'tocando');
+      return;
+    }
+    const m = lista.musicas[i];
+    if (m.video) {
+      // (30 s do vídeo, do meio para a frente — o começo do clipe costuma ser a introdução)
+      const ini = 45;
+      const f = document.createElement('iframe');
+      f.className = 'lr-yt';
+      f.allow = 'autoplay; encrypted-media';
+      f.setAttribute('aria-hidden', 'true');
+      f.tabIndex = -1;
+      f.src = `${YT_SEM_CONTA}${encodeURIComponent(m.video)}?autoplay=1&start=${ini}&end=${ini + SEGUNDOS_DA_PREVIA}&controls=0&playsinline=1&rel=0`;
+      raiz.append(f);
+      yt = { f };
+      marcar(i, 'tocando');
+      const desde = performance.now();
+      relogio = setInterval(() => {
+        const t = (performance.now() - desde) / 1000;
+        barra(i, t / SEGUNDOS_DA_PREVIA);
+        if (t >= SEGUNDOS_DA_PREVIA + 1) { clearInterval(relogio); proxima(i); }
+      }, 250);
+      return;
+    }
+    // (sem o trecho e sem o vídeo: avisa na linha e segue)
+    marcar(-1, '');
+    atual = -1;
+    const s = linhas[i].querySelector('.s');
+    if (s && !s.querySelector('.lr-sem')) s.insertAdjacentHTML('beforeend', `<span class="lr-sem sub-sep">${esc(t('Prévia indisponível'))}</span>`);
+  };
+  audio.addEventListener('timeupdate', () => { if (atual >= 0) barra(atual, audio.currentTime / (audio.duration || SEGUNDOS_DA_PREVIA)); });
+  audio.addEventListener('ended', () => { if (atual >= 0) proxima(atual); });
+  raiz.querySelector('.lr-musicas').addEventListener('click', (e) => {
+    const li = e.target.closest('.lr-item');
+    if (!li) return;
+    const i = linhas.indexOf(li);
+    if (i === atual) { pararTudo(); return; }
+    void tocar(i);
+  });
+  // as capas que faltam, duas por vez (e o mosaico do topo, com as quatro primeiras)
+  const semCapa = lista.musicas.map((m, i) => (m.video ? -1 : i)).filter((i) => i >= 0);
+  const capas = lista.musicas.map((m) => capaDaMusicaDaLista(m));
+  const refazerMosaico = () => {
+    const us = [...new Set(capas.filter(Boolean))];
+    const box = raiz.querySelector('.lr-capa');
+    if (!box || us.length < 1) return;
+    box.innerHTML = us.length >= 4 ? `<div class="cover mosaic">${us.slice(0, 4).map((u) => `<div class="cover"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer"></div>`).join('')}</div>`
+      : `<div class="cover"><img src="${esc(us[0])}" alt="" referrerpolicy="no-referrer"></div>`;
+  };
+  const buscarCapas = async () => {
+    while (semCapa.length && raiz.isConnected) {
+      const i = semCapa.shift();
+      const f = await faixaDe(i);
+      if (!f?.capa || !raiz.isConnected) continue;
+      capas[i] = f.capa.replace(/1000x1000/, '250x250');
+      const box = linhas[i].querySelector('.lr-capinha .cover');
+      if (box) box.outerHTML = `<div class="cover"><img src="${esc(capas[i])}" alt="" referrerpolicy="no-referrer"></div>`;
+      refazerMosaico();
+    }
+  };
+  void buscarCapas(); void buscarCapas();
+  raiz.__pausar = pararTudo;
+  return () => { pararTudo(); audio.removeAttribute('src'); semCapa.length = 0; };
 }
 async function viewLista(codigo) {
   const lista = await lerCodigoDaLista(codigo);
   if (!lista?.musicas.length) return viewNotFound();
   const oQue = lista.tipo;
-  // sem a conta: a prévia por cima da tela de entrada, com o convite para o app
-  if (!usuarioConta()) {
+  // a prévia por cima de tudo, com o trecho de 30 s de cada música e o convite para o app: no navegador, sempre (com ou
+  // sem a conta: nada abre inteiro na web); no app, sem a conta (o botão leva à entrada dele)
+  if (!usuarioConta() || !noApk()) {
     setTab('inicio'); view.innerHTML = '';
     fecharConviteDaLista();
     const el = document.createElement('section');
     el.className = 'convite-lista';
     el.style.setProperty('--lr-cor', corDaMusica(lista.nome));
     el.setAttribute('aria-label', lista.tipo === 'playlist' ? 'Prévia da playlist' : 'Prévia do repertório');
-    el.innerHTML = `<div class="lr-rolar">${htmlDaListaRecebida(lista)}</div>
-      <div class="lr-pe"><button class="btn primary lr-app" type="button">${icon(noApk() ? 'pessoa' : 'download', 18)} ${noApk() ? 'Entrar para salvar' : 'Abrir no app'}</button></div>`;
+    el.innerHTML = `<div class="lr-rolar">${htmlDaListaRecebida(lista)}
+        <p class="lr-dica">${icon('play', 14)} Toque numa música para ouvir 30 segundos</p></div>
+      <div class="lr-pe"><button class="btn primary lr-app" type="button">${icon(noApk() ? 'pessoa' : 'download', 18)} ${noApk() ? 'Entrar para ouvir completa' : 'Ouvir completa no app'}</button></div>`;
     document.body.append(el);
     document.documentElement.classList.add('com-convite-lista');
     conviteDaLista = el;
+    el.__parar = ligarPreviasDaLista(el, lista);
     const intent = linkDaListaNoAplicativo(`${ENDERECO_DO_ECOA}#/lista/${codigo}`, enderecoParaBaixarApp());
     $('.lr-app', el).onclick = () => {
       // (no app: a tela de entrada dele; entrando, a lista abre de novo, já com a conta)
       if (noApk()) { fecharConviteDaLista(); return; }
+      el.__pausar?.();
       levarAoApp({ oQue, abrirNoApp: intent });
     };
     if (/[?&](baixarApp|entrar)\b/.test(location.search) && !noApk()) mostrarBaixarApp({ oQue, abrirNoApp: intent, comecar: /[?&]baixarApp\b/.test(location.search) });
