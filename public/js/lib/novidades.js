@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 661, data: '2026-11-12', titulo: 'Música salva pela busca ou pelo álbum já entra com a capa do álbum, também na notificação do download',
+    itens: [
+      { tipo: 'correcao', texto: 'Ao salvar uma música pelo botão + da busca, da página do álbum ou do artista, a música era gravada sem capa, embora a linha exibisse a capa do álbum. Até a procura da capa terminar em segundo plano, a biblioteca, a tela da música, o player e a notificação do download exibiam o quadro do vídeo ou a foto do artista. A capa exibida na linha passou a ser gravada com a música no momento em que ela é salva; sem ela, é usada a capa já conhecida para o título e o artista. Capas provisórias (quadro do vídeo, foto do artista) não são gravadas. Em teste, a música salva pela busca, que antes ficava sem capa, passou a ter a capa do álbum três segundos após o toque.' },
+      { tipo: 'correcao', texto: 'A notificação do download e a de reprodução passaram a usar a capa do álbum já conhecida quando a música ainda tem apenas uma capa provisória; o quadro do vídeo é usado somente quando não há outra.' },
+      { tipo: 'melhoria', texto: 'As músicas já salvas que continuam sem a capa do álbum a procuram novamente, em segundo plano. A capa escolhida manualmente é mantida.' },
+      { tipo: 'melhoria', texto: 'Pendente: conferido em navegador, na busca; não executado em aparelho. A notificação do download depende do aplicativo de Android e não foi exibida no teste.' },
+    ],
+  },
+  {
     versao: 660, data: '2026-11-12', titulo: 'Transição entre músicas: fim no som e funcionamento em segundo plano; "Sobre o artista" no idioma do aparelho; tela de edição na cor da música',
     itens: [
       { tipo: 'correcao', texto: 'O crossfade e o automix eram calculados sobre os últimos segundos do arquivo. Em gravações com silêncio no fim, a transição cruzava silêncio com silêncio: ouvia-se a música acabar, uma pausa e a próxima começar. Nas músicas baixadas e no áudio próprio, o aplicativo passou a localizar onde o som começa e termina (acima de 3% do volume da gravação) e a transição termina onde o som termina, com a próxima entrando onde o som dela começa. Em teste com faixas de 40 s e 4 s de silêncio final, o crossfade de 6 s passou de 34–40 s para 30–36 s.' },
@@ -87,14 +96,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, o ícone de Bluetooth e o nome do fone conectado, abaixo do título, haviam recebido na versão 650 um contorno em tom escuro da cor da música (traço de 4,6 no ícone e de 1,5 px no texto). O contorno foi removido nos modos claro e escuro: o ícone e o nome passaram a ser desenhados apenas na cor do aplicativo. O contorno do ícone do fone, à direita, e do botão da música salva não foi alterado.' },
       { tipo: 'melhoria', texto: 'Pendente: a alteração foi conferida pelas regras de estilo; não foi executada em aparelho.' },
-    ],
-  },
-  {
-    versao: 651, data: '2026-11-11', titulo: 'Modo claro: ícones, botões e rótulos na cor exata escolhida nos Ajustes',
-    itens: [
-      { tipo: 'correcao', texto: 'No modo claro, ícones, botões e rótulos na cor do aplicativo usavam a cor escolhida nos Ajustes escurecida com 18% de preto quando ela era clara (para o ciano padrão, #0595ae), um tom diferente do botão da música salva, que usa a cor sem alteração (#06b6d4). A diferença era visível na tela "Tocando agora", entre o botão da música salva e os ícones do fone conectado, do nome do fone e da repetição ligada. O escurecimento foi removido: no modo claro, esses elementos passaram a usar exatamente a cor escolhida, em todo o aplicativo (99 regras de estilo, além do realce da partitura). Para o ciano padrão, o contraste sobre o branco passa de 3,5:1 para 2,4:1.' },
-      { tipo: 'melhoria', texto: 'Os acordes da cifra, por serem texto de leitura, não foram alterados: continuam com a cor clara escurecida com 42% de preto no modo claro. O modo escuro e a cor do PDF também não foram alterados.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração foi conferida pelo valor calculado da cor em navegador, no modo claro; não foi executada em aparelho.' },
     ],
   },
 ];

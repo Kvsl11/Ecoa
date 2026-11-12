@@ -583,13 +583,15 @@ async function pedirNotificacoes() {
 }
 const COMO_LIBERAR_NOTIF = noApk() ? 'Para liberar: nas Configurações do Android, em Apps → Ecoa → Notificações.' : 'Para liberar: toque no cadeado (ou nos três pontos) ao lado do endereço do site, em Permissões → Notificações → Permitir. No app instalado, segure o ícone do Ecoa → Informações do app → Notificações.';
 
-// Capa usada nas notificações de download, quando disponível.
-const capaDaNotificacao = (song) =>
-  song?.cover && /^https?:/.test(song.cover)
-    ? song.cover
-    : song?.youtube
-      ? `https://i.ytimg.com/vi/${song.youtube}/hqdefault.jpg`
-      : '';
+// Capa usada nas notificações de download e de reprodução: a da música; sem ela (ou com uma provisória, como o
+// quadro do vídeo ou a foto do artista), a capa do álbum já conhecida para o título e o artista; só por último o
+// quadro do vídeo. (Antes a música recém-salva aparecia com o quadro do vídeo na notificação até ganhar a capa)
+const capaDaNotificacao = (song) => {
+  const propria = song?.cover && /^https?:/.test(song.cover) ? song.cover : '';
+  if (propria && !capaTrocavel(propria)) return propria;
+  const conhecida = song?.title && song?.artist ? capaConhecida(song.title, song.artist) : '';
+  return conhecida || propria || (song?.youtube ? `https://i.ytimg.com/vi/${song.youtube}/hqdefault.jpg` : '');
+};
 // copia um texto (a letra, a cifra): pela área de transferência do navegador e, onde ela não deixa (fora do https, ou
 // sem o foco), pelo jeito antigo, com um campo de texto escondido
 async function copiarTexto(texto) {
@@ -2850,6 +2852,10 @@ const REVISOES = [
   // foto do artista ou o desenho do app. Agora há as bases de reserva (TheAudioDB, MusicBrainz/Cover Art Archive e a
   // discografia do Cifra Club): as salvas sem a capa do álbum a procuram de novo. A escolhida pela pessoa fica
   { rev: 33, capaQueFalta: true, quais: (s) => !s.capaEscolhida && capaProvisoria(s.cover) && Boolean(s.title && s.artist) },
+  // v661: a música salva pelo + da busca ou da página do álbum entrava sem a capa da linha e ficava com o quadro do
+  // vídeo até a procura terminar (às vezes nem terminava). As salvas que ainda estão sem a capa do álbum a procuram
+  // de novo. A escolhida pela pessoa fica
+  { rev: 34, capaQueFalta: true, quais: (s) => !s.capaEscolhida && capaProvisoria(s.cover) && Boolean(s.title && s.artist) },
 ];
 // (o artista com dois nomes ligados por "&" ou " e ", que pode ser uma dupla)
 const temDupla = (s) => /\s&\s|\S&\S|\se\s/i.test(s?.artist || '');
@@ -7565,7 +7571,8 @@ const semLinhasDeAcordes = (sinc) => {
           // (a música da busca: pela fonte dela, que salva a prévia como está, com a letra, a sincronia e as versões)
           const fonte = (item.songId === 'previa' || item.href === '#/musica/previa') && preview?.source && /^https?:/.test(preview.source) ? preview.source : '';
           id = await salvarDaInternet('musica', { titulo: item.titulo || '', artista: item.artista || '', cifra: fonte && ehCifraClub(fonte) ? fonte : '',
-            letra: fonte && !ehCifraClub(fonte) ? { url: fonte, titulo: item.titulo || '', artista: item.artista || '' } : null, video });
+            letra: fonte && !ehCifraClub(fonte) ? { url: fonte, titulo: item.titulo || '', artista: item.artista || '' } : null, video,
+            capa: item.capaOficial || (/^https?:/.test(item.capa || '') && !capaTrocavel(item.capa) ? item.capa : '') });
         }
       } catch { id = null; }
       salvandoDoPlayer = null;
@@ -8274,12 +8281,27 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
 async function salvarDaInternet(tipo, item) {
   const ja = db.songBySource(item.cifra || item.letra?.url || item.url);
   if (ja) return ja.id;
+  // A capa que a pessoa via na linha (a do álbum, na busca e na página do álbum) entra já com a música. Antes a música
+  // era salva sem ela: até a procura da capa terminar, em segundo plano, a biblioteca, a tela da música, o player e a
+  // notificação do download mostravam o quadro do vídeo ou a foto do artista. Sem a da linha, a capa já conhecida
+  // para o título e o artista
+  // (nunca uma provisória: o quadro do vídeo e a foto do artista ficam de fora)
+  const capaDaLinha = (/^https?:/.test(item.capa || '') && !capaTrocavel(item.capa) ? item.capa : '')
+    || capaConhecida(item.titulo || '', item.artista || '');
+  const comCapa = (content) => {
+    if (!capaDaLinha || !capaTrocavel(renderSong(content).meta.cover || '')) return content;
+    // (guardada também para o título e o artista da cifra, que às vezes vêm escritos de outro jeito)
+    const m = renderSong(content).meta;
+    const k = m.title && m.artist ? chaveDaCapa(m.title, m.artist) : '';
+    if (k && capaConhecida(m.title, m.artist) !== capaDaLinha) void valorDaInternet('capa', `capa:${normalizar(k)}`, Promise.resolve(capaDaLinha));
+    return definirMeta(content, 'cover', capaDaLinha);
+  };
   // a mesma música aberta agora (a prévia): salva como ela está, com a letra que aparece, a sincronia e as duas
   // versões. Antes ela era trazida de novo da internet e, se o Cifra Club falhasse naquela hora, a música salva
   // ficava sem letra ("Não achei a letra")
   const fonteItem = item.cifra || item.letra?.url || '';
   if (preview && preview.source && fonteItem && preview.source === fonteItem && linhasDeLetra(preview.content) >= 2) {
-    const salvaJa = db.saveSong({ content: preview.content, source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || capoDaCifra(preview.content),
+    const salvaJa = db.saveSong({ content: comCapa(preview.content), source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || capoDaCifra(preview.content),
       ...(item.fotoArtista || preview.fotoArtista ? { fotoArtista: item.fotoArtista || preview.fotoArtista } : {}),
       ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}),
       ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}) });
@@ -8309,7 +8331,7 @@ async function salvarDaInternet(tipo, item) {
   if (prevValida && !yt && daPrevia.youtube) content = definirMeta(content, 'youtube', `https://www.youtube.com/watch?v=${daPrevia.youtube}`);
   // (veio sem letra — o site falhou agora —, mas a prévia desta música tem: fica a da prévia)
   if (prevValida && linhasDeLetra(content) < 2 && linhasDeLetra(daPrevia.content) >= 2) content = daPrevia.content;
-  const salva = db.saveSong({ content: prevValida ? (letraPelaSincronia(content, daPrevia.sincronia) || content) : content, source: r.source, capo: capoDaCifra(content), ...(item.fotoArtista ? { fotoArtista: item.fotoArtista } : {}),
+  const salva = db.saveSong({ content: comCapa(prevValida ? (letraPelaSincronia(content, daPrevia.sincronia) || content) : content), source: r.source, capo: capoDaCifra(content), ...(item.fotoArtista ? { fotoArtista: item.fotoArtista } : {}),
     ...(prevValida && daPrevia.sincronia ? { sincronia: daPrevia.sincronia } : {}), ...(prevValida && daPrevia.versoes ? { versoes: daPrevia.versoes } : {}) });
   // sem a sincronia ainda: procura agora, em segundo plano (para a música já ficar com a letra sincronizada, também
   // para baixar e ouvir sem internet)
@@ -11902,7 +11924,7 @@ function musicaDoVideoRelacionado(v) {
 const botaoSalvar = (item, cls = '') => {
   const salva = musicaSalva(item) && !musicaSalva(item).soNoRepertorio;
   const v = item.video;
-  return `<button class="salvar-btn ${cls}${salva ? ' salva' : ''}" data-salvar data-titulo="${esc(item.titulo || '')}" data-artista="${esc(item.artista || '')}" data-cifra="${esc(item.cifra || '')}" data-letra="${esc(item.letra || '')}" data-foto-artista="${esc(item.fotoArtista || '')}"${v ? ` data-video="${esc(v.id || '')}" data-video-titulo="${esc(v.titulo || '')}" data-canal="${esc(v.canal || '')}"` : ''}
+  return `<button class="salvar-btn ${cls}${salva ? ' salva' : ''}" data-salvar data-titulo="${esc(item.titulo || '')}" data-artista="${esc(item.artista || '')}" data-cifra="${esc(item.cifra || '')}" data-letra="${esc(item.letra || '')}" data-foto-artista="${esc(item.fotoArtista || '')}" data-capa="${esc(item.capa || '')}"${v ? ` data-video="${esc(v.id || '')}" data-video-titulo="${esc(v.titulo || '')}" data-canal="${esc(v.canal || '')}"` : ''}
     aria-pressed="${!!salva}" aria-label="${salva ? 'Na biblioteca (tocar para tirar)' : 'Salvar na biblioteca'}" title="${salva ? 'Na sua biblioteca — tocar para tirar' : 'Salvar na biblioteca'}">${icon(salva ? 'check' : 'plus', 16)}</button>`;
 };
 const marcarSalvar = (b, salva) => {
@@ -11931,7 +11953,9 @@ document.addEventListener('click', async (e) => {
   // (salvando: os toques seguintes são ignorados aqui. Antes o botão ficava desativado, e o toque num botão desativado
   // não chega a ele: passava para a linha da música, que abria a música, com a tela de carregamento, em vez de salvar)
   if (b.dataset.salvando) return;
-  const item = { titulo: b.dataset.titulo, artista: b.dataset.artista, cifra: b.dataset.cifra, letra: b.dataset.letra, fotoArtista: b.dataset.fotoArtista || '' };
+  const item = { titulo: b.dataset.titulo, artista: b.dataset.artista, cifra: b.dataset.cifra, letra: b.dataset.letra, fotoArtista: b.dataset.fotoArtista || '',
+    // (a capa que a linha está mostrando agora: a do álbum chega depois de a linha ser desenhada e troca a imagem dela)
+    capa: [b.closest('li')?.querySelector('.cover img')?.src, b.dataset.capa].find((u) => /^https?:/.test(u || '') && !capaTrocavel(u)) || '' };
   const salva = musicaSalva(item);
   if (salva?.soNoRepertorio) { db.updateSong(salva.id, { soNoRepertorio: undefined }); marcarSalvar(b, true); toast('Salva na biblioteca'); return; }
   if (salva) { if (await tirarDaBiblioteca(salva)) marcarSalvar(b, false); return; }
@@ -11939,7 +11963,7 @@ document.addEventListener('click', async (e) => {
   b.setAttribute('aria-busy', 'true');
   b.innerHTML = '<span class="spin"></span>';
   const video = b.dataset.video ? { id: b.dataset.video, url: `https://www.youtube.com/watch?v=${b.dataset.video}`, titulo: b.dataset.videoTitulo || item.titulo, canal: b.dataset.canal || '' } : null;
-  const id = await salvarDaInternet('musica', { titulo: item.titulo, artista: item.artista, cifra: item.cifra, letra: item.letra ? { url: item.letra, titulo: item.titulo, artista: item.artista } : null, video, fotoArtista: item.fotoArtista || '' }).catch(() => null);
+  const id = await salvarDaInternet('musica', { titulo: item.titulo, artista: item.artista, cifra: item.cifra, letra: item.letra ? { url: item.letra, titulo: item.titulo, artista: item.artista } : null, video, fotoArtista: item.fotoArtista || '', capa: item.capa }).catch(() => null);
   delete b.dataset.salvando;
   b.removeAttribute('aria-busy');
   marcarSalvar(b, !!id);
@@ -11959,7 +11983,7 @@ const indicadoresWeb = (r) => {
 const linhaMusicaWeb = (r, i, extra = '') => `
   <li class="track clickable" data-web="musica" data-midia-index="${i}" data-i="${i}" style="grid-template-columns:auto 1fr auto">
     ${capa({ titulo: r.titulo, capa: r.capa || (r.semCapaOficial ? r.video?.capa : '') })}<div class="info"><div class="t">${esc(r.titulo)}</div><div class="s">${seloExplicita(r.titulo, r.artista)}${indicadoresWeb(r)}${miniDosArtistas(r.titulo, r.artista || '', fotoReal(r.fotoArtista), ehDaLiturgia(r))}${esc(r.artista || '')}${r.video?.duracao ? ` · ${esc(r.video.duracao)}` : ''}</div></div>
-    <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
+    <span class="acts">${extra}${botaoSalvar({ titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url || '', video: r.video, fotoArtista: r.fotoArtista || '', capa: r.capa || '' }, 'mini')}<button class="icon-btn" data-abrir aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 // Busca vazia: as músicas católicas mais procuradas agora no Cifra Club — as mais tocadas de cada um dos
 // artistas católicos mais ouvidos, em ordem de popularidade (o índice da própria busca do Cifra Club)
@@ -12358,7 +12382,7 @@ async function todasDoArtista(d) {
 const linhaFaixa = (f, i, n, foto, artista = '') => `<li class="track clickable faixa${f.url || f.versao ? '' : ' sem-cifra'}" data-i="${i}" style="grid-template-columns:auto auto 1fr auto">
   <span class="num">${n}</span>${capa({ titulo: f.titulo, capa: f.capa || foto })}<div class="info"><div class="t">${esc(f.titulo)}</div>
   <div class="s">${f.url ? `${f.tom ? '' : `<span class="ind"><span class="ind-i" title="Tem cifra">${icon('chord', 11)}</span></span>`}${esc(artista || 'Cifra')}` : f.versao ? esc(artista) : 'Sem cifra no Cifra Club'}</div></div>
-  <span class="acts">${f.url && f.tom ? `<span class="chip sm key" title="Tom ${esc(f.tom)}">${esc(f.tom)}</span>` : ''}${botaoSalvar({ titulo: f.titulo, artista, cifra: f.url || '' }, 'mini')}<button class="icon-btn" aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
+  <span class="acts">${f.url && f.tom ? `<span class="chip sm key" title="Tom ${esc(f.tom)}">${esc(f.tom)}</span>` : ''}${botaoSalvar({ titulo: f.titulo, artista, cifra: f.url || '', capa: f.capa || '' }, 'mini')}<button class="icon-btn" aria-label="Abrir">${icon('next', 18)}</button></span></li>`;
 
 async function viewArtista(slug, nome) {
   setTab('buscar');
