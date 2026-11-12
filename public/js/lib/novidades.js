@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 670, data: '2026-11-12', titulo: "Nome da música em movimento deixa de aparecer duas vezes, sobreposto, no player, na letra e na cifra",
+    itens: [
+      { tipo: 'correcao', texto: "O nome que não cabe na linha anda para o lado seguido de uma cópia, e cada um tinha a própria animação. Quando o nome mudava (troca de música, chegada do artista), a cópia era refeita e recomeçava do zero, enquanto o nome seguia do ponto em que estava; fora de passo, ao fim da volta o nome reaparecia no início com a cópia ainda passando por cima dele, e o texto era exibido duas vezes, sobreposto. Ao refazer a cópia, o nome e a cópia passaram a recomeçar juntos, e a cada desenho a largada de todas as linhas do grupo é igualada à da primeira. A correção vale para a barra de reprodução, a tela Tocando agora, a barra superior e o nome exibido na letra e na cifra. Em teste em navegador, com troca do nome após 2,5 s, a defasagem entre o nome e a cópia passou de 2500 ms para 0 ms." },
+      { tipo: 'melhoria', texto: "Pendente: verificado em navegador, com a mesma animação do aplicativo; não executado em aparelho." },
+    ],
+  },
+  {
     versao: 669, data: '2026-11-12', titulo: "Link do cartão do Vídeo abre a música no vídeo; para quem não entrou, a prévia passa a ser o próprio clipe",
     itens: [
       { tipo: 'melhoria', texto: "O link compartilhado era o mesmo nos três cartões (Música, Letra e Vídeo) e abria sempre a música no modo música, ou a prévia com a capa. O link do cartão do Vídeo passou a levar o clipe e o ponto do clipe em que o refrão começa (calculado pela letra sincronizada da música de quem compartilha). Com a conta, a música abre já no modo vídeo; sem ela, a prévia exibe o clipe num quadro 16:9, a partir do refrão, por 30 segundos, com o tempo decorrido e o fundo nas cores da miniatura do clipe, e volta ao início ao fim. O clipe é iniciado sem som e o som é ligado assim que a reprodução começa; onde o som não é liberado, o botão passa a \"Ouvir com som\". Quando o clipe não pode ser reproduzido fora do YouTube, ou não começa em até 10 segundos (15 segundos após a resposta do YouTube), a prévia passa à capa e ao trecho do Deezer. Os links dos cartões da Música e da Letra continuam abrindo a música e a prévia com a capa." },
@@ -85,17 +92,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'A notificação do download e a de reprodução passaram a usar a capa do álbum já conhecida quando a música ainda tem apenas uma capa provisória; o quadro do vídeo é usado somente quando não há outra.' },
       { tipo: 'melhoria', texto: 'As músicas já salvas que continuam sem a capa do álbum a procuram novamente, em segundo plano. A capa escolhida manualmente é mantida.' },
       { tipo: 'melhoria', texto: 'Pendente: conferido em navegador, na busca; não executado em aparelho. A notificação do download depende do aplicativo de Android e não foi exibida no teste.' },
-    ],
-  },
-  {
-    versao: 660, data: '2026-11-12', titulo: 'Transição entre músicas: fim no som e funcionamento em segundo plano; "Sobre o artista" no idioma do aparelho; tela de edição na cor da música',
-    itens: [
-      { tipo: 'correcao', texto: 'O crossfade e o automix eram calculados sobre os últimos segundos do arquivo. Em gravações com silêncio no fim, a transição cruzava silêncio com silêncio: ouvia-se a música acabar, uma pausa e a próxima começar. Nas músicas baixadas e no áudio próprio, o aplicativo passou a localizar onde o som começa e termina (acima de 3% do volume da gravação) e a transição termina onde o som termina, com a próxima entrando onde o som dela começa. Em teste com faixas de 40 s e 4 s de silêncio final, o crossfade de 6 s passou de 34–40 s para 30–36 s.' },
-      { tipo: 'correcao', texto: 'O passo da transição dependia apenas do relógio da página, que o celular limita ou suspende com o aplicativo em segundo plano ou a tela apagada; nesses casos a transição começava tarde, avançava aos saltos ou não ocorria. O passo passou a ser executado também a cada aviso de tempo da própria música (arquivo ou YouTube). Em teste com o relógio de 50 ms suspenso, o crossfade e o automix ocorreram no ponto previsto.' },
-      { tipo: 'melhoria', texto: 'A próxima música passou a ser aberta sem som antes da hora da transição (0,6 s nos arquivos do aparelho e 3 s no YouTube) e a voltar ao ponto de entrada no início da subida de volume, para que o tempo de abertura não consuma a transição.' },
-      { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, a apresentação do artista em "Sobre o artista" era sempre a da Wikipédia em português, e a linha de números exibia "mi inscritos". A apresentação passou a ser buscada na Wikipédia do idioma do aparelho, com a versão em português como reserva, e a biografia de reserva (TheAudioDB) segue o mesmo idioma; os números passaram a ser abreviados e traduzidos no idioma do aparelho.' },
-      { tipo: 'melhoria', texto: 'A tela de edição da música foi reorganizada: a tela inteira adota a cor da música, nos modos claro e escuro; a capa exibida é a da própria música, e não mais o quadro do vídeo recortado; os ícones deixaram a cor de destaque; "Editar" e "Ver como fica" ficam na primeira linha, com desfazer, refazer e tela cheia, e os três modos de edição na linha seguinte; os detalhes da música mostram em uma linha o que está preenchido; "Cancelar" e "Salvar" têm o mesmo tamanho. O guia "Como escrever" foi removido.' },
-      { tipo: 'melhoria', texto: 'Pendente: a transição foi medida em navegador com arquivos de teste; não foi executada em aparelho, e a transição entre vídeos do YouTube não pôde ser reproduzida no ambiente de teste. A apresentação do artista foi conferida na Wikipédia em espanhol; a consulta em inglês não respondeu durante a conferência.' },
     ],
   },
 ];
