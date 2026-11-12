@@ -27,13 +27,15 @@ public class TocandoService extends Service {
         return ctx.getSharedPreferences(EcoaPlugin.PREFS, Context.MODE_PRIVATE).getBoolean("tocando", false);
     }
 
+    // (o aviso é redesenhado também quando o serviço começa: com o serviço já ligado, o Android pode recusar o primeiro
+    // plano em segundo plano, e aí o aviso ficava com o botão de antes — "tocar" com a música tocando e a barra andando)
     static void ligar(Context ctx) {
         try {
             androidx.core.content.ContextCompat.startForegroundService(ctx, new Intent(ctx, TocandoService.class));
         } catch (Exception e) {
             // (o Android não deixou começar agora, com o app em segundo plano: o aviso que já existe é só atualizado)
-            atualizar(ctx);
         }
+        atualizar(ctx);
     }
 
     // A música mudou, pausou ou voltou. O serviço fica em primeiro plano só enquanto toca: pausado, ele solta o aviso
