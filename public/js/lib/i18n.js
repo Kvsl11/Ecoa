@@ -127,7 +127,7 @@ export function t(texto) {
 const ATRIBUTOS = ['title', 'aria-label', 'placeholder', 'data-tip', 'alt', 'aria-description', 'data-vazio', 'data-rotulo', 'data-dica'];
 // onde ficam os dados (nomes de música, artista, playlist, a letra): texto curto ali não é trocado
 // o nome da música e do artista nas listas (o texto direto do elemento; um selo dentro dele é do app)
-const NOMES = '.track .t, .card b';
+const NOMES = '.track .t, .card b, .tile > b';
 const NOMES_E_APP = '.track .s, .card small';
 // onde o que aparece veio de fora ou foi escrito pela pessoa
 const DADOS = '.pl-nome, .pl-desc, .pv-nome, .est-nome, .pl-artista-nome, .rolar, .chat-bolha, .dv-texto, .lit-linha, .texto-extra';

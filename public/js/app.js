@@ -9112,7 +9112,7 @@ function clipeDaMusica(s) {
   const emVideo = String(s.baixado?.arquivos?.[id]?.tipo || '').startsWith('video/');
   return s.semClipe === false || emVideo ? id : '';
 }
-function clipesDaBiblioteca(n = 12) {
+function clipesDaBiblioteca(n = 40) {
   const com = db.recentSongs(1e4).map((s) => ({ s, id: clipeDaMusica(s) })).filter((x) => x.id)
     .filter((x, i, l) => l.findIndex((y) => y.id === x.id) === i);
   return [...com.filter((x) => x.s.baixado), ...com.filter((x) => !x.s.baixado)].slice(0, n);
@@ -9139,25 +9139,88 @@ const tileClipe = ({ attr, capaUrl, titulo, artista, duracao = '', baixado = fal
   <span class="clipe-capa" style="background-image:url('${esc(capaUrl)}')">${duracao ? `<i>${esc(duracao)}</i>` : ''}<span class="clipe-play">${icon('play', 16)}</span></span>
   <b>${esc(titulo)}</b><small>${baixado ? `<span class="clipe-baixado" title="Baixado">${icon('check', 12)}</span>` : ''}${esc(artista)}</small></button>`;
 let clipesRelacionados = [];
-// mais clipes dos artistas (do YouTube), sem os que já são músicas do aparelho, um de cada artista por vez
-async function carregarClipesRelacionados(box) {
-  const sec = $('.inicio-clipes-rel', box);
-  if (!sec || !navigator.onLine) return;
-  const listas = await Promise.all(artistasDosClipes().map((nome) => videosDoArtista(nome).catch(() => [])));
-  const vistos = new Set();
-  const juntos = [];
-  for (let i = 0; juntos.length < 12 && listas.some((l) => l[i]); i++) {
+// As fileiras de clipes do Início ("Mais clipes dos seus artistas" e "Clipes de artistas parecidos") crescem enquanto a
+// pessoa rola para o lado: cada vez que a rolagem chega perto do fim, entram os clipes de mais alguns artistas. A
+// primeira, com os artistas das músicas do aparelho (até 12, e não mais só 4, com até 10 clipes de cada um); a segunda,
+// com os artistas parecidos com eles (os "relacionados" do Deezer, 20 de cada artista), até acabarem.
+// Um clipe não repete nas duas fileiras, e os que já são músicas do aparelho ficam em "Seus videoclipes".
+const LOTE_DE_CLIPES = 12;
+async function* clipesDosSeusArtistas(vistos) {
+  const nomes = artistasDosClipes(12);
+  for (let k = 0; k < nomes.length; k += 4) {
+    const listas = await Promise.all(nomes.slice(k, k + 4).map((nome) => videosDoArtista(nome).catch(() => [])));
+    let lote = [];
+    for (let i = 0; listas.some((l) => l[i]); i++) {
+      for (const l of listas) {
+        const v = l[i];
+        if (!v || vistos.has(v.id) || musicaDoVideoRelacionado(v)) continue;
+        vistos.add(v.id);
+        lote.push(v);
+        if (lote.length >= LOTE_DE_CLIPES) { yield lote; lote = []; }
+      }
+    }
+    if (lote.length) yield lote;
+  }
+}
+async function* clipesDeArtistasParecidos(vistos) {
+  const meus = artistasDosClipes(8);
+  const daBiblioteca = new Set(artistasDaBiblioteca(1e4).map((a) => nomeJunto(a.nome)));
+  // os parecidos de cada artista, um de cada por vez (os de um artista só não tomam a fileira)
+  const listas = await Promise.all(meus.map((nome) => artistaDoDeezer(nome).then((a) => (a?.id ? parecidosNoDeezer(a.id) : [])).catch(() => [])));
+  const fila = [];
+  const postos = new Set();
+  for (let i = 0; listas.some((l) => l[i]); i++) {
     for (const l of listas) {
-      const v = l[i];
-      if (!v || vistos.has(v.id) || musicaDoVideoRelacionado(v)) continue;
-      vistos.add(v.id);
-      juntos.push(v);
+      const k = l[i] && nomeJunto(l[i].nome);
+      if (!k || postos.has(k) || daBiblioteca.has(k)) continue;
+      postos.add(k);
+      fila.push(l[i].nome);
     }
   }
-  if (!sec.isConnected || !juntos.length) return;
-  clipesRelacionados = juntos.slice(0, 12);
-  $('.shelf', sec).innerHTML = clipesRelacionados.map((v, i) => tileClipe({ attr: `data-clipe-rel="${i}"`, capaUrl: v.capa || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`, titulo: v.titulo, artista: v.artista, duracao: v.duracao })).join('');
-  sec.hidden = false;
+  for (let k = 0; k < fila.length; k += 3) {
+    const achados = await Promise.all(fila.slice(k, k + 3).map((nome) => videosDoArtista(nome).catch(() => [])));
+    const lote = [];
+    for (let i = 0; i < 4; i++) {
+      for (const l of achados) {
+        const v = l[i];
+        if (!v || vistos.has(v.id) || musicaDoVideoRelacionado(v)) continue;
+        vistos.add(v.id);
+        lote.push(v);
+      }
+    }
+    if (lote.length) yield lote;
+  }
+}
+// liga uma fileira à fonte dela: põe o primeiro lote e pede o seguinte quando a rolagem chega perto do fim
+function fileiraDeClipes(sec, fonte) {
+  const shelf = sec && $('.shelf', sec);
+  if (!shelf) return;
+  let pedindo = false;
+  let acabou = false;
+  const mais = async () => {
+    if (pedindo || acabou || !sec.isConnected || !navigator.onLine) return;
+    pedindo = true;
+    const r = await fonte.next().catch(() => ({ done: true }));
+    pedindo = false;
+    if (r.done) { acabou = true; return; }
+    if (!sec.isConnected) return;
+    const inicio = clipesRelacionados.length;
+    clipesRelacionados.push(...r.value);
+    shelf.insertAdjacentHTML('beforeend', r.value.map((v, i) => tileClipe({ attr: `data-clipe-rel="${inicio + i}"`, capaUrl: v.capa || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`, titulo: v.titulo, artista: v.artista, duracao: v.duracao })).join(''));
+    sec.hidden = false;
+    perto();
+  };
+  // (perto do fim: faltando menos de duas telas de largura para rolar)
+  const perto = () => { if (shelf.scrollWidth - shelf.scrollLeft - shelf.clientWidth < shelf.clientWidth * 2) void mais(); };
+  shelf.addEventListener('scroll', perto, { passive: true });
+  void mais();
+}
+function carregarClipesRelacionados(box) {
+  if (!navigator.onLine) return;
+  clipesRelacionados = [];
+  const vistos = new Set();
+  fileiraDeClipes($('.inicio-clipes-rel', box), clipesDosSeusArtistas(vistos));
+  fileiraDeClipes($('.inicio-clipes-parecidos', box), clipesDeArtistasParecidos(vistos));
 }
 // tocar no clipe: toca já no modo vídeo. O da biblioteca toca a música de lá (com a letra, a cifra e os arquivos dela)
 function ligarClipes(box) {
@@ -9246,6 +9309,8 @@ function viewHome() {
       <div class="shelf clipes">${clipes.map(({ s, id }) => tileClipe({ attr: `data-clipe="${s.id}"`, capaUrl: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, titulo: s.title, artista: s.artist || '', baixado: Boolean(s.baixado) })).join('')}</div></section>` : ''}
     <section data-sec="musicas" class="inicio-clipes-rel" hidden><div class="shelf-head"><h2>Mais clipes dos seus artistas</h2></div>
       <div class="shelf clipes"></div></section>
+    <section data-sec="musicas" class="inicio-clipes-parecidos" hidden><div class="shelf-head"><h2>Clipes de artistas parecidos</h2></div>
+      <div class="shelf clipes"></div></section>
 
     ${artistas.length >= 2 ? `<section data-sec="musicas"><div class="shelf-head"><h2>Seus artistas</h2></div>
       <div class="shelf">${artistas.map(tileArtistaInicio).join('')}</div></section>` : ''}
@@ -9258,7 +9323,7 @@ function viewHome() {
     </div>`;
   ligarTiles(view);
   ligarClipes(view);
-  void carregarClipesRelacionados(view).catch(() => {});
+  carregarClipesRelacionados(view);
   enriquecerTilesArtistas(view);
   $('#pede-notif', view)?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-notif]');
@@ -10059,9 +10124,20 @@ const buscarTudo = (termo, nMusicas = 8, nVideos = 6) => {
 // artista (Cifra Club): foto redonda; abre a página dele com as músicas mais tocadas
 // (a foto já é a definitiva: a preparada antes de desenhar (prepararFotosArtistas) ou a última guardada. A do Cifra Club
 // não aparece primeiro: ela era a foto antiga, e em milissegundos piscava para a nova)
+// os artistas de uma busca: os do Deezer (o catálogo, com a página de álbuns e faixas); sem nenhum lá, os do Cifra Club
+async function artistasDaBusca(termo, n = 8) {
+  const r = navigator.onLine ? await noMaximo(jsonp(`https://api.deezer.com/search/artist?q=${encodeURIComponent(termo)}&limit=${n}`), 3500, null) : null;
+  const vistos = new Set();
+  // (sem as páginas de karaokê, tributo e covers, que o Deezer lista como artistas)
+  const copia = /\b(karaok[eê]|tribute|tributo|covers?|playback)\b/i;
+  const doDeezer = (r?.data || []).filter((a) => a?.id && a.name && (a.nb_fan || 0) >= 20 && (!copia.test(a.name) || copia.test(termo)))
+    .filter((a) => { const k = nomeJunto(a.name); if (vistos.has(k)) return false; vistos.add(k); return true; })
+    .map((a) => ({ nome: a.name, slug: '', dz: a.id }));
+  return doDeezer.length ? doDeezer : buscarArtistasCifraClub(termo);
+}
 const tileArtista = (a) => {
   const foto = a.fotoFinal !== undefined ? a.fotoFinal : fotoConhecida(a.nome);
-  return `<a class="tile tile-artista" href="#/artista/${encodeURIComponent(a.slug)}/${encodeURIComponent(a.nome)}">
+  return `<a class="tile tile-artista" href="${a.dz ? hashArtistaDz(a.dz, a.nome) : `#/artista/${encodeURIComponent(a.slug)}/${encodeURIComponent(a.nome)}`}">
   <div class="cover" data-artista-foto data-nome="${esc(a.nome)}" data-slug="${esc(a.slug)}"${foto ? ` data-mostrando="${esc(foto)}"` : ''}>${foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('mic', 40)}</div><b>${esc(a.nome)}</b><small>Artista</small></a>`;
 };
 // O artista certo numa busca do Cifra Club: primeiro o de nome igual (a busca por "Justice" traz a "Victoria Justice"
@@ -11833,6 +11909,28 @@ const ARTISTAS_CATOLICOS = ['Frei Gilson', 'Colo de Deus', 'Padre Fábio de Melo
   'Eliana Ribeiro', 'Padre Marcelo Rossi', 'Davidson Silva', 'Walmir Alencar', 'Thiago Brado', 'Adoração e Vida', 'Celina Borges',
   'Padre Reginaldo Manzotti', 'Canção Nova', 'Anjos de Resgate', 'Fraternidade São João Paulo II', 'Rosa de Saron'];
 const catolicasEmAlta = () => emAltaDe(ARTISTAS_CATOLICOS);
+// As paradas do Deezer (as músicas mais ouvidas agora), para a Busca não ficar só na música católica: a do Brasil e a
+// do mundo, e os artistas em alta. Guardadas enquanto o app está aberto
+const PARADAS = { brasil: 1111141961, mundo: 3155776842 };
+const paradasPedidas = new Map();
+function paradaDoDeezer(chave, n = 40) {
+  if (!navigator.onLine) return Promise.resolve([]);
+  if (!paradasPedidas.has(chave)) {
+    paradasPedidas.set(chave, jsonp(`https://api.deezer.com/playlist/${PARADAS[chave]}/tracks?limit=${n}`)
+      .then((r) => (r?.data || []).filter((x) => x?.title && x.artist?.name).map((x) => ({ titulo: x.title, artista: x.artist.name, capa: x.album?.cover_big || x.album?.cover_medium || '' })))
+      .catch(() => []).then((l) => { if (!l.length) paradasPedidas.delete(chave); return l; }));
+  }
+  return paradasPedidas.get(chave);
+}
+function artistasEmAlta(n = 20) {
+  if (!navigator.onLine) return Promise.resolve([]);
+  if (!paradasPedidas.has('artistas')) {
+    paradasPedidas.set('artistas', jsonp(`https://api.deezer.com/chart/0/artists?limit=${n}`)
+      .then((r) => (r?.data || []).filter((a) => a?.id && a.name).map((a) => ({ nome: a.name, slug: '', dz: a.id })))
+      .catch(() => []).then((l) => { if (!l.length) paradasPedidas.delete('artistas'); return l; }));
+  }
+  return paradasPedidas.get('artistas');
+}
 // as mais tocadas de uma lista de artistas (as músicas católicas em alta, e as de cada estilo musical da Busca)
 async function emAltaDe(artistas, max = 30) {
   const listas = await Promise.all(artistas.map((a) => buscarCifraClub(a)
@@ -12022,7 +12120,10 @@ function viewSearch() {
         <div class="nav-grade grande">${SETORES.map(([k, nome, , ic], i) => cartaoNavegar({ href: `#/setor/${k}`, nome, ic, cor: ['#1e3264', '#e8115b', '#8d67ab', '#27856a'][i % 4] })).join('')}</div>
         <div class="shelf-head"><h2>Católicas em alta</h2></div>
         <div id="em-alta"><div class="shelf esq-tiles">${'<span class="esq-tile"><i class="esq"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div></div>
+        <section id="sec-brasil"><div class="shelf-head"><h2>Em alta no Brasil</h2></div><div id="alta-brasil"><div class="shelf esq-tiles">${'<span class="esq-tile"><i class="esq"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div></div></section>
         <div class="shelf-head"><h2>Artistas católicos</h2></div><div class="shelf" id="art-cat">${'<span class="esq-artista"><i class="esq"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div>
+        <section id="sec-mundo"><div class="shelf-head"><h2>Em alta no mundo</h2></div><div id="alta-mundo"><div class="shelf esq-tiles">${'<span class="esq-tile"><i class="esq"></i><i class="esq esq-l1"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div></div></section>
+        <section id="sec-artistas-alta"><div class="shelf-head"><h2>Artistas em alta</h2></div><div class="shelf" id="art-alta">${'<span class="esq-artista"><i class="esq"></i><i class="esq esq-l2"></i></span>'.repeat(5)}</div></section>
         <div class="shelf-head"><h2>Navegar por tudo</h2></div>
         <h3 class="nav-sub">Estilos musicais</h3><div class="nav-grade" id="nav-estilos">${cardsEstilos()}</div>
         <h3 class="nav-sub">Partes da missa</h3><div class="nav-grade">${cardsPartes()}</div>
@@ -12034,6 +12135,25 @@ function viewSearch() {
         if (meu !== seq || !$('#art-cat')) return;
         $('#art-cat').innerHTML = lista.filter(Boolean).map(tileArtista).join('');
         enriquecerTilesArtistas($('#art-cat'));
+      });
+      // o que está em alta fora da música católica: as paradas do Deezer (as 40 primeiras do Brasil e do mundo) e os
+      // artistas mais ouvidos; sem resposta, a seção sai
+      for (const [chave, caixaId, secId] of [['brasil', 'alta-brasil', 'sec-brasil'], ['mundo', 'alta-mundo', 'sec-mundo']]) {
+        paradaDoDeezer(chave).then(async (lista) => {
+          if (meu !== seq || !$('#' + caixaId)) return;
+          if (!lista.length) { $('#' + secId)?.remove(); return; }
+          await prepararMidiaBusca(lista);
+          if (meu !== seq || !$('#' + caixaId)) return;
+          achados[chave] = lista;
+          $('#' + caixaId).innerHTML = `<div class="shelf em-alta">${lista.map((r, i) => `<a class="tile" href="#/buscar" data-web="${chave}" data-i="${i}"><div class="tile-art">${capa({ titulo: r.titulo, capa: r.capa })}</div>
+            <b translate="no">${esc(r.titulo)}</b><small class="s" translate="no">${esc(r.artista || '')}</small></a>`).join('')}</div>`;
+        });
+      }
+      artistasEmAlta().then(prepararFotosArtistas).then((lista) => {
+        if (meu !== seq || !$('#art-alta')) return;
+        if (!lista.length) { $('#sec-artistas-alta')?.remove(); return; }
+        $('#art-alta').innerHTML = lista.map(tileArtista).join('');
+        enriquecerTilesArtistas($('#art-alta'));
       });
       catolicasEmAlta().then(async (lista) => {
         if (meu !== seq || !$('#em-alta')) return;
@@ -12063,7 +12183,7 @@ function viewSearch() {
     timer = setTimeout(() => {
       if (meu !== seq) return;
       if (mostra('artistas')) {
-        buscarArtistasCifraClub(term).then(async (lista) => {
+        artistasDaBusca(term, filtro === 'artistas' ? 20 : 8).then(async (lista) => {
           if (meu !== seq) return;
           const artistas = await prepararFotosArtistas(lista.slice(0, filtro === 'artistas' ? 20 : 8));
           // na aba Tudo, sem artista, a seção some
@@ -12186,6 +12306,13 @@ async function viewArtista(slug, nome) {
   setTab('buscar');
   setTint('#3a2f4f');
   setHeader(nome || 'Artista', { back: '#/buscar', eyebrow: 'Artista' });
+  if (nome && navigator.onLine) {
+    const aqui = location.hash;
+    view.innerHTML = esqueleto('artista', 'Procurando o artista…');
+    const noDeezer = await noMaximo(artistaDoDeezer(nome).catch(() => null), 2500, null);
+    if (location.hash !== aqui) return;
+    if (noDeezer?.id) { location.replace(hashArtistaDz(noDeezer.id, nome, slug)); return; }
+  }
   const chaveAba = 'artAba:' + slug;
   let aba = sessionStorage.getItem(chaveAba) || 'top';
   view.innerHTML = `
@@ -12345,6 +12472,13 @@ async function viewAlbumDaMusica(titulo, artista, fonte = '') {
   setTint('#2f3a4f');
   setHeader('Álbum', { back: () => history.back(), eyebrow: artista });
   view.innerHTML = esqueleto('pagina', 'Procurando o álbum…');
+  const noDeezer = navigator.onLine ? await noMaximo(albumDaMusicaNoDeezer(titulo, artista).catch(() => null), 4500, null) : null;
+  if (location.hash !== aqui) return;
+  if (noDeezer?.id) {
+    try { sessionStorage.setItem('albumFaixa', noDeezer.faixa); } catch { /* sem armazenamento */ }
+    location.replace(`#/dz/album/${noDeezer.id}`);
+    return;
+  }
   const achado = await acharAlbum({ titulo, artista, fonte }).catch(() => null);
   if (location.hash !== aqui) return;
   if (achado?.al) {
@@ -12367,6 +12501,10 @@ async function viewArtistaPeloNome(nome) {
   setTint('#3a2f4f');
   setHeader(nome || 'Artista', { back: () => history.back(), eyebrow: 'Artista' });
   view.innerHTML = esqueleto('artista', 'Procurando o artista…');
+  // (a página do artista pelo Deezer; quem o Deezer não tem, pela do Cifra Club)
+  const noDeezer = navigator.onLine ? await noMaximo(artistaDoDeezer(nome).catch(() => null), 4000, null) : null;
+  if (location.hash !== aqui) return;
+  if (noDeezer?.id) { location.replace(hashArtistaDz(noDeezer.id, noDeezer.name || nome)); return; }
   const achado = await buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).catch(() => null);
   if (location.hash !== aqui) return;
   if (achado?.slug) { location.replace(`#/artista/${encodeURIComponent(achado.slug)}/${encodeURIComponent(achado.nome || nome)}`); return; }
@@ -12453,6 +12591,188 @@ function faixasDoAlbumNoDeezer(artista, album) {
     }).then((l) => (Array.isArray(l) ? l : [])).catch(() => { albunsNoDeezer.delete(k); return []; }));
   }
   return albunsNoDeezer.get(k);
+}
+
+// ---- o artista e o álbum pelo Deezer ----
+// A discografia, as capas, os álbuns e as faixas vêm do Deezer (o catálogo das gravadoras: os álbuns completos, as
+// capas grandes, a data de lançamento); do Cifra Club vem só a cifra de cada música, procurada quando ela abre. O
+// artista que o Deezer não tem continua com a página do Cifra Club (viewArtista).
+const dzPedidos = new Map();
+function dz(caminho) {
+  if (!dzPedidos.has(caminho)) {
+    dzPedidos.set(caminho, jsonp(`https://api.deezer.com/${caminho}`).then((r) => { if (!r || r.error) throw new Error('o Deezer não respondeu'); return r; })
+      .catch((e) => { dzPedidos.delete(caminho); throw e; }));
+  }
+  return dzPedidos.get(caminho);
+}
+const capaDz = (al, grande = true) => (grande ? al?.cover_xl || al?.cover_big : '') || al?.cover_medium || al?.cover || '';
+const fotoDz = (a) => [a?.picture_xl, a?.picture_big, a?.picture_medium].find((u) => u && !/\/artist\/\//.test(u)) || '';
+const faixaDz = (x, capaDoAlbum = '', artistaDoAlbum = '') => ({ titulo: x.title || '', artista: x.artist?.name || artistaDoAlbum, capa: capaDz(x.album, false) || capaDoAlbum, versao: true });
+const TIPO_DZ = { album: 'Álbum', single: 'Single', ep: 'EP', compile: 'Coletânea' };
+const hashArtistaDz = (id, nome, slug = '') => `#/dz/artista/${id}/${encodeURIComponent(nome)}${slug ? `/${encodeURIComponent(slug)}` : ''}`;
+// todos os lançamentos do artista (o Deezer entrega de 100 em 100): os álbuns antes dos singles, os mais novos primeiro,
+// sem a mesma edição repetida
+async function albunsDoDeezer(id) {
+  const todos = [];
+  for (let index = 0; index < 500; index += 100) {
+    const r = await dz(`artist/${id}/albums?limit=100&index=${index}`);
+    todos.push(...(r.data || []));
+    if (!r.next || (r.data || []).length < 100) break;
+  }
+  const vistos = new Set();
+  const ordem = { album: 0, compile: 1, ep: 2, single: 3 };
+  return todos.filter((al) => { const k = `${al.record_type}|${normalizar(al.title)}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
+    .sort((x, y) => ((ordem[x.record_type] ?? 4) - (ordem[y.record_type] ?? 4)) || String(y.release_date || '').localeCompare(String(x.release_date || '')));
+}
+// o álbum em que a música saiu, pelo Deezer: a faixa da música (o mesmo título e o mesmo artista)
+async function albumDaMusicaNoDeezer(titulo, artista) {
+  const quem = primeiroArtistaDe(artista || '');
+  if (!titulo || !quem) return null;
+  const r = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`${quem} ${tituloLimpo(titulo)}`)}&limit=25`);
+  const faixa = faixaDaMusica(r?.data, { titulo: tituloLimpo(titulo), artista: quem });
+  return faixa?.album?.id ? { id: faixa.album.id, faixa: faixa.title || titulo } : null;
+}
+async function viewArtistaDeezer(id, nome, slug = '') {
+  marcarAbertoBib(chaveArtistaBib(nome)); // (a ordem "Recentes" da biblioteca)
+  const aqui = location.hash;
+  setTab('buscar');
+  setTint('#3a2f4f');
+  setHeader(nome || 'Artista', { back: () => history.back(), eyebrow: 'Artista' });
+  const chaveAba = 'artAba:dz' + id;
+  let aba = sessionStorage.getItem(chaveAba) || 'top';
+  if (!['top', 'albuns', 'cifras'].includes(aba)) aba = 'top';
+  view.innerHTML = `
+    <section class="page-hero artista-hero"><div class="cover" id="art-foto" data-artista-foto>${fotoConhecida(nome) ? `<img src="${esc(fotoConhecida(nome))}" referrerpolicy="no-referrer" alt="">` : icon('mic', 48)}</div>
+      <div><div class="kind">Artista</div><h2 translate="no">${esc(nome)}</h2><div class="meta" id="art-meta"></div></div></section>
+    <label class="field">${icon('search', 18)}<input class="search" id="art-busca" type="search" placeholder="Buscar nas músicas de ${esc(nome || 'artista')}"></label>
+    <div class="chips" id="art-abas" style="margin:12px 0 4px">
+      <button class="chip" data-aba="top">Mais tocadas</button><button class="chip" data-aba="albuns">Álbuns</button><button class="chip" data-aba="cifras">Com cifra</button></div>
+    <div id="art-conteudo">${esqueleto('lista', 'Carregando as músicas…')}</div>`;
+  let lista = [];
+  let foto = fotoConhecida(nome) || '';
+  const box = () => $('#art-conteudo');
+  const ativa = () => location.hash === aqui && box();
+  const listaHtml = (itens, vazio = 'Nenhuma música encontrada.') => (itens.length ? `<ul class="tracks">${itens.map((f, i) => linhaFaixa(f, i, i + 1, foto, f.artista || nome)).join('')}</ul>` : `<p class="muted">${vazio}</p>`);
+  const carregando = (txt, tipo = 'lista') => { box().innerHTML = esqueleto(tipo, txt); };
+  // (as cifras: a página do artista no Cifra Club, procurada pelo nome só quando a aba abre)
+  let cifras = null;
+  const cifrasDoArtista = () => {
+    cifras ||= (async () => {
+      const achado = slug ? { slug } : await buscarArtistasCifraClub(nome).then((l) => artistaCerto(l, nome)).catch(() => null);
+      return achado?.slug ? todasDoArtista(carregarArtista(achado.slug, nome)).catch(() => []) : [];
+    })();
+    return cifras;
+  };
+  let vez = 0;
+  const desenhar = async () => {
+    const minha = ++vez;
+    $('#art-abas').querySelectorAll('[data-aba]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.aba === aba)));
+    const termo = $('#art-busca').value.trim();
+    $('#art-abas').hidden = !!termo;
+    if (termo) {
+      carregando('Procurando…');
+      const r = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${nome}" ${termo}`)}&limit=50`).catch(() => null);
+      if (minha !== vez || !ativa()) return;
+      const vistos = new Set();
+      lista = (r?.data || []).filter((x) => mesmoNomeDeArtista(x.artist?.name || '', nome) && normalizar(x.title).includes(normalizar(termo)))
+        .filter((x) => { const k = normalizar(tituloLimpo(x.title)); if (vistos.has(k)) return false; vistos.add(k); return true; }).map((x) => faixaDz(x, '', nome));
+      box().innerHTML = listaHtml(lista);
+      return;
+    }
+    if (aba === 'albuns') {
+      carregando('Carregando os álbuns…', 'grade');
+      const disc = await albunsDoDeezer(id).catch(() => []);
+      if (minha !== vez || !ativa()) return;
+      lista = [];
+      box().innerHTML = disc.length ? `<div class="grade-albuns">${disc.map((al) => `<a class="tile" href="#/dz/album/${al.id}">
+          ${capa({ titulo: al.title, capa: capaDz(al, false) }, { ic: 'disc' })}<b translate="no">${esc(al.title)}</b><small>${[String(al.release_date || '').slice(0, 4), TIPO_DZ[al.record_type] || 'Álbum'].filter(Boolean).join(' · ')}</small></a>`).join('')}</div>`
+        : '<p class="muted">Não achei os álbuns deste artista agora.</p>';
+      return;
+    }
+    if (aba === 'cifras') {
+      carregando('Carregando as músicas…');
+      const com = await cifrasDoArtista();
+      if (minha !== vez || !ativa()) return;
+      lista = com;
+      box().innerHTML = lista.length ? `<p class="muted" style="margin:6px 0">${lista.length} músicas com cifra</p>` + listaHtml(lista) : '<p class="muted">Não achei cifras deste artista no Cifra Club.</p>';
+      return;
+    }
+    const top = await dz(`artist/${id}/top?limit=50`).catch(() => null);
+    if (minha !== vez || !ativa()) return;
+    lista = (top?.data || []).map((x) => faixaDz(x, '', nome));
+    box().innerHTML = top ? listaHtml(lista) : '<p class="muted">Não consegui carregar agora. Confira a conexão.</p>';
+  };
+  $('#art-abas').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-aba]');
+    if (!b) return;
+    aba = b.dataset.aba;
+    sessionStorage.setItem(chaveAba, aba);
+    desenhar();
+  });
+  let espera;
+  $('#art-busca').addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(desenhar, 300); });
+  box().addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-i]');
+    const m = li && lista[Number(li.dataset.i)];
+    if (m && !e.target.closest('[data-salvar]')) abrirMusica({ titulo: m.titulo, artista: m.artista || nome, ...(m.url ? { cifra: m.url } : {}) }, location.hash, li);
+  });
+  // os fãs e os álbuns (do Deezer) e a foto do topo (a mesma das buscas e do player)
+  dz(`artist/${id}`).then((a) => {
+    if (!$('#art-meta') || location.hash !== aqui) return;
+    $('#art-meta').textContent = [a.nb_fan ? `${Number(a.nb_fan).toLocaleString(LOCALE)} fãs` : '', a.nb_album ? `${a.nb_album} álbuns` : ''].filter(Boolean).join(' · ');
+  }).catch(() => {});
+  fotoDoArtista(nome, slug).catch(() => '').then(async (f) => f || fotoDz(await dz(`artist/${id}`).catch(() => null))).then((f) => {
+    const caixa = $('#art-foto');
+    if (!f || !caixa || location.hash !== aqui) return;
+    const eraEssa = f === foto && caixa.querySelector('img')?.naturalWidth;
+    foto = f;
+    if (eraEssa) return;
+    const img = imagemSemReferer();
+    img.alt = '';
+    img.onload = () => { if (caixa.isConnected) caixa.replaceChildren(img); };
+    img.src = f;
+  });
+  desenhar();
+}
+async function viewAlbumDeezer(id) {
+  const aqui = location.hash;
+  setTab('buscar');
+  setTint('#2f3a4f');
+  setHeader('Álbum', { back: () => history.back() });
+  view.innerHTML = esqueleto('pagina', 'Carregando o álbum…');
+  const al = await dz(`album/${id}`).catch(() => null);
+  if (location.hash !== aqui) return;
+  if (!al?.id) {
+    view.innerHTML = `<div class="empty"><div class="bubble">${icon('disc', 32)}</div><h3>Não achei o álbum</h3><p>Não consegui carregar agora. Confira a conexão.</p></div>`;
+    return;
+  }
+  const nome = al.artist?.name || '';
+  const capaAl = capaDz(al);
+  const faixas = (al.tracks?.data || []).map((x) => faixaDz(x, capaDz(al, false), nome));
+  const artistaHash = al.artist?.id ? hashArtistaDz(al.artist.id, nome) : '';
+  setHeader(al.title, { back: () => history.back(), eyebrow: nome });
+  let destaque = '';
+  try { destaque = sessionStorage.getItem('albumFaixa') || ''; sessionStorage.removeItem('albumFaixa'); } catch { /* sem armazenamento */ }
+  const tipo = /\b(ao vivo|live)\b/i.test(al.title) ? 'Álbum ao vivo' : TIPO_DZ[al.record_type] || 'Álbum';
+  const nFaixas = `${faixas.length} ${faixas.length === 1 ? 'faixa' : 'faixas'}`;
+  const ano = String(al.release_date || '').slice(0, 4);
+  const min = Math.round((al.duration || 0) / 60);
+  view.innerHTML = `
+    <section class="page-hero album-hero"><div class="cover">${capaAl ? `<img src="${esc(capaAl)}" referrerpolicy="no-referrer" alt="">` : icon('disc', 48)}</div>
+      <div><div class="kind">${tipo}</div><h2 translate="no">${esc(al.title)}</h2>
+      <div class="meta">${artistaHash ? `<a href="${artistaHash}" translate="no"><b>${esc(nome)}</b></a>` : `<b translate="no">${esc(nome)}</b>`}${ano ? ` · ${esc(ano)}` : ''} · ${nFaixas}</div>
+      <div class="album-dados">${al.release_date ? `<span>${icon('calendar', 14)} Lançado em ${esc(fmtData(al.release_date))}</span>` : ''}<span>${icon('list', 14)} ${nFaixas}</span>${min ? `<span>${icon('clock', 14)} ${min} min</span>` : ''}${al.label ? `<span translate="no">${icon('disc', 14)} ${esc(al.label)}</span>` : ''}</div></div></section>
+    <ul class="tracks" id="faixas">${faixas.map((f, i) => linhaFaixa(f, i, i + 1, capaDz(al, false), f.artista || nome)).join('')}</ul>`;
+  if (destaque) {
+    const i = faixas.findIndex((f) => normalizar(tituloLimpo(f.titulo)) === normalizar(tituloLimpo(destaque)));
+    const li = i >= 0 && $(`#faixas li[data-i="${i}"]`);
+    if (li) { li.classList.add('faixa-destaque'); requestAnimationFrame(() => li.scrollIntoView({ block: 'center' })); }
+  }
+  $('#faixas').addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-i]');
+    const f = li && faixas[Number(li.dataset.i)];
+    if (f && !e.target.closest('[data-salvar]')) abrirMusica({ titulo: f.titulo, artista: f.artista || nome, capa: capaAl }, location.hash, li);
+  });
 }
 
 async function viewCategoria(id, nome) {
@@ -23267,6 +23587,7 @@ function route() {
     case 'artista': return d === 'album' ? viewAlbum(b, c, e) : viewArtista(b, c);
     case 'album-da-musica': return viewAlbumDaMusica(b, c, d);
     case 'artista-pelo-nome': return viewArtistaPeloNome(b);
+    case 'dz': return b === 'artista' ? viewArtistaDeezer(c, d || 'Artista', e || '') : viewAlbumDeezer(c);
     case 'biblioteca': return viewLibrary(b);
     case 'repertorios': return viewLibrary('repertorios');
     case 'musica': return c === 'partitura' ? viewPartitura(b) : c === 'compor' ? viewCompor(b, d) : viewSong(b, { tocar: c === 'tocar' });

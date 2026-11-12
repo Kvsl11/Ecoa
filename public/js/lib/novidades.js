@@ -5,6 +5,16 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 656, data: '2026-11-12', titulo: 'Artista e álbum pelo catálogo do Deezer; busca com músicas e artistas em alta no Brasil e no mundo; mais clipes na tela inicial',
+    itens: [
+      { tipo: 'melhoria', texto: 'A página do artista, a lista de álbuns e a página do álbum eram montadas com a discografia do Cifra Club, que traz apenas as músicas com cifra. Passaram a usar o catálogo do Deezer: as 50 músicas mais tocadas, todos os lançamentos (álbuns, EPs, singles e coletâneas, com capa, ano e tipo) e, no álbum, as faixas, a data de lançamento, a duração e a gravadora. Do Cifra Club vem apenas a cifra, procurada quando a música é aberta; a lista das músicas com cifra fica na aba "Com cifra". O artista que o Deezer não tem continua com a página anterior. No teste com um artista, foram exibidos 50 músicas e 75 lançamentos.' },
+      { tipo: 'melhoria', texto: 'A opção "Ver álbum" de uma música e a seção Artistas da busca passaram a consultar o Deezer primeiro; o Cifra Club é usado quando o Deezer não devolve resultado. Páginas de karaokê, tributo e covers listadas como artistas são descartadas da busca.' },
+      { tipo: 'novo', texto: 'A tela de busca, sem texto digitado, exibia apenas conteúdo católico. Foram incluídas três fileiras: "Em alta no Brasil" e "Em alta no mundo" (as 40 primeiras músicas das paradas do Deezer) e "Artistas em alta" (20 artistas), intercaladas com "Católicas em alta" e "Artistas católicos".' },
+      { tipo: 'melhoria', texto: 'Na tela inicial, a fileira "Mais clipes dos seus artistas" era limitada a 12 clipes de 4 artistas. As fileiras passaram a crescer com a rolagem lateral: a dos seus artistas considera até 12 artistas, e a nova fileira "Clipes de artistas parecidos" percorre os artistas relacionados no Deezer (20 por artista). A fileira "Seus videoclipes" passou de 12 para até 40 clipes. Em teste com biblioteca de 2 artistas, a rolagem levou as fileiras de 12 para 20 e de 12 para 60 clipes.' },
+      { tipo: 'melhoria', texto: 'Pendente: as telas foram verificadas em navegador (390 × 800), em português e em inglês, com biblioteca de teste; não foram executadas em aparelho nem no aplicativo de Android. A abertura de uma música a partir da lista do Deezer foi executada em navegador com uma música, que abriu com a cifra. Sem internet, as páginas do Deezer não abrem.' },
+    ],
+  },
+  {
     versao: 655, data: '2026-11-12', titulo: 'Idioma do aparelho (português, inglês e espanhol); cifra das músicas em coreano sobre a letra em hangul; tom na playlist; artistas da prévia',
     itens: [
       { tipo: 'novo', texto: 'O aplicativo exibia todos os textos em português, independentemente do idioma configurado no aparelho. Passou a seguir o idioma do aparelho: português do Brasil, inglês e espanhol; nos demais idiomas, é exibido em inglês. Os textos das telas, dos menus, dos avisos do sistema, do cartão de convite e do PDF são trocados por dicionários com cerca de 2.600 entradas em inglês e 2.400 em espanhol; datas e números passaram a usar o formato do idioma. Os nomes de músicas, artistas e playlists, as letras, as cifras e os textos da liturgia não são traduzidos.' },
@@ -81,13 +91,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: 'Na barra de reprodução do celular, a linha de progresso começava e terminava 8 px para dentro das bordas do cartão, com 2 px de altura. Passou a ocupar a largura inteira do cartão, do início ao fim, com 3 px de altura, acompanhando os cantos arredondados inferiores (o cartão recorta a linha nos cantos). O vídeo da barra passou a terminar logo acima da linha, com o canto inferior esquerdo reto. A alteração vale para os modos claro e escuro.' },
       { tipo: 'melhoria', texto: 'Pendente: a alteração foi medida em navegador, em página de teste com a marcação da barra (cartão e linha de 8 a 382 px, em tela de 390 px), nos dois modos; não foi executada no aplicativo nem em aparelho.' },
-    ],
-  },
-  {
-    versao: 646, data: '2026-11-11', titulo: 'Tela "Sobre": marca do aplicativo em traço vetorial, sem o fundo azul',
-    itens: [
-      { tipo: 'melhoria', texto: 'Na tela "Sobre", o quadro ao lado do nome do aplicativo exibia o ícone completo (a marca branca sobre o quadrado em degradê azul) em 18 px. Passou a exibir somente a marca, em traço vetorial de 26 px, sem o fundo azul, na cor do texto do aplicativo: escura no modo claro e clara no modo escuro.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração foi verificada em navegador, em página de teste com a marcação da linha, nos dois modos; não foi executada no aplicativo nem em aparelho.' },
     ],
   },
 ];
