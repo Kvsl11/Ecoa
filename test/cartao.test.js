@@ -205,3 +205,29 @@ test('a prévia do link compartilhado: só a faixa certa, com o trecho de 30 s',
   assert.equal(comparavel('Coração (Ao Vivo) feat. Fulano'), 'coracao');
   assert.equal(tempoDaPrevia(29.7), '0:29');
 });
+
+test('a prévia do link: sem a música no Deezer, o trecho do iTunes (só a faixa certa, capa em 1000 px)', async () => {
+  const { faixaDoItunes } = await import('../public/js/lib/convite-musica.js');
+  const resposta = { results: [
+    { trackName: 'Outra', artistName: 'Tove Lo', previewUrl: 'https://x/outra.m4a' },
+    { trackName: 'Blood In Your Eyes (from GTAVI: The Album)', artistName: 'Tove Lo', previewUrl: 'https://x/certa.m4a', artworkUrl100: 'https://x/Music/100x100bb.jpg', trackTimeMillis: 162000 },
+  ] };
+  assert.deepEqual(faixaDoItunes(resposta, 'Blood In Your Eyes', 'Tove Lo'), { titulo: 'Blood In Your Eyes (from GTAVI: The Album)', artista: 'Tove Lo', capa: 'https://x/Music/1000x1000bb.jpg', previa: 'https://x/certa.m4a', duracao: 162 });
+  assert.equal(faixaDoItunes(resposta, 'Nada Igual', 'Tove Lo'), null);
+  assert.equal(faixaDoItunes(null, 'X'), null);
+});
+
+test('o fundo da prévia é desenhado num canvas pequeno: a capa em três camadas e as três luzes, sem erro', async () => {
+  const { desenharFundoDaPrevia } = await import('../public/js/lib/convite-musica.js');
+  const feitos = [];
+  const ctx = new Proxy({ filter: 'none', drawImage: () => feitos.push('capa'), createRadialGradient: () => ({ addColorStop() {} }), fillRect: () => feitos.push('pinta') }, {
+    get: (alvo, k) => (k in alvo ? alvo[k] : () => {}), set: (alvo, k, v) => { alvo[k] = v; return true; },
+  });
+  desenharFundoDaPrevia(ctx, 64, 138, { img: {}, cores: ['hsl(263 70% 51%)', 'hsl(224 69% 55%)'], nivel: 0.6, t: 12.3 });
+  assert.equal(feitos.filter((x) => x === 'capa').length, 3);
+  assert.equal(feitos.filter((x) => x === 'pinta').length, 4); // (o fundo escuro e as três luzes)
+  assert.equal(ctx.filter, 'none'); // (o desfoque não fica ligado depois do desenho)
+  feitos.length = 0;
+  desenharFundoDaPrevia(ctx, 64, 138, {}); // (sem a capa e sem as cores: só o fundo escuro)
+  assert.deepEqual(feitos, ['pinta']);
+});
