@@ -5,6 +5,13 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 678, data: '2026-11-12', titulo: "Compartilhar playlist e repertório: cartão nítido e folha que cresce ao ser puxada, como a da música",
+    itens: [
+      { tipo: 'correcao', texto: "Na folha de compartilhar da playlist e do repertório, o cartão era exibido com 50% de opacidade e reduzido, como os cartões laterais do carrossel da música, e parecia embaçado; ao puxar a folha para cima, o cartão não crescia e os destinos não ficavam no pé. A folha passou a usar o mesmo comportamento da folha da música: o cartão aparece inteiro e nítido, centralizado, e, com a folha puxada, ocupa a altura disponível, com as cores e os destinos embaixo. Verificado em navegador nas larguras de celular (390 px) e de tablet (800 px), com a folha normal e puxada." },
+      { tipo: 'melhoria', texto: "Pendente: não executado em aparelho." },
+    ],
+  },
+  {
     versao: 677, data: '2026-11-12', titulo: "Lúmen, convite e mensagens do baixador passam a seguir o idioma do aparelho; a tradução das notificações e do compartilhar passa a ser conferida por teste",
     itens: [
       { tipo: 'correcao', texto: "O Lúmen (Gemini) era instruído a responder sempre em português do Brasil, no celular, no servidor e na conversa ao vivo, e a leitura em voz alta usava a voz em português mesmo com o aparelho em inglês ou espanhol. A resposta, a leitura em voz alta e a voz do aparelho passaram a seguir o idioma do aparelho (português do Brasil, inglês ou espanhol; os demais idiomas ficam em inglês, como o aplicativo). No servidor do computador, a mudança vale após a atualização do servidor." },
@@ -78,15 +85,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: "O link compartilhado era o mesmo nos três cartões (Música, Letra e Vídeo) e abria sempre a música no modo música, ou a prévia com a capa. O link do cartão do Vídeo passou a levar o clipe e o ponto do clipe em que o refrão começa (calculado pela letra sincronizada da música de quem compartilha). Com a conta, a música abre já no modo vídeo; sem ela, a prévia exibe o clipe num quadro 16:9, a partir do refrão, por 30 segundos, com o tempo decorrido e o fundo nas cores da miniatura do clipe, e volta ao início ao fim. O clipe é iniciado sem som e o som é ligado assim que a reprodução começa; onde o som não é liberado, o botão passa a \"Ouvir com som\". Quando o clipe não pode ser reproduzido fora do YouTube, ou não começa em até 10 segundos (15 segundos após a resposta do YouTube), a prévia passa à capa e ao trecho do Deezer. Os links dos cartões da Música e da Letra continuam abrindo a música e a prévia com a capa." },
       { tipo: 'melhoria', texto: "No navegador do Android, \"Ouvir completa\" e \"Abrir a música no aplicativo\" passaram a levar o vídeo ao aplicativo instalado, que abre a música no modo vídeo." },
       { tipo: 'melhoria', texto: "Pendente: a prévia do vídeo foi verificada em navegador, em perfil de iPhone, com um clipe que pode ser incorporado e com um que não pode; a abertura no modo vídeo com a conta e o compartilhamento pelo aplicativo Android não foram executados em aparelho." },
-    ],
-  },
-  {
-    versao: 668, data: '2026-11-12', titulo: "Prévia do link compartilhado: abre com a capa e as cores da música, sem o fundo azul, e encontra a prévia com a internet lenta",
-    itens: [
-      { tipo: 'correcao', texto: "Sem a capa carregada, o fundo da prévia usava a cor do aplicativo como reserva e era exibido em azul, sem relação com a música. O fundo passou a ficar escuro e neutro até a capa chegar; a capa e as cores extraídas dela entram gradualmente, em 0,8 s." },
-      { tipo: 'correcao', texto: "A busca da prévia só começava depois de o aplicativo carregar por completo e tinha limite de 6 segundos por tentativa e 12 segundos no total; com a internet lenta, músicas com prévia disponível eram exibidas como \"Prévia indisponível\", sem novas tentativas. A busca no Deezer passou a começar no carregamento da página, em paralelo e com prioridade alta, com uma segunda busca por texto simples quando a busca exata não encontra a faixa (caso de \"Blood In Your Eyes\"); a capa de 500 px e as cores dela são exibidas na tela inicial antes de o aplicativo terminar de carregar, e o aplicativo reaproveita o resultado. Cada busca do aplicativo passou a ter até 16 segundos, e, sem resultado, a prévia é procurada de novo a cada 15 segundos (até 8 vezes) e quando a internet volta. Em teste com conexão de 50 kB/s e 600 ms de latência, a capa e as cores passaram a aparecer aos 29 segundos, contra 65 segundos antes." },
-      { tipo: 'correcao', texto: "Ao assumir a tela, o aplicativo trocava a capa exibida pela versão de 1000 px, e o quadro ficava vazio enquanto ela era baixada; a capa anterior passou a ser mantida até a maior terminar de carregar." },
-      { tipo: 'melhoria', texto: "Pendente: verificado em navegador, em perfil de iPhone, com conexão normal, com conexão limitada e com uma música inexistente; não executado em aparelho." },
     ],
   },
 ];

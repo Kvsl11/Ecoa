@@ -20844,6 +20844,10 @@ async function compartilharLista(set) {
         </div>
       </div>
     </div>`, (dlg) => {
+    // (a mesma folha da música: puxada para cima, o cartão cresce e os destinos ficam no pé — cs-dlg —; o cartão é o
+    // da vez, inteiro e nítido, e não um dos de lado do carrossel, que ficam apagados — ativa)
+    dlg.classList.add('cs-dlg');
+    $('.cs-slide', dlg).classList.add('ativa');
     const canvas = $('canvas', dlg);
     const desenhar = () => { desenharCartaoDaLista(canvas, { ...dados, cor: cores[cor] }); dlg.querySelectorAll('[data-cor]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.cor) === cor))); };
     desenhar();
