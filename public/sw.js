@@ -5,13 +5,36 @@
 //   (a anterior continua) e tenta de novo depois;
 // - dados (liturgia, músicas, partituras, API): "rede primeiro", com a cópia local como reserva offline;
 // - ao publicar uma versão nova, mude VERSION: o app baixa o pacote novo e recarrega sozinho com ele.
-const VERSION = 'songbook-v657';
+const VERSION = 'songbook-v658';
 // No app de Android, a página vem dos arquivos dentro do APK, e o pacote em cache era o da versão acima: um APK novo
 // com arquivos mudados e o mesmo VERSION continuava abrindo os arquivos do APK anterior (as Novidades e as correções
 // não chegavam). O app registra este arquivo com o número do APK (sw.js?apk=1207), e o cache do pacote leva esse
 // número no nome: cada APK instalado troca o pacote em cache pelo dele
 const APK = /^\d{1,9}$/.exec(new URL(self.location.href).searchParams.get('apk') || '')?.[0] || '';
-const PACOTE = APK ? `${VERSION}-apk${APK}` : VERSION;
+const PACOTE_NOVO = APK ? `${VERSION}-apk${APK}` : VERSION;
+// No app de Android, o app só muda quando a pessoa atualiza por Ajustes → Sobre → Atualização do app. Antes, como o
+// app abre o site publicado, cada versão nova do site era baixada e entrava sozinha, com a tela recarregando no meio do
+// uso, e a atualização continuava aparecendo nos Ajustes (ela instala o APK, e o conteúdo já tinha mudado sem ele).
+// Agora o pacote que um APK baixou fica valendo enquanto esse APK estiver instalado: uma versão nova do site, com o
+// mesmo APK, não baixa nada e não recarrega a tela. O APK novo (outro número) baixa o pacote dele ao abrir.
+// No site (sem APK), continua como era: a versão nova entra sozinha.
+const COMPLETO = '__pacote-completo'; // marca posta no fim: o pacote baixou inteiro
+async function pacoteDesteApk() {
+  if (!APK) return '';
+  const fim = `-apk${APK}`;
+  let antigo = '';
+  for (const k of await caches.keys()) {
+    if (!/^songbook-v\d+-apk\d+$/.test(k) || !k.endsWith(fim)) continue;
+    const c = await caches.open(k);
+    if (await c.match(COMPLETO)) return k;
+    // (o pacote baixado por uma versão anterior a esta regra, até a 657, não tem a marca: vale o que tem a página e o
+    // app; de uma versão mais nova, sem a marca, é um pacote que não terminou de baixar)
+    if (!antigo && Number(/^songbook-v(\d+)-/.exec(k)[1]) <= 657 && await c.match('index.html') && await c.match('js/app.js')) antigo = k;
+  }
+  return antigo;
+}
+let pacoteEmUso = null;
+const qualPacote = () => (pacoteEmUso ||= pacoteDesteApk().then((k) => k || PACOTE_NOVO).catch(() => PACOTE_NOVO));
 const SHELL = ['./', 'index.html', 'css/app.css', 'karaoke-teste.m4a', 'js/app.js', 'js/store.js', 'js/conta.js', 'js/lib/sincronia-conta.js', 'js/render.js', 'js/chordpro.js', 'js/icons.js', 'js/pdf.js', 'js/powerpoint.js', 'js/lib/pptx-missa.js', 'js/lib/pptx-simples.js', 'js/fonte.js', 'js/lib/html.js', 'js/lib/cnbb.js', 'js/lib/cindy.js', 'js/lib/missa.js', 'js/lib/mpm.js', 'js/lib/pocket.js', 'js/lib/web.js', 'js/lib/hashtags.js', 'js/lib/acervo.js', 'js/lib/hinario.js', 'js/lib/sugestoes-liturgicas.js', 'js/lib/revisor.js', 'js/lib/ensaio.js', 'js/lib/partitura.js', 'js/lib/alinhamento.js', 'js/lib/harmonizar.js', 'js/lib/arranjo.js', 'js/lib/midi.js', 'js/lib/prontas.js', 'js/lib/transcricao.js', 'js/lib/cores.js', 'js/lib/molduras.js', 'js/lib/avisos.js', 'js/lib/novidades.js', 'js/lib/convite.js', 'js/lib/qr.js', 'js/lib/versoes.js', 'js/lib/cifra-sincronizada.js', 'js/lib/violao.js', 'js/lib/casamento.js', 'js/lib/fila.js', 'js/lib/artistas.js', 'js/lib/tom.js', 'js/lib/cifras.js', 'js/lib/estatisticas.js', 'js/lib/automix.js', 'js/lib/capas.js', 'js/lib/cartao.js', 'js/lib/cartao-video.js', 'js/lib/busca.js', 'js/lib/transferir.js', 'js/lib/casamento-worker.js', 'js/lib/analise-musical.js', 'js/lib/analise-musical-worker.js', 'js/lib/importacao-musical.js', 'js/lib/baixador-aparelho.js', 'js/lib/lumen-local.js', 'js/lib/conexao.js', 'js/lib/i18n.js', 'js/lib/i18n-en.js', 'js/lib/i18n-es.js', 'js/audios.js', 'js/lib/piano.js', 'js/acordes.js', 'icon.svg', 'badge-96.png', 'icon-192-v10.png', 'icon-512-v10.png', 'apple-touch-icon-v10.png', 'manifest.webmanifest'];
 
 // caminhos (absolutos) dos arquivos do pacote, para reconhecer as requisições
@@ -33,16 +56,18 @@ async function baixarDoPacote(u) {
   throw erro;
 }
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(PACOTE)
-      .then(async (c) => {
-        // (de 8 em 8, e não os 57 de uma vez: menos chance de o servidor recusar algum)
-        for (let i = 0; i < SHELL.length; i += 8) {
-          await Promise.all(SHELL.slice(i, i + 8).map(async (u) => c.put(u, await baixarDoPacote(u))));
-        }
-      })
-      .then(() => self.skipWaiting()),
-  );
+  e.waitUntil((async () => {
+    // (no app de Android, com o pacote deste APK já baixado: fica ele. Nada é baixado, e a tela não recarrega)
+    if (await pacoteDesteApk().catch(() => '')) return;
+    const c = await caches.open(PACOTE_NOVO);
+    // (de 8 em 8, e não os 57 de uma vez: menos chance de o servidor recusar algum)
+    for (let i = 0; i < SHELL.length; i += 8) {
+      await Promise.all(SHELL.slice(i, i + 8).map(async (u) => c.put(u, await baixarDoPacote(u))));
+    }
+    await c.put(COMPLETO, new Response('1'));
+    pacoteEmUso = Promise.resolve(PACOTE_NOVO);
+    await self.skipWaiting();
+  })());
 });
 
 // caches que sobrevivem às versões do app (capas, fontes e bibliotecas de terceiros)
@@ -54,7 +79,7 @@ const BAIXADOS = 'songbook-baixados';
 const MAX_IMAGENS = 400;
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(PACOTE) && k !== IMAGENS && k !== EXTRAS && k !== COMPARTILHADO && k !== BAIXADOS).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(Promise.all([caches.keys(), qualPacote()]).then(([keys, PACOTE]) => Promise.all(keys.filter((k) => !k.startsWith(PACOTE) && k !== IMAGENS && k !== EXTRAS && k !== COMPARTILHADO && k !== BAIXADOS).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 // rede primeiro; se a rede demorar (sinal fraco) e houver cópia guardada, usa a cópia
@@ -112,14 +137,13 @@ self.addEventListener('fetch', (e) => {
     const api = url.pathname.includes('/api/');
     // código do app: sempre do pacote desta versão (as páginas abrem o index.html do pacote)
     if (!api && (req.mode === 'navigate' || DO_APP.has(url.pathname))) {
-      e.respondWith(caches.open(PACOTE)
+      e.respondWith(qualPacote().then((PACOTE) => caches.open(PACOTE)
         .then((c) => c.match(req.mode === 'navigate' ? 'index.html' : req, { ignoreSearch: true }))
-        .then((r) => r || redePrimeiro(req, PACOTE))
+        .then((r) => r || redePrimeiro(req, PACOTE)))
         .catch(() => (req.mode === 'navigate' ? caches.match('index.html').then((r) => r || Response.error()) : Response.error())));
       return;
     }
-    const destino = api ? PACOTE + '-api' : PACOTE;
-    e.respondWith(redePrimeiro(req, destino).catch(() => (api
+    e.respondWith(qualPacote().then((PACOTE) => redePrimeiro(req, api ? PACOTE + '-api' : PACOTE)).catch(() => (api
       ? new Response(JSON.stringify({ erro: 'Sem conexão' }), { status: 503, headers: { 'Content-Type': 'application/json' } })
       : Response.error()))); // um arquivo que não veio nunca recebe a página no lugar
     return;
