@@ -51,7 +51,8 @@ export const tempoDaPrevia = (s) => { const n = Math.max(0, Math.floor(Number(s)
 // luzes também desfocadas e misturadas: no celular, isso passava da memória de vídeo, e a tela piscava (o nome, a barra
 // e o botão sumiam e voltavam) e o fundo ficava sem a capa. Aqui: três camadas da capa girando devagar, cada uma num
 // sentido e numa velocidade (uma volta a cada 26, 19 e 15 s), e três luzes nas cores da capa passeando (vão e voltam
-// em 18, 22 e 26 s), maiores e mais fortes com a batida (nivel, de 0 a 1). t: os segundos desde o começo
+// em 18, 22 e 26 s), maiores e mais fortes com a batida (nivel, de 0 a 1). t: os segundos desde o começo; forca (de 0
+// a 1): quanto da capa e das luzes aparece sobre o fundo escuro — a capa e as cores entram aos poucos quando chegam
 const VOLTA = Math.PI * 2;
 const CAMADAS = [
   { tam: 1.5, voltas: 1 / 26, alfa: 0.75, dx: 0, dy: 0, modo: 'source-over' },
@@ -63,7 +64,8 @@ const LUZES = [
   { x: 1.1, y: 0.45, mx: -0.8, my: -0.35, periodo: 22 },
   { x: 0.25, y: 1.1, mx: 0.45, my: -0.55, periodo: 26 },
 ];
-export function desenharFundoDaPrevia(ctx, L, A, { img = null, cores = [], nivel = 0, t = 0 } = {}) {
+export function desenharFundoDaPrevia(ctx, L, A, { img = null, cores = [], nivel = 0, t = 0, forca = 1 } = {}) {
+  const f = Math.max(0, Math.min(1, Number(forca)));
   const lado = Math.max(L, A);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -77,7 +79,7 @@ export function desenharFundoDaPrevia(ctx, L, A, { img = null, cores = [], nivel
       const tam = lado * c.tam * (1 + 0.08 * Math.sin(t * VOLTA * Math.abs(c.voltas) * 2));
       ctx.save();
       ctx.globalCompositeOperation = c.modo;
-      ctx.globalAlpha = c.alfa;
+      ctx.globalAlpha = c.alfa * f;
       ctx.translate(L / 2 + c.dx * lado, A / 2 + c.dy * lado);
       ctx.rotate(t * VOLTA * c.voltas);
       ctx.drawImage(img, -tam / 2, -tam / 2, tam, tam);
@@ -93,7 +95,7 @@ export function desenharFundoDaPrevia(ctx, L, A, { img = null, cores = [], nivel
     const r = lado * 0.42 * (0.95 + nivel * 0.4);
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, cor); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = Math.min(1, 0.45 + nivel * 0.5);
+    ctx.globalAlpha = Math.min(1, 0.45 + nivel * 0.5) * f;
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, L, A);
   });

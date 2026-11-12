@@ -20436,11 +20436,13 @@ function mostrarConviteDaMusica(titulo, artista) {
   tela.height = Math.max(64, Math.min(160, Math.round(64 * (innerHeight / Math.max(1, innerWidth)))));
   const pincel = tela.getContext('2d');
   const parado = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const acento = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#22d3ee';
-  const fundoDe = { img: null, cores: [acento, `color-mix(in srgb, ${acento} 60%, #ff4fa0)`, `color-mix(in srgb, ${acento} 50%, #7c5cff)`] };
-  // (o canvas não aceita color-mix em todo navegador: sem ele, as três luzes na cor do app)
-  try { pincel.fillStyle = fundoDe.cores[1]; if (!/^(#|rgb)/.test(pincel.fillStyle) || pincel.fillStyle === '#000000') fundoDe.cores = [acento, acento, acento]; } catch { fundoDe.cores = [acento, acento, acento]; }
+  // (sem a capa, o fundo fica escuro — e não na cor do app, que aparecia como um azul que não era da música; a capa e
+  // as cores dela entram aos poucos quando chegam: forca, de 0 a 1 em 0,8 s)
+  const fundoDe = { img: null, cores: [], desde: 0 };
   const inicioDoFundo = performance.now();
+  // (a tela inicial do index.html já buscou a prévia no Deezer e carregou a capa: aproveitadas aqui, sem esperar de novo)
+  const inicial = window.__previaInicial?.titulo === titulo && (window.__previaInicial.artista || '') === (artista || '') ? window.__previaInicial : null;
+  if (inicial?.img) { fundoDe.img = inicial.img; fundoDe.desde = inicioDoFundo - 800; }
   let ultimoDesenho = -1;
   const play = $('.cm-play', el);
   const barra = $('.cm-trilha i', el);
@@ -20484,7 +20486,9 @@ function mostrarConviteDaMusica(titulo, artista) {
     const t = (agora - inicioDoFundo) / 1000;
     if (!parado ? t - ultimoDesenho >= 1 / 30 : ultimoDesenho < 0 || fundoDe.mudou) {
       ultimoDesenho = t; fundoDe.mudou = false;
-      desenharFundoDaPrevia(pincel, tela.width, tela.height, { img: fundoDe.img, cores: fundoDe.cores, nivel: parado ? 0 : nivel, t: parado ? 0 : t });
+      const forca = fundoDe.desde ? Math.min(1, (agora - fundoDe.desde) / 800) : 0;
+      if (forca < 1) fundoDe.mudou = true; // (com "reduzir movimento", redesenha até a capa terminar de entrar)
+      desenharFundoDaPrevia(pincel, tela.width, tela.height, { img: fundoDe.img, cores: fundoDe.cores, nivel: parado ? 0 : nivel, t: parado ? 0 : t, forca });
     }
     quadro = requestAnimationFrame(passo);
   };
@@ -20527,33 +20531,47 @@ function mostrarConviteDaMusica(titulo, artista) {
     },
   };
   quadro = requestAnimationFrame(passo);
-  // a faixa da prévia (a capa, as cores e o trecho de 30 s): no Deezer e, sem ela, no iTunes, em até 12 s. Sem nenhuma,
-  // a tela fica com o nome e o aviso, sem o botão de tocar
-  (async () => {
-    const limite = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((ok) => setTimeout(() => ok(null), ms))]);
-    const noDeezer = async (q) => faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`).catch(() => null), titulo, artista);
-    const noItunes = async (q) => faixaDoItunes(await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=15`).catch(() => null), titulo, artista);
-    const termo = `${artista} ${titulo}`.trim();
-    const achar = async () => {
-      if (!navigator.onLine) return null;
-      return await limite(noDeezer([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')), 6000)
-        || await limite(noDeezer(termo), 5000) || await limite(noItunes(termo), 6000);
-    };
-    const faixa = await limite(achar(), 12000);
-    if (!vivo()) return;
-    if (!faixa) {
-      el.classList.remove('carregando');
-      el.classList.add('sem-previa');
-      $('.cm-indisponivel', el).hidden = false;
-      return;
-    }
+  // A faixa da prévia (a capa, as cores e o trecho de 30 s): a resposta que a tela inicial do index.html já pediu ao
+  // Deezer e, sem a faixa certa nela, o Deezer de novo e o iTunes, cada um com tempo de sobra para a internet lenta (antes,
+  // 6 s por busca e 12 s no total: com a internet lenta, a prévia de uma música que existe aparecia como indisponível).
+  // Sem nenhuma, a tela fica com o nome e o aviso, mas não desiste: tenta de novo a cada 15 s (até 8 vezes) e quando a
+  // internet volta
+  const limite = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((ok) => setTimeout(() => ok(null), ms))]);
+  const noDeezer = async (q) => faixaDaPrevia(await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`, 15000).catch(() => null), titulo, artista);
+  const noItunes = async (q) => faixaDoItunes(await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=15`, 15000).catch(() => null), titulo, artista);
+  const termo = `${artista} ${titulo}`.trim();
+  const daTelaInicial = () => (!inicial ? null : inicial.resposta !== undefined ? faixaDaPrevia(inicial.resposta, titulo, artista)
+    : limite(new Promise((ok) => inicial.espera.push((d) => ok(faixaDaPrevia(d, titulo, artista)))), 20000));
+  const achar = async (primeira) => {
+    if (!navigator.onLine) return null;
+    return (primeira && await daTelaInicial())
+      || await limite(noDeezer([artista && `artist:"${artista}"`, `track:"${titulo}"`].filter(Boolean).join(' ')), 16000)
+      || await limite(noDeezer(termo), 16000) || await limite(noItunes(termo), 16000);
+  };
+  let achada = false;
+  const usarFaixa = (faixa) => {
+    achada = true;
+    el.classList.remove('carregando', 'sem-previa');
+    $('.cm-indisponivel', el).hidden = true;
     if (faixa.capa) {
-      $('.cm-capa', el).innerHTML = `<img src="${esc(faixa.capa)}" alt="" referrerpolicy="no-referrer">`;
-      const capaDoFundo = new Image();
-      capaDoFundo.referrerPolicy = 'no-referrer';
-      capaDoFundo.onload = () => { fundoDe.img = capaDoFundo; fundoDe.mudou = true; };
-      capaDoFundo.src = faixa.capa;
-      void coresDoFundoDaPrevia(faixa.capa).then((cores) => { if (cores) { fundoDe.cores = cores; fundoDe.mudou = true; } });
+      // (a capa que a tela inicial já mostrava fica até a maior, de 1000 px, terminar de carregar: com a internet lenta,
+      // trocar direto deixava o quadro vazio enquanto ela baixava)
+      const quadro = $('.cm-capa', el);
+      const ja = inicial?.img?.src || '';
+      quadro.innerHTML = `<img src="${esc(ja || faixa.capa)}" alt="" referrerpolicy="no-referrer">`;
+      if (ja && ja !== faixa.capa) {
+        const grande = new Image();
+        grande.referrerPolicy = 'no-referrer';
+        grande.onload = () => { const img = quadro.querySelector('img'); if (img && vivo()) img.src = faixa.capa; };
+        grande.src = faixa.capa;
+      }
+      if (!fundoDe.img) {
+        const capaDoFundo = new Image();
+        capaDoFundo.referrerPolicy = 'no-referrer';
+        capaDoFundo.onload = () => { fundoDe.img = capaDoFundo; fundoDe.desde = fundoDe.desde || performance.now(); fundoDe.mudou = true; };
+        capaDoFundo.src = faixa.capa;
+      }
+      void coresDoFundoDaPrevia(faixa.capa).then((cores) => { if (cores) { fundoDe.cores = cores; fundoDe.desde = fundoDe.desde || performance.now(); fundoDe.mudou = true; } });
     }
     // (com a leitura liberada, para o fundo acompanhar o som; se o servidor recusar, a prévia toca sem a análise)
     audio.crossOrigin = 'anonymous';
@@ -20563,10 +20581,26 @@ function mostrarConviteDaMusica(titulo, artista) {
       audio.src = faixa.previa; audio.play().catch(marcar);
     }, { once: true });
     audio.src = faixa.previa;
-    el.classList.remove('carregando');
     // (toca sozinha; onde o navegador não deixa o som começar sem um toque, fica o botão de play)
     audio.play().catch(marcar);
-  })();
+  };
+  let tentativas = 0;
+  let procurando = false;
+  const procurar = async (primeira = false) => {
+    if (procurando || achada || !vivo()) return;
+    procurando = true;
+    const faixa = await limite(achar(primeira), 60000);
+    procurando = false;
+    if (!vivo() || achada) return;
+    if (faixa) { usarFaixa(faixa); return; }
+    el.classList.remove('carregando');
+    el.classList.add('sem-previa');
+    $('.cm-indisponivel', el).hidden = false;
+    if (++tentativas < 8) setTimeout(() => { void procurar(); }, 15000);
+  };
+  const aoVoltarAInternet = () => { if (vivo()) void procurar(); else removeEventListener('online', aoVoltarAInternet); };
+  addEventListener('online', aoVoltarAInternet);
+  void procurar(true);
 }
 // entrou na conta ou saiu do link: o convite sai (entrando, viewOuvir abre a música inteira)
 addEventListener('songbook:conta', () => { if (usuarioConta()) fecharConviteDaMusica(); });
