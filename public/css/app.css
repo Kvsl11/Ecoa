@@ -6904,3 +6904,6 @@ html.com-convite-lista .convite-lista { position: fixed; inset: 0; z-index: 210;
 .lista-recebida .lr-tocar, .lista-recebida .lr-barra, .lista-recebida .lr-dica { display: none; }
 .lista-recebida .lr-capinha .cover { border-radius: 4px; overflow: hidden; }
 .lr-capinha .cover.gen > svg { display: none; }
+
+/* o compartilhar da playlist e do repertório: um cartão só, no meio do trilho */
+.cs-lista .cs-trilho { justify-content: center; }
