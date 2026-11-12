@@ -12,7 +12,7 @@
       var ecoaLink = /^#\/ouvir\/(.+)/.exec(location.hash);
       var ecoaUA = navigator.userAgent;
       if (ecoaLink && /Android/i.test(ecoaUA) && !/EcoaAndroid/.test(ecoaUA) && !/; wv\)/.test(ecoaUA) && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
-        && sessionStorage.getItem('ecoa.noApp') !== location.hash) {
+        && sessionStorage.getItem('ecoa.noApp') !== location.hash && !/[?&]entrar\b/.test(location.search)) {
         sessionStorage.setItem('ecoa.noApp', location.hash);
         sessionStorage.setItem('ecoa.noAppEm', String(Date.now()));
         location.href = 'intent://ouvir/' + ecoaLink[1] + '#Intent;scheme=ecoa;package=br.ecoa.app;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
@@ -53,7 +53,20 @@
       Promise.all([limpar, tirar]).then(function () { location.reload(); }, function () { location.reload(); });
     };
     window.addEventListener('error', function (ev) { if (!window.__songbookOk && /\.js/.test(String(ev.filename || '')) ) window.__recuperarApp(); });
-    setTimeout(window.__recuperarApp, 20000);
+    // (aos 20 s sem o app aberto: só recupera se o carregamento parou — nenhum arquivo .js chegou nos últimos 10 s —, que
+    // é o caso da versão estragada. Com a internet lenta, os módulos do app ainda estão chegando: recarregar jogava fora
+    // o que já tinha vindo e recomeçava do zero. Aí espera, até 2 minutos)
+    var esperaDoApp = Date.now();
+    var conferirApp = function () {
+      if (window.__songbookOk) return;
+      var ultimo = 0;
+      try { performance.getEntriesByType('resource').forEach(function (r) { if (/\.js(\?|$)/.test(r.name) && r.responseEnd > ultimo) ultimo = r.responseEnd; }); } catch (e) {}
+      var chegando = ultimo > 0 && performance.now() - ultimo < 10000;
+      var nadaAinda = ultimo === 0;
+      if ((chegando || nadaAinda) && navigator.onLine !== false && Date.now() - esperaDoApp < 120000) { setTimeout(conferirApp, 5000); return; }
+      window.__recuperarApp();
+    };
+    setTimeout(conferirApp, 20000);
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <script>
@@ -87,6 +100,37 @@
   <link rel="stylesheet" href="css/duvidas-ajustes.css">
 </head>
 <body>
+  <script>
+    // O link de uma música (#/ouvir/<nome>/<artista>) aberto por quem não entrou: a tela da prévia aparece já, antes de
+    // o app carregar, com o nome e o artista do link — e não a tela de entrada, que com a internet lenta ficava sozinha
+    // na frente até o app inteiro chegar. Ao carregar, o app (mostrarConviteDaMusica) troca esta tela pela prévia com a
+    // capa e o som. Com "?entrar" no endereço (a volta do "Ouvir completa" sem o aplicativo), fica a tela de entrada
+    // (também quando o endereço passa a ser o link antes de o app carregar: no APK, o link que abriu o aplicativo chega
+    // assim, pela parte nativa)
+    try {
+      window.__conviteInicial = function () {
+        var m = /^#\/ouvir\/([^/]+)(?:\/([^/]*))?/.exec(location.hash);
+        var raiz = document.documentElement;
+        if (!m || window.__songbookOk || document.getElementById('convite-inicial') || !raiz.classList.contains('sem-conta') || /[?&]entrar\b/.test(location.search)) return;
+        var ler = function (x) { try { return decodeURIComponent(x || ''); } catch (e) { return x || ''; } };
+        var el = document.createElement('section');
+        el.id = 'convite-inicial';
+        el.className = 'convite-musica carregando';
+        el.innerHTML = '<div class="cm-fundo" aria-hidden="true"></div><div class="cm-conteudo"><div class="cm-capa">'
+          + '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+          + '</div><div class="cm-nomes"><h1 class="cm-titulo" translate="no"></h1><p class="cm-artista" translate="no"></p></div>'
+          + '<div class="cm-trilha" aria-hidden="true"><i></i></div><div class="cm-tempos" aria-hidden="true"><span>0:00</span><span>0:30</span></div>'
+          + '<span class="cm-play" aria-hidden="true"></span></div>'; // (a barra, o tempo e o botão guardam o lugar, escondidos enquanto carrega)
+        el.querySelector('.cm-titulo').textContent = ler(m[1]);
+        var artista = ler(m[2]);
+        if (artista) el.querySelector('.cm-artista').textContent = artista; else el.querySelector('.cm-artista').remove();
+        document.body.appendChild(el);
+        raiz.classList.add('com-convite');
+      };
+      window.__conviteInicial();
+      addEventListener('hashchange', function () { try { window.__conviteInicial(); } catch (e) {} });
+    } catch (e) {}
+  </script>
   <section id="entrada" class="entrada" aria-labelledby="entrada-titulo">
     <!-- o fundo: escuro e liso, com um brilho suave na cor do app e as ondas do eco saindo do logo (só CSS) -->
     <div class="entrada-luz" aria-hidden="true"></div>

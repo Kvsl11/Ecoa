@@ -20288,12 +20288,18 @@ function viewOuvir(titulo = '', artista = '') {
   if (!titulo) return viewNotFound();
   // (sem conta: a prévia da música e o convite para entrar, por cima da tela de entrada; o link fica no endereço e a
   // música abre inteira depois de entrar)
-  if (!usuarioConta()) { setTab('inicio'); view.innerHTML = ''; mostrarConviteDaMusica(titulo, artista); return; }
+  // (com "?entrar", a volta do "Ouvir completa" no navegador sem o aplicativo: fica a tela de entrada)
+  if (!usuarioConta()) {
+    setTab('inicio'); view.innerHTML = '';
+    if (/[?&]entrar\b/.test(location.search)) fecharConviteDaMusica(); else mostrarConviteDaMusica(titulo, artista);
+    return;
+  }
   fecharConviteDaMusica();
   // (o index.html acabou de tentar entregar este link ao aplicativo instalado?)
   let tentouOApp = false;
   try { tentouOApp = noNavegadorDoAndroid() && sessionStorage.getItem('ecoa.noApp') === location.hash && Date.now() - (Number(sessionStorage.getItem('ecoa.noAppEm')) || 0) < 15000; } catch { /* sem sessionStorage */ }
-  history.replaceState(null, '', '#/');
+  // (sem o "?entrar" da volta do "Ouvir completa", se veio por ela)
+  history.replaceState(null, '', `${location.pathname}#/`);
   route();
   const abrir = () => { void abrirMusica({ titulo, artista }, '#/', null, { tela: true }); };
   if (!tentouOApp) { abrir(); return; }
@@ -20317,6 +20323,7 @@ const SEGUNDOS_DA_PREVIA = 30;
 let conviteDaMusica = null;
 function fecharConviteDaMusica() {
   document.documentElement.classList.remove('com-convite');
+  document.getElementById('convite-inicial')?.remove(); // (a tela da prévia que o index.html mostra antes de o app carregar)
   if (!conviteDaMusica) return;
   conviteDaMusica.parar?.();
   conviteDaMusica.el.remove();
@@ -20347,7 +20354,7 @@ function mostrarConviteDaMusica(titulo, artista) {
   el.className = 'convite-musica carregando';
   el.setAttribute('aria-label', 'Prévia da música');
   el.innerHTML = `<div class="cm-fundo" aria-hidden="true"><canvas></canvas></div>
-    <button class="cm-pular" type="button">Pular</button>
+    <button class="cm-pular" type="button">Ouvir completa</button>
     <div class="cm-conteudo">
       <div class="cm-capa">${icon('music', 56)}</div>
       <div class="cm-nomes"><h1 class="cm-titulo" translate="no">${esc(titulo)}</h1>${artista ? `<p class="cm-artista" translate="no">${esc(artista)}</p>` : ''}</div>
@@ -20356,6 +20363,7 @@ function mostrarConviteDaMusica(titulo, artista) {
       <button class="cm-play" type="button" aria-label="Ouvir a prévia">${icon('play', 30)}</button>
       <p class="cm-indisponivel" hidden>Prévia indisponível</p>
     </div>`;
+  document.getElementById('convite-inicial')?.remove();
   document.body.append(el);
   document.documentElement.classList.add('com-convite');
   // o fundo: um canvas pequeno, esticado pelo CSS na tela toda (desenharFundoDaPrevia), redesenhado a uns 30 quadros
@@ -20433,7 +20441,20 @@ function mostrarConviteDaMusica(titulo, artista) {
   // (acabou o trecho: volta ao começo, parado, para tocar de novo; a tela de entrada só pelo "Pular")
   audio.addEventListener('ended', () => { try { audio.currentTime = 0; } catch { /* segue */ } marcar(); });
   play.onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
-  $('.cm-pular', el).onclick = fecharConviteDaMusica;
+  // "Ouvir completa": a música inteira pede a conta. No APK, a tela de entrada do app; no navegador do Android, o
+  // aplicativo instalado (que abre na música) e, sem ele, a volta a este endereço com "?entrar" — a tela de entrada da
+  // web; no iPhone, no computador e nos navegadores de dentro de outros aplicativos (que não abrem o aplicativo), a tela
+  // de entrada da web
+  $('.cm-pular', el).onclick = () => {
+    audio.pause();
+    const ua = navigator.userAgent;
+    if (!noApk() && /Android/i.test(ua) && !/; wv\)/.test(ua)) {
+      const web = `${location.origin}${location.pathname}?entrar${location.hash}`;
+      const intent = linkParaAbrirNoAplicativo(titulo, artista);
+      if (intent) { location.href = intent.replace(/S\.browser_fallback_url=[^;]*;/, `S.browser_fallback_url=${encodeURIComponent(web)};`); return; }
+    }
+    fecharConviteDaMusica();
+  };
   conviteDaMusica = {
     chave, el,
     parar: () => {
