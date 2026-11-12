@@ -5,12 +5,20 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
-    versao: 667, data: '2026-11-12', titulo: "Prévia do link compartilhado: abre com a capa e as cores da música, sem o fundo azul, e encontra a prévia com a internet lenta",
+    versao: 668, data: '2026-11-12', titulo: "Prévia do link compartilhado: abre com a capa e as cores da música, sem o fundo azul, e encontra a prévia com a internet lenta",
     itens: [
       { tipo: 'correcao', texto: "Sem a capa carregada, o fundo da prévia usava a cor do aplicativo como reserva e era exibido em azul, sem relação com a música. O fundo passou a ficar escuro e neutro até a capa chegar; a capa e as cores extraídas dela entram gradualmente, em 0,8 s." },
       { tipo: 'correcao', texto: "A busca da prévia só começava depois de o aplicativo carregar por completo e tinha limite de 6 segundos por tentativa e 12 segundos no total; com a internet lenta, músicas com prévia disponível eram exibidas como \"Prévia indisponível\", sem novas tentativas. A busca no Deezer passou a começar no carregamento da página, em paralelo e com prioridade alta, com uma segunda busca por texto simples quando a busca exata não encontra a faixa (caso de \"Blood In Your Eyes\"); a capa de 500 px e as cores dela são exibidas na tela inicial antes de o aplicativo terminar de carregar, e o aplicativo reaproveita o resultado. Cada busca do aplicativo passou a ter até 16 segundos, e, sem resultado, a prévia é procurada de novo a cada 15 segundos (até 8 vezes) e quando a internet volta. Em teste com conexão de 50 kB/s e 600 ms de latência, a capa e as cores passaram a aparecer aos 29 segundos, contra 65 segundos antes." },
       { tipo: 'correcao', texto: "Ao assumir a tela, o aplicativo trocava a capa exibida pela versão de 1000 px, e o quadro ficava vazio enquanto ela era baixada; a capa anterior passou a ser mantida até a maior terminar de carregar." },
       { tipo: 'melhoria', texto: "Pendente: verificado em navegador, em perfil de iPhone, com conexão normal, com conexão limitada e com uma música inexistente; não executado em aparelho." },
+    ],
+  },
+  {
+    versao: 667, data: '2026-11-12', titulo: "Selo \"E\" de música explícita passa a ser atribuído automaticamente, pelo catálogo e pela leitura da letra",
+    itens: [
+      { tipo: 'correcao', texto: "O selo \"E\" era atribuído somente pela marcação da gravação escolhida para a capa no Deezer ou no iTunes; quando a capa escolhida era a versão limpa ou uma coletânea, a música explícita ficava sem o selo. A marcação passou a considerar todas as gravações da mesma música e do mesmo artista no catálogo (exceto karaokê, cover e tributo), e a versão \"cleaned\" do iTunes continua indicando que existe a explícita. As marcações guardadas pela regra anterior são consultadas de novo quando a linha da música aparece." },
+      { tipo: 'novo', texto: "Para as músicas ausentes do Deezer e do iTunes, ou sem marcação neles, o selo passou a ser atribuído pela leitura automática da letra salva no aparelho, como nas plataformas de streaming: uma lista de palavrões, termos sexuais explícitos e ofensas em português, inglês e espanhol, com peso 1 para os termos fortes (uma ocorrência basta) e 0,5 para os leves (são necessárias duas). Palavras com outro sentido comum (\"pau\", \"rola\", \"gozar\", \"concha\", \"cock\", \"polla\") ficaram fora da lista, e acordes, diretivas e comentários da cifra não são lidos. Quando o catálogo tem a música sem a marcação, a letra precisa somar 2 pontos. O nome da faixa com \"(Explicit)\" ou \"Sem censura\" também atribui o selo. A letra continua inteira; somente o selo indica." },
+      { tipo: 'melhoria', texto: "Pendente: verificado por testes automatizados (letras em português, inglês e espanhol, cantos litúrgicos e letras com palavras ambíguas); não verificado em aparelho." },
     ],
   },
   {
@@ -90,14 +98,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: 'Na folha "Adicionar a esta playlist", o botão "Selecionar todas" dividia o rodapé com "Cancelar" e "Adicionar"; quando ele era ocultado (lista vazia ou busca na internet), os dois botões ficavam encostados à direita, com larguras diferentes. Os dois passaram a ocupar a largura inteira, com o mesmo tamanho (168 px cada em tela de 390 px), e "Selecionar todas" foi movido para baixo do campo de busca. O botão "Adicionar" deixou de exibir a quantidade de músicas marcadas.' },
       { tipo: 'correcao', texto: 'Com o aparelho em inglês ou espanhol, o atalho "Procurar outras na internet" da mesma folha exibia a palavra "outras" em português. O texto passou a ter entrada própria nos dois dicionários.' },
       { tipo: 'melhoria', texto: 'Pendente: as alterações foram conferidas em navegador, em 390 px, nos modos claro e escuro, em inglês e espanhol; não foram executadas em aparelho. No aplicativo de Android, elas chegam quando a atualização é instalada em Ajustes.' },
-    ],
-  },
-  {
-    versao: 658, data: '2026-11-12', titulo: 'Aplicativo de Android: o conteúdo só muda quando a atualização é instalada em Ajustes',
-    itens: [
-      { tipo: 'correcao', texto: 'No aplicativo de Android, cada versão nova do site era baixada e ativada automaticamente, com recarga da tela durante o uso, antes de a atualização ser instalada em Ajustes → Sobre → Atualização do app. A atualização continuava indicada, porque ela instala o APK, cujo número não havia mudado. O pacote de arquivos baixado por um APK passou a permanecer em uso enquanto esse APK estiver instalado: uma versão nova do site não é baixada nem recarrega a tela. O conteúdo é trocado quando o APK é atualizado em Ajustes. No site, aberto pelo navegador, a atualização automática foi mantida.' },
-      { tipo: 'melhoria', texto: 'Em simulação em navegador, duas versões seguidas do site com o mesmo número de APK não alteraram o pacote em uso nem pediram recarga da tela; o registro com outro número de APK baixou o pacote novo e removeu o anterior; sem número de APK, a versão nova entrou automaticamente.' },
-      { tipo: 'melhoria', texto: 'Pendente: a alteração não foi executada em aparelho. Ela passa a valer com a publicação desta versão do site, sem exigir um APK novo. Em consequência, as correções publicadas no site deixam de chegar ao aplicativo até a atualização ser instalada em Ajustes.' },
     ],
   },
 ];
