@@ -1394,14 +1394,14 @@ export async function fotosDosVideos(nome, canal, { fetchImpl, instancias = PIPE
   return Promise.any((await instanciasProntas(instancias)).map(uma)).catch(() => []);
 }
 // o artista na TheAudioDB (chave pública de teste "123"): os seguidores e a popularidade dele no Spotify, várias fotos
-// (a principal e as de fundo) e a biografia em português. Só vale o artista com o mesmo nome. null quando não acha
+// (a principal e as de fundo) e a biografia (bio: a em português; bios: em português, inglês e espanhol). Só vale o artista com o mesmo nome. null quando não acha
 export function artistaDaAudioDb(json, nome) {
   const quem = nomeDoCanal(nome);
   const a = (json?.artists || []).find((x) => nomeDoCanal(x.strArtist) === quem);
   if (!a) return null;
   const fotos = ['strArtistThumb', 'strArtistFanart', 'strArtistFanart2', 'strArtistFanart3', 'strArtistFanart4', 'strArtistWideThumb']
     .map((k) => a[k]).filter((u) => /^https?:\/\//.test(u || '')).map((u) => u.replace(/^http:/, 'https:'));
-  return { seguidores: Number(a.intFollowers) || 0, fotos, bio: String(a.strBiographyPT || '').trim(), genero: a.strGenre || a.strStyle || '', pais: a.strCountryCode || '' };
+  return { seguidores: Number(a.intFollowers) || 0, fotos, bio: String(a.strBiographyPT || '').trim(), bios: { pt: String(a.strBiographyPT || '').trim(), en: String(a.strBiographyEN || '').trim(), es: String(a.strBiographyES || '').trim() }, genero: a.strGenre || a.strStyle || '', pais: a.strCountryCode || '' };
 }
 // a música na TheAudioDB: o clima (Happy, Relaxed...), o tema (In Love...), o estilo e o gênero, para as hashtags da
 // prévia da playlist. Só vale a do mesmo artista e título. null quando não acha (ou ela não tem nada disso)

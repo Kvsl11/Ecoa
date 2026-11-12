@@ -16,11 +16,45 @@ export function volumes(x) {
   return [(1 - t) ** 2, 1 - (1 - t) ** 2];
 }
 
-// o crossfade simples: os últimos `seg` segundos da música
-export function planoCrossfade(duracao, seg) {
+// Onde o som da gravação começa e acaba de verdade: { inicio, fim } em segundos, ou null (silêncio do começo ao fim).
+// Muita gravação tem alguns segundos de silêncio no fim (e no começo): a transição feita nos últimos segundos do
+// arquivo cruzava silêncio com silêncio, e o que se ouvia era a música acabar, uma pausa e a próxima começar — como se
+// a transição estivesse desligada. O som "de verdade" é o que passa de 3% (-30 dB) do volume cheio da própria
+// gravação (o dos trechos altos: o 90.º centil), em janelas de 50 ms: o resto de eco que sobra abaixo disso fica
+// dentro da transição, já quase sem volume
+export function bordasDoSom(amostras, taxa = 11025) {
+  const jan = Math.max(1, Math.round(taxa * 0.05));
+  const n = Math.floor((amostras?.length || 0) / jan);
+  if (n < 20) return null;
+  const rms = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    let q = 0;
+    const o = k * jan;
+    for (let i = 0; i < jan; i++) { const v = amostras[o + i]; q += v * v; }
+    rms[k] = Math.sqrt(q / jan);
+  }
+  const cheio = Float32Array.from(rms).sort()[Math.floor(n * 0.9)];
+  if (!(cheio > 0.003)) return null;
+  const limiar = Math.max(0.003, cheio * 0.03);
+  let a = 0;
+  while (a < n && rms[a] < limiar) a++;
+  let b = n - 1;
+  while (b > a && rms[b] < limiar) b--;
+  return { inicio: (a * jan) / taxa, fim: ((b + 1) * jan) / taxa };
+}
+
+// o fim e o começo do som que valem para a transição: até 20 s de silêncio no fim e até 10 s no começo (mais do que
+// isso não é silêncio de borda: é faixa escondida, fala, o vídeo que segue sem música)
+const fimValido = (fimSom, duracao) => (Number.isFinite(fimSom) && fimSom <= duracao && fimSom >= duracao - 20 ? fimSom : null);
+const inicioValido = (inicioSom) => (Number.isFinite(inicioSom) && inicioSom > 0.15 && inicioSom <= 10 ? inicioSom : 0);
+
+// o crossfade simples: os últimos `seg` segundos do som da música (fimSom: onde o som acaba, quando se sabe; sem ele,
+// o fim do arquivo), com a próxima entrando onde o som dela começa (inicioSom)
+export function planoCrossfade(duracao, seg, { fimSom = null, inicioSom = null } = {}) {
   const dur = Math.max(MIN_TRANSICAO, Math.min(MAX_TRANSICAO, Number(seg) || 6));
   if (!(duracao > dur * 3)) return null;
-  return { inicio: duracao - dur, dur, entradaEm: 0, encaixar: false };
+  const fim = fimValido(fimSom, duracao) ?? duracao;
+  return { inicio: Math.max(0, fim - dur), dur, entradaEm: inicioValido(inicioSom), encaixar: false };
 }
 
 const HOP = 128; // amostras entre um quadro e outro (11,6 ms a 11025 Hz)
@@ -132,8 +166,11 @@ const boa = (b) => Boolean(b && b.confianca >= BATIDA_OK && b.periodo > 0);
 // da próxima (do começo dela), ou null. { inicio, dur, entradaEm (onde a próxima começa), encaixar (as duas batidas
 // conhecidas: a próxima entra na batida da que sai) }. A velocidade das músicas nunca muda (esticar para casar o
 // andamento se ouvia)
-export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada = null }) {
-  if (!(duracao > 20)) return null;
+export function planoAutomix({ duracao: duracaoDoArquivo, fimCanto = null, saida = null, entrada = null, fimSom = null, inicioSom = null }) {
+  if (!(duracaoDoArquivo > 20)) return null;
+  // (com o fim do som conhecido, a música "acaba" nele: o silêncio do fim do arquivo fica de fora)
+  const somAte = fimValido(fimSom, duracaoDoArquivo);
+  const duracao = somAte ?? duracaoDoArquivo;
   const temBatida = boa(saida);
   // a duração: compassos inteiros (16 batidas; 8 nas lentas; 32 nas muito rápidas), entre 4 e 12 s; sem a batida, 8 s
   let dur = 8;
@@ -143,7 +180,7 @@ export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada =
     while (batidas * saida.periodo < 4 && batidas < 64) batidas *= 2;
     dur = batidas * saida.periodo;
   }
-  const fim = duracao - 0.4; // (um respiro antes do fim de verdade, onde o vídeo às vezes já para)
+  const fim = somAte ?? duracao - 0.4; // (sem saber onde o som acaba: um respiro antes do fim, onde o vídeo às vezes já para)
   let inicio = fim - dur;
   if (Number.isFinite(fimCanto) && fimCanto > 0 && fimCanto < duracao) {
     // a voz nunca é cortada: começa depois da última frase
@@ -172,9 +209,9 @@ export function planoAutomix({ duracao, fimCanto = null, saida = null, entrada =
     const batidas = Math.max(2, Math.min(Math.round(dur / p), cabem));
     dur = batidas * p;
   }
-  dur = Math.max(MIN_TRANSICAO, Math.min(MAX_TRANSICAO, dur, duracao - inicio));
-  // a próxima entra na primeira batida dela (pula o silêncio do começo, até 3 s)
+  dur = Math.max(MIN_TRANSICAO, Math.min(MAX_TRANSICAO, dur, duracaoDoArquivo - inicio));
+  // a próxima entra na primeira batida dela (pula o silêncio do começo, até 3 s); sem a batida, onde o som dela começa
   const primeira = Number.isFinite(entrada?.primeira) ? entrada.primeira : entrada?.fase;
-  const entradaEm = boa(entrada) && primeira >= 0 && primeira < 3 ? primeira : 0;
+  const entradaEm = boa(entrada) && primeira >= 0 && primeira < 3 ? primeira : inicioValido(inicioSom);
   return { inicio, dur, entradaEm, encaixar: temBatida && boa(entrada) };
 }
