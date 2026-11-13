@@ -29,14 +29,31 @@ async function passarPor(bytes, Fluxo, formato) {
   const r = new Response(new Blob([bytes]).stream().pipeThrough(new Fluxo(formato)));
   return new Uint8Array(await r.arrayBuffer());
 }
-// { nome, tipo: 'playlist' | 'repertorio', data ('2026-11-15'), musicas: [{ titulo, artista, parte, video }] }
-export function dadosDoLinkDaLista({ nome = '', tipo = 'playlist', data = '', musicas = [] } = {}) {
+// A capa de cada música (a mesma que aparece no aparelho de quem enviou: a do álbum) e a da lista (a escolhida pela
+// pessoa: um endereço, ou a foto do aparelho já reduzida, em data:image/jpeg) vão no link. Sem elas, quem recebia via
+// o quadro do vídeo nas faixas e um mosaico de outras capas no topo
+const CAPA_DA_DEEZER = /^https:\/\/(?:e-)?cdns?-images\.dzcdn\.net\/images\/cover\/([0-9a-f]{32})\/[^?#]*$/;
+const capaParaLink = (u) => {
+  const s = String(u || '');
+  const dz = CAPA_DA_DEEZER.exec(s);
+  if (dz) return `d${dz[1]}`; // (a da Deezer, só o código: o link fica curto)
+  return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 400 ? s : '';
+};
+const capaDoLink = (c) => {
+  const s = String(c || '');
+  if (/^d[0-9a-f]{32}$/.test(s)) return `https://cdn-images.dzcdn.net/images/cover/${s.slice(1)}/500x500-000000-80-0-0.jpg`;
+  return /^https:\/\/[^\s"'<>]+$/.test(s) && s.length <= 400 ? s : '';
+};
+const capaDaListaDoLink = (c) => (/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(c || '')) && c.length <= 16000 ? c : capaDoLink(c));
+// { nome, tipo: 'playlist' | 'repertorio', data ('2026-11-15'), capa, musicas: [{ titulo, artista, parte, video, capa }] }
+export function dadosDoLinkDaLista({ nome = '', tipo = 'playlist', data = '', capa = '', musicas = [] } = {}) {
   const m = musicas.filter((x) => cortar(x?.titulo)).slice(0, MAXIMO_NO_LINK).map((x) => {
-    const linha = [cortar(x.titulo), cortar(x.artista), cortar(x.parte, 40), /^[\w-]{11}$/.test(String(x.video || '')) ? x.video : ''];
+    const linha = [cortar(x.titulo), cortar(x.artista), cortar(x.parte, 40), /^[\w-]{11}$/.test(String(x.video || '')) ? x.video : '', capaParaLink(x.capa)];
     while (linha.length > 1 && !linha[linha.length - 1]) linha.pop();
     return linha;
   });
-  return { v: 1, n: cortar(nome, 120), t: tipo === 'repertorio' ? 'r' : 'p', ...(/^\d{4}-\d{2}-\d{2}$/.test(data || '') ? { d: data } : {}), m, ...(musicas.length > m.length ? { mais: musicas.length - m.length } : {}) };
+  const c = /^data:image\/jpeg;base64,/.test(String(capa || '')) ? capaDaListaDoLink(capa) : capaParaLink(capa);
+  return { v: 2, n: cortar(nome, 120), t: tipo === 'repertorio' ? 'r' : 'p', ...(/^\d{4}-\d{2}-\d{2}$/.test(data || '') ? { d: data } : {}), ...(c ? { c } : {}), m, ...(musicas.length > m.length ? { mais: musicas.length - m.length } : {}) };
 }
 export async function codigoDaLista(lista) {
   const bytes = new TextEncoder().encode(JSON.stringify(dadosDoLinkDaLista(lista)));
@@ -57,8 +74,9 @@ export async function lerCodigoDaLista(codigo) {
     else if (c[0] !== 'j') return null;
     const d = JSON.parse(new TextDecoder().decode(bytes));
     if (!d || !Array.isArray(d.m)) return null;
-    const musicas = d.m.map(([titulo = '', artista = '', parte = '', video = ''] = []) => ({ titulo: cortar(titulo), artista: cortar(artista), parte: cortar(parte, 40), video: /^[\w-]{11}$/.test(video) ? video : '' })).filter((x) => x.titulo);
-    return { nome: cortar(d.n, 120), tipo: d.t === 'r' ? 'repertorio' : 'playlist', data: /^\d{4}-\d{2}-\d{2}$/.test(d.d || '') ? d.d : '', musicas, mais: Math.max(0, Number(d.mais) || 0) };
+    const musicas = d.m.map(([titulo = '', artista = '', parte = '', video = '', capa = ''] = []) => ({ titulo: cortar(titulo), artista: cortar(artista), parte: cortar(parte, 40), video: /^[\w-]{11}$/.test(video) ? video : '', capa: capaDoLink(capa) })).filter((x) => x.titulo);
+    // (comCapas: o link novo, que leva as capas; o antigo não leva, e quem recebe as procura)
+    return { nome: cortar(d.n, 120), tipo: d.t === 'r' ? 'repertorio' : 'playlist', data: /^\d{4}-\d{2}-\d{2}$/.test(d.d || '') ? d.d : '', capa: capaDaListaDoLink(d.c), comCapas: Number(d.v) >= 2, musicas, mais: Math.max(0, Number(d.mais) || 0) };
   } catch { return null; }
 }
 // para abrir o app Android a partir do navegador (o Chrome entrega ao app instalado; sem ele, a página de reserva)
