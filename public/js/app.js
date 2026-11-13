@@ -3907,13 +3907,17 @@ const player = (() => {
   const telaFixa = ehTablet();
   if (telaFixa) tela.classList.add('fixa');
   // (com o vídeo já dentro do lugar dele — o moveBefore —, não há posição para acompanhar a cada quadro: só conferir
-  // se o lugar mudou. Aí a conferência roda 20 vezes por segundo, e não 60: no tablet, com o painel sempre aberto, isto
-  // nunca parava)
-  let pulos = 0;
+  // se o lugar mudou. Aí a conferência sai dos quadros e passa a um temporizador, 8 vezes por segundo. Pedir um quadro
+  // a cada quadro, mesmo sem fazer nada nele, obrigava a página a montar todos os quadros na linha principal: no
+  // tablet, com o painel sempre aberto e a capa animada, eram o estilo, o teste de toque e a entrega da tela refeitos
+  // a cada quadro, com a tela parada. Um toque, a troca de tela ou o giro acordam a conferência na hora)
+  let espera = 0;
   let assentado = false;
+  const proximoQuadro = () => { espera = 0; quadro = requestAnimationFrame(seguir); };
+  const acordarOSeguir = () => { if (espera) { clearTimeout(espera); proximoQuadro(); } };
+  for (const ev of ['pointerup', 'hashchange', 'resize', 'fullscreenchange']) addEventListener(ev, acordarOSeguir, { passive: true });
   const seguir = () => {
-    quadro = requestAnimationFrame(seguir);
-    if (assentado && ++pulos % 3) return;
+    if (assentado) espera = setTimeout(proximoQuadro, 125); else quadro = requestAnimationFrame(seguir);
     assentado = false;
     if (!btnTelaCheia.isConnected && !tela.hidden && tela.firstElementChild) tela.append(btnTelaCheia);
     // o vídeo em tela cheia (o botão do YouTube ou o do vídeo baixado) fica onde está: mudar ele de lugar (ao girar a
@@ -6306,6 +6310,9 @@ const semLinhasDeAcordes = (sinc) => {
       tela.innerHTML = '';
       tela.hidden = true;
       cancelAnimationFrame(quadro);
+      clearTimeout(espera);
+      espera = 0;
+      assentado = false;
       quadro = 0;
       el.hidden = true;
       el.classList.remove('sem-video');
@@ -24905,6 +24912,29 @@ function route() {
 // Fileiras horizontais (artistas, repertórios, músicas…): no computador dá para clicar e arrastar para o lado
 // (como no celular) e há setas ‹ › redondas ao lado do título da fileira, como no Spotify. Cada fileira nova
 // que aparece na tela ganha isso sozinha.
+// (as setas e o arrastar com o mouse só existem com mouse: ver o CSS de .shelf-setas. Na tela de toque, medir cada
+// fileira que aparece obrigava a página a calcular a tela inteira antes da hora, a cada visita ao Início)
+const fileiraComMouse = matchMedia('(hover: hover) and (pointer: fine)');
+fileiraComMouse.addEventListener('change', () => view.querySelectorAll('.shelf').forEach((s) => s.dispatchEvent(new Event('scroll'))));
+// (o arrastar com o mouse: um par de ouvintes na janela para todas as fileiras. Antes cada fileira punha o seu par e
+// ele nunca saía: a cada visita ao Início ficavam mais ouvintes rodando a cada movimento do dedo, e cada um segurava
+// na memória a fileira antiga, já fora da tela, com as capas dela)
+let arrastoDaFileira = null;
+addEventListener('pointermove', (e) => {
+  const a = arrastoDaFileira;
+  if (!a) return;
+  const dx = e.clientX - a.x;
+  if (!a.arrastou && Math.abs(dx) < 6) return;
+  a.arrastou = true;
+  a.shelf.dataset.arrastou = '1';
+  a.shelf.classList.add('arrastando');
+  a.shelf.scrollLeft = a.left - dx;
+}, { passive: true });
+addEventListener('pointerup', () => {
+  if (!arrastoDaFileira) return;
+  arrastoDaFileira.shelf.classList.remove('arrastando');
+  arrastoDaFileira = null;
+}, { passive: true });
 function ligarFileira(shelf) {
   if (shelf.dataset.ligada) return;
   shelf.dataset.ligada = '1';
@@ -24917,6 +24947,7 @@ function ligarFileira(shelf) {
   if (titulo) titulo.append(setas); else shelf.before(setas);
   const [esq, dir] = setas.querySelectorAll('.shelf-seta');
   const atualizar = () => {
+    if (!fileiraComMouse.matches) return;
     esq.disabled = shelf.scrollLeft < 4;
     dir.disabled = shelf.scrollLeft + shelf.clientWidth >= shelf.scrollWidth - 4;
     setas.hidden = shelf.scrollWidth <= shelf.clientWidth + 4; // cabe tudo: sem setas
@@ -24926,27 +24957,12 @@ function ligarFileira(shelf) {
     if (b) shelf.scrollBy({ left: Number(b.dataset.lado) * Math.max(200, shelf.clientWidth * 0.8), behavior: 'smooth' });
   });
   // clicar e arrastar com o mouse (o clique depois de arrastar não abre o item)
-  let ini = null;
-  let arrastou = false;
   shelf.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    ini = { x: e.clientX, left: shelf.scrollLeft };
-    arrastou = false;
+    delete shelf.dataset.arrastou;
+    arrastoDaFileira = { shelf, x: e.clientX, left: shelf.scrollLeft, arrastou: false };
   });
-  addEventListener('pointermove', (e) => {
-    if (!ini) return;
-    const dx = e.clientX - ini.x;
-    if (!arrastou && Math.abs(dx) < 6) return;
-    arrastou = true;
-    shelf.classList.add('arrastando');
-    shelf.scrollLeft = ini.left - dx;
-  });
-  addEventListener('pointerup', () => {
-    if (!ini) return;
-    ini = null;
-    shelf.classList.remove('arrastando');
-  });
-  shelf.addEventListener('click', (e) => { if (arrastou) { e.preventDefault(); e.stopPropagation(); arrastou = false; } }, true);
+  shelf.addEventListener('click', (e) => { if (shelf.dataset.arrastou) { e.preventDefault(); e.stopPropagation(); delete shelf.dataset.arrastou; } }, true);
   shelf.addEventListener('dragstart', (e) => e.preventDefault());
   shelf.addEventListener('scroll', atualizar, { passive: true });
   new ResizeObserver(atualizar).observe(shelf);

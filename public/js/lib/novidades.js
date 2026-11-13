@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 680, data: '2026-11-12', titulo: "Tablet: com música tocando, a página deixa de montar todos os quadros na linha principal; ouvintes das fileiras deixam de se acumular",
+    itens: [
+      { tipo: 'correcao', texto: "No tablet, com o painel \"Tocando agora\" aberto, a conferência do lugar do vídeo pedia um quadro novo a cada quadro, mesmo sem nada a mover. Com a capa animada do painel, exclusiva do tablet, isso obrigava a página a recalcular o estilo, refazer o teste de toque e entregar a tela a cada quadro, com a tela parada, concorrendo com cada toque. A conferência com o vídeo já no lugar passou a um temporizador de 125 ms, acordado de imediato por toque, troca de tela, giro e tela cheia. Medido em navegador, em 1600 × 1068 px com o processador 4 vezes mais lento, em 4 s de música tocando e tela parada: os quadros montados na linha principal caíram de 236 para 57, os recálculos de estilo de 237 para 57 e os testes de toque de 283 para 101." },
+      { tipo: 'correcao', texto: "Cada fileira horizontal exibida (Início, busca, artista) registrava na janela um par de ouvintes de movimento do ponteiro que nunca era removido: a cada visita ao Início, mais ouvintes eram executados a cada movimento do dedo, e cada um mantinha na memória a fileira antiga com as capas dela. Foi adotado um único par de ouvintes para todas as fileiras. Em uma rolagem de teste após cinco trocas de tela, eram 1.080 chamadas desses ouvintes." },
+      { tipo: 'melhoria', texto: "Em telas de toque, as fileiras deixaram de ser medidas ao aparecer: a medição serve apenas às setas exibidas com mouse e forçava o cálculo antecipado da tela a cada abertura do Início." },
+      { tipo: 'melhoria', texto: "Verificado em navegador que o vídeo continua no lugar correto no painel, no modo vídeo, no painel expandido e no mini player do celular. Pendente: não executado no Xiaomi Pad 7; a medição foi feita em navegador com o formato de tela do tablet e não reproduz a placa gráfica nem a taxa de 144 Hz do aparelho." },
+    ],
+  },
+  {
     versao: 679, data: '2026-11-12', titulo: "Músicas adicionadas ao repertório ou à playlist deixam de entrar nas Músicas curtidas; a prévia da lista compartilhada passa a exibir as capas do aparelho e a barra começa do zero",
     itens: [
       { tipo: 'correcao', texto: "A música ainda não salva, adicionada a um repertório ou a uma playlist (pelo botão de repertório na página da música, pelo Adicionar do repertório, da playlist e da fila, pela troca do canto no repertório, pelo Salvar de uma lista recebida e pelo pedido ao Lúmen), era salva também na biblioteca e passava a aparecer nas Músicas curtidas. Essas músicas passaram a ficar apenas no repertório ou na playlist, como os cantos do \"Montar repertório\"; o + continua a colocá-las nas Músicas curtidas. A música cancelada antes de escolher o repertório deixou de ficar guardada." },
@@ -80,13 +89,6 @@ export const NOVIDADES = [
     itens: [
       { tipo: 'melhoria', texto: "Com a música pausada, o player de mídia do Android exibia um botão \"X\" adicional, incluído pelo aplicativo como ação do aviso e como ação personalizada da sessão de mídia. O botão foi removido das duas origens. Com a música pausada, o aviso deixa de ser fixo e é dispensado arrastando para o lado, como nos demais players; ao ser dispensado, a música permanece pausada e o aviso e o player do Android são retirados, pelo mesmo caminho já usado antes. Disponível mediante atualização do aplicativo." },
       { tipo: 'melhoria', texto: "Pendente: a alteração não foi executada em aparelho; a montagem do APK é feita pelo workflow Android." },
-    ],
-  },
-  {
-    versao: 670, data: '2026-11-12', titulo: "Nome da música em movimento deixa de aparecer duas vezes, sobreposto, no player, na letra e na cifra",
-    itens: [
-      { tipo: 'correcao', texto: "O nome que não cabe na linha anda para o lado seguido de uma cópia, e cada um tinha a própria animação. Quando o nome mudava (troca de música, chegada do artista), a cópia era refeita e recomeçava do zero, enquanto o nome seguia do ponto em que estava; fora de passo, ao fim da volta o nome reaparecia no início com a cópia ainda passando por cima dele, e o texto era exibido duas vezes, sobreposto. Ao refazer a cópia, o nome e a cópia passaram a recomeçar juntos, e a cada desenho a largada de todas as linhas do grupo é igualada à da primeira. A correção vale para a barra de reprodução, a tela Tocando agora, a barra superior e o nome exibido na letra e na cifra. Em teste em navegador, com troca do nome após 2,5 s, a defasagem entre o nome e a cópia passou de 2500 ms para 0 ms." },
-      { tipo: 'melhoria', texto: "Pendente: verificado em navegador, com a mesma animação do aplicativo; não executado em aparelho." },
     ],
   },
 ];
