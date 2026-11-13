@@ -7824,8 +7824,8 @@ const semLinhasDeAcordes = (sinc) => {
     };
     // tirar da biblioteca sem parar a música: ela continua tocando como a música da busca (a prévia), e o ✓ volta a +
     const tirarDoPlayer = async (s) => {
-      const reps = db.sets().filter((st) => st.items.some((it) => it.songId === s.id));
-      if (reps.length && !(await ask({ title: 'Tirar da biblioteca?', text: `“${s.title}” está em ${reps.length > 1 ? `${reps.length} repertórios` : `“${reps[0].name}”`} e sai de lá também.`, ok: 'Tirar', danger: true }))) return;
+      // (a que está num repertório ou playlist fica só nele: sai das Músicas curtidas e continua tocando)
+      if (emAlgumRepertorio(s.id)) { db.updateSong(s.id, { soNoRepertorio: true }); desenhar(); desenharLateral(); toast('Removida da biblioteca'); if (/^#\/biblioteca/.test(location.hash)) route(); return; }
       const naPagina = location.hash === `#/musica/${s.id}`;
       // (com as duas versões e a letra sincronizada: tocando como prévia, a troca e a letra continuam)
       preview = { id: 'previa', content: s.content, source: s.source, transpose: s.transpose || 0, capo: s.capo || 0, back: '#/biblioteca/musicas',
@@ -8378,7 +8378,7 @@ const linhaMusica = (s, extra = '') => `
 // vídeos do YouTube). O que vem da internet é salvo na biblioteca. Devolve o id, 'nova' ou null.
 // varias: marca várias (ou todas) de uma vez, como o "Adicionar a esta playlist" do Spotify, e devolve a lista de ids
 // (as achadas na internet são salvas ao tocar e já ficam marcadas); ja: as que já estão na lista (não entram de novo)
-async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar música' } = {}) {
+async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar música', soNoRepertorio = false } = {}) {
   const marcadas = [];
   const r = await openDialog(`
     <h3>${esc(titulo)}</h3>
@@ -8464,7 +8464,7 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
         web.classList.add('pk-salvando');
         const chip = web.querySelector('.acts .chip');
         if (chip) chip.innerHTML = '<span class="spin"></span> Salvando';
-        const id = await salvarDaInternet(web.dataset.tipo, achados[web.dataset.tipo][Number(web.dataset.n)]).catch(() => null);
+        const id = await salvarDaInternet(web.dataset.tipo, achados[web.dataset.tipo][Number(web.dataset.n)], { soNoRepertorio }).catch(() => null);
         web.classList.remove('pk-salvando');
         if (!id) { if (chip) chip.innerHTML = `${icon('plus', 13)} Adicionar`; toast('Não consegui trazer esta música agora'); return; }
         if (ja.has(id)) { if (chip) chip.innerHTML = 'Na playlist'; return; }
@@ -8490,13 +8490,15 @@ async function pickSong({ varias = false, ja = new Set(), titulo = 'Adicionar m�
     setTimeout(() => input.focus(), 50);
   });
   if (!r || typeof r === 'string' || Array.isArray(r)) return r;
-  return salvarDaInternet(r.tipo, r.item);
+  return salvarDaInternet(r.tipo, r.item, { soNoRepertorio });
 }
 
 // Salva na biblioteca uma música achada na internet (já com cifra, letra e vídeo) e devolve o id
-async function salvarDaInternet(tipo, item) {
+// (soNoRepertorio: a que entra direto num repertório ou playlist fica só nele, fora das Músicas curtidas)
+async function salvarDaInternet(tipo, item, { soNoRepertorio = false } = {}) {
   const ja = db.songBySource(item.cifra || item.letra?.url || item.url);
   if (ja) return ja.id;
+  const soNoRep = soNoRepertorio ? { soNoRepertorio: true } : {};
   // A capa que a pessoa via na linha (a do álbum, na busca e na página do álbum) entra já com a música. Antes a música
   // era salva sem ela: até a procura da capa terminar, em segundo plano, a biblioteca, a tela da música, o player e a
   // notificação do download mostravam o quadro do vídeo ou a foto do artista. Sem a da linha, a capa já conhecida
@@ -8517,7 +8519,7 @@ async function salvarDaInternet(tipo, item) {
   // ficava sem letra ("Não achei a letra")
   const fonteItem = item.cifra || item.letra?.url || '';
   if (preview && preview.source && fonteItem && preview.source === fonteItem && linhasDeLetra(preview.content) >= 2) {
-    const salvaJa = db.saveSong({ content: comCapa(preview.content), source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || capoDaCifra(preview.content),
+    const salvaJa = db.saveSong({ content: comCapa(preview.content), source: preview.source, transpose: preview.transpose || 0, capo: preview.capo || capoDaCifra(preview.content), ...soNoRep,
       ...(item.fotoArtista || preview.fotoArtista ? { fotoArtista: item.fotoArtista || preview.fotoArtista } : {}),
       ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}),
       ...(preview.sincronia ? { sincronia: preview.sincronia } : {}), ...(preview.versoes ? { versoes: preview.versoes } : {}), ...(preview.semClipe !== undefined ? { semClipe: preview.semClipe } : {}) });
@@ -8547,7 +8549,7 @@ async function salvarDaInternet(tipo, item) {
   if (prevValida && !yt && daPrevia.youtube) content = definirMeta(content, 'youtube', `https://www.youtube.com/watch?v=${daPrevia.youtube}`);
   // (veio sem letra — o site falhou agora —, mas a prévia desta música tem: fica a da prévia)
   if (prevValida && linhasDeLetra(content) < 2 && linhasDeLetra(daPrevia.content) >= 2) content = daPrevia.content;
-  const salva = db.saveSong({ content: comCapa(prevValida ? (letraPelaSincronia(content, daPrevia.sincronia) || content) : content), source: r.source, capo: capoDaCifra(content), ...(item.fotoArtista ? { fotoArtista: item.fotoArtista } : {}),
+  const salva = db.saveSong({ content: comCapa(prevValida ? (letraPelaSincronia(content, daPrevia.sincronia) || content) : content), source: r.source, capo: capoDaCifra(content), ...soNoRep, ...(item.fotoArtista ? { fotoArtista: item.fotoArtista } : {}),
     ...(prevValida && daPrevia.sincronia ? { sincronia: daPrevia.sincronia } : {}), ...(prevValida && daPrevia.versoes ? { versoes: daPrevia.versoes } : {}) });
   // sem a sincronia ainda: procura agora, em segundo plano (para a música já ficar com a letra sincronizada, também
   // para baixar e ouvir sem internet)
@@ -8592,6 +8594,7 @@ async function addToSetDialog(songId, label = '') {
   db.saveSet(set);
   desenharLateral();
   toast(`Adicionada a “${set.name}”`);
+  return true;
 }
 
 // ------------------------------------------------------------ arrastar e soltar
@@ -12197,10 +12200,12 @@ const marcarSalvar = (b, salva) => {
   b.setAttribute('aria-label', salva ? 'Na biblioteca (tocar para tirar)' : 'Salvar na biblioteca');
   b.innerHTML = icon(salva ? 'check' : 'plus', 16);
 };
-// tirar da biblioteca: se a música estiver em algum repertório, pergunta antes (ela sai dele também)
+// tirar da biblioteca
+const emAlgumRepertorio = (id) => db.sets().some((st) => st.items.some((it) => it.songId === id));
+// (a que está em algum repertório ou playlist sai só das Músicas curtidas e da biblioteca: continua lá, como as que
+// entraram direto no repertório; tirada dele depois, sai do aparelho)
 async function tirarDaBiblioteca(song) {
-  const reps = db.sets().filter((st) => st.items.some((it) => it.songId === song.id));
-  if (reps.length && !(await ask({ title: 'Tirar da biblioteca?', text: `“${song.title}” está em ${reps.length > 1 ? `${reps.length} repertórios` : `“${reps[0].name}”`} e sai de lá também.`, ok: 'Tirar', danger: true }))) return false;
+  if (emAlgumRepertorio(song.id)) { db.updateSong(song.id, { soNoRepertorio: true }); desenharLateral(); toast('Removida da biblioteca'); return true; }
   if (player.atual?.songId === song.id) player.fechar();
   db.deleteSong(song.id);
   desenharLateral();
@@ -16718,6 +16723,8 @@ function viewSong(id, ctx = {}) {
     const ja = musicaSalva({ titulo: m.title || '', artista: m.artist || '', cifra: song.source || '' });
     if (ja) { history.replaceState(null, '', '#/musica/' + ja.id); return viewSong(ja.id, ctx); }
   }
+  // (a música que só está no repertório não conta como salva: o + a põe nas Músicas curtidas)
+  const naBiblio = !isPreview && !song.soNoRepertorio;
   // cifra guardada antes com a observação "Capotraste na Nª casa": vira o capo de verdade (uma vez)
   const capoAntigo = capoDaObservacao(song.content);
   if (capoAntigo) {
@@ -16784,7 +16791,7 @@ function viewSong(id, ctx = {}) {
         <div class="meta" id="song-meta"></div><div class="sinc-estado" id="sinc-estado" hidden></div></div></section>
     <div class="actions-row acoes-musica">
       <button class="play-big ${midiaDe(song) ? '' : 'off'}" id="btn-play" aria-label="${midiaDe(song) ? 'Tocar' : 'Escolher vídeo'}" title="${midiaDe(song) ? 'Tocar (continua tocando no player enquanto você navega)' : 'Sem vídeo: escolher um no YouTube'}">${icon(midiaDe(song) ? (player.tocandoAgora(midiaDe(song)) ? 'pause' : 'play') : 'youtube', 24)}</button>
-      <button class="salvar-btn${isPreview ? '' : ' salva'}" id="btn-biblio" data-salvar aria-pressed="${!isPreview}" aria-label="${isPreview ? 'Salvar na biblioteca' : 'Na biblioteca (tocar para tirar)'}" title="${isPreview ? 'Salvar na biblioteca' : 'Na sua biblioteca — tocar para tirar'}">${icon(isPreview ? 'plus' : 'check', 18)}</button>
+      <button class="salvar-btn${naBiblio ? ' salva' : ''}" id="btn-biblio" data-salvar aria-pressed="${naBiblio}" aria-label="${naBiblio ? 'Na biblioteca (tocar para tirar)' : 'Salvar na biblioteca'}" title="${naBiblio ? 'Na sua biblioteca — tocar para tirar' : 'Salvar na biblioteca'}">${icon(naBiblio ? 'check' : 'plus', 18)}</button>
       ${isPreview ? '' : botaoBaixar(song)}
       <button class="icon-btn" id="btn-add" aria-label="Adicionar a repertório" title="Adicionar a um repertório">${icon('list', 22)}</button>
       ${ctx.set ? `<button class="icon-btn" id="btn-fila" aria-label="Fila do repertório" title="Fila: próximas músicas">${icon('queue', 24)}</button>` : ''}
@@ -17062,7 +17069,7 @@ function viewSong(id, ctx = {}) {
     if (r.ir !== undefined) { location.hash = `#/repertorio/${set.id}/${r.ir}`; return; }
     if (r.editar) { sairPalco(); location.hash = '#/editar/' + r.editar; return; }
     if (r.adicionar) {
-      const songId = await pickSong();
+      const songId = await pickSong({ soNoRepertorio: true });
       if (songId === 'nova') { sairPalco(); location.hash = '#/editar/novo/' + set.id; return; }
       if (songId) { set.items.push({ songId, label: db.song(songId)?.parte || '' }); db.saveSet(set); toast('Adicionada ao fim da fila'); }
       viewSetSong(set.id, set.items[r.atual]?.songId === song.id ? r.atual : ctx.index);
@@ -17400,16 +17407,21 @@ function viewSong(id, ctx = {}) {
   $('#btn-biblio').addEventListener('click', async () => {
     if (isPreview) { const salva = salvarPrevia(); location.replace('#/musica/' + salva.id); return; }
     const atual = db.song(song.id);
+    if (atual?.soNoRepertorio) { db.updateSong(atual.id, { soNoRepertorio: undefined }); desenharLateral(); toast('Salva na biblioteca'); route(); return; }
     if (!atual || !(await tirarDaBiblioteca(atual))) return;
+    if (db.song(atual.id)) { route(); return; } // (continua no repertório)
     preview = { id: 'previa', content: atual.content, source: atual.source, transpose, capo, back: '#/biblioteca/musicas' };
     location.replace('#/musica/previa');
   });
   $('#btn-edit-prev')?.addEventListener('click', () => { location.hash = '#/editar/' + salvarPrevia().id; });
   $('#btn-add').addEventListener('click', async () => {
     if (!isPreview) { addToSetDialog(song.id); return; }
-    const salva = salvarPrevia();
+    // (a música da busca entra só no repertório: não vai para as Músicas curtidas. Desistindo, não fica guardada)
+    const ja = db.songBySource(song.source);
+    const salva = ja || db.saveSong({ content: song.content, source: song.source, transpose, capo, soNoRepertorio: true,
+      ...(song.sincronia ? { sincronia: song.sincronia } : {}), ...(song.versoes ? { versoes: song.versoes } : {}) });
+    if (!(await addToSetDialog(salva.id))) { if (!ja && !emAlgumRepertorio(salva.id)) db.deleteSong(salva.id); return; }
     location.replace('#/musica/' + salva.id);
-    addToSetDialog(salva.id);
   });
   // rolagem automática: o ícone liga e abre a barra de velocidade embaixo (esquerda devagar, direita rápido)
   const btnScroll = $('#btn-scroll');
@@ -18261,7 +18273,7 @@ function viewPlaylist(set) {
     : `<div class="empty pl-vazia"><h3>Vamos montar sua playlist</h3><div class="row"><button class="btn primary" id="add2">Adicionar a esta playlist</button></div></div>`}`;
   // Adicionar: marca várias (ou todas) de uma vez; as que já estão na playlist não entram de novo
   const adicionar = async () => {
-    const ids = await pickSong({ varias: true, ja: new Set(db.set(id).items.map((it) => it.songId)), titulo: 'Adicionar a esta playlist' });
+    const ids = await pickSong({ varias: true, ja: new Set(db.set(id).items.map((it) => it.songId)), titulo: 'Adicionar a esta playlist', soNoRepertorio: true });
     if (!ids?.length) return;
     const atual = db.set(id);
     const em = Date.now();
@@ -18965,7 +18977,7 @@ function viewSet(id, { selecionando = false, marcados = new Set() } = {}) {
   ligarCampoData('set-date', (v) => { set.date = v; db.saveSet(set); revisarSet(set); });
   revisarSet(set);
   $('#add').onclick = async () => {
-    const songId = await pickSong();
+    const songId = await pickSong({ soNoRepertorio: true });
     if (songId === 'nova') { location.hash = '#/editar/novo/' + id; return; }
     if (!songId) return;
     const parte = await escolherParte(db.song(songId)?.parte || '', db.song(songId)?.title);
@@ -19217,7 +19229,7 @@ async function revisarSet(set) {
         if (b.dataset.verSug) { abrirMusicaAcervo(m); return; }
         [content, source] = [m.chordpro, m.fonte];
       }
-      const nova = db.songBySource(source) || db.saveSong({ content, source });
+      const nova = db.songBySource(source) || db.saveSong({ content, source, soNoRepertorio: true });
       // (o canto novo sai pronto: o vídeo, a capa, o áudio e a letra; o repertório é redesenhado quando chegam)
       if (cantoParaCompletar(nova)) void completarCanto(nova.id).then(() => { if (location.hash === `#/repertorio/${set.id}` && db.song(nova.id)?.youtube) viewSet(set.id); });
       const atual = db.set(set.id);
@@ -20951,6 +20963,7 @@ function ligarPreviasDaLista(raiz, lista) {
   let atual = -1;
   let pedido = 0;
   let relogio = 0;
+  let doAudio = -1; // (o pedido a que o áudio tocando pertence: o tempo do trecho anterior não vai para a linha nova)
   const faixas = new Map();
   const faixaDe = (i) => {
     if (!faixas.has(i)) {
@@ -20964,11 +20977,19 @@ function ligarPreviasDaLista(raiz, lista) {
     }
     return faixas.get(i);
   };
+  // (zera na hora, sem a animação da largura: antes a barra voltava deslizando de onde o trecho anterior parou)
+  const zerarBarra = (b) => {
+    if (!b || b.style.width === '0%') return;
+    b.style.transition = 'none';
+    b.style.width = '0%';
+    void b.offsetWidth;
+    b.style.transition = '';
+  };
   const marcar = (i, estado) => {
     linhas.forEach((li, k) => {
       li.classList.toggle('tocando', k === i && estado === 'tocando');
       li.classList.toggle('carregando', k === i && estado === 'carregando');
-      if (k !== i || !estado) li.querySelector('.lr-barra i').style.width = '0%';
+      if (k !== i || estado !== 'tocando') zerarBarra(li.querySelector('.lr-barra i'));
       const ic = li.querySelector('.lr-tocar');
       if (ic) ic.innerHTML = icon(k === i && estado === 'tocando' ? 'pause' : 'play', 18);
     });
@@ -20977,7 +20998,9 @@ function ligarPreviasDaLista(raiz, lista) {
   const pararTudo = () => {
     pedido++;
     clearInterval(relogio);
+    doAudio = -1;
     audio.pause();
+    if (audio.getAttribute('src')) { audio.removeAttribute('src'); audio.load(); }
     if (yt) { yt.f.remove(); yt = null; }
     marcar(-1, '');
     atual = -1;
@@ -20993,7 +21016,7 @@ function ligarPreviasDaLista(raiz, lista) {
     if (faixa?.previa) {
       audio.src = faixa.previa;
       try { await audio.play(); } catch { if (meu === pedido) { marcar(-1, ''); atual = -1; } return; }
-      if (meu === pedido) marcar(i, 'tocando');
+      if (meu === pedido) { doAudio = meu; marcar(i, 'tocando'); }
       return;
     }
     const m = lista.musicas[i];
@@ -21023,8 +21046,8 @@ function ligarPreviasDaLista(raiz, lista) {
     const s = linhas[i].querySelector('.s');
     if (s && !s.querySelector('.lr-sem')) s.insertAdjacentHTML('beforeend', `<span class="lr-sem sub-sep">${esc(t('Prévia indisponível'))}</span>`);
   };
-  audio.addEventListener('timeupdate', () => { if (atual >= 0) barra(atual, audio.currentTime / (audio.duration || SEGUNDOS_DA_PREVIA)); });
-  audio.addEventListener('ended', () => { if (atual >= 0) proxima(atual); });
+  audio.addEventListener('timeupdate', () => { if (atual >= 0 && doAudio === pedido) barra(atual, audio.currentTime / (audio.duration || SEGUNDOS_DA_PREVIA)); });
+  audio.addEventListener('ended', () => { if (atual >= 0 && doAudio === pedido) proxima(atual); });
   raiz.querySelector('.lr-musicas').addEventListener('click', (e) => {
     const li = e.target.closest('.lr-item');
     if (!li) return;
@@ -21108,7 +21131,7 @@ async function viewLista(codigo) {
     for (const [k, m] of lista.musicas.entries()) {
       b.innerHTML = `${icon('download', 18)} ${esc(t(`Salvando ${k + 1} de ${lista.musicas.length}…`))}`;
       let id = musicaSalva({ titulo: m.titulo, artista: m.artista })?.id;
-      if (!id) id = await salvarDaInternet('musica', { titulo: m.titulo, artista: m.artista, ...(m.video ? { video: { id: m.video, url: `https://www.youtube.com/watch?v=${m.video}` } } : {}) }).catch(() => null);
+      if (!id) id = await salvarDaInternet('musica', { titulo: m.titulo, artista: m.artista, ...(m.video ? { video: { id: m.video, url: `https://www.youtube.com/watch?v=${m.video}` } } : {}) }, { soNoRepertorio: true }).catch(() => null);
       if (id) items.push({ songId: id, label: m.parte || '', em: Date.now() + k }); else faltou++;
     }
     if (!items.length) { b.disabled = false; b.innerHTML = `${icon('plus', 18)} Salvar na biblioteca`; await ask({ title: 'Não deu para salvar', text: 'Nenhuma música desta lista pôde ser trazida agora. Confira a internet e tente de novo.', ok: 'Entendi', cancel: false }); return; }
@@ -23266,7 +23289,7 @@ const musicaDoPlayer = () => (player.atual?.songId && db.song(player.atual.songI
 const limparNomeFalado = (n) => String(n || '').replace(/\b(pra|para) (mim|tocar|eu ouvir|a gente)\b.*$|\b(por favor|agora|ai|aqui|no player|pra gente|e toque|e toca|e tocar|e coloca|e coloque)\b.*$/, '')
   .replace(/^(a|o|as|os) (musica|cancao|cifra|letra) /, '').replace(/^(musica|cancao|cifra|letra) /, '').replace(/^(a|o) /, '').trim();
 // a música da internet salva na biblioteca (como o botão de salvar da Busca); devolve o id
-const salvarResultado = (r) => salvarDaInternet('musica', { titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url ? { url: r.letra.url, titulo: r.titulo, artista: r.artista } : null, video: r.video ? { id: r.video.id, url: `https://www.youtube.com/watch?v=${r.video.id}`, titulo: r.video.titulo || r.titulo, canal: r.video.canal || '' } : null, fotoArtista: r.fotoArtista || '' });
+const salvarResultado = (r, opcoes) => salvarDaInternet('musica', { titulo: r.titulo, artista: r.artista, cifra: r.cifra || '', letra: r.letra?.url ? { url: r.letra.url, titulo: r.titulo, artista: r.artista } : null, video: r.video ? { id: r.video.id, url: `https://www.youtube.com/watch?v=${r.video.id}`, titulo: r.video.titulo || r.titulo, canal: r.video.canal || '' } : null, fotoArtista: r.fotoArtista || '' }, opcoes);
 async function acaoDoLumen(pergunta) {
   const t = normalizar(pergunta);
   const falas = [];
@@ -23318,7 +23341,7 @@ async function acaoDoLumen(pergunta) {
     if (!song && !doPlayer) {
       const lista = await buscarTudo(nomeMus, 4, 3).catch(() => []);
       if (lista[0]) {
-        const id = await salvarResultado(lista[0]).catch(() => null);
+        const id = await salvarResultado(lista[0], { soNoRepertorio: destino !== 'biblioteca' }).catch(() => null);
         song = id && db.song(id);
         busca = lista.slice(0, 1);
       }
