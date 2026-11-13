@@ -21,10 +21,41 @@ test('o link da lista vai e volta com o nome, o tipo, a data e as músicas (comp
   assert.equal(lido.tipo, 'repertorio');
   assert.equal(lido.data, '2026-11-15');
   assert.deepEqual(lido.musicas, [
-    { titulo: 'Meus Pensamentos São de Paz', artista: 'Cindy Ferrarezi', parte: 'Entrada', video: 'aaaaaaaaaaa' },
-    { titulo: 'Glória a Deus nas Alturas', artista: '', parte: 'Glória', video: '' },
-    { titulo: 'Bendito sejas, Senhor Deus!', artista: 'Giovanni Rodrigues', parte: 'Apresentação das Oferendas', video: '' },
+    { titulo: 'Meus Pensamentos São de Paz', artista: 'Cindy Ferrarezi', parte: 'Entrada', video: 'aaaaaaaaaaa', capa: '' },
+    { titulo: 'Glória a Deus nas Alturas', artista: '', parte: 'Glória', video: '', capa: '' },
+    { titulo: 'Bendito sejas, Senhor Deus!', artista: 'Giovanni Rodrigues', parte: 'Apresentação das Oferendas', video: '', capa: '' },
   ]);
+  assert.equal(lido.comCapas, true);
+});
+
+test('o link leva a capa de cada música e a da lista, as mesmas do aparelho de quem enviou', async () => {
+  const h = 'abcdef0123456789abcdef0123456789';
+  const itunes = 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/aa/bb/cc/x.jpg/1000x1000bb.jpg';
+  const foto = 'data:image/jpeg;base64,' + 'A'.repeat(4000);
+  const lista = { nome: 'Pop/ Kpop', capa: foto, musicas: [
+    { titulo: 'Company', artista: 'Justin Bieber', video: 'bbbbbbbbbbb', capa: `https://cdn-images.dzcdn.net/images/cover/${h}/1000x1000-000000-80-0-0.jpg` },
+    { titulo: 'Cream Soda', artista: 'EXO', capa: itunes },
+    { titulo: 'Sem capa', artista: 'X', video: 'ccccccccccc', capa: 'data:image/jpeg;base64,AAAA' },
+  ] };
+  const lido = await lerCodigoDaLista(await codigoDaLista(lista));
+  assert.equal(lido.capa, foto);
+  assert.equal(lido.musicas[0].capa, `https://cdn-images.dzcdn.net/images/cover/${h}/500x500-000000-80-0-0.jpg`);
+  assert.equal(lido.musicas[1].capa, itunes);
+  assert.equal(lido.musicas[2].capa, '');
+  // (a capa da lista em endereço também vai)
+  const comEndereco = await lerCodigoDaLista(await codigoDaLista({ ...lista, capa: itunes }));
+  assert.equal(comEndereco.capa, itunes);
+  // (60 músicas com a capa da Deezer: o link continua curto o bastante para as mensagens)
+  const muitas = Array.from({ length: 60 }, (_, i) => ({ titulo: `Música ${i}`, artista: 'A', video: 'ddddddddddd', capa: `https://cdn-images.dzcdn.net/images/cover/${i.toString(16).padStart(32, '7')}/1000x1000-000000-80-0-0.jpg` }));
+  assert.ok((await linkDaLista({ nome: 'Grande', musicas: muitas })).length < 4000);
+});
+
+test('o link antigo, sem as capas, continua sendo lido', async () => {
+  const antigo = 'j' + Buffer.from(JSON.stringify({ v: 1, n: 'Antiga', t: 'p', m: [['Música', 'Artista', '', 'aaaaaaaaaaa']] })).toString('base64url');
+  const lido = await lerCodigoDaLista(antigo);
+  assert.equal(lido.comCapas, false);
+  assert.equal(lido.capa, '');
+  assert.equal(lido.musicas[0].capa, '');
 });
 
 test('sem o compressor do navegador, o link vai sem comprimir e é lido igual', async () => {

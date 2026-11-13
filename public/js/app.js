@@ -20800,10 +20800,26 @@ const intentDaMusicaComReserva = (titulo, artista, video) => (linkParaAbrirNoApl
 
 // ---- Compartilhar uma playlist ou um repertório (os botões de compartilhar das duas telas): a folha com o cartão
 // (lib/cartao-lista.js), as cores e os destinos, como a da música; o link abre a prévia da lista (viewLista)
-const dadosDaListaParaLink = (set) => ({
+// (com a capa de cada música e a da lista, as mesmas do aparelho: a foto escolhida para a lista vai reduzida, 160 px)
+const dadosDaListaParaLink = async (set) => ({
   nome: set.name, tipo: ehPlaylist(set) ? 'playlist' : 'repertorio', data: set.date || '',
-  musicas: set.items.map((it) => { const s = db.song(it.songId); return s ? { titulo: s.title, artista: s.artist || '', parte: it.label || '', video: s.youtube && !ehArquivo(s.youtube) ? s.youtube : '' } : null; }).filter(Boolean),
+  capa: /^data:image\//.test(set.capa || '') ? await reduzirCapa(set.capa, 160).catch(() => '') : set.capa || '',
+  musicas: set.items.map((it) => { const s = db.song(it.songId); return s ? { titulo: s.title, artista: s.artist || '', parte: it.label || '', video: s.youtube && !ehArquivo(s.youtube) ? s.youtube : '', capa: s.cover || '' } : null; }).filter(Boolean),
 });
+function reduzirCapa(url, lado) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = lado;
+      const m = Math.min(img.naturalWidth, img.naturalHeight);
+      c.getContext('2d').drawImage(img, (img.naturalWidth - m) / 2, (img.naturalHeight - m) / 2, m, m, 0, 0, lado, lado);
+      resolve(c.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = () => reject(new Error('imagem inválida'));
+    img.src = url;
+  });
+}
 const duracaoDaLista = (seg) => { const m = Math.round(seg / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
 function resumoDaListaParaCartao(set) {
   const songs = set.items.map((it) => db.song(it.songId)).filter(Boolean);
@@ -20819,7 +20835,7 @@ async function compartilharLista(set) {
   const songs = set.items.map((it) => ({ it, s: db.song(it.songId) })).filter((x) => x.s);
   const cores = coresDoCartao(corDaMusica(set.name));
   let cor = 0;
-  const link = await linkDaLista(dadosDaListaParaLink(set));
+  const link = await linkDaLista(await dadosDaListaParaLink(set));
   const rotulo = t(pl ? 'Playlist' : 'Repertório');
   const resumo = resumoDaListaParaCartao(set);
   const texto = () => textoDaLista({ nome: set.name, rotulo, resumo, musicas: songs.map(({ it, s }) => ({ titulo: s.title, artista: s.artist || '', parte: it.label })), link, mais: t('e mais {} músicas') });
@@ -20932,10 +20948,13 @@ function fecharConviteDaLista() {
   conviteDaLista = null;
   document.documentElement.classList.remove('com-convite-lista');
 }
-const capaDaMusicaDaLista = (m) => (m.video ? `https://i.ytimg.com/vi/${m.video}/mqdefault.jpg` : '');
+// a capa da música como no aparelho de quem enviou: a do álbum (que vem no link) e, sem ela, o quadro do vídeo
+const capaDaMusicaDaLista = (m) => m.capa || (m.video ? `https://i.ytimg.com/vi/${m.video}/mqdefault.jpg` : '');
 function htmlDaListaRecebida(lista) {
+  // (o topo como o da lista no aparelho: a capa escolhida; sem ela, as quatro primeiras capas diferentes, em mosaico)
   const comCapa = [...new Set(lista.musicas.map(capaDaMusicaDaLista).filter(Boolean))];
-  const capaHtml = comCapa.length >= 4 ? `<div class="cover mosaic">${comCapa.slice(0, 4).map((u) => `<div class="cover"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>`).join('')}</div>`
+  const capaHtml = lista.capa ? `<div class="cover"><img src="${esc(lista.capa)}" alt="" referrerpolicy="no-referrer"></div>`
+    : comCapa.length >= 4 ? `<div class="cover mosaic">${comCapa.slice(0, 4).map((u) => `<div class="cover"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>`).join('')}</div>`
     : comCapa.length ? `<div class="cover"><img src="${esc(comCapa[0])}" alt="" referrerpolicy="no-referrer"></div>`
       : `<div class="cover gen" style="--h:${hue(lista.nome)}">${icon(lista.tipo === 'playlist' ? 'disc' : 'list', 40)}</div>`;
   const quantas = `<span>${esc(qtdMusicas(lista.musicas.length + lista.mais))}</span>`;
@@ -20945,7 +20964,7 @@ function htmlDaListaRecebida(lista) {
       <h1 class="lr-nome" translate="no">${esc(lista.nome)}</h1>
       <p class="lr-resumo">${resumo}</p></div>
     <ol class="tracks lr-musicas">${lista.musicas.map((m, i) => `<li class="track lr-item" data-i="${i}">
-      <div class="lr-capinha">${m.video ? `<div class="cover"><img src="${esc(capaDaMusicaDaLista(m))}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>` : `<div class="cover gen" style="--h:${hue(m.titulo)}">${icon('music', 18)}</div>`}
+      <div class="lr-capinha">${capaDaMusicaDaLista(m) ? `<div class="cover"><img src="${esc(capaDaMusicaDaLista(m))}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>` : `<div class="cover gen" style="--h:${hue(m.titulo)}">${icon('music', 18)}</div>`}
         <span class="lr-tocar" aria-hidden="true">${icon('play', 18)}</span></div>
       <div class="info"><div class="t" translate="no">${esc(m.titulo)}</div><div class="s">${m.parte ? `<b class="parte-tag sub-sep">${esc(m.parte)}</b>` : ''}${m.artista ? `<span class="sub-txt sub-sep" translate="no">${esc(m.artista)}</span>` : ''}</div>
         <div class="lr-barra" aria-hidden="true"><i></i></div></div></li>`).join('')}</ol>
@@ -21055,10 +21074,12 @@ function ligarPreviasDaLista(raiz, lista) {
     if (i === atual) { pararTudo(); return; }
     void tocar(i);
   });
-  // as capas que faltam, duas por vez (e o mosaico do topo, com as quatro primeiras)
-  const semCapa = lista.musicas.map((m, i) => (m.video ? -1 : i)).filter((i) => i >= 0);
+  // as capas do álbum que não vieram no link, duas por vez, nas faixas (no lugar do quadro do vídeo). O topo só muda
+  // no link antigo, sem as capas: no novo, ele já é o da lista no aparelho de quem enviou
+  const semCapa = lista.musicas.map((m, i) => (m.capa ? -1 : i)).filter((i) => i >= 0);
   const capas = lista.musicas.map((m) => capaDaMusicaDaLista(m));
   const refazerMosaico = () => {
+    if (lista.comCapas) return;
     const us = [...new Set(capas.filter(Boolean))];
     const box = raiz.querySelector('.lr-capa');
     if (!box || us.length < 1) return;
