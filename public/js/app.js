@@ -2737,24 +2737,8 @@ document.addEventListener('click', async (e) => {
   if (db.song(s.id)?.baixarPausado) db.updateSong(s.id, { baixarPausado: undefined });
   baixarMusica(db.song(s.id), { avisar: true });
 });
-// salvar na biblioteca já baixa a música (como o "Baixar" ligado numa playlist do Spotify), com o servidor ligado, no
-// Wi-Fi (ou com os dados móveis liberados) e com "Baixar ao salvar" ligado. Várias de uma vez (importar um backup) não:
-// essas ficam para o "Baixar as músicas salvas"
-let novasSalvas = [];
-let novasTempo = 0;
-window.addEventListener('songbook:nova-musica', (e) => {
-  novasSalvas.push(e.detail.id);
-  clearTimeout(novasTempo);
-  // (um pouco depois: a música recém-salva ainda ganha o vídeo e o áudio oficial)
-  novasTempo = setTimeout(async () => {
-    const ids = novasSalvas;
-    novasSalvas = [];
-    const p = db.prefs();
-    if (ids.length > 3 || p.baixarAoSalvar === false || !(await temServidorParaBaixar())) return;
-    if (navigator.connection?.type === 'cellular' && !p.baixarDadosMoveis) return;
-    ids.map((id) => db.song(id)).filter((s) => s && midiaDe(s)).forEach((s) => baixarMusica(s, { perguntou: true }));
-  }, 2500);
-});
+// Salvar uma música (nas Músicas curtidas, numa playlist ou num repertório) não baixa nada sozinho: o download começa
+// só pelo botão de baixar a lista inteira ou pelo "Baixar" da própria música (⋮ ou a seta)
 // os botões de baixar na tela acompanham o andamento
 // (as setinhas verdes das listas, na hora: na biblioteca as linhas são .lib-item[data-k], que antes ficavam de fora e
 // só mostravam a baixada depois de abrir a biblioteca de novo; e a setinha apagada enquanto ela baixa. E o microfone do
@@ -18172,7 +18156,8 @@ function viewEditor(id, setId) {
     const parte = campo('parte').value;
     // (a cifra escrita ou mudada pela pessoa: o app nunca troca ela por outra achada na internet)
     const conteudo = montar();
-    const saved = db.saveSong({ ...song, content: conteudo, ...(isNew || conteudo !== song.content ? { cifraEditada: true } : {}) });
+    // (a música nova criada de dentro de um repertório ou de uma playlist fica só nele, fora das Músicas curtidas)
+    const saved = db.saveSong({ ...song, content: conteudo, ...(isNew || conteudo !== song.content ? { cifraEditada: true } : {}), ...(isNew && setDestino ? { soNoRepertorio: true } : {}) });
     apagarRascunho();
     mudou = false;
     // a parte nova vale também nos repertórios onde a música estava sem parte ou com a parte antiga
@@ -25472,7 +25457,6 @@ function viewOffline() {
     view.innerHTML = `<div class="ajustes offline"><h2 class="aj-pagina">Downloads e internet</h2>
       <section class="aj-sec"><h3 class="aj-titulo">Downloads</h3><div class="settings-group">
         <a class="setting" href="#/qualidade"><span class="ico">${icon('gauge', 18)}</span><div class="grow"><div class="t">Qualidade dos downloads</div><div class="s">Áudio: ${nomeDaQualidade(false)} · Vídeo: ${nomeDaQualidade(true)}</div></div>${icon('next', 18)}</a>
-        ${chave('of-ao-salvar', 'baixar', 'Baixar ao salvar', 'A música salva na biblioteca já é baixada para tocar sem internet', p.baixarAoSalvar !== false)}
         ${chave('of-karaoke', 'mic', 'Baixar também o karaokê', 'Nas músicas com a letra sincronizada, o servidor já separa a voz da banda ao baixar: o microfone da letra liga na hora, até sem internet', p.baixarKaraoke !== false)}
         <div class="setting"><span class="ico">${icon('library', 18)}</span><div class="grow"><div class="t">Baixar as músicas salvas</div><div class="s" id="of-todas-s">${baixando.size ? `Baixando: ${baixando.size} na fila` : `${baixadas.length} de ${salvas.length} baixadas`}${servidorIA().url ? '' : ' · o áudio e o vídeo vêm pelo servidor do seu computador (Ajustes → Avançado)'}</div></div>
           <button class="btn small primary" id="of-todas"${faltam.length ? '' : ' disabled'}>${icon('baixar', 15)} ${faltam.length ? `Baixar ${faltam.length}` : 'Todas baixadas'}</button></div>
@@ -25553,7 +25537,6 @@ function viewOffline() {
       toast(e.target.checked ? 'Economia de dados ligada: a capa animada foi desligada' : 'Economia de dados desligada');
     }
     if (e.target.id === 'of-moveis') db.setPref('baixarDadosMoveis', e.target.checked);
-    if (e.target.id === 'of-ao-salvar') db.setPref('baixarAoSalvar', e.target.checked);
     if (e.target.id === 'of-karaoke') {
       db.setPref('baixarKaraoke', e.target.checked);
       // (ligado: as músicas já baixadas e sincronizadas também ganham o karaokê, uma por vez)

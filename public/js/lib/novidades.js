@@ -5,6 +5,14 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 682, data: '2026-11-15', titulo: "Música criada dentro de um repertório deixa de entrar nas Músicas curtidas; salvar uma música deixa de iniciar o download",
+    itens: [
+      { tipo: 'correcao', texto: "A música criada do zero a partir de um repertório ou de uma playlist (pelo Criar música da lista, pelo Criar do zero do Adicionar e da fila) era gravada sem a marca de música apenas do repertório e passava a aparecer nas Músicas curtidas. A música criada desse modo passou a ficar apenas no repertório ou na playlist; o + continua a colocá-la nas Músicas curtidas. O download dessas músicas também as mantém apenas no repertório. As músicas criadas antes desta versão permanecem nas Músicas curtidas, pois a origem delas não fica registrada, e podem ser retiradas pelo ✓ sem sair do repertório." },
+      { tipo: 'correcao', texto: "Toda música nova (salva nas Músicas curtidas, adicionada a uma playlist ou a um repertório) entrava na fila de download cerca de 2,5 s depois, pela opção Baixar ao salvar, ligada por padrão. O download automático foi removido, junto com a opção em Ajustes → Downloads e internet: o download passou a começar apenas pelo botão de baixar a lista inteira (Músicas curtidas, playlist ou repertório) ou pelo Baixar da própria música (⋮ ou a seta). Os downloads já pedidos e incompletos continuam a ser retomados." },
+      { tipo: 'melhoria', texto: "Pendente: não executado em aparelho; conferido pelos testes automatizados." },
+    ],
+  },
+  {
     versao: 681, data: '2026-11-15', titulo: "PDF e PowerPoint passam a ser criados no aplicativo Android; idioma do aplicativo passa a ser escolhido em Ajustes",
     itens: [
       { tipo: 'correcao', texto: "No aplicativo Android, tocar em Gerar PDF ou em Gerar PowerPoint (no modelo do grupo ou simples) não produzia arquivo nem aviso. A causa não era a revisão litúrgica, que apenas indica e não participa da geração: o WebView do Android não executa a impressão do navegador (window.print) nem grava o arquivo de um link de download. O PDF passou a ser aberto pela impressão do Android, com a opção \"Salvar como PDF\", e o PowerPoint, o backup da biblioteca, o repertório em arquivo e o MusicXML passaram a ser gravados na pasta Downloads do aparelho; o PowerPoint é aberto em seguida no aplicativo de apresentações instalado. Disponível mediante atualização do aplicativo." },
@@ -82,15 +90,6 @@ export const NOVIDADES = [
       { tipo: 'melhoria', texto: "Na lista do repertório, a parte da missa vinha antes dos ícones da música; quando o download mudava de estado (baixando, incompleto, baixado), o ícone era inserido de novo no início da linha, e em algumas músicas ele ficava antes da parte e em outras depois. A linha passou a seguir a mesma ordem da playlist em todas as músicas: os ícones (download, selo \"E\", karaokê, cifra e vídeo), a parte da missa, o artista com a foto e a duração, separados por \"•\". O tom passou a ficar ao lado do botão de opções, como na playlist." },
       { tipo: 'correcao', texto: "Foram removidos os separadores excedentes (\"Vídeo • · 0:58\" no repertório e \"Vídeo •\" no fim da linha na playlist, quando não havia artista). No repertório, com a parte da missa na linha, o vídeo passou a ser indicado apenas pelo ícone, e a parte fica inteira até 55% da largura; quando falta espaço, o nome do artista é encurtado primeiro. Verificado em 390 px em português, inglês e espanhol, sem texto sobreposto nem passando da largura." },
       { tipo: 'melhoria', texto: "Pendente: verificado em navegador; não executado em aparelho." },
-    ],
-  },
-  {
-    versao: 672, data: '2026-11-12', titulo: "Pausar passa a interromper a música de fato: o player não volta a tocar sozinho cerca de 1 s depois, no aplicativo e na notificação",
-    itens: [
-      { tipo: 'correcao', texto: "Ao pausar pelo botão do aplicativo ou pela notificação, a música era pausada e, cerca de 1 s depois, voltava a tocar sem nenhum toque: o player do YouTube voltava ao estado de reprodução após o comando de pausa, ou um comando de tocar enviado pelo sistema logo após a pausa era atendido. Na notificação, o botão permanecia em \"tocar\" enquanto o tempo avançava e o áudio continuava. A pausa pedida passou a ser mantida até um novo comando de tocar: o player do YouTube (o principal e o de reserva) e o arquivo do aparelho que retomam sozinhos são pausados de novo, o estado permanece \"pausado\" e o tempo fica no ponto da pausa. O comando de tocar que chega da notificação, do fone ou da tela de bloqueio até 1,5 s depois de uma pausa passou a ser ignorado. Em teste em navegador, com um player que retoma 0,9 s após a pausa, a reprodução foi interrompida de novo em 2 ms e o player permaneceu pausado; o tocar seguinte, pedido pela pessoa, funcionou normalmente." },
-      { tipo: 'correcao', texto: "Mover a barra do tempo da notificação ou da tela de bloqueio com a música pausada fazia a música voltar a tocar. A barra passou a apenas levar ao ponto escolhido, mantendo a pausa. Ao retomar, o tempo exibido deixou de avançar 2 s por um instante." },
-      { tipo: 'correcao', texto: "A notificação de reprodução não era redesenhada quando o Android recusava o primeiro plano ao serviço já ligado, e o botão ficava em \"tocar\" com a música tocando. A notificação passou a ser atualizada sempre que a música volta a tocar. Disponível mediante atualização do aplicativo." },
-      { tipo: 'melhoria', texto: "Pendente: verificado em navegador, com um player do YouTube simulado (o YouTube não reproduz no navegador de teste) e com os comandos da notificação simulados; não executado em aparelho." },
     ],
   },
 ];
