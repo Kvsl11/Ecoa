@@ -175,7 +175,7 @@ export const db = {
     const i = state.songs.findIndex((s) => s.id === full.id);
     if (i >= 0) state.songs[i] = full; else state.songs.push(full);
     persist();
-    // música nova na biblioteca: o app pode baixá-la (Baixar ao salvar, nos ajustes dos downloads)
+    // música nova: avisa as partes do app que conferem o clipe, a capa e a revisão dela (o download não começa sozinho)
     if (i < 0 && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('songbook:nova-musica', { detail: { id: full.id } }));
     return full;
   },
