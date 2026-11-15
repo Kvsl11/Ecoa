@@ -1075,6 +1075,7 @@ button, a.icon-btn, .chip, .swatch { -webkit-touch-callout: none; -webkit-user-s
 
 /* ------------------------------------------------------------------ exportar PDF (impressão) */
 #print-area { display: none; }
+#print-area .pdf-partitura svg { width: 100%; height: auto; display: block; page-break-inside: avoid; }
 @media print {
   @page { size: A4; margin: 16mm 15mm 18mm; }
   :root, html, body { color-scheme: light !important; background: #fff !important; color: #111 !important; height: auto !important; overflow: visible !important; }
@@ -1399,6 +1400,7 @@ body.performance .convite-instalar { display: none; }
 .aj-rotulo { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .aj-aparencia { padding: 0; }
 .aj-bloco { padding: 14px; }
+.aj-idiomas { display: flex; flex-wrap: wrap; gap: 6px; }
 .aj-bloco + .aj-bloco { border-top: 1px solid var(--border); }
 /* PowerPoint: o arquivo como um cartão, as partes em etiquetas e os botões embaixo */
 .aj-pptx { padding: 10px; display: grid; gap: 12px; }

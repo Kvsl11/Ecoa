@@ -57,7 +57,7 @@ import { cifraNasLinhas } from './lib/cifra-sincronizada.js';
 import { prepararAcordes, tocarAcorde } from './lib/violao.js';
 import { usarBuscaNativa, creditosDaWikipedia, nomesDoVideoDoArtista, audioDbDaMusica, audioDbDoArtista, generosDoArtista, audioDoVideo, buscarYoutube as buscarYoutubeNaWeb, ehImagemPadrao, legendasDoVideo, semCensura, cifraComoCantada, canalDoArtista, duracaoDoVideo, fotosDosVideos, cifraTextoParaChordPro, ehCifraClub, letraParaChordPro, letraSincronizada, repararCifraInvisivel, temposCorrigidos, tituloDoVideo, youtubeOEmbed } from './lib/web.js';
 import { emIngles, hashtagsDaMusica, numeroCurto } from './lib/hashtags.js';
-import { IDIOMA, LOCALE, t, traduzirArvore, iniciarTraducao, definirDados } from './lib/i18n.js';
+import { IDIOMA, LOCALE, t, traduzirArvore, iniciarTraducao, definirDados, idiomaEscolhido, escolherIdioma } from './lib/i18n.js';
 const noIdioma = t; // (o t() com outro nome, para as funções em que "t" já é outra coisa)
 import { buscarArtistasCifraClub, getArtistaCifraClub, getDiscografiaCifraClub, getTodasMusicasCifraClub, buscarCifraClub, buscarLetras, getCifraClub, getLetra, letraReserva, buscarCindy, carregarCantos, carregarHinario, diretorioJunior, getCanto, getLiturgiaDoDia, getMissa, getOracao, indiceMusicasParaMissa, indiceOracoes, liturgiaGuardada, missalDoDia, missaGuardada, prepararOffline } from './fonte.js';
 
@@ -1221,12 +1221,41 @@ const setTint = (cor) => {
   st.setProperty('--tint-cifra', corDaCifra(cor));
 };
 
-function download(name, text, type = 'text/plain') {
+// No APK o WebView não grava o arquivo de um link de download nem abre a impressão (window.print): os dois vão pela
+// parte nativa (EcoaPlugin: salvarArquivo e imprimir). O APK antigo não tem esses métodos: em vez de o toque não fazer
+// nada, a pessoa é avisada de que precisa atualizar o aplicativo
+async function avisarApkAntigo() {
+  if (await ask({ title: 'Atualize o aplicativo', text: 'Esta versão do aplicativo não consegue criar arquivos (PDF, PowerPoint, backup). Atualize o aplicativo em Ajustes → Sobre e tente de novo.', ok: 'Abrir Ajustes' })) location.hash = '#/ajustes/sobre';
+}
+// a impressão do Android (com "Salvar como PDF") para a folha montada em #print-area; null no navegador
+function impressaoNativa() {
+  if (!noApk()) return null;
+  return async (nome) => {
+    if (!temMetodoNativo('imprimir')) { await avisarApkAntigo(); return; }
+    try { await pluginEcoa().imprimir({ nome }); } catch (e) { toast('Não foi possível abrir a impressão: ' + (e?.message || e)); }
+  };
+}
+// devolve false quando o arquivo não saiu; true no navegador (foi para o gerenciador de downloads) e 'apk' no APK (foi
+// para a pasta Downloads do aparelho, e o aviso de onde ficou já apareceu)
+async function download(name, text, type = 'text/plain') {
+  if (noApk()) {
+    if (!temMetodoNativo('salvarArquivo')) { await avisarApkAntigo(); return false; }
+    try {
+      const r = await pluginEcoa().salvarArquivo({ nome: name, tipo: type, dados: await base64DoBlob(new Blob([text], { type })), abrir: /\.pptx$/i.test(name) });
+      if (r?.onde === 'downloads') toast('Arquivo salvo na pasta Downloads do aparelho', 4000);
+      return 'apk';
+    } catch (e) {
+      console.error(e);
+      toast('Não foi possível salvar o arquivo: ' + (e?.message || e));
+      return false;
+    }
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return true;
 }
 
 const fmtData = (iso) => (!iso ? '' : IDIOMA === 'pt' || !/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : new Date(`${iso}T12:00:00`).toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' }));
@@ -8194,7 +8223,7 @@ function corDoPdf() {
 async function exportarMusicaPdf(song) {
   const o = await dialogoPdf({ comCifraPossivel: temCifra(song.content || '') });
   if (!o) return;
-  imprimir(htmlMusica(song, { ...o, cor: corDoPdf() }), nomeArquivo(song.title + (o.comCifra ? ' (cifra)' : ' (letra)')));
+  imprimir(htmlMusica(song, { ...o, cor: corDoPdf() }), nomeArquivo(song.title + (o.comCifra ? ' (cifra)' : ' (letra)')), { nativo: impressaoNativa() });
 }
 
 async function exportarRepertorioPdf(set) {
@@ -8203,7 +8232,7 @@ async function exportarRepertorioPdf(set) {
   const o = await dialogoPdf({ repertorio: true, comCifraPossivel: itens.some((x) => temCifra(x.song.content || '')) });
   if (o === 'json') { exportSet(set); return; }
   if (!o) return;
-  imprimir(htmlRepertorio(set, itens, { ...o, cor: corDoPdf() }), nomeArquivo(set.name + (o.comCifra ? ' (cifras)' : ' (letras)')));
+  imprimir(htmlRepertorio(set, itens, { ...o, cor: corDoPdf() }), nomeArquivo(set.name + (o.comCifra ? ' (cifras)' : ' (letras)')), { nativo: impressaoNativa() });
 }
 
 // ---------------------------------------------------------------- PowerPoint da missa
@@ -8273,8 +8302,7 @@ async function exportarPowerPointSimples(set) {
   try {
     const blob = await gerarPowerPointSimples({ set, itens, proporcao, ...r });
     const dia = (set.date || hojeISO()).split('-').reverse().slice(0, 2).join('-');
-    download(`${dia} ${nomeArquivo(set.name)} (letras ${proporcao.replace(':', 'x')}).pptx`, blob, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    toast('PowerPoint gerado');
+    if (await download(`${dia} ${nomeArquivo(set.name)} (letras ${proporcao.replace(':', 'x')}).pptx`, blob, 'application/vnd.openxmlformats-officedocument.presentationml.presentation') === true) toast('PowerPoint gerado');
   } catch (e) {
     console.error(e);
     toast('Não foi possível gerar: ' + e.message);
@@ -8337,8 +8365,10 @@ async function exportarPowerPointModelo(set) {
   try {
     const { blob, liturgia } = await gerarPowerPoint({ itens, escolha: r.escolha, data: set.date || hojeISO(), repetirRefrao: r.repetirRefrao, comLiturgia: r.comLiturgia });
     const dia = (set.date || hojeISO()).split('-').reverse().slice(0, 2).join('-');
-    download(`${dia} ${nomeArquivo(set.name)}.pptx`, blob, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    toast(r.comLiturgia && !liturgia ? 'PowerPoint gerado (sem a liturgia: não consegui consultar a CNBB)' : 'PowerPoint gerado');
+    const saiu = await download(`${dia} ${nomeArquivo(set.name)}.pptx`, blob, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    if (!saiu) return;
+    const semLiturgia = r.comLiturgia && !liturgia;
+    if (saiu === true || semLiturgia) toast(semLiturgia ? 'PowerPoint gerado (sem a liturgia: não consegui consultar a CNBB)' : 'PowerPoint gerado', semLiturgia ? 4500 : undefined);
   } catch (e) {
     console.error(e);
     toast('Não foi possível gerar: ' + e.message);
@@ -15527,6 +15557,8 @@ async function imprimirPartitura(modelo, titulo) {
     o.render();
     const svgs = [...caixa.querySelectorAll('svg')].map((s) => s.outerHTML).join('');
     caixa.remove();
+    // (no APK a folha à parte não imprime: a partitura vai pela impressão do Android, como o PDF da música)
+    if (noApk()) { await imprimir(`<div class="pdf-partitura">${svgs}</div>`, nomeArquivo(titulo), { nativo: impressaoNativa() }); return; }
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0';
     document.body.append(f);
@@ -20012,7 +20044,7 @@ function viewQualidade() {
 // um abre a sua página (antes ficava tudo junto numa tela só, comprida)
 const TOPICOS_AJUSTES = [
   { id: 'conta', href: '#/conta', ic: 'pessoa', t: 'Conta', s: 'Entre com o Google e tenha a biblioteca em todos os aparelhos' },
-  { id: 'aparencia', secao: 'Aparência', ic: 'palette', t: 'Aparência', s: 'Modo escuro ou claro · Cor de destaque' },
+  { id: 'aparencia', secao: 'Aparência', ic: 'palette', t: 'Aparência', s: 'Modo escuro ou claro · Cor de destaque · Idioma' },
   { id: 'musica', secao: 'Música', ic: 'music', t: 'Música e cifra', s: 'Transição entre as músicas · Acordes · Capa animada · Sessão privada' },
   // (a qualidade dos downloads fica dentro de Downloads: era um tópico à parte que repetia a linha de lá)
   { id: 'offline', href: '#/offline', ic: 'baixar', t: 'Downloads e internet', s: 'Qualidade · Economia de dados · Armazenamento' },
@@ -20056,6 +20088,11 @@ function viewSettings(topico) {
             <input type="color" id="cor-livre" value="${personalizada ? accent : COR_PADRAO}" aria-label="Escolher outra cor"></label>
         </div>
         <p class="swatch-label" id="cor-nome" style="margin:10px 0 0"></p></div>
+      <div class="aj-bloco"><div class="aj-rotulo">Idioma</div>
+        <div class="aj-idiomas" id="idioma">
+          ${[['', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español']].map(([v, n]) => `<button class="chip" data-v="${v}" aria-pressed="${idiomaEscolhido() === v}"${v ? ' translate="no"' : ''}>${n}</button>`).join('')}
+        </div>
+        <p class="swatch-label" style="margin:10px 0 0">Em Automático, o app segue o idioma do aparelho.</p></div>
     </div>`)}
 
     ${secao('Música', `
@@ -20173,6 +20210,12 @@ function viewSettings(topico) {
     });
   }
   $('#diagramas').onchange = (e) => { db.setPref('diagramas', e.target.checked); toast(e.target.checked ? 'Diagrama dos acordes ligado' : 'Diagrama dos acordes desligado'); };
+  // (o idioma vale na hora: o app recarrega no idioma escolhido e volta para esta tela)
+  $('#idioma').onclick = (e) => {
+    const b = e.target.closest('[data-v]');
+    if (b) escolherIdioma(b.dataset.v);
+    $('#idioma').querySelectorAll('[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === idiomaEscolhido())));
+  };
   $('#destaque').onclick = (e) => {
     const b = e.target.closest('[data-v]');
     if (!b) return;

@@ -5,6 +5,15 @@
 // ao escrever uma nova, apague a mais antiga. A data é a do Brasil (horário de Brasília), não a do servidor.
 export const NOVIDADES = [
   {
+    versao: 681, data: '2026-11-15', titulo: "PDF e PowerPoint passam a ser criados no aplicativo Android; idioma do aplicativo passa a ser escolhido em Ajustes",
+    itens: [
+      { tipo: 'correcao', texto: "No aplicativo Android, tocar em Gerar PDF ou em Gerar PowerPoint (no modelo do grupo ou simples) não produzia arquivo nem aviso. A causa não era a revisão litúrgica, que apenas indica e não participa da geração: o WebView do Android não executa a impressão do navegador (window.print) nem grava o arquivo de um link de download. O PDF passou a ser aberto pela impressão do Android, com a opção \"Salvar como PDF\", e o PowerPoint, o backup da biblioteca, o repertório em arquivo e o MusicXML passaram a ser gravados na pasta Downloads do aparelho; o PowerPoint é aberto em seguida no aplicativo de apresentações instalado. Disponível mediante atualização do aplicativo." },
+      { tipo: 'melhoria', texto: "No aplicativo Android ainda não atualizado, o toque nesses botões continuava sem efeito. Foi incluído o aviso \"Atualize o aplicativo\", com atalho para Ajustes → Sobre, exibido quando a versão instalada não possui a gravação de arquivos ou a impressão." },
+      { tipo: 'novo', texto: "O idioma do aplicativo era definido apenas pelo idioma do aparelho. Foi incluída a opção Idioma em Ajustes → Aparência, com Automático (o idioma do aparelho, como antes), Português, English e Español; a escolha fica guardada no aparelho, é aplicada de imediato e vale também para a tela de entrada, as datas e os números." },
+      { tipo: 'melhoria', texto: "Verificado em navegador, em 390 px, simulando o aplicativo: o PDF acionou a impressão nativa e o PowerPoint foi entregue à gravação nativa mesmo com erro apontado pela revisão litúrgica; a troca de idioma foi conferida nos três idiomas. Pendente: a parte nativa (gravação na pasta Downloads e impressão do Android) não foi compilada nem executada em aparelho; a montagem do APK é feita pelo workflow Android. O pacote dos downloads (\"ecoa-downloads\") continua sem gravação no aplicativo Android." },
+    ],
+  },
+  {
     versao: 680, data: '2026-11-12', titulo: "Tablet: com música tocando, a página deixa de montar todos os quadros na linha principal; ouvintes das fileiras deixam de se acumular",
     itens: [
       { tipo: 'correcao', texto: "No tablet, com o painel \"Tocando agora\" aberto, a conferência do lugar do vídeo pedia um quadro novo a cada quadro, mesmo sem nada a mover. Com a capa animada do painel, exclusiva do tablet, isso obrigava a página a recalcular o estilo, refazer o teste de toque e entregar a tela a cada quadro, com a tela parada, concorrendo com cada toque. A conferência com o vídeo já no lugar passou a um temporizador de 125 ms, acordado de imediato por toque, troca de tela, giro e tela cheia. Medido em navegador, em 1600 × 1068 px com o processador 4 vezes mais lento, em 4 s de música tocando e tela parada: os quadros montados na linha principal caíram de 236 para 57, os recálculos de estilo de 237 para 57 e os testes de toque de 283 para 101." },
@@ -82,13 +91,6 @@ export const NOVIDADES = [
       { tipo: 'correcao', texto: "Mover a barra do tempo da notificação ou da tela de bloqueio com a música pausada fazia a música voltar a tocar. A barra passou a apenas levar ao ponto escolhido, mantendo a pausa. Ao retomar, o tempo exibido deixou de avançar 2 s por um instante." },
       { tipo: 'correcao', texto: "A notificação de reprodução não era redesenhada quando o Android recusava o primeiro plano ao serviço já ligado, e o botão ficava em \"tocar\" com a música tocando. A notificação passou a ser atualizada sempre que a música volta a tocar. Disponível mediante atualização do aplicativo." },
       { tipo: 'melhoria', texto: "Pendente: verificado em navegador, com um player do YouTube simulado (o YouTube não reproduz no navegador de teste) e com os comandos da notificação simulados; não executado em aparelho." },
-    ],
-  },
-  {
-    versao: 671, data: '2026-11-12', titulo: "Player de mídia das notificações: botão de fechar removido; pausado, é dispensado arrastando para o lado",
-    itens: [
-      { tipo: 'melhoria', texto: "Com a música pausada, o player de mídia do Android exibia um botão \"X\" adicional, incluído pelo aplicativo como ação do aviso e como ação personalizada da sessão de mídia. O botão foi removido das duas origens. Com a música pausada, o aviso deixa de ser fixo e é dispensado arrastando para o lado, como nos demais players; ao ser dispensado, a música permanece pausada e o aviso e o player do Android são retirados, pelo mesmo caminho já usado antes. Disponível mediante atualização do aplicativo." },
-      { tipo: 'melhoria', texto: "Pendente: a alteração não foi executada em aparelho; a montagem do APK é feita pelo workflow Android." },
     ],
   },
 ];

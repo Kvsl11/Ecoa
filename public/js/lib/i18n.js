@@ -1,5 +1,5 @@
-// Idioma do app: segue o idioma do aparelho. Português do Brasil, inglês e espanhol; qualquer outro idioma fica em
-// inglês. O texto do código continua em português: com o aparelho em outro idioma, os textos são trocados na tela
+// Idioma do app: o escolhido em Ajustes (Idioma) ou, em "Automático", o do aparelho. Português do Brasil, inglês e
+// espanhol; qualquer outro idioma do aparelho fica em inglês. O texto do código continua em português: com o aparelho em outro idioma, os textos são trocados na tela
 // (e nos avisos, no cartão, no PDF) pelo dicionário do idioma (i18n-en.js, i18n-es.js), carregado só nesse caso.
 //
 // Como acrescentar um texto novo: escreva em português no código, como sempre, e ponha a tradução nos dois
@@ -23,8 +23,21 @@ export function idiomaDe(lista) {
 }
 
 const DO_APARELHO = NO_NAVEGADOR ? (navigator.languages?.length ? navigator.languages[0] : navigator.language) || 'pt-BR' : 'pt-BR';
-export const IDIOMA = NO_NAVEGADOR ? idiomaDe(DO_APARELHO) : 'pt';
-// o idioma para datas e números (o do aparelho, quando é um dos três; senão, o inglês)
+// o idioma escolhido em Ajustes fica numa chave só dele (a tela de entrada, no index.html, lê a mesma chave antes de
+// o app carregar); sem escolha, vale o do aparelho
+export const CHAVE_IDIOMA = 'ecoa.idioma';
+export const IDIOMAS = ['pt', 'en', 'es'];
+// a escolha guardada: 'pt', 'en', 'es' ou '' (automático)
+export function idiomaEscolhido() {
+  try { const v = localStorage.getItem(CHAVE_IDIOMA); return IDIOMAS.includes(v) ? v : ''; } catch { return ''; }
+}
+// guarda a escolha ('' volta ao automático) e recarrega o app no idioma novo, se mudou
+export function escolherIdioma(v) {
+  try { if (IDIOMAS.includes(v)) localStorage.setItem(CHAVE_IDIOMA, v); else localStorage.removeItem(CHAVE_IDIOMA); } catch { return; }
+  if ((idiomaEscolhido() || idiomaDe(DO_APARELHO)) !== IDIOMA) location.reload();
+}
+export const IDIOMA = NO_NAVEGADOR ? idiomaEscolhido() || idiomaDe(DO_APARELHO) : 'pt';
+// o idioma para datas e números (o do aparelho, quando é o mesmo idioma do app; senão, o padrão do idioma)
 export const LOCALE = IDIOMA === 'pt' ? 'pt-BR' : String(DO_APARELHO).toLowerCase().startsWith(IDIOMA) ? DO_APARELHO : IDIOMA === 'es' ? 'es' : 'en-US';
 
 const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -201,9 +214,9 @@ export function traduzirArvore(raiz) {
 export function iniciarTraducao() {
   if (!NO_NAVEGADOR) return;
   document.documentElement.lang = LOCALE;
-  // o aparelho mudou de idioma com o app aberto: recarrega no idioma novo
+  // o aparelho mudou de idioma com o app aberto: recarrega no idioma novo (com um idioma escolhido em Ajustes, não muda)
   window.addEventListener('languagechange', () => {
-    const novo = idiomaDe(navigator.languages?.length ? navigator.languages : [navigator.language]);
+    const novo = idiomaEscolhido() || idiomaDe(navigator.languages?.length ? navigator.languages : [navigator.language]);
     if (novo !== IDIOMA) location.reload();
   });
   if (!tradutor) return;
