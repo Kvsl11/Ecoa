@@ -70,8 +70,9 @@ export function htmlRepertorio(set, itens, opcoes) {
   return `<div class="${classes(opcoes)}"${estilo(opcoes)}>${capa}${corpo}${rodape(`${set.name}${data ? ' · ' + data : ''} · Ecoa`)}</div>`;
 }
 
-// Abre a impressão; o nome sugerido do PDF vem do título da página
-export async function imprimir(html, nomeArquivo) {
+// Abre a impressão; o nome sugerido do PDF vem do título da página. No APK o WebView não tem window.print(): a
+// impressão é a do Android, pedida por `nativo(nomeArquivo)` (a parte nativa imprime esta mesma página)
+export async function imprimir(html, nomeArquivo, { nativo = null } = {}) {
   let area = document.getElementById('print-area');
   if (!area) {
     area = document.createElement('div');
@@ -93,5 +94,5 @@ export async function imprimir(html, nomeArquivo) {
   }, { once: true });
   try { await document.fonts?.ready; } catch { /* sem API de fontes */ }
   await new Promise((r) => setTimeout(r, 80));
-  window.print();
+  if (nativo) await nativo(nomeArquivo); else window.print();
 }

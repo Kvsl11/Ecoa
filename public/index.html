@@ -252,11 +252,13 @@
     </div>
   </section>
   <script>
-    // a tela de entrada no idioma do aparelho (português, inglês ou espanhol; os outros, em inglês) antes de o app
+    // a tela de entrada no idioma escolhido em Ajustes ou, sem escolha, no do aparelho (português, inglês ou espanhol; os outros, em inglês) antes de o app
     // carregar; o resto da tela é trocado pelo app (js/lib/i18n.js)
     try {
       (function () {
-        var l = String((navigator.languages && navigator.languages[0]) || navigator.language || 'pt').toLowerCase();
+        var l = '';
+        try { l = localStorage.getItem('ecoa.idioma') || ''; } catch (e) {}
+        if (l !== 'pt' && l !== 'en' && l !== 'es') l = String((navigator.languages && navigator.languages[0]) || navigator.language || 'pt').toLowerCase();
         if (l.indexOf('pt') === 0) return;
         var es = l.indexOf('es') === 0;
         document.documentElement.lang = es ? 'es' : 'en';

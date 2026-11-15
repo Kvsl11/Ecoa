@@ -1001,6 +1001,97 @@ public class EcoaPlugin extends Plugin {
         }
     }
 
+    // Um arquivo criado na interface (PowerPoint, backup, MusicXML): o WebView não grava o arquivo de um link de
+    // download, então os bytes chegam aqui (base64). No Android 10+ ele vai para a pasta Downloads (MediaStore, sem
+    // pedir permissão) e, com "abrir", é aberto no aplicativo que lê esse tipo; antes do Android 10, vai para a folha de
+    // compartilhar do sistema (salvar no Drive, enviar…).
+    @PluginMethod
+    public void salvarArquivo(PluginCall call) {
+        String nome = call.getString("nome", "Ecoa");
+        String tipo = call.getString("tipo", "application/octet-stream");
+        String dados = call.getString("dados", "");
+        boolean abrir = Boolean.TRUE.equals(call.getBoolean("abrir", false));
+        try {
+            if (nome == null || nome.trim().isEmpty()) nome = "Ecoa";
+            nome = nome.replaceAll("[\\\\/:*?\"<>|]+", " ").trim();
+            if (tipo == null || tipo.isEmpty()) tipo = "application/octet-stream";
+            byte[] bytes = android.util.Base64.decode(dados == null ? "" : dados, android.util.Base64.DEFAULT);
+            if (bytes.length == 0) throw new IllegalStateException("O arquivo chegou vazio.");
+            Context ctx = getContext();
+            JSObject r = new JSObject();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                android.content.ContentResolver cr = ctx.getContentResolver();
+                android.content.ContentValues v = new android.content.ContentValues();
+                v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, nome);
+                v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, tipo);
+                v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                v.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1);
+                android.net.Uri uri = cr.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                if (uri == null) throw new IllegalStateException("A pasta Downloads não aceitou o arquivo.");
+                try (java.io.OutputStream saida = cr.openOutputStream(uri)) {
+                    if (saida == null) throw new IllegalStateException("A pasta Downloads não abriu para gravar.");
+                    saida.write(bytes);
+                } catch (Exception e) {
+                    cr.delete(uri, null, null);
+                    throw e;
+                }
+                v.clear();
+                v.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0);
+                cr.update(uri, v, null, null);
+                boolean aberto = false;
+                if (abrir) {
+                    try {
+                        android.content.Intent ver = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                        ver.setDataAndType(uri, tipo);
+                        ver.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        getActivity().startActivity(ver);
+                        aberto = true;
+                    } catch (Exception e) { /* nenhum aplicativo abre este tipo: o arquivo fica na pasta Downloads */ }
+                }
+                r.put("onde", "downloads");
+                r.put("aberto", aberto);
+            } else {
+                File pasta = new File(ctx.getCacheDir(), "compartilhar");
+                if (!pasta.exists() && !pasta.mkdirs()) throw new IllegalStateException("Não foi possível preparar o arquivo.");
+                File arquivo = new File(pasta, nome);
+                try (java.io.FileOutputStream saida = new java.io.FileOutputStream(arquivo)) { saida.write(bytes); }
+                android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", arquivo);
+                android.content.Intent enviar = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                enviar.setType(tipo);
+                enviar.putExtra(android.content.Intent.EXTRA_STREAM, uri);
+                enviar.setClipData(android.content.ClipData.newUri(ctx.getContentResolver(), nome, uri));
+                enviar.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getActivity().startActivity(android.content.Intent.createChooser(enviar, nome));
+                r.put("onde", "compartilhar");
+                r.put("aberto", false);
+            }
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("Não foi possível salvar o arquivo: " + String.valueOf(e.getMessage()), "salvar");
+        }
+    }
+
+    // A impressão do Android para a página que está na tela (o WebView não tem window.print()): a interface monta a
+    // folha (a música, o repertório, a partitura) com o CSS de impressão e chama aqui; a tela do sistema oferece
+    // "Salvar como PDF" e as impressoras.
+    @PluginMethod
+    public void imprimir(PluginCall call) {
+        final String pedido = call.getString("nome", "Ecoa");
+        final String nome = pedido == null || pedido.trim().isEmpty() ? "Ecoa" : pedido.trim();
+        getActivity().runOnUiThread(() -> {
+            try {
+                android.print.PrintManager pm = (android.print.PrintManager) getActivity().getSystemService(Context.PRINT_SERVICE);
+                if (pm == null) throw new IllegalStateException("Este aparelho não tem o serviço de impressão.");
+                android.print.PrintDocumentAdapter folha = getBridge().getWebView().createPrintDocumentAdapter(nome);
+                pm.print(nome, folha, new android.print.PrintAttributes.Builder()
+                    .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4).build());
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Não foi possível abrir a impressão: " + String.valueOf(e.getMessage()), "imprimir");
+            }
+        });
+    }
+
     // O cartão de reserva do convite, desenhado no Android (para quando a interface não manda a imagem).
     private static void desenharConviteSimples(Context ctx, File arquivo) throws java.io.IOException {
         android.graphics.Bitmap card = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888);

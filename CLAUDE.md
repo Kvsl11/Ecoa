@@ -12,9 +12,9 @@ plano. Nunca mexa no que a pessoa escolheu à mão (por exemplo, a sincronia com
 
 Correções só de comportamento da tela (o que não fica guardado) não precisam de revisão.
 
-## Idioma do aparelho (português, inglês e espanhol)
-O app segue o idioma do aparelho: português do Brasil, inglês e espanhol; qualquer outro idioma fica em inglês
-(`public/js/lib/i18n.js`). O texto do código continua em português, e a tradução é trocada na tela pelos dicionários
+## Idioma do app (português, inglês e espanhol)
+O idioma é o escolhido em Ajustes → Aparência → Idioma (guardado em `ecoa.idioma`) ou, em "Automático", o do aparelho:
+português do Brasil, inglês e espanhol; qualquer outro idioma do aparelho fica em inglês (`public/js/lib/i18n.js`). O texto do código continua em português, e a tradução é trocada na tela pelos dicionários
 `public/js/lib/i18n-en.js` e `public/js/lib/i18n-es.js`, que têm o texto em português como chave.
 
 - Todo texto novo que aparece para a pessoa (tela, menu, aviso, cartão, PDF) entra nos dois dicionários, na mesma
